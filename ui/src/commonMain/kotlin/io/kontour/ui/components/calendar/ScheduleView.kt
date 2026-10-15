@@ -34,6 +34,7 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.foundation.Text
@@ -304,8 +305,8 @@ private fun ScheduleEventRow(scope: CalendarScope, event: CalendarEvent, day: Lo
         Column(Modifier.weight(1f).clearAndSetSemantics { }) {
             Text(event.title, style = style, colour = colours.onContainer, maxLines = 2, overflow = TextOverflow.Ellipsis)
             val time = scheduleTime(event, day, formats, strings)
-            val line = formats.list(listOfNotNull(time, event.location), io.kontour.ui.locale.ListStyle.Unit)
-            Text(line, style = Theme.typography.labelSmall, colour = colours.onContainer, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            val line = formats.list(listOfNotNull(time.text, event.location), io.kontour.ui.locale.ListStyle.Unit)
+            Text(time.placedIn(line), style = Theme.typography.labelSmall, colour = colours.onContainer, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }
@@ -313,24 +314,23 @@ private fun ScheduleEventRow(scope: CalendarScope, event: CalendarEvent, day: Lo
 /**
  * When [event] is on [day], for the line under its title in a schedule.
  *
- * An all-day event is "All day", and one shorter than a day its times, on each
- * day it is on. One of a day or more that is not all-day — a conference from
- * nine on Monday to five on Wednesday — is the part of it on [day]: nine
- * until midnight on Monday, all of Tuesday, midnight until five on
- * Wednesday. It was "All day" on all three, though the event has times and a
- * screen reader, reading `eventDescription`, was told them.
+ * An all-day event is "All day" on each day it is on, and one inside a day
+ * its times. One that runs into a later day — a conference from nine on
+ * Monday to five on Wednesday, a flight from half ten at night — reads as
+ * flights and shifts write it: its own times on the day it starts, the end
+ * raised by the days on, "09:00 – 17:00⁺²"; "All day" on the days between;
+ * and "Until 17:00" on the last, unless it ends at the midnight that closes
+ * it and so has all of that day too. Its first day read "09:00 – 00:00",
+ * the part of it on the day, which was asked to be *"the fairly standard
+ * superscript '+1' notation"* instead.
  */
-internal fun scheduleTime(event: CalendarEvent, day: LocalDate, formats: LocaleFormats, strings: Strings): String {
-    if (event.allDay) return strings.allDay
-    if (event.isTimed()) return strings.timeRange(formats.time(event.start.time), formats.time(event.end.time))
-    val dayStart = day.atMidnight
-    val dayEnd = day.plus(1, DateTimeUnit.DAY).atMidnight
-    val from = maxOf(event.start, dayStart)
-    val to = minOf(event.end, dayEnd)
-    return if (from == dayStart && to == dayEnd) {
-        strings.allDay
-    } else {
-        strings.timeRange(formats.time(from.time), formats.time(to.time))
+internal fun scheduleTime(event: CalendarEvent, day: LocalDate, formats: LocaleFormats, strings: Strings): AnnotatedString {
+    if (event.allDay) return AnnotatedString(strings.allDay)
+    val lastDay = if (event.end > event.start) event.end.plusMinutes(-1).date else event.start.date
+    return when {
+        day <= event.start.date -> eventTimes(event.start, event.end, formats, strings)
+        day >= lastDay && event.end != day.plus(1, DateTimeUnit.DAY).atMidnight -> AnnotatedString(strings.untilTime(formats.time(event.end.time)))
+        else -> AnnotatedString(strings.allDay)
     }
 }
 

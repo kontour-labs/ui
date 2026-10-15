@@ -423,6 +423,14 @@ data class Strings(
     val schedule: String = "Schedule",
     /** An event calendar's schedule, under today when today has nothing on. */
     val nothingPlanned: String = "Nothing planned",
+    /** The raised "+1" after an event's end time on a later day than its start: "22:30 – 06:15⁺¹". */
+    val endDayOffset: (days: Quantity) -> String = { days -> "+${days.formatted}" },
+    /** That end time as a screen reader is told it, in words rather than "plus one": "06:15 the next day", "17:00, 2 days later". */
+    val endDaysLater: (time: String, days: Quantity) -> String = { time, days ->
+        days.select(one = "$time the next day", other = "$time, ${days.formatted} days later")
+    },
+    /** An event over several days in a schedule, on the last of them: "Until 17:00". */
+    val untilTime: (time: String) -> String = { time -> "Until $time" },
 ) {
     companion object {
         /**
@@ -540,6 +548,9 @@ data class Strings(
         chooseView = lookup.text("chooseView") ?: fallback.chooseView,
         schedule = lookup.text("schedule") ?: fallback.schedule,
         nothingPlanned = lookup.text("nothingPlanned") ?: fallback.nothingPlanned,
+        endDayOffset = { days -> lookup.phrase("endDayOffset", days, days.formatted) ?: fallback.endDayOffset(days) },
+        endDaysLater = { time, days -> lookup.phrase("endDaysLater", days, time, days.formatted) ?: fallback.endDaysLater(time, days) },
+        untilTime = { time -> lookup.phrase("untilTime", null, time) ?: fallback.untilTime(time) },
         chooseMonthAndYear = lookup.text("chooseMonthAndYear") ?: fallback.chooseMonthAndYear,
         resizePanes = lookup.text("resizePanes") ?: fallback.resizePanes,
         navigation = lookup.text("navigation") ?: fallback.navigation,
@@ -773,6 +784,9 @@ internal fun Strings.mapped(transform: (String) -> String): Strings = Strings(
     chooseView = transform(chooseView),
     schedule = transform(schedule),
     nothingPlanned = transform(nothingPlanned),
+    endDayOffset = { a0 -> transform(endDayOffset(a0)) },
+    endDaysLater = { a0, a1 -> transform(endDaysLater(a0, a1)) },
+    untilTime = { a0 -> transform(untilTime(a0)) },
     chooseMonthAndYear = transform(chooseMonthAndYear),
     resizePanes = transform(resizePanes),
     navigation = transform(navigation),

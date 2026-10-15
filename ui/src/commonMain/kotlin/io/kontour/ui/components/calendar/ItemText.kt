@@ -29,6 +29,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Constraints
@@ -64,7 +65,12 @@ private const val ItemTypeScale = 0.92f
  * high contrast, where a fade is ink that is neither there nor not.
  */
 @Composable
-internal fun FadingText(text: String, style: TextStyle, modifier: Modifier = Modifier, colour: Color = Color.Unspecified) {
+internal fun FadingText(text: String, style: TextStyle, modifier: Modifier = Modifier, colour: Color = Color.Unspecified) =
+    FadingText(AnnotatedString(text), style, modifier, colour)
+
+/** [FadingText] with styles of its own: a block's times, with an end on a later day raised. */
+@Composable
+internal fun FadingText(text: AnnotatedString, style: TextStyle, modifier: Modifier = Modifier, colour: Color = Color.Unspecified) {
     var cut by remember { mutableStateOf(false) }
     val fade = if (highContrast()) 0.dp else ItemFade
     Text(

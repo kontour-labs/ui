@@ -7,6 +7,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.LocalTime
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.style.BaselineShift
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.foundation.border
@@ -631,9 +638,76 @@ internal fun eventWhen(start: LocalDateTime, end: LocalDateTime, allDay: Boolean
     } else {
         strings.timeRange(formats.date(start.date, DateStyle.Full), formats.date(lastDay, DateStyle.Full))
     }
-    val time = if (allDay) strings.allDay else strings.timeRange(formats.time(start.time), formats.time(end.time))
+    val time = if (allDay) strings.allDay else spokenTimes(start, end, formats, strings)
     return listOf(days, time)
 }
+
+/**
+ * How many days on from [start]'s the day [end] is on, for the "+1" after an
+ * end time on a later day, as flights and shifts write it: "22:30 – 06:15⁺¹".
+ *
+ * An end at the midnight that closes the first day is that day's end, not
+ * the next's — 0, and "18:00 – 00:00" — as the calendar has it everywhere
+ * else: the event is drawn on that day, listed under it and read out as on
+ * it alone, and a "+1" would point at a day it has no part of. A later
+ * midnight is its own date's, so the number is still the day the end is on:
+ * from nine on Monday to midnight going into Wednesday is "09:00 – 00:00⁺²".
+ */
+internal fun daysOn(start: LocalDateTime, end: LocalDateTime): Int {
+    val days = (end.date.toEpochDays() - start.date.toEpochDays()).toInt()
+    return if (days == 1 && end.time == Midnight) 0 else days.coerceAtLeast(0)
+}
+
+/**
+ * An event's times as a line shows them, "09:00 – 10:30", and for one that
+ * ends on a later day the end raised by how many: "09:00 – 17:00⁺²". The
+ * "+2" is the line's own type, smaller and lifted — not a superscript
+ * character, which some faces lack and others draw at a size of their own —
+ * straight after the end time wherever a translation puts it.
+ */
+internal fun eventTimes(start: LocalDateTime, end: LocalDateTime, formats: LocaleFormats, strings: Strings): AnnotatedString {
+    val to = formats.time(end.time)
+    val range = strings.timeRange(formats.time(start.time), to)
+    val days = daysOn(start, end)
+    if (days == 0) return AnnotatedString(range)
+    val found = range.lastIndexOf(to)
+    val at = if (found < 0) range.length else found + to.length
+    return buildAnnotatedString {
+        append(range, 0, at)
+        withStyle(DayOffsetStyle) { append(strings.endDayOffset(formats.quantity(days))) }
+        append(range, at, range.length)
+    }
+}
+
+/**
+ * The same times as a screen reader is told them: the later day in words,
+ * "09:00 – 17:00, 2 days later", where it would read the "+2" as "plus two",
+ * and where the times alone sounded like nine to five on each day.
+ */
+internal fun spokenTimes(start: LocalDateTime, end: LocalDateTime, formats: LocaleFormats, strings: Strings): String {
+    val to = formats.time(end.time)
+    val days = daysOn(start, end)
+    return strings.timeRange(formats.time(start.time), if (days == 0) to else strings.endDaysLater(to, formats.quantity(days)))
+}
+
+/** [this], which is somewhere in [whole], with its styles where it is there: a time's raised "+1", in its line. */
+internal fun AnnotatedString.placedIn(whole: String): AnnotatedString {
+    val at = whole.indexOf(text)
+    if (at < 0 || spanStyles.isEmpty()) return AnnotatedString(whole)
+    return buildAnnotatedString {
+        append(whole)
+        for (span in spanStyles) addStyle(span.item, span.start + at, span.end + at)
+    }
+}
+
+/**
+ * The raised days after an end time, against the line's type: about
+ * two-thirds its size, as a superscript is set, its baseline lifted by half
+ * its own size so it sits level with the top of the figures beside it.
+ */
+private val DayOffsetStyle = SpanStyle(fontSize = 0.7.em, baselineShift = BaselineShift.Superscript)
+
+private val Midnight = LocalTime(0, 0)
 
 /** The ink for text on the calendar's own ground: muted for the days outside the month, and not at high contrast. */
 @Composable

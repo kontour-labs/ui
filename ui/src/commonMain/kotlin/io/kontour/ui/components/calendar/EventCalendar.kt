@@ -20,6 +20,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.mutableStateOf
+import io.kontour.ui.components.datetime.TodayFlash
 import io.kontour.ui.components.datetime.rememberTodayFlash
 import io.kontour.ui.components.datetime.LocalTodayFlash
 import io.kontour.ui.interaction.rememberLongPressFeedback
@@ -280,10 +281,12 @@ fun EventCalendar(
     val strings = Theme.strings
     val menus = LocalOverlayHostOrNull.current != null
     val style = if (showTimedEvents) daysStyle else CalendarDaysStyle.Condensed
+    // Today pointed at whenever it is gone back to: the header's button, or the app's own call.
+    val todayFlash = rememberTodayFlash()
     val scope = remember(
         state, shown, enabled, onEventClick, onDateClick, onTimeClick, hourHeight, formats, eventContent, pager, edit,
         onCreateRequest, onEventMove, onEventResize, onEventDelete, announcer, touch, strings, cursorInteractions,
-        cursorShown, menus, eventMenu, emptyMenu, style, showTimedEvents,
+        cursorShown, menus, eventMenu, emptyMenu, style, showTimedEvents, todayFlash,
         // Not the scope's, but read through it: `edit.stepMinutes` is set above.
         snapMinutes,
     ) {
@@ -314,6 +317,7 @@ fun EventCalendar(
             emptyMenu = emptyMenu,
             daysStyle = style,
             showsTimed = showTimedEvents,
+            todayFlash = todayFlash,
         )
     }
     // The days a pointer's day can be: the ones on show, not a page sliding away.
@@ -331,14 +335,16 @@ fun EventCalendar(
             if (menuGone || !enabled) edit.menu = null
         }
     }
-    // Today pointed at whenever it is gone back to: the header's button, or the app's own call.
-    val todayFlash = rememberTodayFlash()
     val motion = Theme.motion
     LaunchedEffect(state) {
         var seen = state.todayRequest?.serial
         snapshotFlow { state.todayRequest }.collect { request ->
             if (request == null || request.serial == seen) return@collect
             seen = request.serial
+            // The year flashes today itself, once its scroll has brought
+            // today's month in: it can be a year's scroll away, or scrolled
+            // off within its own year with nothing else to bring it back.
+            if (state.view == CalendarView.Year) return@collect
             todayFlash.flash(after = if (request.paged) motion.default.milliseconds else Duration.ZERO)
         }
     }
@@ -412,6 +418,8 @@ internal class CalendarScope(
     val daysStyle: CalendarDaysStyle = CalendarDaysStyle.Hours,
     /** Whether timed events are shown at all: without them, a day on its own is stacked too. */
     val showsTimed: Boolean = true,
+    /** Today's flash, for a view that has to bring today in before it is pointed at: the year's. */
+    val todayFlash: TodayFlash? = null,
 ) {
     /** Whether [event] can be carried. */
     fun movable(event: CalendarEvent): Boolean = enabled && onEventMove != null && event.editable
@@ -895,7 +903,7 @@ private fun DefaultEventContent(event: CalendarEvent, presentation: EventPresent
                         Text(event.title, style = type.labelMedium, maxLines = titleLines, overflow = TextOverflow.Ellipsis)
                     }
                 }
-                FadingText(strings.timeRange(formats.time(event.start.time), formats.time(event.end.time)), type.labelSmall)
+                FadingText(eventTimes(event.start, event.end, formats, strings), type.labelSmall)
                 event.location?.let { FadingText(it, type.labelSmall) }
             }
         }

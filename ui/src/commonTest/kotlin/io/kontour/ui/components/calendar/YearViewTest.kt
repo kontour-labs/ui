@@ -12,6 +12,7 @@ import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeDown
 import androidx.compose.ui.test.swipeUp
 import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.compose.ui.unit.dp
@@ -22,9 +23,12 @@ import io.kontour.ui.theme.Strings
 import io.kontour.ui.theme.Theme
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.math.abs
 import kotlin.test.assertTrue
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.LocalTime
 
 /**
  * The year scrolls on through the years, and its months are there at once:
@@ -45,17 +49,21 @@ class YearViewTest {
         var ink = androidx.compose.ui.graphics.Color.Unspecified
     }
 
-    private fun androidx.compose.ui.test.ComposeUiTest.year(): Probe {
+    private fun androidx.compose.ui.test.ComposeUiTest.year(
+        showing: LocalDate = today,
+        now: LocalDateTime? = null,
+        reduceMotion: Boolean = false,
+    ): Probe {
         val probe = Probe()
         setContent {
-            KontourTheme(reduceMotion = false) {
+            KontourTheme(reduceMotion = reduceMotion) {
                 OverlayHost(Modifier.size(420.dp, 800.dp)) {
                     probe.formats = Theme.formats
                     probe.strings = Theme.strings
                     probe.density = androidx.compose.ui.platform.LocalDensity.current.density
                     probe.ink = Theme.colours.content
-                    probe.state = rememberEventCalendarState(today, CalendarView.Year, firstDayOfWeek = DayOfWeek.MONDAY)
-                    EventCalendar(state = probe.state, events = emptyList(), now = null, modifier = Modifier.size(420.dp, 800.dp))
+                    probe.state = rememberEventCalendarState(showing, CalendarView.Year, firstDayOfWeek = DayOfWeek.MONDAY)
+                    EventCalendar(state = probe.state, events = emptyList(), now = now, modifier = Modifier.size(420.dp, 800.dp))
                 }
             }
         }
@@ -130,5 +138,134 @@ class YearViewTest {
         waitForIdle()
         assertEquals(CalendarView.Month, probe.state.view)
         assertEquals(LocalDate(2026, 11, 1), probe.state.date)
+    }
+
+    // --- Today, pointed at ---
+
+    /**
+     * Where inside today's ring to look for the flash, while October is whole
+     * on screen; null while it is not. The 14th is a Wednesday, the third
+     * column, on October's third row, as `aMonthsNameOpensItAndADayItsDay`
+     * finds it; the point is down and towards the end from its centre, clear
+     * of the number and inside the ring.
+     */
+    private fun androidx.compose.ui.test.ComposeUiTest.insideToday(probe: Probe): Offset? {
+        val node = onAllNodes(hasContentDescription(probe.formats.monthAndYear(today)) and hasClickAction())
+            .fetchSemanticsNodes().firstOrNull() ?: return null
+        val october = node.boundsInRoot
+        val width = 308f * probe.density
+        val left = october.center.x - width / 2f
+        val cell = width / 7f
+        val row = minOf(cell, 40f * probe.density)
+        val initials = 24f * probe.density
+        val centre = Offset(left + cell * 2.5f, october.bottom + initials + row * 2.5f)
+        // October's name, and its last week, inside the list's viewport.
+        val list = onNode(androidx.compose.ui.test.SemanticsMatcher.keyIsDefined(androidx.compose.ui.semantics.SemanticsProperties.VerticalScrollAxisRange))
+            .fetchSemanticsNode().boundsInRoot
+        val lastRow = october.bottom + initials + row * 5f
+        if (october.top < list.top || lastRow > list.bottom) return null
+        return centre + Offset(row * 0.22f, row * 0.22f)
+    }
+
+    private fun androidx.compose.ui.test.ComposeUiTest.shade(at: Offset): androidx.compose.ui.graphics.Color =
+        onRoot().captureToImage().toPixelMap()[at.x.toInt(), at.y.toInt()]
+
+    /** How far apart two shades are, their alpha too: the calendar has no ground of its own here, so the flash is drawn on nothing. */
+    private fun away(from: androidx.compose.ui.graphics.Color, to: androidx.compose.ui.graphics.Color) =
+        abs(from.red * from.alpha - to.red * to.alpha) + abs(from.green * from.alpha - to.green * to.alpha) +
+            abs(from.blue * from.alpha - to.blue * to.alpha) + abs(from.alpha - to.alpha)
+
+    /**
+     * The header's today pressed, and today watched, a frame every 20ms for
+     * [frames]: how far from its resting shade it is in each frame it is on
+     * screen, and null in each it is not.
+     */
+    private fun androidx.compose.ui.test.ComposeUiTest.pressTodayAndWatch(probe: Probe, frames: Int): List<Float?> {
+        mainClock.autoAdvance = false
+        onNode(hasContentDescription(probe.strings.returnToToday) and hasClickAction()).performClick()
+        val seen = List(frames) {
+            mainClock.advanceTimeBy(20L)
+            insideToday(probe)?.let { shade(it) }
+        }
+        mainClock.autoAdvance = true
+        waitForIdle()
+        val resting = shade(insideToday(probe) ?: error("today is not on screen once it has all settled: the press never brought it back"))
+        return seen.map { colour -> colour?.let { away(resting, it) } }
+    }
+
+    /**
+     * Whether a flash seen from the frame today came on screen began there:
+     * today dark in that frame, or only starting to light — brighter in the
+     * next — rather than caught on the way out of a pulse that began off it.
+     */
+    private fun beganOnScreen(shown: List<Float>): Boolean = shown.first() < 0.05f || shown[1] > shown[0]
+
+    /** How many times [strength] lights up, counting one already lit at the start. */
+    private fun pulses(strength: List<Float>): Int {
+        val lit = strength.map { it > 0.05f }
+        return lit.zipWithNext().count { (was, now) -> !was && now } + (if (lit.firstOrNull() == true) 1 else 0)
+    }
+
+    /**
+     * The header's today, pressed in the year with today on screen, flashes
+     * today twice as every other view does: *"in the event calendar's year
+     * view, clicking the 'today' button doesn't flash today like every other
+     * calendar view does"*.
+     */
+    @Test
+    fun todayPressedWithTodayOnScreenFlashesItTwice() = runComposeUiTest {
+        val probe = year(now = LocalDateTime(today, LocalTime(12, 0)))
+        waitForIdle()
+        assertTrue(insideToday(probe) != null, "today is not on screen to begin with")
+        val strength = pressTodayAndWatch(probe, frames = 50).map { it ?: error("today went off screen") }
+        assertEquals(2, pulses(strength), "today should pulse twice; its distance from resting was $strength")
+        assertTrue(strength.last() < 0.01f, "the flash did not fade back out: $strength")
+    }
+
+    /**
+     * Scrolled away from today within the same year — so the state is still
+     * about today — the press brings today's month back, and the flash plays
+     * once it is there: not while it is still off screen, where it was missed.
+     */
+    @Test
+    fun todayPressedFromElsewhereInItsYearComesBackAndThenFlashes() = runComposeUiTest {
+        todayComesBackAndThenFlashes(reduceMotion = false)
+    }
+
+    /** The same under reduced motion: today jumps in rather than sliding, and still flashes, a fade being no movement. */
+    @Test
+    fun underReducedMotionTodayJumpsBackAndFlashes() = runComposeUiTest {
+        todayComesBackAndThenFlashes(reduceMotion = true)
+    }
+
+    private fun androidx.compose.ui.test.ComposeUiTest.todayComesBackAndThenFlashes(reduceMotion: Boolean) {
+        val probe = year(now = LocalDateTime(today, LocalTime(12, 0)), reduceMotion = reduceMotion)
+        waitForIdle()
+        // Back towards the summer, slowly enough that nothing flings on into another year.
+        onRoot().performTouchInput { swipeDown(startY = height * 0.2f, endY = height * 0.9f, durationMillis = 1500) }
+        waitForIdle()
+        assertEquals(today, probe.state.date, "scrolled within its year, the calendar should still be about today")
+        assertEquals(null, insideToday(probe), "today is still on screen, so this is not the case it means to test")
+        val seen = pressTodayAndWatch(probe, frames = 100)
+        val first = seen.indexOfFirst { it != null }
+        assertTrue(first >= 0, "today was never brought back on screen: ${probe.state.date}")
+        val shown = seen.drop(first).map { it ?: 1f }
+        assertTrue(beganOnScreen(shown), "today was already lit as it came on screen, so the flash began off it: $shown")
+        assertEquals(2, pulses(shown), "today should pulse twice once on screen; its distance from resting was $shown")
+    }
+
+    /** From another year, the list scrolls a year to today's month, and the flash waits for it there. */
+    @Test
+    fun todayPressedFromAnotherYearFlashesOnceItIsThere() = runComposeUiTest {
+        val probe = year(showing = LocalDate(2025, 6, 1), now = LocalDateTime(today, LocalTime(12, 0)))
+        waitForIdle()
+        assertEquals(null, insideToday(probe), "today is already on screen")
+        val seen = pressTodayAndWatch(probe, frames = 100)
+        val first = seen.indexOfFirst { it != null }
+        assertTrue(first >= 0, "today was never brought on screen")
+        val shown = seen.drop(first).map { it ?: 1f }
+        assertTrue(beganOnScreen(shown), "today was already lit as it came on screen, so the flash began off it: $shown")
+        assertEquals(2, pulses(shown), "today should pulse twice once on screen; its distance from resting was $shown")
+        assertEquals(today, probe.state.date)
     }
 }
