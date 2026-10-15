@@ -1,5 +1,7 @@
 package io.kontour.ui.dragdrop
 
+import androidx.compose.animation.core.VisibilityThreshold
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.AnimationVector2D
@@ -22,6 +24,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameMillis
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -857,24 +860,32 @@ internal fun DragLayer(host: DragHost) {
     // Then to where it ends, and the drop happens when it gets there. Keyed on
     // whether it has been let go, not on the phase: the phase moves on to
     // Dropped inside this, and must not restart it.
+    //
+    // **The drop happens as it settles, not after.** It waited for the flight's
+    // spring to finish, and a spring with no threshold of its own runs on to a
+    // hundredth of a pixel — on a short flight, a tenth of a second after the eye
+    // has seen the card arrive; and for the shadow, on a spring of its own.
+    // Reported as *"the final 'drop' happens just a fraction of a second too
+    // late"*. So the flight ends within half a pixel of its place, and the
+    // shadow finishes coming down beside the drop rather than ahead of it.
     val letGo = session.phase != DragPhase.Carrying
     LaunchedEffect(session, letGo) {
         if (!letGo) return@LaunchedEffect
+        var settling: Job? = null
         if (motion.reduceMotion) {
             // No flight: to its place at once, and down with the drop.
             session.aim()?.let { position.snapTo(it.topLeft) }
             lift.snapTo(0f)
         } else {
-            val spring = motion.springOrTween<Offset>(motion.springSnappy)
-            coroutineScope {
-                // The same spring as the flight, so the two arrive together.
-                launch { lift.animateTo(0f, motion.springOrTween(motion.springSnappy)) }
-                if (session.aim() != null) {
-                    chase(position, session::aim, spring)
-                } else {
-                    // Into a target with no place of its own: in, and gone.
-                    scale.animateTo(0.6f, motion.tweenFast())
-                }
+            val snappy = motion.springSnappy
+            val spring = spring(snappy.dampingRatio, snappy.stiffness, visibilityThreshold = Offset.VisibilityThreshold)
+            // The same spring as the flight, so the two arrive together.
+            settling = launch { lift.animateTo(0f, motion.springOrTween(snappy)) }
+            if (session.aim() != null) {
+                chase(position, session::aim, spring)
+            } else {
+                // Into a target with no place of its own: in, and gone.
+                scale.animateTo(0.6f, motion.tweenFast())
             }
         }
         if (session.phase == DragPhase.Landing) {
@@ -895,6 +906,9 @@ internal fun DragLayer(host: DragHost) {
                 withFrameMillis { }
             }
         }
+        // Flat before it hands over to the item in its place, which casts no
+        // shadow: by now the last few hundredths of it, if anything.
+        settling?.join()
         host.finish(session)
     }
 
@@ -936,15 +950,25 @@ private suspend fun chase(
 ) = coroutineScope {
     var to = aim()?.topLeft ?: return@coroutineScope
     var flight = launch { position.animateTo(to, spec) }
-    while (flight.isActive) {
-        withFrameMillis { }
-        val now = aim()?.topLeft ?: continue
-        if ((now - to).getDistance() > 0.5f) {
-            to = now
-            // Takes over from the flight under way, keeping its velocity.
-            flight = launch { position.animateTo(to, spec) }
+    val watch = launch {
+        while (true) {
+            withFrameMillis { }
+            val now = aim()?.topLeft ?: continue
+            if ((now - to).getDistance() > 0.5f) {
+                to = now
+                // Takes over from the flight under way, keeping its velocity.
+                flight = launch { position.animateTo(to, spec) }
+            }
         }
     }
+    // Over the moment the last flight arrives, not a frame later: a loop that
+    // looked each frame saw it finished on the one after.
+    while (true) {
+        val current = flight
+        current.join()
+        if (current === flight) break
+    }
+    watch.cancel()
 }
 
 /**
