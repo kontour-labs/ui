@@ -11,7 +11,6 @@ import io.kontour.ui.components.list.DisclosureListItem
 import io.kontour.ui.components.list.ListItemScope
 import io.kontour.ui.components.list.ListItemSplit
 import io.kontour.ui.components.list.SplitListItem
-import io.kontour.icons.tabler.outline.Clock
 import io.kontour.icons.tabler.outline.Train
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.layout.Arrangement
@@ -194,41 +193,49 @@ private val splitPreset = Knob.Choice(
 internal val SplitListItemDemo = ComponentDemo(slug = "split-list-item", knobs = listOf(splitPreset)) {
     val split = this[splitPreset].second
     val square = split == ListItemSplit.AutoSquare || split == ListItemSplit.SquareAuto
-    var saved by remember { mutableStateOf(setOf("Perth Underground")) }
-    val stops = listOf(
-        Triple("Perth Underground", "Platform 2 · Joondalup line", "4 min"),
-        Triple("Elizabeth Quay", "Stand C · Route 950", "11 min"),
-    )
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(ListItemDefaults.Spacing)) {
-        stops.forEachIndexed { index, (stop, where, next) ->
-            SplitListItem(split = split, position = GroupPosition.of(index, stops.size)) {
-                // The stop on one side and its own action on the other: a tile
-                // that saves it where there is a square, and the next service
-                // where the two share the row.
-                val words: ListItemScope.() -> Unit = {
-                    leading { +Tabler.Outline.Train }
-                    +stop
-                    supporting { +where }
-                }
-                val action: ListItemScope.() -> Unit = if (square) {
-                    { leading { +Tabler.Outline.Star } }
-                } else {
-                    {
-                        leading { +Tabler.Outline.Clock }
-                        +next
-                        supporting { +"Next service" }
+        if (square) {
+            // A stop, and beside it the one thing to do with it: a tile that
+            // saves it, as wide as the row is tall.
+            var saved by remember { mutableStateOf(setOf("Perth Underground")) }
+            val stops = listOf(
+                "Perth Underground" to "Platform 2 · Joondalup line",
+                "Elizabeth Quay" to "Stand C · Route 950",
+            )
+            stops.forEachIndexed { index, (stop, where) ->
+                SplitListItem(split = split, position = GroupPosition.of(index, stops.size)) {
+                    val words: ListItemScope.() -> Unit = {
+                        leading { +Tabler.Outline.Train }
+                        +stop
+                        supporting { +where }
+                    }
+                    val star: ListItemScope.() -> Unit = { leading { +Tabler.Outline.Star } }
+                    val toggle = { saved = if (stop in saved) saved - stop else saved + stop }
+                    if (split == ListItemSplit.SquareAuto) {
+                        start(onClick = toggle, selected = stop in saved, role = Role.Checkbox, contentDescription = "Save $stop", content = star)
+                        end(onClick = { echo(stop) }, content = words)
+                    } else {
+                        start(onClick = { echo(stop) }, content = words)
+                        end(onClick = toggle, selected = stop in saved, role = Role.Checkbox, contentDescription = "Save $stop", content = star)
                     }
                 }
-                val toggle = { saved = if (stop in saved) saved - stop else saved + stop }
-                if (split == ListItemSplit.SquareAuto) {
-                    start(onClick = toggle, selected = stop in saved, role = Role.Checkbox, contentDescription = "Save $stop", content = action)
-                    end(onClick = { echo(stop) }, content = words)
-                } else {
-                    start(onClick = { echo(stop) }, content = words)
-                    if (square) {
-                        end(onClick = toggle, selected = stop in saved, role = Role.Checkbox, contentDescription = "Save $stop", content = action)
-                    } else {
-                        end(onClick = { echo("$stop: next service in $next") }, content = action)
+            }
+        } else {
+            // Two of a kind to a row, each a place to go: short words, as a
+            // third of a phone's width has room for.
+            val modes = listOf(
+                ("Trains" to "Next in 4 min") to ("Buses" to "Next in 11 min"),
+                ("Ferries" to "Next in 25 min") to ("Bikes" to "3 docks free"),
+            )
+            modes.forEachIndexed { index, (first, second) ->
+                SplitListItem(split = split, position = GroupPosition.of(index, modes.size)) {
+                    start(onClick = { echo(first.first) }) {
+                        +first.first
+                        supporting { +first.second }
+                    }
+                    end(onClick = { echo(second.first) }) {
+                        +second.first
+                        supporting { +second.second }
                     }
                 }
             }
