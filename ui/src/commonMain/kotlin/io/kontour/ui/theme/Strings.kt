@@ -222,6 +222,8 @@ data class Strings(
     val colourPalette: String = "Palette",
 
     // Dates and times
+    /** A date and time picker's name for its time, on the row that opens the wheels: "Time  8:15 pm". */
+    val time: String = "Time",
     val hour: String = "Hour",
     val minute: String = "Minute",
     /** The morning-or-afternoon wheel of a 12-hour time picker. */
@@ -431,8 +433,6 @@ data class Strings(
     },
     /** An event over several days in a schedule, on the last of them: "Until 17:00". */
     val untilTime: (time: String) -> String = { time -> "Until $time" },
-    /** A date and time picker's name for its time, on the row that opens the wheels: "Time  8:15 pm". */
-    val time: String = "Time",
 ) {
     companion object {
         /**

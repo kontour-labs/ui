@@ -155,6 +155,7 @@ fun TabBar(
      * Callers who need the bar separated from what is under it can still ask.
      */
     showDivider: Boolean = false,
+    markerDrag: NavMarkerDrag = NavMarkerDrag.SelectOnRelease,
     /**
      * Controls at the trailing edge — an overflow menu, a filter.
      *
@@ -164,7 +165,6 @@ fun TabBar(
      * indicator box, so the travelling bar cannot decide to slide underneath it.
      */
     actions: (@Composable RowScope.() -> Unit)? = null,
-    markerDrag: NavMarkerDrag = NavMarkerDrag.SelectOnRelease,
     content: @Composable TabBarScope.() -> Unit,
 ) {
     val indicator = rememberSelectionIndicatorState()

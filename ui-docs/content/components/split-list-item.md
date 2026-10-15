@@ -51,9 +51,9 @@ glyph or a word or two — a square of nothing but a glyph needs a
 **Both halves are always as tall as the taller one**, so the seam runs the
 full height of the row whatever either half holds.
 
-Each half takes what a `ListItem` takes for its own press and selection —
-`onClick`, `enabled`, `selected`, `role` — and a `ListItem`'s builder for what
-it says: `+` is the label, and `leading`, `supporting`, `overline` and
+Each half takes what a `ListItem` takes for its own press, selection and
+colours — `enabled`, `onClick`, `selected`, `role`, `containerColour` and
+`contentColour` — and a `ListItem`'s builder for what it says: `+` is the label, and `leading`, `supporting`, `overline` and
 `trailing` read as they do on any row. A half with no `onClick` is not a
 control, and its words are content, as a row's are.
 

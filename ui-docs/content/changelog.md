@@ -292,7 +292,8 @@ frame rate.
   outside corners from `position` like any row. `ListItemSplit` shares the
   width: `Halves`, `TwoToOne` and `OneToTwo`, `AutoSquare` and `SquareAuto` for a
   tile as wide as the row is tall beside the rest, or `ratio(start, end)`. Both
-  halves are as tall as the taller, and a square grows with its row.
+  halves are as tall as the taller, and a square grows with its row. Each half
+  takes its own `containerColour` and `contentColour`, a row's by default.
 - **A [select](components/select.md)'s options can be drawn rather than named.**
   `optionContent`, the trailing lambda of `Select`,
   [`MultiSelect`](components/multi-select.md) and

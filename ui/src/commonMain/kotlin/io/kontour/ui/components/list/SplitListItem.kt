@@ -8,6 +8,7 @@ import androidx.compose.runtime.Stable
 import androidx.compose.foundation.layout.LayoutScopeMarker
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.layout.IntrinsicMeasurable
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.semantics.Role
@@ -159,9 +160,9 @@ private fun SplitHalf(part: SplitListPart, shape: androidx.compose.ui.graphics.S
         selected = part.selected,
         role = part.role,
         shape = shape,
-        containerColour = part.containerColour ?: Theme.colours.surfaceSunken,
+        containerColour = part.containerColour.takeOrElse { Theme.colours.surfaceSunken },
         selectedContainerColour = Theme.colours.accent.container,
-        contentColour = Theme.colours.content,
+        contentColour = part.contentColour.takeOrElse { Theme.colours.content },
         minHeight = Dp.Unspecified,
         interactionSource = part.interactionSource,
         slots = listItemSlots(part.content),
@@ -249,47 +250,53 @@ class SplitListItemScope internal constructor() {
      *
      * @param contentDescription What a screen reader calls the half, where its
      *   words do not say it: a square half of nothing but a glyph needs one.
+     * @param containerColour The half's own ground; unspecified, a row's sunken
+     *   ground.
+     * @param contentColour What is drawn on it; unspecified, a row's ink.
      */
     fun start(
-        onClick: (() -> Unit)? = null,
         enabled: Boolean = true,
+        onClick: (() -> Unit)? = null,
         selected: Boolean = false,
         role: Role = Role.Button,
         contentDescription: String? = null,
-        containerColour: Color? = null,
+        containerColour: Color = Color.Unspecified,
+        contentColour: Color = Color.Unspecified,
         interactionSource: MutableInteractionSource? = null,
         content: ListItemScope.() -> Unit,
     ) {
         check(start == null) { "A SplitListItem has one start half: start { … } was called twice" }
-        start = SplitListPart(onClick, enabled, selected, role, contentDescription, containerColour, interactionSource, content)
+        start = SplitListPart(enabled, onClick, selected, role, contentDescription, containerColour, contentColour, interactionSource, content)
     }
 
     /**
      * The half at the end. Takes what [start] takes.
      */
     fun end(
-        onClick: (() -> Unit)? = null,
         enabled: Boolean = true,
+        onClick: (() -> Unit)? = null,
         selected: Boolean = false,
         role: Role = Role.Button,
         contentDescription: String? = null,
-        containerColour: Color? = null,
+        containerColour: Color = Color.Unspecified,
+        contentColour: Color = Color.Unspecified,
         interactionSource: MutableInteractionSource? = null,
         content: ListItemScope.() -> Unit,
     ) {
         check(end == null) { "A SplitListItem has one end half: end { … } was called twice" }
-        end = SplitListPart(onClick, enabled, selected, role, contentDescription, containerColour, interactionSource, content)
+        end = SplitListPart(enabled, onClick, selected, role, contentDescription, containerColour, contentColour, interactionSource, content)
     }
 }
 
 /** One half of a [SplitListItem], as its builder described it. */
 internal class SplitListPart(
-    val onClick: (() -> Unit)?,
     val enabled: Boolean,
+    val onClick: (() -> Unit)?,
     val selected: Boolean,
     val role: Role,
     val contentDescription: String?,
-    val containerColour: Color?,
+    val containerColour: Color,
+    val contentColour: Color,
     val interactionSource: MutableInteractionSource?,
     val content: ListItemScope.() -> Unit,
 )
