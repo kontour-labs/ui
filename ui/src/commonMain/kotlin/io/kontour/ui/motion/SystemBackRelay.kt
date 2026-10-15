@@ -12,6 +12,7 @@ import androidx.navigationevent.NavigationEventHandler
 import androidx.navigationevent.NavigationEventInfo
 import kotlin.time.TimeSource
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 /**
@@ -53,6 +54,15 @@ import kotlinx.coroutines.launch
  * Back with no gesture — a key, a button — goes through at once. One arriving
  * while a release is still carrying on waits for it and then goes, rather than
  * being lost to a gesture the platform thinks is over.
+ *
+ * **Timed by this screen's frames, measured.** The release's first frame, its
+ * shortest and the shortest gesture whose speed is read are each a frame, and a
+ * frame was taken to be a sixtieth of a second: right at 60Hz, and at 120 the
+ * page jumped two frames' worth on letting go. Android does not say how fast
+ * its screen is, and one phone runs at 60, 90 and 120 from one minute to the
+ * next. So the relay asks for the next frame on each event, as the pan the
+ * library tracks itself does, and [SwipeBackInput] measures the gap between
+ * two of them.
  */
 internal class SystemBackRelay(
     private val input: SwipeBackInput,
@@ -73,6 +83,13 @@ internal class SystemBackRelay(
     /** Backs completed while a release was carrying on, to go when it has. */
     private var waiting = 0
 
+    /**
+     * The next frame, asked for on an event: one per event, none while none
+     * come, so a finger resting mid-gesture leaves the frame clock idle. See
+     * [SwipeBackInput.nextFrame].
+     */
+    private var frames: Job? = null
+
     override fun onBackStarted(event: NavigationEvent) {
         // A new gesture while the last is still being carried home is not
         // relayed: the tree is mid-gesture already. Its completion waits.
@@ -85,18 +102,21 @@ internal class SystemBackRelay(
         startedFrom = event.progress
         input.start(event.swipeEdge, Offset(event.touchX, event.touchY))
         if (event.progress > 0f) input.move(event.progress, Offset(event.touchX, event.touchY))
+        watchFrame()
     }
 
     override fun onBackProgressed(event: NavigationEvent) {
         if (!following) return
         track(event)
         input.move(event.progress, Offset(event.touchX, event.touchY))
+        watchFrame()
     }
 
     override fun onBackCompleted() {
         when {
             following -> {
                 following = false
+                frames?.cancel()
                 carry(commit = true, velocity = maxOf(speed.calculateVelocity(), overall(), 0f))
             }
             input.releasing -> waiting++
@@ -107,7 +127,12 @@ internal class SystemBackRelay(
     override fun onBackCancelled() {
         if (!following) return
         following = false
+        frames?.cancel()
         carry(commit = false, velocity = minOf(speed.calculateVelocity(), 0f))
+    }
+
+    private fun watchFrame() {
+        if (frames?.isActive != true) frames = scope.launch { input.nextFrame() }
     }
 
     private fun track(event: NavigationEvent) {
@@ -128,11 +153,14 @@ internal class SystemBackRelay(
      * left from a standstill: *"if i swipe back quickly using the side-gesture
      * back button (and let go quickly), then sometimes it can feel really
      * sluggish"*. A gesture shorter than two frames is too short to time this
-     * way either, and counts as nothing.
+     * way either, and counts as nothing: two of this screen's frames, measured,
+     * where it was 32ms whatever the screen — a millisecond short of two at
+     * sixty a second, for events stamped to the whole millisecond, which this
+     * still is there.
      */
     private fun overall(): Float {
         val elapsed = lastAt - startedAt
-        if (elapsed < TimedAtLeastMillis) return 0f
+        if (elapsed < input.frameNanos() * TimedAtLeastFrames / 1_000_000L - 1) return 0f
         return (progress - startedFrom) * 1_000f / elapsed
     }
 
@@ -176,5 +204,5 @@ internal fun RelaySystemBack(platform: NavigationEventDispatcher, into: Navigati
  */
 private const val RelayPace = 3.5f
 
-/** The shortest gesture whose speed overall is worth reading: two frames. */
-private const val TimedAtLeastMillis = 32L
+/** The shortest gesture whose speed overall is worth reading, in frames. */
+private const val TimedAtLeastFrames = 2

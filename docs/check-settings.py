@@ -357,6 +357,8 @@ MOVEMENT_ALLOWED = {
     "Backdrop.kt:backdropFit": "fits the page into the backdrop's frame; static at rest",
     "Backdrop.kt:overlayBackdrop": "the page receding behind a modal; gated at its call site",
     "Backdrop.kt:backdropGround": "fits the ground to the frame; static at rest",
+    "Backdrop.kt:reducedBlur": "draws the page smaller for its blur to scale back up; nothing moves",
+    "Backdrop.kt:build": "the scale a reduced blur is undone by; nothing moves",
     # Page transitions: read by `PageMotion`, which picks a fade under reduced motion.
     "PageMotion.kt:push": "chosen by `rememberPageMotion`, which reads `reduceMotion`",
     "PageMotion.kt:predictivePop": "follows the reader's own back gesture",

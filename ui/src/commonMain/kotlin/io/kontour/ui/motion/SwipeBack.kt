@@ -185,6 +185,9 @@ internal class SwipeBackInput(
      * rests. A loop following every frame for as long as the gesture was held
      * kept the frame clock running under a resting finger, and a screen with
      * one never went idle.
+     *
+     * Asked for by both of the gestures this is fed: the pan the library tracks
+     * itself, and Android's predictive back through `SystemBackRelay`.
      */
     suspend fun nextFrame() {
         withFrameNanos { sawFrame(it) }
@@ -220,7 +223,6 @@ internal class SwipeBackInput(
         releasing = true
         try {
             val target = if (commit) 1f else 0f
-            val at = releaseCurve(progress, target, velocity)
             // Timed from the last frame the gesture was drawn on, rather than
             // from the first one this sees: an animation timed from its first
             // frame spends it at where it started, and that frame of stillness
@@ -230,11 +232,12 @@ internal class SwipeBackInput(
             // taken as one 60Hz frame before the first frame here, which is
             // right at 60Hz and twice the real interval at 120: the page jumped
             // two frames' worth on letting go and then went on at one. Where no
-            // frame was measured — a gesture fed in from elsewhere, or let go on
-            // its first move — the 60Hz frame is still the guess. Not the last
+            // frame was measured — let go on its first move, before a second
+            // frame was drawn — the 60Hz frame is still the guess. Not the last
             // frame seen itself: a finger that rested before it lifted saw that
             // one a long while ago.
-            val frame = if (framePeriod > 0L) framePeriod else FrameNanos
+            val frame = frameNanos()
+            val at = releaseCurve(progress, target, velocity, frame)
             var start = Long.MIN_VALUE
             var done = false
             while (!done) {
@@ -257,10 +260,17 @@ internal class SwipeBackInput(
     }
 
     /**
-     * Where a release from [from] to [target], let go at [velocity], is after a
-     * time in nanoseconds, and whether it has arrived.
+     * How long a frame is on this screen: the one measured while the gesture was
+     * held, or one at sixty a second where none could be.
      */
-    private fun releaseCurve(from: Float, target: Float, velocity: Float): (Long) -> Pair<Float, Boolean> {
+    fun frameNanos(): Long = if (framePeriod > 0L) framePeriod else FrameNanos
+
+    /**
+     * Where a release from [from] to [target], let go at [velocity], is after a
+     * time in nanoseconds, and whether it has arrived. [frame] is how long a
+     * frame is here, which a paced release takes at the least.
+     */
+    private fun releaseCurve(from: Float, target: Float, velocity: Float, frame: Long): (Long) -> Pair<Float, Boolean> {
         val least = pacedAtLeast
         if (least == null) {
             // Aimed a little past the end and stopped where it crosses it, so it
@@ -299,7 +309,10 @@ internal class SwipeBackInput(
         if (remaining < 1e-4f) return { target to true }
         val along = if (distance > 0f) velocity else -velocity
         val pace = maxOf(along, least)
-        val seconds = (remaining / pace).coerceIn(MinReleaseSeconds, MaxReleaseSeconds)
+        // At least a frame, so that the last of the way is one frame's step and
+        // not a fraction of one with a second frame to follow. A 60Hz frame
+        // here was two frames at 120Hz for a release with less than one left.
+        val seconds = (remaining / pace).coerceIn(frame / 1e9f, MaxReleaseSeconds)
         val leaving = (along.coerceAtLeast(0f) * seconds / remaining).coerceIn(LeastLeaving, 2f)
         val arriving = 0.5f
         return { played ->
@@ -608,8 +621,8 @@ private const val CommitFraction = 0.5f
 private const val CoastSeconds = 0.998f / (1f - 0.998f) / 1000f
 
 /**
- * One frame at sixty a second: how long before its first frame a release began,
- * where no frame of the gesture was seen to time it from.
+ * One frame at sixty a second: how long a frame is taken to be where no frame of
+ * the gesture was seen to measure one from. See [SwipeBackInput.frameNanos].
  */
 private const val FrameNanos = 16_666_667L
 
@@ -626,12 +639,11 @@ private const val MaxFrameNanos = 34_000_000L
  */
 private const val ReleaseStiffness = Spring.StiffnessLow
 
-/** The longest and shortest a paced release takes, in seconds. */
-private const val MinReleaseSeconds = 0.016f
+/** The longest a paced release takes, in seconds. The shortest is a frame. */
+private const val MaxReleaseSeconds = 0.3f
 
 /** The least a paced release leaves at, against its pace: half, so it never sets off from rest. */
 private const val LeastLeaving = 0.5f
-private const val MaxReleaseSeconds = 0.3f
 
 /** How far past the end the release aims, as a fraction of the travel. */
 private const val Overshoot = 0.05f

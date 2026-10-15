@@ -123,10 +123,14 @@ over — if it was not worth dimming, it is not worth blurring.
 rather than floating in the middle of it, and the presenting content receding is
 what says *on top of this screen* rather than *a new screen*. They do not blur,
 and the reason is a price rather than a preference: a blurred backdrop is a
-full-screen offscreen render costing roughly **seven times the rest of the
-frame**, and it is paid on every frame the overlay is open rather than only
-while it arrives. A dialog is on screen for one decision and can afford that; a
-sheet is a surface you sit in.
+full-screen offscreen render, and it is paid again on every frame drawn while
+the overlay is open — its arrival, a caret blinking in it, a spinner, anything
+moving on the page behind — rather than only while it arrives. At full size that
+measured roughly **eight times the rest of the frame**. A dialog's is drawn at a
+quarter of the size and scaled back up, which is the same picture to within a
+few levels in 255 and measured under half the price; Android keeps a blurred
+layer between frames itself and blurs at full size. Still not free: a dialog is
+on screen for one decision and can afford it; a sheet is a surface you sit in.
 
 `BlurAndScale` is still there for a sheet over something busy enough that dimming
 alone leaves it legible and distracting. It is a deliberate choice with a cost,

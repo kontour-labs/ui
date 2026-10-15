@@ -142,6 +142,33 @@ class BackdropMountPressureTest {
         )
     }
 
+    /**
+     * A blurring backdrop isolates the application the same way, while the blur
+     * grows step by step.
+     *
+     * Where the blur is drawn smaller — Skia's, and so this JVM — the step is
+     * read in a draw block, because the effect and the canvas scale it undoes
+     * have to change in the same frame. A draw block that wrapped the
+     * application directly would redraw it on each of the ramp's twelve steps,
+     * so the application has a layer of its own under it. This is what says it
+     * still does.
+     */
+    @Test
+    fun aBlurringBackdropKeepsTheApplicationFromRedrawingAsTheBlurGrows() {
+        val blurred = mount(backdrop = BackdropStyle.Blur, scrim = ScrimStyle.Dimmed, trap = true)
+        assertEquals(
+            1, blurred.mountDraws,
+            "mounting a blurring modal redrew the application ${blurred.mountDraws} times; " +
+                "one is structural, as for every other overlay.",
+        )
+        assertEquals(
+            0, blurred.travellingDraws,
+            "the application was redrawn ${blurred.travellingDraws} times over " +
+                "$TravellingFrames frames while a blur behind a dialog grew. Each step " +
+                "of the blur should re-composite the application's layer, not re-record it.",
+        )
+    }
+
     /** What one arm reports. */
     private class Pressure(val mountDraws: Int, val travellingDraws: Int)
 

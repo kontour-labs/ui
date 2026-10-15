@@ -190,6 +190,34 @@ class SwipeBackTest {
         assertEquals(1, recorder.completed)
     }
 
+    /**
+     * A paced release with less than a frame's travel left finishes on the next
+     * frame at 120Hz, as it does at 60.
+     *
+     * The shortest a paced release took was 16ms, a 60Hz frame. Timed from the
+     * last frame of the gesture, the first frame after letting go at 120Hz was
+     * half way through that, and the last hundredth of the way took a second
+     * frame of its own.
+     */
+    @Test
+    fun aPacedReleaseWithAFrameLeftFinishesOnTheNextFrameAt120Hz() {
+        val period = 8_333_333L
+        val dispatcher = NavigationEventDispatcher()
+        val recorder = Recorder().also { dispatcher.addHandler(it) }
+        val input = SwipeBackInput(pacedAtLeast = 3.5f).also { dispatcher.addInput(it) }
+        input.start(NavigationEvent.EDGE_LEFT, Offset.Zero)
+        var lastFrame = 0L
+        repeat(10) {
+            lastFrame += period
+            input.sawFrame(lastFrame)
+            input.move(0.9f + it * 0.01f, Offset.Zero)
+        }
+        val frames = Frames(period, from = lastFrame)
+        runBlocking(frames) { input.release(commit = true, velocity = 1.2f) }
+        assertEquals(1, recorder.completed)
+        assertEquals(1, frames.count, "the last hundredth of the way took ${frames.count} frames at 120Hz")
+    }
+
     @Test
     fun abandonedItGoesHomeTheSameWay() {
         val (recorder, _) = release(at = 0.4f, commit = false, velocity = -3f)

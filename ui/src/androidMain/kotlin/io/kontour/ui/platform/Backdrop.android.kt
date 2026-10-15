@@ -2,6 +2,7 @@ package io.kontour.ui.platform
 
 import android.os.Build
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.RenderEffect
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.Dp
@@ -13,6 +14,22 @@ import androidx.compose.ui.unit.dp
  */
 internal actual val platformSupportsBackdropBlur: Boolean =
     Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+
+/**
+ * False: a `RenderEffect` makes the node a hardware layer, and the filtered
+ * layer is drawn again from what it last made until something in the node
+ * changes. A caret blinking in a dialog redraws the dialog and reuses the blur.
+ */
+internal actual val platformBlursReduced: Boolean = false
+
+/** Never asked for: see [platformBlursReduced]. */
+internal actual fun platformReducedBlur(
+    sigma: Float,
+    cropWidth: Int,
+    cropHeight: Int,
+    scaleX: Float,
+    scaleY: Float,
+): RenderEffect? = null
 
 /**
  * `tappableElement`, which is the one inset that answers "is a bar drawn here".
