@@ -220,6 +220,19 @@ frame rate.
 - **An all-day bar that runs on into the next page shows its title once as the
   pages slide.** The title stays where it is on the screen, and goes with the
   bar once the bar's end reaches it; both pages drew one each.
+- **An event calendar's bar is on the same line on every day, three days and
+  week it is in**, so swiped mid-way its two pieces meet. Each page packed its
+  own bars, so a bar under one that had started before it was a line lower on
+  one page than the next. The bars are packed across the whole calendar now,
+  earliest first, each on the first line free on its first day — so now and
+  then a page has an empty line above a bar run on from a busier day. The same
+  holds in a month's weeks and a condensed list, and a bar past what a day has
+  room for goes up to a free line rather than into the "+N".
+- **An event calendar's all-day strip goes from one page's height to the next
+  as far as a swipe has gone**, where it jumped to the taller page as a finger
+  set off and back as the page came to rest; and a condensed page swiped in
+  opens its list where the page beside it has scrolled to, so their lines are
+  level, where it always opened at the top.
 - **A [rail](components/nav-rail.md)'s marker can be dragged while the rail has
   nothing to scroll, and a [tab bar](components/tab-bar.md)'s while its tabs
   fit** — always, for a fixed bar — as a nav bar's could. A row that overflows
