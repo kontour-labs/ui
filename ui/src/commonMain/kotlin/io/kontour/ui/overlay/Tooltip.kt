@@ -301,7 +301,7 @@ internal fun TooltipOverlay(
                         alignment = alignment,
                         gap = 0.dp,
                         margin = MenuDefaults.ScreenMargin,
-                        arrow = ArrowSpec(colour = colours.surfaceInverse),
+                        arrow = ArrowSpec(colour = colours.surfaceInverse, panelShape = Theme.shapes.container),
                     ) {
                         TooltipBubble(latestContent, latestModifier)
                     }
@@ -499,7 +499,7 @@ private fun CoachMarkOverlay(
                         alignment = alignment,
                         gap = Theme.spacing.xxs,
                         margin = MenuDefaults.ScreenMargin,
-                        arrow = ArrowSpec(colour = colours.container),
+                        arrow = ArrowSpec(colour = colours.container, panelShape = Theme.shapes.container),
                     ) {
                         CoachMarkBubble(
                             title = title,

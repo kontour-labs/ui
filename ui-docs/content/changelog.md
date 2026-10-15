@@ -356,6 +356,13 @@ frame rate.
   The drag is the list's now, with its stretch or bounce at the ends, and a
   wheel's turn stops at the list too. A drag on a combobox's field still scrolls
   the page, as on any field.
+- **An arrow meets its bubble along the bubble's own edge.** The
+  [index scroller](components/index-scroller.md)'s bubble, one letter in a
+  squircle, is very nearly round, and its arrow's base sat on the bubble's
+  bounding box: its corners stood out past the side, which had already curved
+  away, as a small ledge either side. A tooltip's, a popover's or a coach
+  mark's arrow is now cut along its panel's outline, so on a curve it runs into
+  the curve; on a straight side it is drawn exactly as before.
 
 **Navigation and layout**
 

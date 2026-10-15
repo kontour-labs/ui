@@ -189,7 +189,11 @@ internal fun PopoverImpl(
                             // A raised panel on a raised page is 1.00:1 at the
                             // enhanced tier; there the arrow is outlined and the
                             // panel keeps its border below.
-                            ArrowSpec(colour = colours.surfaceRaised, edge = contrastEdge(colours.outlineSubtle))
+                            ArrowSpec(
+                                colour = colours.surfaceRaised,
+                                edge = contrastEdge(colours.outlineSubtle),
+                                panelShape = Theme.shapes.container,
+                            )
                         } else {
                             null
                         },
