@@ -47,6 +47,13 @@ A command palette — a search field over *actions* rather than values — is
 
 Everything on [`Select`](select.md), plus a field the user types into.
 
+**Typing is the field's.** Opened from the keyboard, the field keeps the focus,
+and the Down arrow moves into the list: to the value, where the list holds it,
+and to the first option otherwise. In the list the arrows, Home, End and the page
+keys move as in a select's, but a letter typed there goes back to the field and
+narrows the list, rather than jumping to an option. Escape closes the list and
+gives the focus back to the field.
+
 `matches` decides what filtering does, and what it does is change the list under
 the user's fingers. Keep it predictable: a fuzzy match that reorders results as
 each character arrives is very hard to follow without sight.

@@ -77,6 +77,7 @@ import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.overlay.AnchoredDropdownMenuImpl
 import io.kontour.ui.overlay.LocalMenuPicksOne
+import io.kontour.ui.overlay.MenuEntrance
 import io.kontour.ui.overlay.MenuItem
 import io.kontour.ui.overlay.MenuRows
 import io.kontour.ui.overlay.OverlayAlignment
@@ -87,6 +88,7 @@ import io.kontour.ui.platform.opensKeyboard
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.interaction.rememberToggleFeedback
 import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
+import androidx.compose.foundation.text.input.placeCursorAtEnd
 import kotlinx.coroutines.flow.drop
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.getValue
@@ -275,6 +277,7 @@ fun <T> Select(
         state = state,
         interactionSource = interactionSource,
         picksOne = true,
+        otherBox = otherBox,
         below = onOtherTextChange?.let { change ->
             {
                 OtherBox(otherBox, otherText, { change(it) }, label, otherLabel, otherPlaceholder, enabled, variant, metrics)
@@ -286,10 +289,14 @@ fun <T> Select(
                 // The "Other" row last, after the options.
                 extra = onOtherTextChange != null,
                 label = { optionLabel(it).takeIf { optionContent == null } },
+                name = optionLabel,
                 icon = { optionContent == null && optionIcon?.invoke(it) != null },
                 ticked = { !other && it == value },
+                enabled = optionEnabled,
+                chosen = { !other && it == value },
                 extraLabel = otherLabel,
                 extraTicked = other,
+                extraChosen = other,
                 row = { option ->
                     MenuItem(
                         onClick = {
@@ -458,6 +465,7 @@ fun <T> MultiSelect(
         state = state,
         interactionSource = interactionSource,
         picksOne = false,
+        otherBox = otherBox,
         below = onOtherTextChange?.let { change ->
             {
                 OtherBox(otherBox, otherText, { change(it) }, label, otherLabel, otherPlaceholder, enabled, variant, metrics)
@@ -468,11 +476,16 @@ fun <T> MultiSelect(
                 options = options,
                 extra = onOtherTextChange != null,
                 label = { optionLabel(it).takeIf { optionContent == null } },
+                name = optionLabel,
                 icon = { optionContent == null && optionIcon?.invoke(it) != null },
                 // Every row keeps room for its tick: see `MenuItem`'s `multiple`.
                 ticked = { true },
+                enabled = optionEnabled,
+                // It opens at the first ticked.
+                chosen = { it in value },
                 extraLabel = otherLabel,
                 extraTicked = true,
+                extraChosen = other,
                 row = { option ->
                     MenuItem(
                         onClick = {
@@ -627,6 +640,14 @@ fun <T> Combobox(
         // reopen the list already filtered by something the user typed a screen
         // ago and has no reason to remember.
         onOpenChange = { open -> if (!open) query.clearText() },
+        // Typing in the list is typing in the field, which narrows it: the
+        // field is what typing is for here, not jumping to an option.
+        typeInList = { typed ->
+            query.edit {
+                append(typed)
+                placeCursorAtEnd()
+            }
+        },
         editor = { slot, requester ->
             // The hint over the input rather than beside it, as a text field's
             // is. Beside it — the input weighted to the rest of the row, the
@@ -697,8 +718,10 @@ fun <T> Combobox(
                 options = options,
                 places = filtered,
                 label = { optionLabel(it).takeIf { optionContent == null } },
+                name = optionLabel,
                 icon = { optionContent == null && optionIcon?.invoke(it) != null },
                 ticked = { it == value },
+                chosen = { it == value },
                 row = { option ->
                     MenuItem(
                         onClick = {
@@ -737,6 +760,12 @@ fun <T> Combobox(
  * @param picksOne Whether the options are one choice among them, as a [Select]'s
  *   and a [Combobox]'s are: each is then announced as chosen or not, in one group.
  *   A [MultiSelect]'s say so themselves, as checkboxes.
+ * @param typeInList Where a letter typed while the focus is in the list goes,
+ *   for a [Combobox]: into its field, which takes the focus back. Null, the
+ *   default, leaves typing to the menu, which goes to the option it begins.
+ * @param otherBox An "Other" box, which takes the focus as "Other" is picked;
+ *   otherwise the focus comes back to the field as the menu closes, when it was
+ *   on one of the options.
  * @param empty What the menu says when it has no rows: a combobox's "no matches".
  * @param rows The options, as the menu's rows, given a `dismiss`. Built only
  *   while the menu is open. [Select] calls `dismiss` as an option is picked;
@@ -759,6 +788,8 @@ private fun SelectFrame(
     interactionSource: MutableInteractionSource?,
     picksOne: Boolean,
     onOpenChange: (Boolean) -> Unit = {},
+    typeInList: ((String) -> Unit)? = null,
+    otherBox: OtherBoxState? = null,
     editor: (@Composable RowScope.(Modifier, FocusRequester) -> Unit)? = null,
     below: (@Composable () -> Unit)? = null,
     empty: (@Composable () -> Unit)? = null,
@@ -774,13 +805,33 @@ private fun SelectFrame(
 
     var anchor by remember { mutableStateOf<Rect?>(null) }
     val expanded = state.expanded
-    // The menu's focus, which a combobox's Down arrow moves into: see
-    // `AnchoredDropdownMenuImpl`, which does not take it from the editor itself.
-    val menuFocus = remember { FocusRequester() }
+    // The way into the menu, which a combobox's Down arrow takes: see
+    // `AnchoredDropdownMenuImpl`, which does not take the focus from the editor
+    // itself.
+    val entrance = remember { MenuEntrance() }
     val closeLabel = Theme.strings.closeMenu
+    val fieldFocus = remember { FocusRequester() }
+    var refocus by remember { mutableStateOf(false) }
 
     fun setExpanded(open: Boolean) {
+        // **Closed from the keyboard, the field has the focus again**, as a
+        // platform's select does: Escape, or an option picked with Enter, left
+        // the focus nowhere, and the next Tab started from the top of the page.
+        // Only from an option the keyboard was on: a list a pointer opened and
+        // picked from never had the focus on an option. And not for "Other",
+        // whose box takes it.
+        if (!open && state.expanded && entrance.onARow && otherBox?.wantsFocus != true) refocus = true
         if (open) state.expand() else state.collapse()
+    }
+    LaunchedEffect(refocus) {
+        if (!refocus) return@LaunchedEffect
+        // The page takes no focus until the menu over it has gone: asked each
+        // frame until it does.
+        for (attempt in 0 until ReturnFocusTries) {
+            if (runCatching { fieldFocus.requestFocus() }.getOrDefault(false)) break
+            withFrameMillis { }
+        }
+        refocus = false
     }
 
     // **Told from the state, not from the press.** [onOpenChange] was called by
@@ -875,6 +926,7 @@ private fun SelectFrame(
                 }
             }
             .pointerCursor(enabled = enabled)
+            .focusRequester(fieldFocus)
             .clickable(
                 interactionSource = interactions,
                 // A whole field flinching is too much movement for a control
@@ -910,7 +962,9 @@ private fun SelectFrame(
                     // hands it over, from the first row on.
                     .onPreviewKeyEvent { event ->
                         if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionDown) {
-                            runCatching { menuFocus.requestFocus() }.isSuccess
+                            val enter = entrance.enter ?: return@onPreviewKeyEvent false
+                            enter()
+                            true
                         } else {
                             false
                         }
@@ -967,10 +1021,23 @@ private fun SelectFrame(
             // closes the list either way, and through the scrim it does so
             // without the field flashing pressed on the way.
             anchorTakesPresses = editor != null,
-            focusRequester = menuFocus,
+            entrance = entrance,
+            typeInto = typeInList?.let { type ->
+                { typed: String ->
+                    runCatching { editorFocus.requestFocus() }
+                    type(typed)
+                }
+            },
             rows = {
                 val options = rows { setExpanded(false) }
-                MenuRows(options.keys, options.labels, options.furniture) { index ->
+                MenuRows(
+                    keys = options.keys,
+                    labels = options.labels,
+                    furniture = options.furniture,
+                    names = options.names,
+                    enabled = options.enabled,
+                    chosen = options.chosen,
+                ) { index ->
                     CompositionLocalProvider(LocalMenuPicksOne provides picksOne) { options.row(index) }
                 }
             },
@@ -987,21 +1054,28 @@ private fun SelectFrame(
  * Each row is keyed on its option's place in [options], and the extra on the
  * place after the last. [label] is what a row says, or null where a slot draws
  * it; [icon] and [ticked] are what it carries beside its words, which the menu
- * measures its width by.
+ * measures its width by. [name] is what typing finds it by, whatever draws it;
+ * [enabled] whether it can be chosen; and the first row [chosen] is where the
+ * menu opens.
  */
 private fun <T> optionRows(
     options: List<T>,
     places: List<Int> = options.indices.toList(),
     label: (T) -> String?,
+    name: (T) -> String,
     icon: (T) -> Boolean,
     ticked: (T) -> Boolean,
+    enabled: (T) -> Boolean = { true },
+    chosen: (T) -> Boolean,
     row: @Composable (T) -> Unit,
     extra: Boolean = false,
     extraLabel: String = "",
     extraTicked: Boolean = false,
+    extraChosen: Boolean = false,
     extraRow: @Composable () -> Unit = {},
 ): MenuRows {
     val count = places.size + if (extra) 1 else 0
+    val first = places.indexOfFirst { chosen(options[it]) }
     return MenuRows(
         keys = List(count) { if (it < places.size) places[it] else options.size },
         labels = List(count) { if (it < places.size) label(options[places[it]]) else extraLabel },
@@ -1013,6 +1087,9 @@ private fun <T> optionRows(
                 furniture(icon = false, ticked = extraTicked)
             }
         },
+        names = List(count) { if (it < places.size) name(options[places[it]]) else extraLabel },
+        enabled = List(count) { it >= places.size || enabled(options[places[it]]) },
+        chosen = if (first < 0 && extra && extraChosen) places.size else first,
     ) { index ->
         if (index < places.size) row(options[places[index]]) else extraRow()
     }
@@ -1262,6 +1339,12 @@ private fun OtherBox(
 
 /** How many frames an "Other" box asks for the focus before it gives up. */
 private const val FocusTries = 10
+
+/**
+ * How many frames a field asks for the focus back as its menu closes: through
+ * the menu's way out, which is the page's way back to taking the focus.
+ */
+private const val ReturnFocusTries = 30
 
 /**
  * How many values an "Other" box remembers sending before the caller hands them

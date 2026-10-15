@@ -91,11 +91,43 @@ actions, [`Popover`](popover.md).
 
 ## Accessibility
 
-The menu takes focus when it opens. Arrow keys move between items, typing jumps
-to a matching one, and Escape closes — all through `onPreviewKeyEvent`, so the
-page underneath never sees them. Right opens a submenu and Left comes back out of
-it (the other way round right to left); Escape backs out of a submenu before it
-closes the menu. Left and Right walk the action row.
+**From the keyboard.** Opened from the keyboard, the menu puts the focus on its
+first row that can be chosen, and the keys are the menu's — the page underneath
+never sees them:
+
+| Key | Does |
+|---|---|
+| Down, Up | The next or previous row, passing over disabled rows, headings and rules. Past the last row Down goes round to the first, and Up the other way. |
+| Home, End | The first or last row that can be chosen. |
+| Page Down, Page Up | A list's height, less a row, on or back; stopping at the ends. |
+| Letters | The next row whose words begin with what was typed. |
+| Enter, Space | Picks the row. |
+| Right | Opens a submenu, with the focus on its first row. |
+| Left | Closes the submenu, with the focus back on its row. |
+| Escape | Closes a submenu, with the focus back on its row; then the menu. |
+| Tab | Walks the rows in order, as before. |
+
+Right and Left are the other way round right to left. Left and Right walk the
+action row, which Up and Down pass through as one row.
+
+**The arrows go round** at the ends, as a menu on the Mac does and as WAI-ARIA's
+menu pattern does; Windows' list boxes stop. Going round is the one of those that
+never leaves a key doing nothing, and it is one rule for every menu in the
+library, a select's list included. Home and End are the way to an end.
+
+**Typing** matches the start of a row's words, ignoring case and accents. Letters
+typed within three-quarters of a second of each other are one word, so "pa" goes
+to *Paste* rather than to a *P* and then an *A*; after a pause the next letter
+starts again. The same letter again goes on to the next row beginning with it. A
+space is a letter while a word is under way, and picks the row otherwise. A row
+whose label is drawn with `label { }` rather than `+"…"` has no words to be found
+by.
+
+**Opened with a mouse**, the menu holds the focus without showing it: no row is
+focused and no ring is drawn until a key is pressed. The first arrow then goes to
+the first row (Up to the last), and a letter to the row it begins, with the ring
+on it. On touch the menu takes no focus. A submenu a pointer opens by resting on
+its row leaves the keys with the menu the row is in.
 
 It does **not** return focus to the anchor on close, which is worth knowing:
 after dismissing a menu from the keyboard, focus is wherever the composition left

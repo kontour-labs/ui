@@ -13,6 +13,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.focusTarget
+import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -116,6 +120,7 @@ import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.InputModality
 import io.kontour.ui.input.LocalInputModality
+import io.kontour.ui.input.LocalInputModalityState
 import io.kontour.ui.input.insetFocusRing
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.rememberLongPressFeedback
@@ -282,8 +287,14 @@ fun AnchoredDropdownMenu(
  * opened from the keyboard moves the focus into its first row, which is right
  * for a menu and wrong for a combobox: its field had just been given the focus,
  * and a frame later the menu took it, so what was typed next filtered nothing.
- * The anchor hands it over itself — [focusRequester] is the menu's, and a
- * combobox asks it on a Down arrow.
+ * The anchor hands it over itself, through [entrance], which a combobox uses on
+ * a Down arrow; and what is typed in its list goes to [typeInto], its field.
+ *
+ * A menu opened with a pointer holds the focus itself, on its panel, where it
+ * draws no ring and presses nothing, so that a key pressed next is the menu's:
+ * see `MenuKeys`. [parksFocus] false is for a submenu, which a pointer opens by
+ * resting on its row, and which must not take the keys from the menu the
+ * pointer is still in.
  *
  * [rows] are a select's options, built while the menu is open and drawn after
  * [content]. Past [LazyMenuFrom] of them the menu composes only the ones it
@@ -302,7 +313,9 @@ internal fun AnchoredDropdownMenuImpl(
     matchAnchorWidth: Boolean = false,
     scrim: ScrimStyle = ScrimStyle.Transparent,
     anchorTakesPresses: Boolean = false,
-    focusRequester: FocusRequester? = null,
+    entrance: MenuEntrance? = null,
+    typeInto: ((String) -> Unit)? = null,
+    parksFocus: Boolean = true,
     rows: (() -> MenuRows)? = null,
     content: @Composable MenuScope.() -> Unit,
 ) {
@@ -321,6 +334,7 @@ internal fun AnchoredDropdownMenuImpl(
     val latestModifier by rememberUpdatedState(modifier)
     val latestShape by rememberUpdatedState(Theme.shapes.container)
     val latestRows by rememberUpdatedState(rows)
+    val latestTypeInto by rememberUpdatedState(typeInto)
 
     // Read live by the overlay's measure pass rather than captured when the
     // entry was built — see `AnchoredOverlayLayout` — and never here, in this
@@ -373,7 +387,11 @@ internal fun AnchoredDropdownMenuImpl(
                             anchorWidth = anchorWidth,
                             rows = latestRows?.invoke(),
                             autoFocus = modality == InputModality.Keyboard && !anchorTakesPresses,
-                            focusRequester = focusRequester,
+                            // Under a pointer that may be followed by keys; a
+                            // finger has none to follow it with.
+                            parkFocus = modality == InputModality.Mouse && !anchorTakesPresses && parksFocus,
+                            entrance = entrance,
+                            typeInto = latestTypeInto,
                             onDismissRequest = { dismiss() },
                             content = body,
                         )
@@ -397,7 +415,9 @@ private fun MenuPanel(
     anchorWidth: Dp,
     rows: MenuRows?,
     autoFocus: Boolean,
-    focusRequester: FocusRequester?,
+    parkFocus: Boolean,
+    entrance: MenuEntrance?,
+    typeInto: ((String) -> Unit)?,
     onDismissRequest: () -> Unit,
     content: @Composable MenuScope.() -> Unit,
 ) {
@@ -409,10 +429,31 @@ private fun MenuPanel(
     // modality the keyboard's — goes back a level rather than dropping them all.
     val levels = remember { MenuLevels() }
     val inPlace = LocalInputModality.current.needsLargeTargets || levels.open.isNotEmpty()
-    val ownRequester = remember { FocusRequester() }
-    val requester = focusRequester ?: ownRequester
+    val panelFocus = remember { FocusRequester() }
+    val navigator = remember { MenuNavigator() }
+    val keys = remember { MenuKeys() }
+    keys.scope = rememberCoroutineScope()
+    val formats = Theme.formats
+    keys.fold = formats::foldForSearch
+    keys.typeInto = typeInto
+    val modalityState = LocalInputModalityState.current
+    keys.showFocus = { modalityState?.current = InputModality.Keyboard }
+    // The panel holds the focus for a menu opened with a pointer, until a key
+    // takes it to a row; after that it is a group, and Tab does not stop on it.
+    var parked by remember { mutableStateOf(parkFocus) }
     LaunchedEffect(Unit) {
-        if (autoFocus) runCatching { requester.requestFocus() }
+        when {
+            // To the option a select holds, or the first row.
+            autoFocus -> keys.enter(navigator)
+            parked -> runCatching { panelFocus.requestFocus() }
+        }
+    }
+    DisposableEffect(entrance) {
+        entrance?.enter = { keys.enter(navigator) }
+        onDispose {
+            entrance?.enter = null
+            entrance?.onARow = false
+        }
     }
     val sized = modifier
         .widthIn(
@@ -446,8 +487,13 @@ private fun MenuPanel(
         Layout(
             modifier = Modifier
                 .onGloballyPositioned { levels.root = it }
-                .focusRequester(requester)
-                .focusGroup()
+                .focusRequester(panelFocus)
+                .onFocusChanged { focus ->
+                    if (focus.hasFocus && !focus.isFocused) parked = false
+                    entrance?.onARow = focus.hasFocus && !focus.isFocused
+                }
+                .focusProperties { canFocus = parked }
+                .focusTarget()
                 .onPreviewKeyEvent { event ->
                     if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                     when {
@@ -460,7 +506,8 @@ private fun MenuPanel(
                             levels.closeTop()
                             true
                         }
-                        else -> false
+                        // The rest move about the level on top.
+                        else -> keys.handle(event, levels.open.lastOrNull { !it.closing }?.navigator ?: navigator)
                     }
                 },
             content = {
@@ -471,6 +518,7 @@ private fun MenuPanel(
                     MenuSurface(
                         modifier = sized,
                         shape = shape,
+                        navigator = navigator,
                         dimmedBy = { levels.open.firstOrNull()?.progress?.value ?: 0f },
                         rows = rows,
                         anchorWidth = anchorWidth,
@@ -550,6 +598,7 @@ private fun LevelStack(below: () -> MenuLevel?, levels: MenuLevels, surface: @Co
 private fun MenuSurface(
     modifier: Modifier,
     shape: Shape,
+    navigator: MenuNavigator,
     dimmedBy: () -> Float = { 0f },
     rows: MenuRows? = null,
     anchorWidth: Dp = Dp.Unspecified,
@@ -607,32 +656,52 @@ private fun MenuSurface(
                 if (level > 0f) drawRect(dim, alpha = LevelDim * level)
             }
         ) {
-            // A long list of options is composed as it is shown; a short one
-            // all at once, after the rest of the menu, as every menu is.
-            if (rows != null && rows.count > LazyMenuFrom) {
-                LazyMenuRows(rows, shape, anchorWidth)
-            } else {
-                val scroll = rememberScrollState()
-                val overscroll = rememberOverscrollEffect()
-                val fling = ScrollDefaults.flingBehavior()
-                Column(
-                    modifier = Modifier
-                        // On the scroller, before its scroll: see `Modifier.scrollbar`.
-                        // Start below the panel's own corner. Derived from the shape
-                        // rather than restated as a number, so a consumer who
-                        // overrides `Theme.shapes.container` gets a scrollbar that
-                        // still clears it. A proportional corner answers zero, which
-                        // is the right degenerate: no inset, as if the panel were square.
-                        .scrollbar(scroll, cornerInset = ScrollbarDefaults.cornerInset(shape))
-                        // A drag that starts on the list is the list's alone.
-                        .keepsItsScroll(scroll, overscroll, fling)
-                        .verticalScroll(scroll, overscrollEffect = overscroll, flingBehavior = fling)
-                        .padding(horizontal = Theme.spacing.xxs, vertical = Theme.spacing.xxs)
-                        .fillMaxWidth(),
-                ) {
-                    content()
-                    if (rows != null) {
-                        for (index in 0 until rows.count) key(rows.keys[index]) { rows.row(index) }
+            CompositionLocalProvider(LocalMenuNavigator provides navigator) {
+                // A long list of options is composed as it is shown; a short one
+                // all at once, after the rest of the menu, as every menu is.
+                if (rows != null && rows.count > LazyMenuFrom) {
+                    LazyMenuRows(rows, shape, anchorWidth)
+                } else {
+                    val scroll = rememberScrollState()
+                    val overscroll = rememberOverscrollEffect()
+                    val fling = ScrollDefaults.flingBehavior()
+                    val inset = Theme.spacing.xxs
+                    val opens = remember(scroll, navigator) { OpensAtChoice(scroll, navigator) }
+                    opens.rows = rows?.count ?: 0
+                    opens.chosen = rows?.chosen ?: -1
+                    SideEffect {
+                        navigator.lazy = null
+                        navigator.scroll = scroll
+                    }
+                    Column(
+                        modifier = Modifier
+                            // On the scroller, before its scroll: see `Modifier.scrollbar`.
+                            // Start below the panel's own corner. Derived from the shape
+                            // rather than restated as a number, so a consumer who
+                            // overrides `Theme.shapes.container` gets a scrollbar that
+                            // still clears it. A proportional corner answers zero, which
+                            // is the right degenerate: no inset, as if the panel were square.
+                            .scrollbar(scroll, cornerInset = ScrollbarDefaults.cornerInset(shape))
+                            // A drag that starts on the list is the list's alone.
+                            .keepsItsScroll(scroll, overscroll, fling)
+                            // How tall the list is, for it to open with its
+                            // value in the middle: see `OpensAtChoice`.
+                            .layout { measurable, constraints ->
+                                if (constraints.hasBoundedHeight) opens.viewport = constraints.maxHeight
+                                opens.top = inset.roundToPx()
+                                val placeable = measurable.measure(constraints)
+                                layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+                            }
+                            .verticalScroll(scroll, overscrollEffect = overscroll, flingBehavior = fling)
+                            .onPlaced { navigator.opened = true }
+                            .padding(horizontal = inset, vertical = inset)
+                            .fillMaxWidth(),
+                        verticalArrangement = opens,
+                    ) {
+                        content()
+                        if (rows != null) {
+                            for (index in 0 until rows.count) key(rows.keys[index]) { rows.Row(index) }
+                        }
                     }
                 }
             }
@@ -679,6 +748,7 @@ private fun MenuLevelSurface(
             }
             .padding(LevelShadowRoom),
         shape = shape,
+        navigator = level.navigator,
         dimmedBy = dimmedBy,
     ) {
         MenuItem(
@@ -766,6 +836,9 @@ internal class MenuLevel(
 ) {
     val progress = Animatable(0f)
     var closing by mutableStateOf(false)
+
+    /** Its rows, which the keys move among while it is on top. */
+    val navigator = MenuNavigator()
 }
 
 /** The in-place levels of the menu a row is in, or null where submenus cascade. */
@@ -836,6 +909,16 @@ fun MenuItem(
     val sizing = LocalMenuRowSizing.current
     val place = LocalMenuRowPlace.current
 
+    // Where the menu's keys find it: see `MenuKeys`. Not a row composed only
+    // to be measured, which nobody can reach.
+    val stop = if (sizing) null else rememberMenuStop()
+    if (stop != null) {
+        stop.place = place
+        stop.name = LocalMenuRowName.current ?: slots.said
+        stop.enabled = enabled
+        stop.chosen = LocalMenuRowChosen.current
+    }
+
     // One shape for the clip and the indication, remembered.
     //
     // It was the same expression written twice, and `inset` returns a fresh
@@ -878,6 +961,7 @@ fun MenuItem(
                         Modifier
                     } else {
                         Modifier
+                            .then(if (stop != null) Modifier.menuStop(stop) else Modifier)
                             // Inside the row: the panel clips anything drawn around it.
                             .insetFocusRing(interactions, rowShape, enabled)
                             .pointerCursor(enabled = enabled)
@@ -1143,7 +1227,12 @@ fun SubMenu(
         AnchoredDropdownMenuImpl(
             visible = open && enabled,
             anchor = { bounds },
-            onDismissRequest = { open = false },
+            // Escape, from inside it: back to the row it came from, as Left
+            // goes, so the keyboard is still in the menu rather than nowhere.
+            onDismissRequest = {
+                open = false
+                runCatching { rowFocus.requestFocus() }
+            },
             modifier = Modifier
                 .hoverable(panelInteractions)
                 // Left, from anywhere in it, is back to the row it came from.
@@ -1171,6 +1260,9 @@ fun SubMenu(
             // close, and its scrim would go with it — putting the pointer back on the
             // row. A submenu that blinks on and off for as long as you look at it.
             scrim = ScrimStyle.None,
+            // A pointer opens it by resting on its row, and the keys stay with
+            // the menu that row is in.
+            parksFocus = false,
             content = content,
         )
     }
@@ -1265,6 +1357,10 @@ internal fun MenuActionCells(actions: List<MenuAction>, modifier: Modifier, fill
     }
     val cells = remember(actions.size) { List(actions.size) { FocusRequester() } }
     var focused by remember { mutableStateOf(-1) }
+    // One stop for the menu's Up and Down, entered at its first cell; Left and
+    // Right walk along it.
+    val stop = rememberMenuStop()
+    stop?.enabled = actions.any { it.enabled }
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val colours = Theme.colours
     val panelShape = Theme.shapes.container
@@ -1276,6 +1372,7 @@ internal fun MenuActionCells(actions: List<MenuAction>, modifier: Modifier, fill
             modifier = modifier
                 .fillMaxWidth()
                 .padding(bottom = Theme.spacing.xxs)
+                .then(if (stop != null) Modifier.menuStop(stop) else Modifier)
                 .focusGroup()
                 // Along the row, the way the arrow points: the next cell is to the
                 // left right to left.

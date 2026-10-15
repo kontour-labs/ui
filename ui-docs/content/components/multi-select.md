@@ -31,8 +31,8 @@ draws what is ticked in the closed field — given the set, for a stack of faces
 or a row of swatches where a summary of names would do less. `summary` is still
 what a screen reader hears for it.
 
-A long list of options is composed as it is shown, and a drag on the open list
-is the list's, as on a [`Select`](select.md).
+The list opens at the first option ticked. A long one is composed as it is
+shown, and a drag on the open list is the list's, as on a [`Select`](select.md).
 
 **Reach for a [`ChipGroup`](chip.md) of
 `FilterChip`s instead** when the options fit on screen. Chips show the current
@@ -50,6 +50,11 @@ The distinction is `MenuItem(multiple = true)`, and it changes what is
 announced and nothing that is drawn. Get it wrong and a screen reader tells the
 reader that choosing a second option will clear the first — the opposite of what
 a multi-select does.
+
+The keys are a select's. Enter and Space tick or untick the option the keyboard is
+on and leave the list open, as a click does; opened from the keyboard, the focus
+goes to the first option ticked. Escape closes the list and gives the focus back
+to the field.
 
 The closed field announces `summary`, which by default lists up to three and then
 says how many. That is a deliberate ceiling: a field that read out nine selected

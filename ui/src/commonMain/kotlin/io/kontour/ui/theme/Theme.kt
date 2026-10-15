@@ -19,6 +19,7 @@ import io.kontour.ui.foundation.LocalContentColour
 import io.kontour.ui.foundation.LocalTextStyle
 import io.kontour.ui.foundation.textSelectionColours
 import io.kontour.ui.input.LocalInputModality
+import io.kontour.ui.input.LocalInputModalityState
 import io.kontour.ui.input.rememberInputModalityState
 import io.kontour.ui.input.trackInputModality
 import io.kontour.ui.interaction.FeedbackDispatcher
@@ -466,6 +467,7 @@ private fun ThemeContent(alreadyTracking: Boolean, content: @Composable () -> Un
         CompositionLocalProvider(
             LocalInputModality provides modality.current,
             LocalInputModalityInstalled provides true,
+            LocalInputModalityState provides modality,
         ) {
             // Once, at the outermost theme: see `catchRestedFlicks`.
             val trail = remember { FingerTrail() }

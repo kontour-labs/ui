@@ -33,6 +33,12 @@ changes width as it is scrolled. Where `optionContent` draws the options, a
 long list opens as wide as a menu goes, since a drawing's width is not known
 until it is drawn; that is never narrower than it would have been.
 
+**It opens at its value.** A select holding a value opens with that option in
+the middle of its list, or as near it as the ends allow — a select of 250
+countries holding *Portugal* opens on Portugal rather than on Afghanistan. It is
+put there before the list is first drawn, so the top of the list is never shown
+on the way.
+
 **A drag on the open list is the list's.** It scrolls the list, or does nothing
 where the list fits, and never moves the page under it — the wheel likewise. A
 drag on the field is the page's, as on any field.
@@ -148,6 +154,21 @@ row and the field are each read as the option's label, and what the slot drew is
 not read as well. A second line, an avatar's initials and a swatch's colour are
 drawn and not said, so a drawn select sounds exactly as a select of words does —
 and anything that should be heard belongs in `optionLabel`.
+
+**From the keyboard** the list is a menu's — see
+[`DropdownMenu`](dropdown-menu.md#accessibility) for every key. The arrows move
+between the options, past any that `optionEnabled` turns off, and go round at
+the ends; Home and End go to the first and last; Page Up and Page Down a list's
+height; and typing goes to the option whose `optionLabel` begins with what was
+typed — the label whatever `optionContent` draws. In a long list the option the
+keys go to is scrolled into view, however far it is.
+
+Opened from the keyboard, the focus goes to the option the select holds, or the
+first without one. Opened with a click, nothing in the list has the focus and no
+ring shows; the first arrow then goes to the option the select holds. Escape
+closes the list, and Escape or an option picked with Enter gives the focus back to
+the field, so Tab goes on from there. Picked with a pointer, the focus stays
+where the pointer left it.
 
 Open, a `Combobox`'s field is a text box, and a press on it goes to the text. Its
 chevron is a button that closes the list, named as the menu's own close is, and

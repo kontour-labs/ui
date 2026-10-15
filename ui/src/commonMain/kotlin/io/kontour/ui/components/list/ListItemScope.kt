@@ -48,20 +48,27 @@ class ListItemScope internal constructor() {
     internal var trailing: (@Composable ContentScope.() -> Unit)? = null
         private set
 
+    /** The label's words, where it is words: what typing in a menu finds the row by. */
+    internal var said: String? = null
+        private set
+
     /** The row's name. What it announces, and the one region every row has. */
     operator fun String.unaryPlus() {
         val text = this
+        said = text
         label = { +text }
     }
 
     /** The row's name, carrying its own spans. */
     operator fun AnnotatedString.unaryPlus() {
         val text = this
+        said = text.text
         label = { +text }
     }
 
     /** The label, when it is more than text. */
     fun label(content: @Composable ContentScope.() -> Unit) {
+        said = null
         label = content
     }
 

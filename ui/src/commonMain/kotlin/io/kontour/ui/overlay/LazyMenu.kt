@@ -4,10 +4,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberOverscrollEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -19,6 +21,8 @@ import androidx.compose.ui.layout.Measurable
 import androidx.compose.ui.layout.MeasurePolicy
 import androidx.compose.ui.layout.MeasureResult
 import androidx.compose.ui.layout.MeasureScope
+import androidx.compose.ui.layout.onPlaced
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.rememberTextMeasurer
@@ -44,14 +48,32 @@ import io.kontour.ui.theme.Theme
  *   or null for a row a slot draws, which says nothing about how wide it is.
  * @param furniture Which rows carry the same things beside their words, an icon
  *   or a tick: the widest words in each of these is the widest row of it.
+ * @param names What each row is called, which typing in the menu finds it by:
+ *   its option's label, whether its words or a slot draw it.
+ * @param enabled Whether each row can be chosen, which the keys pass over if not.
+ * @param chosen The row the select holds, which the menu opens at, or -1.
  */
 internal class MenuRows(
     val keys: List<Any>,
     val labels: List<String?>,
     val furniture: List<Int>,
+    val names: List<String> = labels.map { it.orEmpty() },
+    val enabled: List<Boolean> = List(keys.size) { true },
+    val chosen: Int = -1,
     val row: @Composable (index: Int) -> Unit,
 ) {
     val count: Int get() = keys.size
+
+    /** Row [index], told what it is called and whether it is the one held. */
+    @Composable
+    fun Row(index: Int) {
+        CompositionLocalProvider(
+            LocalMenuRowName provides names[index],
+            LocalMenuRowChosen provides (index == chosen),
+        ) {
+            row(index)
+        }
+    }
 }
 
 /**
@@ -91,6 +113,13 @@ internal const val LazyMenuFrom: Int = 30
 @Composable
 internal fun LazyMenuRows(rows: MenuRows, shape: Shape, anchorWidth: Dp) {
     val list = rememberLazyListState()
+    // The keys reach the rows this list has not composed through it.
+    val navigator = LocalMenuNavigator.current
+    SideEffect { navigator?.lazy = LazyMenuList(list, rows) }
+    val opening = remember(navigator) { LazyOpening(list, navigator) }
+    opening.chosen = rows.chosen
+    opening.top = with(LocalDensity.current) { Theme.spacing.xxs.roundToPx() }
+    opening.row = with(LocalDensity.current) { TypicalRow.roundToPx() }
     val overscroll = rememberOverscrollEffect()
     val fling = ScrollDefaults.flingBehavior()
     val inset = Theme.spacing.xxs
@@ -101,26 +130,29 @@ internal fun LazyMenuRows(rows: MenuRows, shape: Shape, anchorWidth: Dp) {
     val widest = remember(rows.labels, rows.furniture, decided, style, measurer) {
         if (decided) emptyList() else widestRows(rows.labels, rows.furniture, measurer, style)
     }
-    val policy = remember(widest == null, rows.count) { LazyMenuMeasure(drawn = widest == null, count = rows.count) }
+    val policy = remember(widest == null, rows.count) {
+        LazyMenuMeasure(drawn = widest == null, count = rows.count, opening = opening)
+    }
     Layout(
         content = {
             Column(Modifier.padding(horizontal = inset)) {
                 CompositionLocalProvider(LocalMenuRowSizing provides true) {
-                    widest?.forEach { index -> key(rows.keys[index]) { rows.row(index) } }
+                    widest?.forEach { index -> key(rows.keys[index]) { rows.Row(index) } }
                 }
             }
             LazyColumn(
                 modifier = Modifier
                     // As the column's: see `MenuSurface`.
                     .scrollbar(list, cornerInset = ScrollbarDefaults.cornerInset(shape))
-                    .keepsItsScroll(list, overscroll, fling),
+                    .keepsItsScroll(list, overscroll, fling)
+                    .onPlaced { navigator?.opened = true },
                 state = list,
                 contentPadding = PaddingValues(inset),
                 flingBehavior = fling,
                 overscrollEffect = overscroll,
             ) {
                 items(rows.count, key = { rows.keys[it] }) { index ->
-                    CompositionLocalProvider(LocalMenuRowPlace provides index) { rows.row(index) }
+                    CompositionLocalProvider(LocalMenuRowPlace provides index) { rows.Row(index) }
                 }
             }
         },
@@ -162,9 +194,14 @@ private fun widestRows(
  * of its field it has room on, is at least [count] rows of [ShortestRow], which
  * is all that question needs: a list this long fills a menu either way.
  */
-private class LazyMenuMeasure(private val drawn: Boolean, private val count: Int) : MeasurePolicy {
+private class LazyMenuMeasure(
+    private val drawn: Boolean,
+    private val count: Int,
+    private val opening: LazyOpening,
+) : MeasurePolicy {
 
     override fun MeasureScope.measure(measurables: List<Measurable>, constraints: Constraints): MeasureResult {
+        if (constraints.hasBoundedHeight) opening.open(constraints.maxHeight)
         val list = measurables[1].measure(constraints)
         return layout(list.width, list.height) { list.placeRelative(0, 0) }
     }
@@ -184,3 +221,28 @@ private class LazyMenuMeasure(private val drawn: Boolean, private val count: Int
 
 /** Shorter than any menu row: a line of text and its padding. */
 private val ShortestRow = 24.dp
+
+/** A row of words under a pointer, about: what the list centres the option it opens at by. */
+private val TypicalRow = 36.dp
+
+/**
+ * Where a long list opens: with the option its select holds in the middle of it,
+ * set before the list is first laid out, so the first frame shows the value and
+ * the top of the list is never composed on the way to it.
+ *
+ * Asked as the list is measured, when its height is known, and until it is first
+ * placed; after that the list is the reader's to scroll.
+ */
+private class LazyOpening(private val state: LazyListState, private val navigator: MenuNavigator?) {
+    var chosen: Int = -1
+    var top: Int = 0
+    var row: Int = 0
+    private var askedFor = -1
+
+    fun open(viewport: Int) {
+        if (navigator?.opened != false || chosen < 0 || viewport == askedFor) return
+        askedFor = viewport
+        // Below the middle by a negative offset: the list lays out the rows above.
+        state.requestScrollToItem(chosen, -(viewport / 2 - top - row / 2).coerceAtLeast(0))
+    }
+}
