@@ -2305,8 +2305,8 @@ val componentRegistry: List<ComponentSpec> = buildList {
             name = "DateTimePicker",
             role = null,
             underContract = false,
-            // One half at a time at this width, too narrow for the two side by
-            // side: the segmented control over the calendar, about 340dp.
+            // Too narrow at this width for the two side by side: the calendar,
+            // and the row under it that says the time, about 330dp.
             renderHeight = 400,
             // The date picker's floor: seven columns of day numbers.
             minWidth = 200,

@@ -431,6 +431,8 @@ data class Strings(
     },
     /** An event over several days in a schedule, on the last of them: "Until 17:00". */
     val untilTime: (time: String) -> String = { time -> "Until $time" },
+    /** A date and time picker's name for its time, on the row that opens the wheels: "Time  8:15 pm". */
+    val time: String = "Time",
 ) {
     companion object {
         /**
@@ -551,6 +553,7 @@ data class Strings(
         endDayOffset = { days -> lookup.phrase("endDayOffset", days, days.formatted) ?: fallback.endDayOffset(days) },
         endDaysLater = { time, days -> lookup.phrase("endDaysLater", days, time, days.formatted) ?: fallback.endDaysLater(time, days) },
         untilTime = { time -> lookup.phrase("untilTime", null, time) ?: fallback.untilTime(time) },
+        time = lookup.text("time") ?: fallback.time,
         chooseMonthAndYear = lookup.text("chooseMonthAndYear") ?: fallback.chooseMonthAndYear,
         resizePanes = lookup.text("resizePanes") ?: fallback.resizePanes,
         navigation = lookup.text("navigation") ?: fallback.navigation,
@@ -787,6 +790,7 @@ internal fun Strings.mapped(transform: (String) -> String): Strings = Strings(
     endDayOffset = { a0 -> transform(endDayOffset(a0)) },
     endDaysLater = { a0, a1 -> transform(endDaysLater(a0, a1)) },
     untilTime = { a0 -> transform(untilTime(a0)) },
+    time = transform(time),
     chooseMonthAndYear = transform(chooseMonthAndYear),
     resizePanes = transform(resizePanes),
     navigation = transform(navigation),
