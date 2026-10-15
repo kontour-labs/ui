@@ -4,17 +4,14 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.structuralEqualityPolicy
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.isSpecified
 
@@ -136,24 +133,6 @@ class WindowSizeClass(
     val widthDp: Dp,
     val heightDp: Dp,
 ) {
-    /**
-     * Where the window's size now can be read, for the components here that
-     * need it: the window's own, or a region's. Outside `equals`, with the dp.
-     * Null for a class made outright, whose size is its own.
-     */
-    internal var source: (() -> DpSize)? = null
-        private set
-
-    internal constructor(
-        width: WindowWidthClass,
-        height: WindowHeightClass,
-        widthDp: Dp,
-        heightDp: Dp,
-        source: () -> DpSize,
-    ) : this(width, height, widthDp, heightDp) {
-        this.source = source
-    }
-
     /** True for a window that is much wider than it is tall. */
     val isLandscape: Boolean = widthDp > heightDp
 
@@ -182,36 +161,8 @@ class WindowSizeClass(
             widthDp = width,
             heightDp = height,
         )
-
-        /** A class made from [width] and [height], whose size now is read from [source]. */
-        internal fun of(width: Dp, height: Dp, source: () -> DpSize): WindowSizeClass = WindowSizeClass(
-            width = WindowWidthClass.of(width),
-            height = WindowHeightClass.of(height),
-            widthDp = width,
-            heightDp = height,
-            source = source,
-        )
     }
 }
-
-/**
- * The size of the window or region this class describes, as it is now rather
- * than at the last change of shape — see [WindowSizeClass] on why its own dp
- * stand still.
- *
- * **Read it in a derived state or in layout, not straight in composition.** It
- * follows the window pixel by pixel, and a composable that reads it outright
- * recomposes on every one of them — on a phone browser, every frame of a scroll
- * while the URL bar slides. Derive the decision from it, and only a change of
- * the decision recomposes anything:
- *
- * ```kotlin
- * val size = LocalWindowSizeClass.current
- * val tall by remember(size) { derivedStateOf { size.currentDpSize.height >= 760.dp } }
- * ```
- */
-internal val WindowSizeClass.currentDpSize: DpSize
-    get() = source?.invoke() ?: DpSize(widthDp, heightDp)
 
 /**
  * The current window size class.
@@ -256,9 +207,7 @@ internal fun rememberWindowSizeClassFromWindow(): WindowSizeClass? {
         derivedStateOf(structuralEqualityPolicy()) {
             val size = window.containerDpSize
             if (size.isSpecified && size.width > 0.dp && size.height > 0.dp) {
-                // The window itself behind it, so the class kept while the
-                // window changes size within it can still say how big it is.
-                WindowSizeClass.of(size.width, size.height) { window.containerDpSize }
+                WindowSizeClass.of(size.width, size.height)
             } else {
                 null
             }
@@ -297,18 +246,9 @@ fun WindowSizeClassProvider(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
-    // The region's size now, behind whichever class its content holds: the
-    // class is only news at a change of shape, and its own dp stand still
-    // between them. Written after each measure and read by nothing here, so a
-    // region changing size within a class still recomposes nothing.
-    val now = remember { mutableStateOf(DpSize.Unspecified) }
     BoxWithConstraints(modifier) {
-        val size = DpSize(maxWidth, maxHeight)
-        SideEffect { now.value = size }
         CompositionLocalProvider(
-            LocalWindowSizeClass provides WindowSizeClass.of(maxWidth, maxHeight) {
-                now.value.takeIf { it.isSpecified } ?: size
-            },
+            LocalWindowSizeClass provides WindowSizeClass.of(maxWidth, maxHeight),
             content = content,
         )
     }

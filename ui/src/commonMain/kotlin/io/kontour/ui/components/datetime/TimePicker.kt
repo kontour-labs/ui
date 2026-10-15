@@ -127,6 +127,10 @@ internal fun nearestStep(time: LocalTime, step: Int): Pair<LocalTime, Boolean> {
  * whether the time it turns to is tomorrow's, so the date can go with it. It
  * answers whether the date went: where tomorrow could not be taken, Now is the
  * last step of today rather than midnight at its start.
+ *
+ * [narrow] wheels are as wide as their widest number or word and the room
+ * either side of it the day period's has, rather than 72dp and 64: the date
+ * and time picker's, so they fit beside a calendar on a phone.
  */
 @Composable
 internal fun TimeWheels(
@@ -139,6 +143,7 @@ internal fun TimeWheels(
     formats: LocaleFormats,
     onValueChangeFinished: (() -> Unit)?,
     onNow: ((tomorrow: Boolean) -> Boolean)?,
+    narrow: Boolean = false,
 ) {
     require(minuteStep in 1..30) { "minuteStep must divide an hour sensibly" }
 
@@ -209,6 +214,21 @@ internal fun TimeWheels(
     val minuteLabel: (Int) -> String = remember(formats) { { minute -> formats.integer(minute).padStart(2, zero) } }
     val muted = if (enabled) Theme.colours.contentMuted else Theme.colours.contentDisabled
 
+    // Measured, at the reader's type size, where the wheels are narrow: the
+    // widest of the numbers either wheel can show. One width for both, so the
+    // separator sits in the middle of the pair.
+    val measurer = rememberTextMeasurer()
+    val rowStyle = Theme.typography.titleLarge
+    val density = LocalDensity.current
+    val clockWheelWidth = if (!narrow) {
+        ClockWheelWidth
+    } else {
+        remember(hours, minutes, hourLabel, minuteLabel, rowStyle, density) {
+            val widest = (hours.map(hourLabel) + minutes.map(minuteLabel)).maxOf { measurer.measure(it, rowStyle).size.width }
+            with(density) { widest.toDp() + PeriodWheelPadding }
+        }
+    }
+
     // The hour and minute read left to right in every language — a clock's
     // numbers are a number, not words — so they are laid out as one
     // left-to-right group, and only the day period takes the line's direction.
@@ -220,7 +240,7 @@ internal fun TimeWheels(
                     selectedIndex = hourIndex,
                     onSelectedIndexChange = { emit(hourValue = hours[it]) },
                     itemLabel = hourLabel,
-                    modifier = Modifier.width(72.dp),
+                    modifier = Modifier.width(clockWheelWidth),
                     enabled = enabled,
                     contentDescription = strings.hour,
                     onSettled = onValueChangeFinished,
@@ -234,7 +254,7 @@ internal fun TimeWheels(
                     selectedIndex = minuteIndex,
                     onSelectedIndexChange = { emit(minute = minutes[it]) },
                     itemLabel = minuteLabel,
-                    modifier = Modifier.width(72.dp),
+                    modifier = Modifier.width(clockWheelWidth),
                     enabled = enabled,
                     contentDescription = strings.minute,
                     onSettled = onValueChangeFinished,
@@ -245,13 +265,11 @@ internal fun TimeWheels(
     }
 
     // Wide enough for the longer of the two words, and never narrower than it
-    // was for `AM`: `முற்பகல்` is not going to fit in 64dp.
-    val measurer = rememberTextMeasurer()
-    val periodStyle = Theme.typography.titleLarge
-    val density = LocalDensity.current
-    val periodWidth = remember(periods, periodStyle, density) {
-        val widest = periods.maxOf { measurer.measure(it, periodStyle).size.width }
-        with(density) { maxOf(PeriodWheelWidth, widest.toDp() + PeriodWheelPadding) }
+    // was for `AM`: `முற்பகல்` is not going to fit in 64dp. Narrow, the word
+    // and its room are all of it.
+    val periodWidth = remember(periods, rowStyle, density, narrow) {
+        val widest = with(density) { periods.maxOf { measurer.measure(it, rowStyle).size.width }.toDp() + PeriodWheelPadding }
+        if (narrow) widest else maxOf(PeriodWheelWidth, widest)
     }
 
     // A third wheel, not a segmented control below.
@@ -503,6 +521,9 @@ internal fun PickerField(
         }
     }
 }
+
+/** The hour and minute wheels' width, but where they are narrow. */
+private val ClockWheelWidth = 72.dp
 
 /** The day-period wheel's width when its words are short. */
 private val PeriodWheelWidth = 64.dp

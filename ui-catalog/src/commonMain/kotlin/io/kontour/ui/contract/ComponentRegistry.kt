@@ -2305,9 +2305,9 @@ val componentRegistry: List<ComponentSpec> = buildList {
             name = "DateTimePicker",
             role = null,
             underContract = false,
-            // Tall enough for the wheels under the calendar, as a large phone
-            // shows them: about 530dp here, where it is 300 wide and a mouse's.
-            renderHeight = 680,
+            // One half at a time at this width, too narrow for the two side by
+            // side: the segmented control over the calendar, about 340dp.
+            renderHeight = 400,
             // The date picker's floor: seven columns of day numbers.
             minWidth = 200,
         ) { modifier, _, _ ->

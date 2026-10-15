@@ -1140,7 +1140,7 @@ private fun Modifier.matchCellSize(): Modifier = fillMaxSize()
  * it on a page for the sake of a row of single digits. A selected day is still a
  * circle, as tall as its week.
  */
-private val MaxRowHeight = 40.dp
+internal val MaxRowHeight = 40.dp
 
 /** What a disabled month asks of each day. One instance, so it compares equal. */
 private val NoDateSelectable: (LocalDate) -> Boolean = { false }
