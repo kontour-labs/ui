@@ -1476,7 +1476,7 @@ public final class io/kontour/ui/components/list/PullToRefreshDefaults {
 
 public final class io/kontour/ui/components/list/PullToRefreshKt {
 	public static final fun LoadMore (Lio/kontour/ui/components/list/LoadMoreStatus;Lkotlin/jvm/functions/Function0;Landroidx/compose/ui/Modifier;ZLkotlin/jvm/functions/Function0;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Landroidx/compose/runtime/Composer;II)V
-	public static final fun PullToRefresh (ZLkotlin/jvm/functions/Function0;Landroidx/compose/ui/Modifier;ZLio/kontour/ui/components/list/PullToRefreshState;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Landroidx/compose/foundation/layout/PaddingValues;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)V
+	public static final fun PullToRefresh (ZLkotlin/jvm/functions/Function0;Landroidx/compose/foundation/gestures/ScrollableState;Landroidx/compose/ui/Modifier;ZLio/kontour/ui/components/list/PullToRefreshState;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Landroidx/compose/foundation/layout/PaddingValues;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;III)V
 	public static final fun rememberPullToRefreshState-kHDZbjc (FLandroidx/compose/runtime/Composer;II)Lio/kontour/ui/components/list/PullToRefreshState;
 }
 
@@ -3230,7 +3230,7 @@ public final class io/kontour/ui/nav/NavBarItemWidth : java/lang/Enum {
 }
 
 public final class io/kontour/ui/nav/NavBarKt {
-	public static final fun NavBar (Landroidx/compose/ui/Modifier;Lio/kontour/ui/nav/NavBarStyle;ZLio/kontour/ui/nav/NavColours;Landroidx/compose/foundation/layout/Arrangement$Horizontal;Landroidx/compose/ui/graphics/Shape;Lio/kontour/ui/nav/NavBarItemWidth;Lio/kontour/ui/nav/NavBarMarker;Lio/kontour/ui/nav/NavBarMarkerDrag;ZLandroidx/compose/foundation/layout/WindowInsets;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;III)V
+	public static final fun NavBar (Landroidx/compose/ui/Modifier;Lio/kontour/ui/nav/NavBarStyle;ZLio/kontour/ui/nav/NavColours;Landroidx/compose/foundation/layout/Arrangement$Horizontal;Landroidx/compose/ui/graphics/Shape;Lio/kontour/ui/nav/NavBarItemWidth;Lio/kontour/ui/nav/NavBarMarker;Lio/kontour/ui/nav/NavMarkerDrag;ZLandroidx/compose/foundation/layout/WindowInsets;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;III)V
 }
 
 public abstract interface class io/kontour/ui/nav/NavBarMarker {
@@ -3262,15 +3262,6 @@ public final class io/kontour/ui/nav/NavBarMarker$Glyph : io/kontour/ui/nav/NavB
 	public final fun getSize-MYxV2XQ ()J
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
-}
-
-public final class io/kontour/ui/nav/NavBarMarkerDrag : java/lang/Enum {
-	public static final field Off Lio/kontour/ui/nav/NavBarMarkerDrag;
-	public static final field SelectOnRelease Lio/kontour/ui/nav/NavBarMarkerDrag;
-	public static final field SelectWhileDragging Lio/kontour/ui/nav/NavBarMarkerDrag;
-	public static fun getEntries ()Lkotlin/enums/EnumEntries;
-	public static fun valueOf (Ljava/lang/String;)Lio/kontour/ui/nav/NavBarMarkerDrag;
-	public static fun values ()[Lio/kontour/ui/nav/NavBarMarkerDrag;
 }
 
 public abstract interface class io/kontour/ui/nav/NavBarScope : io/kontour/ui/nav/NavScope {
@@ -3352,6 +3343,15 @@ public final class io/kontour/ui/nav/NavLabelScope {
 	public final fun unaryPlus (Ljava/lang/String;)V
 }
 
+public final class io/kontour/ui/nav/NavMarkerDrag : java/lang/Enum {
+	public static final field Off Lio/kontour/ui/nav/NavMarkerDrag;
+	public static final field SelectOnRelease Lio/kontour/ui/nav/NavMarkerDrag;
+	public static final field SelectWhileDragging Lio/kontour/ui/nav/NavMarkerDrag;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/kontour/ui/nav/NavMarkerDrag;
+	public static fun values ()[Lio/kontour/ui/nav/NavMarkerDrag;
+}
+
 public final class io/kontour/ui/nav/NavRailDefaults {
 	public static final field $stable I
 	public static final field INSTANCE Lio/kontour/ui/nav/NavRailDefaults;
@@ -3362,8 +3362,8 @@ public final class io/kontour/ui/nav/NavRailDefaults {
 }
 
 public final class io/kontour/ui/nav/NavRailKt {
-	public static final fun ModalNavRail-b7y7nX4 (ZLkotlin/jvm/functions/Function0;Landroidx/compose/ui/Modifier;Lio/kontour/ui/sheet/SheetSide;FLio/kontour/ui/nav/NavColours;ZZLjava/lang/String;Ljava/lang/String;Landroidx/compose/foundation/layout/WindowInsets;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;III)V
-	public static final fun NavRail-rcagYwc (Landroidx/compose/ui/Modifier;ZLkotlin/jvm/functions/Function1;ZLandroidx/compose/ui/Alignment$Vertical;FFLio/kontour/ui/nav/NavColours;Ljava/lang/String;Ljava/lang/String;Landroidx/compose/foundation/layout/WindowInsets;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;III)V
+	public static final fun ModalNavRail-GVfq81o (ZLkotlin/jvm/functions/Function0;Landroidx/compose/ui/Modifier;Lio/kontour/ui/sheet/SheetSide;FLio/kontour/ui/nav/NavColours;ZZLio/kontour/ui/nav/NavMarkerDrag;Ljava/lang/String;Ljava/lang/String;Landroidx/compose/foundation/layout/WindowInsets;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;III)V
+	public static final fun NavRail-ZLuiUxw (Landroidx/compose/ui/Modifier;ZLkotlin/jvm/functions/Function1;ZLandroidx/compose/ui/Alignment$Vertical;Lio/kontour/ui/nav/NavMarkerDrag;FFLio/kontour/ui/nav/NavColours;Ljava/lang/String;Ljava/lang/String;Landroidx/compose/foundation/layout/WindowInsets;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;III)V
 }
 
 public abstract interface class io/kontour/ui/nav/NavScope {
@@ -3405,7 +3405,7 @@ public final class io/kontour/ui/nav/NavSearchState {
 }
 
 public final class io/kontour/ui/nav/NavigationSuiteScaffoldKt {
-	public static final fun NavigationSuiteScaffold-8r1ps0M (Lkotlin/jvm/functions/Function3;Landroidx/compose/ui/Modifier;Lio/kontour/ui/nav/NavigationSuiteState;Lio/kontour/ui/nav/NavigationSuiteType;Lio/kontour/ui/nav/NavBarStyle;Landroidx/compose/ui/graphics/Shape;Lio/kontour/ui/nav/NavBarItemWidth;Lio/kontour/ui/nav/NavBarMarker;Lio/kontour/ui/nav/NavBarMarkerDrag;Ljava/lang/Boolean;ZFZJLio/kontour/ui/nav/NavColours;Ljava/lang/Integer;Landroidx/compose/foundation/layout/WindowInsets;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;IIII)V
+	public static final fun NavigationSuiteScaffold-8r1ps0M (Lkotlin/jvm/functions/Function3;Landroidx/compose/ui/Modifier;Lio/kontour/ui/nav/NavigationSuiteState;Lio/kontour/ui/nav/NavigationSuiteType;Lio/kontour/ui/nav/NavBarStyle;Landroidx/compose/ui/graphics/Shape;Lio/kontour/ui/nav/NavBarItemWidth;Lio/kontour/ui/nav/NavBarMarker;Lio/kontour/ui/nav/NavMarkerDrag;Ljava/lang/Boolean;ZFZJLio/kontour/ui/nav/NavColours;Ljava/lang/Integer;Landroidx/compose/foundation/layout/WindowInsets;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;IIII)V
 	public static final fun navigationSuitePadding (Landroidx/compose/runtime/Composer;I)Landroidx/compose/foundation/layout/PaddingValues;
 	public static final fun navigationSuiteTypeFor (Lio/kontour/ui/adaptive/WindowWidthClass;)Lio/kontour/ui/nav/NavigationSuiteType;
 	public static final fun rememberNavigationSuiteState (ZLandroidx/compose/runtime/Composer;II)Lio/kontour/ui/nav/NavigationSuiteState;
@@ -3469,7 +3469,7 @@ public final class io/kontour/ui/nav/TabBarDefaults {
 
 public final class io/kontour/ui/nav/TabBarKt {
 	public static final fun Tab (Lio/kontour/ui/nav/TabBarScope;ZLkotlin/jvm/functions/Function0;Ljava/lang/Object;Landroidx/compose/ui/Modifier;ZLjava/lang/Integer;Landroidx/compose/foundation/interaction/MutableInteractionSource;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
-	public static final fun TabBar-X-z6DiA (Landroidx/compose/ui/Modifier;ZLandroidx/compose/foundation/ScrollState;JJZLkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
+	public static final fun TabBar-LHOAhiI (Landroidx/compose/ui/Modifier;ZLandroidx/compose/foundation/ScrollState;JJZLkotlin/jvm/functions/Function3;Lio/kontour/ui/nav/NavMarkerDrag;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
 	public static final fun tabSwipe (Landroidx/compose/ui/Modifier;IILkotlin/jvm/functions/Function1;ZLandroidx/compose/runtime/Composer;II)Landroidx/compose/ui/Modifier;
 }
 
