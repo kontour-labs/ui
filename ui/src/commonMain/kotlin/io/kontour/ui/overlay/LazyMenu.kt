@@ -66,7 +66,7 @@ internal class MenuRows(
 
     /** Row [index], told what it is called and whether it is the one held. */
     @Composable
-    fun Row(index: Int) {
+    fun Item(index: Int) {
         CompositionLocalProvider(
             LocalMenuRowName provides names[index],
             LocalMenuRowChosen provides (index == chosen),
@@ -137,7 +137,7 @@ internal fun LazyMenuRows(rows: MenuRows, shape: Shape, anchorWidth: Dp) {
         content = {
             Column(Modifier.padding(horizontal = inset)) {
                 CompositionLocalProvider(LocalMenuRowSizing provides true) {
-                    widest?.forEach { index -> key(rows.keys[index]) { rows.Row(index) } }
+                    widest?.forEach { index -> key(rows.keys[index]) { rows.Item(index) } }
                 }
             }
             LazyColumn(
@@ -152,7 +152,7 @@ internal fun LazyMenuRows(rows: MenuRows, shape: Shape, anchorWidth: Dp) {
                 overscrollEffect = overscroll,
             ) {
                 items(rows.count, key = { rows.keys[it] }) { index ->
-                    CompositionLocalProvider(LocalMenuRowPlace provides index) { rows.Row(index) }
+                    CompositionLocalProvider(LocalMenuRowPlace provides index) { rows.Item(index) }
                 }
             }
         },

@@ -700,7 +700,7 @@ private fun MenuSurface(
                     ) {
                         content()
                         if (rows != null) {
-                            for (index in 0 until rows.count) key(rows.keys[index]) { rows.Row(index) }
+                            for (index in 0 until rows.count) key(rows.keys[index]) { rows.Item(index) }
                         }
                     }
                 }
