@@ -222,13 +222,13 @@ internal val SplitListItemDemo = ComponentDemo(slug = "split-list-item", knobs =
                 val toggle = { saved = if (stop in saved) saved - stop else saved + stop }
                 if (split == ListItemSplit.SquareAuto) {
                     start(onClick = toggle, selected = stop in saved, role = Role.Checkbox, contentDescription = "Save $stop", content = action)
-                    end(onClick = {}, content = words)
+                    end(onClick = { echo(stop) }, content = words)
                 } else {
-                    start(onClick = {}, content = words)
+                    start(onClick = { echo(stop) }, content = words)
                     if (square) {
                         end(onClick = toggle, selected = stop in saved, role = Role.Checkbox, contentDescription = "Save $stop", content = action)
                     } else {
-                        end(onClick = {}, content = action)
+                        end(onClick = { echo("$stop: next service in $next") }, content = action)
                     }
                 }
             }

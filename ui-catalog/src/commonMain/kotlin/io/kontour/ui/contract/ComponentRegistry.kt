@@ -1667,7 +1667,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
             role = Role.Button,
             control = ControlLocator.Clickable,
             states = listOf(
-                RenderState("square", height = 90) { modifier ->
+                RenderState("square", height = 100) { modifier ->
                     SplitListItem(modifier = modifier.width(SpecimenProseWidth), split = ListItemSplit.AutoSquare) {
                         start(onClick = {}) {
                             +"Perth Underground"
@@ -1678,9 +1678,11 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 },
             ),
         ) { modifier, enabled, onClick ->
-            SplitListItem(modifier = modifier.width(SpecimenProseWidth)) {
+            // Two to one, not halves: the boundary walk goes down the middle,
+            // and between halves the middle is the seam, page all the way.
+            SplitListItem(modifier = modifier.width(SpecimenProseWidth), split = ListItemSplit.TwoToOne) {
                 start(onClick = onClick, enabled = enabled) { +"Perth Underground" }
-                end { +"4 min" }
+                end(enabled = enabled) { +"4 min" }
             }
         }
     )
