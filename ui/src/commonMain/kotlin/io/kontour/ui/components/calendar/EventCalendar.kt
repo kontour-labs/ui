@@ -70,6 +70,7 @@ import androidx.compose.ui.layout.Placeable
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.constrainHeight
 import androidx.compose.ui.unit.constrainWidth
+import kotlin.math.abs
 import kotlin.math.floor
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
@@ -1077,9 +1078,17 @@ internal fun rememberCalendarPager(state: EventCalendarState): CalendarPager {
  * while it moves. Each keyed by its period, so the one coming in is the same
  * composition moving to the middle. Under reduced motion, only the current
  * one: the pager cuts.
+ *
+ * As tall as the tallest page, or with [blendHeights], for pages of their own
+ * heights — the all-day strip's — as tall as each is by its share of the
+ * screen: the page at rest's own height, and mid-swipe going from the one to
+ * the other as far as the swipe has gone, the taller page's foot cut until it
+ * is all in. As tall as the taller of the two, the hours jumped by a row as a
+ * finger set off and again as the page came to rest. Measured from the
+ * pager's position, so a swipe's frames lay out again and compose nothing.
  */
 @Composable
-internal fun PeriodStrip(pager: CalendarPager, modifier: Modifier = Modifier, content: @Composable (period: Int) -> Unit) {
+internal fun PeriodStrip(pager: CalendarPager, modifier: Modifier = Modifier, blendHeights: Boolean = false, content: @Composable (period: Int) -> Unit) {
     val reduce = Theme.motion.reduceMotion
     val shown = if (reduce) listOf(pager.current) else pager.periods.inView
     Layout(
@@ -1088,7 +1097,18 @@ internal fun PeriodStrip(pager: CalendarPager, modifier: Modifier = Modifier, co
     ) { measurables, constraints ->
         val placeables = measurables.map { it.measure(constraints) }
         val width = placeables.firstOrNull()?.width ?: constraints.minWidth
-        val height = placeables.maxOfOrNull { it.height } ?: constraints.minHeight
+        val tallest = placeables.maxOfOrNull { it.height } ?: constraints.minHeight
+        var shares = 0f
+        var blended = 0f
+        if (blendHeights && placeables.size > 1) {
+            placeables.forEachIndexed { i, page ->
+                val at = pager.periods.placeOf(shown[i])
+                val share = if (at.isNaN()) 0f else (1f - abs(at)).coerceIn(0f, 1f)
+                shares += share
+                blended += page.height * share
+            }
+        }
+        val height = if (shares > 0f) constraints.constrainHeight((blended / shares).roundToInt()) else tallest
         layout(width, height) {
             placeables.forEachIndexed { i, page ->
                 val at = if (reduce) 0f else pager.periods.placeOf(shown[i])

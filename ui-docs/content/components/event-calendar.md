@@ -90,7 +90,7 @@ does, the day view too.
 | `Schedule` | The days with something on, one under another — each day's weekday and number, then its events, all-day and longer ones first, each with its tone's dot or its icon, its title, and "All day" or its times and where — under each month's name, scrolled through. Today is always there, saying "Nothing planned" when it has nothing on. A timed event that runs into a later day reads as flights and shifts write one: its own times on the day it starts, the end raised by the days on — "09:00 – 17:00⁺²", a night flight "22:30 – 06:15⁺¹" — then "All day" on the days between and "Until 17:00" on the last. An end at midnight is the end of the day before it, so an evening until midnight is "18:00 – 00:00", on its one day. The day at the top is the one the title and the state are about; the arrows go to the start of the month before or after, and a day's number opens it. `visibleDates` is the month before the one in hand and the two after it. |
 | `Year` | Small months, as many to a row as fit, with each busy day marked in the tone of its first event, scrolling up and down through the years — each year's months under its number — as the month scrolls through its weeks. The year most on screen is the one the title and the state are about; the header's arrows go to the same month a year before or after. Each month is drawn whole, so every month on screen is there at once. |
 
-An event that runs on past what a view shows — a bar into the day or the week before or after, or off the page, a block in the hours past midnight — is square on that side, and runs right to the edge there, through the line between the days or the weeks, so its pieces meet and read as one event. Where it really ends it is rounded and stops short of the line, so a rounded end always means the event ends there. The copy a carry draws keeps the same ends.
+An event that runs on past what a view shows — a bar into the day or the week before or after, or off the page, a block in the hours past midnight — is square on that side, and runs right to the edge there, through the line between the days or the weeks, so its pieces meet and read as one event. Where it really ends it is rounded and stops short of the line, so a rounded end always means the event ends there. The copy a carry draws keeps the same ends. A bar is on the same line on every day, three days and week it is in, in the strip above the hours, a condensed list and a month's weeks alike: the bars are packed across the whole calendar rather than a page at a time, earliest first and then longest, each on the first line from the top that is free on its first day. So only the bars still going on that day push one down, a single day's bar fills a line a longer one has left, and the lines start again from the top after a day with no bar. What that costs is an empty line, now and then, above a bar running on from a busier day, under one that has ended. A bar whose line is past what a day has room for — the strip's three, or a month's box — goes up to a free line instead, rather than into the "+N".
 
 Today's date is ringed the way the date picker rings it, in every view, so a
 calendar and a picker on the same screen agree about what today looks like.
@@ -103,9 +103,13 @@ fade, not a movement, so it plays under reduced motion too.
 **Moving about.** The header steps back and on, goes to today and switches
 the view. In the day and week views a sideways swipe steps too, the same way
 the date picker pages its months. An all-day bar that runs on into the next
-page on the same line keeps one title as the pages slide: the title stays
-where it is on the screen while the bar moves under it, and goes with the bar
-only once the bar's end reaches it. The month scrolls up and down instead,
+page is on the same line there, and keeps one title as the pages slide: the
+title stays where it is on the screen while the bar moves under it, and goes
+with the bar only once the bar's end reaches it. Mid-swipe, the strip above
+the hours goes from one page's height to the other's as far as the swipe has
+gone, rather than jumping as a finger sets off. A condensed page swiped in
+opens its list where the page beside it has scrolled to, so their lines are
+level. The month scrolls up and down instead,
 through the weeks either side. A finger's swipe or fling settles with a week at
 the top; a mouse's wheel or a trackpad scrolls the weeks freely and leaves them
 where it stops, as a desktop's calendars do. The month

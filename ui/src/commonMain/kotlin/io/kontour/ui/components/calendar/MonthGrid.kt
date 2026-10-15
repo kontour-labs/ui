@@ -197,6 +197,9 @@ internal fun MonthView(scope: CalendarScope) {
             }
             // Each week's events, found once for as long as the events are the same.
             val byWeek = remember(scope.events, periods) { HashMap<LocalDate, List<CalendarEvent>>() }
+            // Each bar's row, the same in every week it is in, so one running
+            // on into the next week is on the same line there: see [barRows].
+            val rowsOf = remember(scope.events) { barRows(scope.events, lines = true) }
             val gap = Theme.spacing.xxs / 2
             val cell = maxWidth / DaysPerWeek
             val edit = scope.edit
@@ -236,7 +239,7 @@ internal fun MonthView(scope: CalendarScope) {
                             val events = byWeek.getOrPut(weekStart) {
                                 scope.eventsBetween(weekStart, weekStart.plus(DaysPerWeek - 1, DateTimeUnit.DAY))
                             }
-                            MonthWeek(scope, weekStart, events, item, itemPx, maxRows, cell, onList, Modifier.fillMaxWidth().weekRow(rowPx))
+                            MonthWeek(scope, weekStart, events, rowsOf, item, itemPx, maxRows, cell, onList, Modifier.fillMaxWidth().weekRow(rowPx))
                         }
                     }
                     // Where a carried event would land, over the weeks on screen:
@@ -337,6 +340,8 @@ private fun MonthWeek(
     scope: CalendarScope,
     weekStart: LocalDate,
     weekEvents: List<CalendarEvent>,
+    /** Each bar's row, the same in every week: see [barRows]. */
+    barRows: Map<CalendarEvent, Int>,
     item: Dp,
     /** An event's height as the rows are laid out, which follows a pinch: see [monthItemPx]. */
     itemPx: () -> Float,
@@ -373,7 +378,7 @@ private fun MonthWeek(
             drawCursorRing(Rect(left, 0f, left + width, size.height), ringColour, ringWidth.toPx())
         },
     ) {
-        val pack = remember(weekEvents, weekStart, maxRows) { packWeek(weekItems(weekStart, weekEvents, lines = true), maxRows) }
+        val pack = remember(weekEvents, weekStart, maxRows, barRows) { packWeek(weekItems(weekStart, weekEvents, lines = true), maxRows, rows = barRows) }
         Row(Modifier.fillMaxSize()) {
             for (column in 0 until DaysPerWeek) {
                 val date = dayInWeek(weekStart, column)

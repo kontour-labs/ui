@@ -56,6 +56,7 @@ import io.kontour.ui.motion.scrollSpec
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -64,6 +65,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.constrainHeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -119,12 +121,13 @@ internal fun TimeView(scope: CalendarScope) {
     val cursor = scope.slotDescription(state.date, state.cursorMinute?.let { scope.cursorMinute { it } })
 
     val hoursView: @Composable (Modifier) -> Unit = { boxModifier ->
-        BoxWithConstraints(boxModifier.fillMaxWidth()) {
-            // In a page that scrolls, the hours have no height to fill: a working
-            // day's worth of them, scrolling within.
-            val viewport = if (constraints.hasBoundedHeight) Modifier.fillMaxHeight() else Modifier.height(scope.hourHeight * UnboundedHours)
+        // Not a `BoxWithConstraints`: the all-day strip above changes height
+        // on every frame of a swipe, and one of those composes its content
+        // again for each.
+        Box(boxModifier.fillMaxWidth()) {
             Row(
-                viewport
+                Modifier
+                    .fillHeightOr(scope.hourHeight * UnboundedHours)
                     .fillMaxWidth()
                     .onGloballyPositioned { hours.coordinates = it }
                     .hoursFrame(gutter, frame, gridLine(), Theme.sizing.borderWidth)
@@ -520,15 +523,9 @@ private val WeekdayHeadingWidth = 48.dp
 @Composable
 private fun AllDayStrip(scope: CalendarScope, gutter: Dp, days: Int) {
     val state = scope.state
-    val start = state.periods.startOf(state.period, state.view)
-    val end = start.plus(days - 1, DateTimeUnit.DAY)
-    val any = remember(scope.events, start, days) { weekItems(start, scope.eventsBetween(start, end), lines = false, days = days).isNotEmpty() }
-    // A bar being carried, or days drawn out, needs the strip to be there to be
-    // seen in, whatever week it is carried into.
-    val edit = scope.edit
-    val carrying = edit.live && edit.byDays
-    if (!any && !carrying) return
-    val item = with(LocalDensity.current) { Theme.typography.labelSmall.lineHeight.toDp() } + Theme.spacing.xxs * 2
+    // Each bar's row, the same on every page it is in, so a bar running on
+    // into the next page is on the same line there: see [barRows].
+    val rowsOf = remember(scope.events) { barRows(scope.events, lines = false) }
     // Each page's rows, packed once for as long as the events are the same: a
     // page reads the pages either side of it too, for which of its bars run on
     // into theirs on the same line. Emptied now and then, so a long way swiped
@@ -537,18 +534,30 @@ private fun AllDayStrip(scope: CalendarScope, gutter: Dp, days: Int) {
     val packOf = { from: LocalDate ->
         if (from !in packs && packs.size >= KeptPacks) packs.clear()
         packs.getOrPut(from) {
-            packWeek(weekItems(from, scope.eventsBetween(from, from.plus(days - 1, DateTimeUnit.DAY)), lines = false, days = days), maxRows = AllDayRows, days = days)
+            val items = weekItems(from, scope.eventsBetween(from, from.plus(days - 1, DateTimeUnit.DAY)), lines = false, days = days)
+            packWeek(items, maxRows = AllDayRows, days = days, rows = rowsOf)
         }
     }
+    val still = Theme.motion.reduceMotion
+    // There while any page on the screen has a bar, so a page swiped in has
+    // its bars as it comes, under a strip that grows to them with the swipe.
+    val inView = if (still) listOf(state.period) else scope.pager.periods.inView
+    val any = inView.any { period -> packOf(state.periods.startOf(period, state.view)).let { it.placed.isNotEmpty() || it.more.any { more -> more > 0 } } }
+    // A bar being carried, or days drawn out, needs the strip to be there to be
+    // seen in, whatever week it is carried into.
+    val edit = scope.edit
+    val carrying = edit.live && edit.byDays
+    if (!any && !carrying) return
+    val item = with(LocalDensity.current) { Theme.typography.labelSmall.lineHeight.toDp() } + Theme.spacing.xxs * 2
     // The page the pager is counted from: the one at rest, or the one a swipe
     // set off from until the next has come to rest.
     val origin = scope.pager.periods.origin
-    val still = Theme.motion.reduceMotion
     Row(Modifier.fillMaxWidth()) {
         // No label beside it: the bars say what they are, and "All day" was
         // the widest thing in the gutter, cut to "All" on a phone.
         Spacer(Modifier.width(gutter))
-        PeriodStrip(scope.pager, Modifier.weight(1f)) { period ->
+        // Mid-swipe, as tall as each page's share of the screen makes it: see [PeriodStrip].
+        PeriodStrip(scope.pager, Modifier.weight(1f), blendHeights = true) { period ->
             val from = state.periods.startOf(period, state.view)
             val to = from.plus(days - 1, DateTimeUnit.DAY)
             val pack = packOf(from)
@@ -634,7 +643,7 @@ private fun AllDayStrip(scope: CalendarScope, gutter: Dp, days: Int) {
  * one piece, and its title goes with it.
  */
 @Composable
-private fun runOnTitle(
+internal fun runOnTitle(
     pager: CalendarPager,
     period: Int,
     origin: Int,
@@ -704,7 +713,7 @@ private fun runOnTitle(
  * A bar's title as [runOnTitle] places it: laid out [width] wide, where that
  * is not the bar's own width, and [at] so far along the bar, given its width.
  */
-private class RunOnTitle(val width: (() -> Int)?, val at: (Int) -> Int)
+internal class RunOnTitle(val width: (() -> Int)?, val at: (Int) -> Int)
 
 /**
  * A day's place for an edit by days to find. Where it would land is drawn by
@@ -1208,6 +1217,17 @@ private fun TimeGhost(scope: CalendarScope, period: Int, days: Int) {
             }
         }
     }
+}
+
+/**
+ * The height there is, or [unbounded] where there is no end to it: in a page
+ * that scrolls, the hours have no height to fill, and have a working day's
+ * worth of them, scrolling within.
+ */
+private fun Modifier.fillHeightOr(unbounded: Dp): Modifier = layout { measurable, constraints ->
+    val height = if (constraints.hasBoundedHeight) constraints.maxHeight else constraints.constrainHeight(unbounded.roundToPx())
+    val placeable = measurable.measure(constraints.copy(minHeight = height, maxHeight = height))
+    layout(placeable.width, placeable.height) { placeable.place(0, 0) }
 }
 
 /** The day an event's last minute is on. */
