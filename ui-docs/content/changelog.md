@@ -247,6 +247,22 @@ frame rate.
   changed by scrolling; one whose options `optionContent` draws opens as wide as
   a menu goes. A screen reader is told how many options there are and where each
   is. Thirty or fewer are drawn as they were.
+- **Menus are walked from the keyboard.** In a
+  [dropdown menu](components/dropdown-menu.md), a context menu and the lists of
+  a [select](components/select.md), [multi-select](components/multi-select.md)
+  and [combobox](components/combobox.md), Up and Down move between the rows that
+  can be chosen and go round at the ends; Home and End go to the first and
+  last; Page Up and Page Down a list's height; and typing goes to the row whose
+  words begin with what was typed — "ma" to *Madagascar*, the same letter again
+  to the next. Only Tab moved between rows before, which the docs did not say.
+  A long list scrolls to the row the keys go to; in a combobox, typing in the
+  list goes back to the field. A menu opened with a mouse holds the focus
+  without a ring, so the next key moves about it, and Escape in a submenu puts
+  the focus back on its row.
+- **A select opens at its value.** A select, multi-select or combobox opens
+  with the option it holds in the middle of its list, from its first frame,
+  where it opened at the top; opened from the keyboard, the focus is on it.
+  Escape, or an option picked with Enter, gives the focus back to the field.
 - **A dialog's blurred backdrop is cheaper to draw on iOS, the desktop and the
   web.** A dialog that sits open costs nothing, but every frame drawn while it
   is open — its arrival, a caret blinking in it, a spinner, a clock on the page
