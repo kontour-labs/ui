@@ -282,6 +282,14 @@ frame rate.
   for the blur and scaled back up: the same picture to within a few levels in
   255, at under half the cost on a software rasteriser. Android, and
   `BackdropStyle.BlurAndScale`, blur as before.
+- **Carried past its actions, a [swipe row](components/swipe-actions.md)'s full
+  swipe action grows and pushes the others aside.** Between the reveal and the
+  point of no return the outermost action — the one letting go there will run —
+  takes all the width the finger adds, and the others shrink to nothing as it
+  does, so the strip is the outermost's by the time the line is crossed. They
+  used to grow evenly up to the line and then fold away at once, which hid which
+  action the swipe was heading for until it got there. A side where no action
+  takes a full swipe still shares the width evenly.
 
 ### Added
 

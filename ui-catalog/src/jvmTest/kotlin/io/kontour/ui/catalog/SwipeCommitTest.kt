@@ -132,26 +132,33 @@ class SwipeCommitTest {
     }
 
     /**
-     * At the point of no return, the outermost action takes the strip.
+     * Past the reveal, the outermost action grows and pushes the other aside, and at
+     * the point of no return it has the strip.
+     *
+     * *"Instead of expanding at the same rate, the action that takes the full swipe
+     * should keep expanding and slowly push the other 1 or 2 action/s to zero."* They
+     * used to share the strip evenly up to the line and then the outer one took it
+     * all at once.
      *
      * Counted rather than sampled at a point. The buttons are internal, have no
      * semantics of their own and move every frame, so what is observable is ink: how
      * much of the vacated strip is the outer action's colour and how much is the
-     * inner one's. Short of the line, two actions of equal width share it; past it,
-     * the inner one has folded into the outer.
+     * inner one's.
      *
      * Held rather than released, so the measurement is of the gesture rather than of
      * what it committed to. Under reduced motion, so the takeover is a cut and the
      * frame after the line already shows it.
      */
     @Test
-    fun atThePointOfNoReturnTheOutermostActionTakesTheStrip() {
+    fun pastTheRevealTheOutermostActionPushesTheOtherAsideAndTakesTheStrip() {
+        val (nearOuter, nearInner) = heldAt(JustPastTheReveal)
         val (shortOuter, shortInner) = heldAt(ShortOfTheLine)
         assertTrue(
-            shortOuter > 0 && shortInner > shortOuter / 2,
-            "held short of the point of no return, the outer action holds " +
-                "${shortOuter}px of the strip and the inner one ${shortInner}px. " +
-                "Short of the line they share it.",
+            shortOuter > nearOuter && shortInner in 1 until nearInner,
+            "carried from just past the reveal to short of the point of no return, " +
+                "the outer action went from ${nearOuter}px of the strip to ${shortOuter}px " +
+                "and the inner one from ${nearInner}px to ${shortInner}px. The outer " +
+                "should grow and the inner shrink, still showing.",
         )
         val (outer, inner) = heldAt(Travel)
         assertTrue(
@@ -828,6 +835,9 @@ class SwipeCommitTest {
 
         /** Past the 352px reveal, short of the 448px point of no return. */
         const val ShortOfTheLine = 400f
+
+        /** A little past the 352px reveal, where the inner action has barely begun to fold. */
+        const val JustPastTheReveal = 364f
 
         /** 130px a move at 16ms: 8125px/s, well past any definition of a flick. */
         const val FlickSteps = 4

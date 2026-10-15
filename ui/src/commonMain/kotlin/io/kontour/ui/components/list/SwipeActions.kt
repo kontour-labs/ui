@@ -347,12 +347,18 @@ object SwipeActionsDefaults {
  * only once the row has moved far enough to make room for it — small and round
  * when each appears, full-height buttons by the time the row has uncovered them.
  * An icon grows in as its button does, and a label unfolds under it once the
- * button is tall enough to hold both. Carry the row on past its actions and, at the
- * point of no return, the outermost one takes over the whole strip while the
- * others fold into it: letting go then runs it, and the others stay folded until
- * the row is home. Asked for in those words — "an Apple-like animation where (up
- * to) three squircle shapes expand out of the side when you start swiping, and
- * then continuing to swipe across will select the rightmost one".
+ * button is tall enough to hold both. Carry the row on past its actions and the
+ * outermost one — the one a full swipe runs — keeps growing with the finger,
+ * pushing the others smaller, until at the point of no return it has the whole
+ * strip and they are gone: letting go then runs it, and the others stay folded
+ * until the row is home. Asked for in those words — "an Apple-like animation
+ * where (up to) three squircle shapes expand out of the side when you start
+ * swiping, and then continuing to swipe across will select the rightmost one".
+ * They used to share the extra width evenly and give it all to the outermost
+ * at the line, which hid which of them the swipe was heading for until it got
+ * there; asked for as *"the action that takes the full swipe should keep
+ * expanding and slowly push the other 1 or 2 action/s to zero"*. A side where
+ * no action takes a full swipe still shares it evenly.
  *
  * A full swipe ends on a tick. The row holds at the far edge while the action's
  * icon gives way to a check mark, drawn in, and runs the action once it has been
@@ -1009,6 +1015,12 @@ fun SwipeActions(
                 gap = gapPx,
                 maxHeight = maxActionHeightPx,
                 reveal = { if (side > 0) startTravel else -endTravel },
+                // Where the others are gone: the point of no return, on a side
+                // that has a full swipe.
+                commit = {
+                    val full = if (side > 0) fullStart else fullEnd
+                    if (full == null || width <= 0f) Float.NaN else commitAt(side.toFloat())
+                },
                 offset = { state.anchoredState.offset + band.offset },
                 takeover = { takeover.value },
                 confirmation = { confirmation.value },
@@ -1163,9 +1175,10 @@ internal fun swipeTarget(
  * row — so a swipe reads as the actions being dealt out rather than all swelling at
  * once. Each is no taller than it is wide, so each begins as a small circle and
  * lengthens into a full-height button — full height up to [maxHeight], past
- * which it stays centred on a tall row. Past the reveal they share the extra width
- * evenly, and [takeover] then widens the outermost over the whole strip and folds
- * the others away.
+ * which it stays centred on a tall row. Past the reveal the outermost takes the
+ * extra width and the others fold away into it by [commit] — see
+ * [swipeActionWidth] — and [takeover] keeps them folded on a committed row's
+ * way out and home.
  */
 @Composable
 private fun SwipeActionButtons(
@@ -1176,6 +1189,7 @@ private fun SwipeActionButtons(
     gap: Float,
     maxHeight: Float,
     reveal: () -> Float,
+    commit: () -> Float,
     offset: () -> Float,
     takeover: () -> Float,
     confirmation: () -> Float,
@@ -1191,13 +1205,16 @@ private fun SwipeActionButtons(
                 SwipeActionButton(
                     action = action,
                     shape = shape,
+                    // As wide as it has grown, so a button folding away past the
+                    // reveal takes its icon and label with it as it came.
                     arrival = {
                         val live = abs(offset().let { if (it.isNaN()) 0f else it })
                         val full = fullButtonWidth(reveal(), count, gap)
                         if (full <= 0f) {
                             1f
                         } else {
-                            (grownWidth(edgeIndex, live, count, reveal(), gap) / full).coerceIn(0f, 1f)
+                            val grown = swipeActionWidth(edgeIndex, live, count, reveal(), gap, commit(), takeover())
+                            (grown / full).coerceIn(0f, 1f)
                         }
                     },
                     // The action a tap is confirming, while one is; otherwise
@@ -1216,14 +1233,11 @@ private fun SwipeActionButtons(
         val boxWidth = constraints.maxWidth
         val rowHeight = constraints.maxHeight
         val live = offset().let { if (it.isNaN()) 0f else abs(it) }.coerceAtMost(boxWidth.toFloat())
-        val t = takeover().coerceIn(0f, 1f)
-        val usable = (live - gap).coerceAtLeast(0f)
+        val t = takeover()
         val span = reveal()
-
-        val widths = FloatArray(count) { i ->
-            val grown = grownWidth(i, live, count, span, gap)
-            if (i == 0) grown + (usable - grown) * t else grown * (1f - t)
-        }
+        val to = commit()
+        val fold = swipeFold(live, span, to, t)
+        val widths = FloatArray(count) { i -> swipeActionWidth(i, live, count, span, gap, to, t) }
         val placeables = measurables.mapIndexed { i, measurable ->
             val w = widths[i].roundToInt().coerceAtLeast(0)
             val h = minOf(rowHeight.toFloat(), widths[i], maxHeight).roundToInt().coerceAtLeast(0)
@@ -1232,13 +1246,13 @@ private fun SwipeActionButtons(
         layout(boxWidth, rowHeight) {
             // From the edge inward, each after the last with a gap between — a gap
             // only once there is a button to have one, and folding away with the
-            // buttons during a takeover.
+            // buttons as the outermost takes the strip.
             var along = gap / 2f
             placeables.forEachIndexed { i, placeable ->
                 val y = (rowHeight - placeable.height) / 2
                 val x = if (fromLeadingEdge) along else boxWidth - along - placeable.width
                 placeable.placeRelative(x.roundToInt(), y)
-                if (widths[i] > 0f) along += widths[i] + if (i == 0) gap else gap * (1f - t)
+                if (widths[i] > 0f) along += widths[i] + gap * (1f - fold)
             }
         }
     }
@@ -1316,15 +1330,71 @@ private fun fullButtonWidth(reveal: Float, count: Int, gap: Float): Float =
     if (count <= 0) 0f else (reveal / count - gap).coerceAtLeast(0f)
 
 /**
- * Button [index]'s width, counted from the edge, with [live] of the strip uncovered:
- * dealt out one after the other up to the reveal, and sharing the strip evenly past
- * it. The two agree at the reveal, where every button is exactly full.
+ * Button [index]'s width, counted from the edge, with [live] of the strip uncovered,
+ * as the buttons are dealt: one after the other up to the reveal, and sharing the
+ * strip evenly past it. The two agree at the reveal, where every button is exactly
+ * full. [swipeActionWidth] is what a full swipe makes of it.
  */
 private fun grownWidth(index: Int, live: Float, count: Int, reveal: Float, gap: Float): Float {
     val full = fullButtonWidth(reveal, count, gap)
     if (live >= reveal) return (live / count - gap).coerceAtLeast(0f)
     return (live - index * (full + gap) - gap).coerceIn(0f, full)
 }
+
+/**
+ * How far a side's other actions have folded away into the outermost, 0 to 1:
+ * from none at the reveal to all of them at [commit], the point of no return,
+ * and all of them while [takeover] holds a committed row's strip for it. `NaN`
+ * for [commit] is a side with no full swipe, whose actions never fold past the
+ * reveal.
+ */
+internal fun swipeFold(live: Float, reveal: Float, commit: Float, takeover: Float): Float {
+    val held = takeover.coerceIn(0f, 1f)
+    if (commit.isNaN() || live < reveal) return held
+    val toward = if (commit <= reveal) 1f else ((live - reveal) / (commit - reveal)).coerceIn(0f, 1f)
+    return maxOf(toward, held)
+}
+
+/**
+ * Button [index]'s width, counted from the edge, with [live] of the strip uncovered.
+ *
+ * Up to the reveal, dealt out one after the other — see [grownWidth]. Past it, on a
+ * side with a full swipe, the outermost takes every pixel the finger adds and the
+ * others shrink evenly to nothing by [commit], so the button letting go will run
+ * is seen growing toward the strip rather than handed it at the line; the buttons
+ * and the gaps between them always fill the strip. A side with no full swipe
+ * ([commit] `NaN`) shares the extra width evenly instead.
+ *
+ * [takeover] is a committed row's: on its way out to the edge and home again the
+ * outermost holds the whole strip and the others stay folded, wherever the row is.
+ */
+internal fun swipeActionWidth(
+    index: Int,
+    live: Float,
+    count: Int,
+    reveal: Float,
+    gap: Float,
+    commit: Float,
+    takeover: Float,
+): Float {
+    val usable = (live - gap).coerceAtLeast(0f)
+    if (live < reveal || commit.isNaN()) {
+        val held = takeover.coerceIn(0f, 1f)
+        val grown = grownWidth(index, live, count, reveal, gap)
+        return if (index == 0) grown + (usable - grown) * held else grown * (1f - held)
+    }
+    val left = 1f - swipeFold(live, reveal, commit, takeover)
+    val full = fullButtonWidth(reveal, count, gap)
+    return if (index == 0) {
+        (usable - (count - 1) * (full + gap) * left).coerceAtLeast(0f)
+    } else {
+        full * left
+    }
+}
+
+/** Every button's [swipeActionWidth], from the edge. */
+internal fun swipeActionWidths(live: Float, count: Int, reveal: Float, gap: Float, commit: Float, takeover: Float): FloatArray =
+    FloatArray(count) { swipeActionWidth(it, live, count, reveal, gap, commit, takeover) }
 
 private val NoConfirmation: () -> Float = { 0f }
 

@@ -72,6 +72,26 @@ ListGroup {
 }
 ```
 
+In [`SwipeActions`](swipe-actions.md), a split row slides as one row: the
+actions belong to the pair, not to either half, and come out beside its end half
+as they would beside any row's edge. Each half keeps its own press, and a drag
+that starts on either one swipes the pair. Give `SwipeActions` the pair's
+`shape` as for any row in a group, so it clips as the pair is drawn:
+
+```kotlin
+SwipeActions(
+    end = listOf(delete),
+    shape = position.shape(ListItemDefaults.Shape, ListItemDefaults.InnerCorner, Orientation.Vertical),
+) {
+    SplitListItem(split = ListItemSplit.AutoSquare, position = position) {
+        start(onClick = { open(stop) }) { +stop.name }
+        end(onClick = { save(stop) }, contentDescription = "Save ${stop.name}") {
+            leading { +Tabler.Outline.Star }
+        }
+    }
+}
+```
+
 ---
 
 ## Accessibility
