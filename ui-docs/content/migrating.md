@@ -17,14 +17,41 @@ from the version the app is on.
 
 ## 0.4.4 to 0.4.5
 
-Nothing to rewrite: `Select`, `MultiSelect`, `Combobox` and `ListSection` have
-new parameters, defaulted and last, so a rebuild is enough. A few things look
-or behave differently enough to check.
+Two things to rewrite — `PullToRefresh` takes its list's scroll state, and
+`NavBarMarkerDrag` is `NavMarkerDrag` — and the compiler finds both. `Select`,
+`MultiSelect`, `Combobox`, `ListSection` and `Strings` have new parameters,
+defaulted and last. A few things look or behave differently enough to check.
 
 ### Before you start
 
 - **Move all three modules at once**: `kontour = "0.4.5"`, and rebuild anything
   compiled against 0.4.4.
+
+### `PullToRefresh` takes the list's scroll state
+
+Hand it the state of the list it holds, which says whether the list is at its
+top. `null` for content that does not scroll, or whose state cannot be had.
+
+```diff
+- PullToRefresh(refreshing, onRefresh, Modifier.weight(1f)) {
+-     LazyColumn { … }
++ val rows = rememberLazyListState()
++ PullToRefresh(refreshing, onRefresh, rows, Modifier.weight(1f)) {
++     LazyColumn(state = rows) { … }
+  }
+```
+
+### `NavBarMarkerDrag` is `NavMarkerDrag`
+
+The rail, the modal rail and the tab bar take it too, and the navigation
+suite's parameter is `markerDrag`, for the rail as well as the bar.
+
+```diff
+- NavBar(markerDrag = NavBarMarkerDrag.SelectWhileDragging) { … }
++ NavBar(markerDrag = NavMarkerDrag.SelectWhileDragging) { … }
+- NavigationSuiteScaffold(…, barMarkerDrag = NavBarMarkerDrag.Off)
++ NavigationSuiteScaffold(…, markerDrag = NavMarkerDrag.Off)
+```
 
 ### Check
 
@@ -38,8 +65,13 @@ or behave differently enough to check.
 - **List sections over something other than rows.** Their titles and footers
   now start at the content's edge. Pass `textInset = ListItemDefaults.ContentInset`
   to keep the old indent.
-- **A date-time picker on a tall phone** shows its calendar and its wheels
-  together, about 566dp, where it showed one at a time.
+- **A date-time picker narrower than its wheels and calendar side by side**
+  shows the calendar with a time row under it, whose pill opens the wheels in a
+  popover, where it showed one half at a time under a segmented control. The
+  popover needs an `OverlayHost` round the app, as a menu does; without one the
+  pill shows the time and does nothing.
+- **A rail, a modal rail or a tab bar whose destinations fit** now drags its
+  marker, as a nav bar did. `markerDrag = NavMarkerDrag.Off` keeps it to taps.
 - **A hero top bar that follows its list**, on iOS: put
   `Modifier.topBarCollapse(collapse)` on the list, ahead of its
   `verticalScroll`, for the bar to take the push past the list's end.

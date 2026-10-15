@@ -34,8 +34,8 @@ same margin at its foot as at its sides; a large or hero top bar no longer has
 its page slide up under it on iOS. Selects draw their options with a slot, a
 combobox's text can be selected, list sections line up with what they hold,
 the default schemes' selected tint stands further off the page, a phone shows
-the date-time picker's wheels under its calendar where it has the height, and
-an event calendar's month scrolls freely under a mouse's wheel.
+a date-time picker's date and time together, and an event calendar's month
+scrolls freely under a mouse's wheel.
 
 And a round of fixes from an audit of the whole library: a modal sheet that may
 not be hidden no longer hangs the app as it closes, a list beside a detail and
@@ -45,9 +45,19 @@ should, the text menu respects a field's rules, and a good deal less is
 composed, measured or animated on every frame — a list in a floating sheet
 above all, which was measured again on every frame the sheet moved.
 
-`Select`, `MultiSelect`, `Combobox`, `ListSection` and `Strings` have new
-parameters, so anything built against 0.4.4 has to be recompiled — see
-**Breaking**. Nothing needs rewriting.
+Then a round from testing on phones: an event calendar's carried events keep
+their shape and bring the rest of themselves along, a title runs on across a
+swipe once rather than twice, the year flashes today, and an evening that ends
+the next morning reads "22:30 – 06:15⁺¹". Long selects compose only what they
+show, a drag on an open list stays in it, a rail's or a tab bar's marker drags
+wherever its row fits, a pull to refresh knows where its list is, a dialog's
+blur is cheaper to draw, and Android's back gesture keeps the screen's own
+frame rate.
+
+`PullToRefresh` takes its list's scroll state, `NavBarMarkerDrag` is
+`NavMarkerDrag`, and `Select`, `MultiSelect`, `Combobox`, `ListSection` and
+`Strings` have new parameters — see **Breaking** and
+[Migrating](migrating.md).
 
 ### Breaking
 
@@ -56,8 +66,23 @@ parameters, so anything built against 0.4.4 has to be recompiled — see
   `textInset` on the section — so anything built against 0.4.4 has to be
   recompiled. They are defaulted and come last, so every call site still
   compiles as it is.
-- **`Strings` has a new field, `inRange`**, which a date range picker says of a
-  day inside its range. It is defaulted.
+- **`Strings` has new fields**, each defaulted: `inRange`, which a date range
+  picker says of a day inside its range; `time`, a date-time picker's time row;
+  and `endDayOffset`, `endDaysLater` and `untilTime`, for an event that ends on
+  a later day than it starts.
+- **[`PullToRefresh`](components/pull-to-refresh.md) takes the content's
+  `scrollState`**, third, after `onRefresh`: the `LazyListState`,
+  `LazyGridState` or `ScrollState` of the list it holds, which says whether the
+  list is at its top. Required, and `null` for content that does not scroll or
+  whose state cannot be had, so leaving it out is a choice rather than an
+  omission. Without it a mouse drag halfway down a list moved by its scrollbar,
+  a key, `animateScrollToItem` or a restored position pulled to refresh —
+  nothing Compose makes reachable says where a child is scrolled to.
+- **`NavBarMarkerDrag` is `NavMarkerDrag`**, now taken by
+  [`NavRail`](components/nav-rail.md), `ModalNavRail` and
+  [`TabBar`](components/tab-bar.md) as well as `NavBar`; and
+  [`NavigationSuiteScaffold`](components/navigation-suite-scaffold.md)'s
+  `barMarkerDrag` is `markerDrag`, and reaches the rail and the modal rail too.
 
 ### Changed
 
@@ -128,17 +153,25 @@ parameters, so anything built against 0.4.4 has to be recompiled — see
   `inactive`, is `#847C8D`, 3.42:1 on a raised ground where it was 3.06. A
   switch's off track is 3.58:1 from its on track, where it was 4.01. In light,
   `outlineStrong` and `inactive` are `#7C7C7C` and `contentSubtle` `#616161`.
-- **A [`DateTimePicker`](components/date-time-picker.md) on a phone shows its
-  wheels under its calendar where it has the height** — 600dp, the height it is
-  given or, in a page that scrolls, the window's less 160dp for its bars. That is
-  any phone from about 760dp tall, a Pixel 9 Pro XL or an iPhone 16 Pro Max
-  among them. Every window under 560dp wide showed one half at a time under a
-  segmented control, however tall; a small phone still does.
+- **A [`DateTimePicker`](components/date-time-picker.md) shows the date and
+  the time together at every width.** Side by side wherever a calendar of 40dp
+  days, 8dp and the wheels as wide as they measure fit across — 390dp on a
+  24-hour clock at the default type size, 453dp on a 12-hour one — and
+  narrower, as UIKit's inline picker does: the calendar, and under it a row
+  that says **Time** and the chosen time in a pill. Pressed, the pill opens the
+  wheels, with **Now**, in a popover anchored to it. It replaces the segmented
+  control that showed one half at a time below 560dp, which on a 12-hour clock
+  was every phone. Only the width given decides, never the height. The pill is
+  a button named "Time" that says its time; opened from the keyboard, focus goes
+  into the popover and back to the pill as it closes. The wheels open into an
+  `OverlayHost`, as a menu does.
+- **A `DateTimePicker`'s wheels are narrower**: the hour and minute wheels as
+  wide as their widest number with 12dp either side, about 48dp from 72, and
+  the am/pm wheel as wide as its word. A `TimePicker`'s are as they were.
 - **A date picker is 8dp shorter**: its header has no padding of its own past
   its arrows' touch targets, on `DatePicker`, `DateRangePicker` and
   `DateTimePicker` — 310dp on a phone, from 318. A `DateTimePicker`'s calendar
-  and wheels are 16dp apart side by side, from 24, and its segmented control is
-  12dp above the calendar, from 16.
+  and wheels are 8dp apart side by side, from 24.
 - **An [event calendar](components/event-calendar.md)'s month scrolls freely
   under a mouse's wheel or a trackpad, and stays where it stops**, as a
   desktop's calendars do. Each turn of the wheel was slid on to the nearest week
@@ -166,9 +199,49 @@ parameters, so anything built against 0.4.4 has to be recompiled — see
   would do something**: expand where there is a taller detent, collapse where
   there is a shorter one, and dismiss where the user may put the sheet away. The
   default modal sheet offered two that did nothing, and no way to dismiss it.
-- **A [schedule](components/event-calendar.md) shows a timed event of a day or
-  more as its part of each day**: from its start on the first, all day between,
-  until its end on the last. It said "All day" on every day.
+- **A timed event that runs into a later day reads as a flight or a shift
+  does.** A [schedule](components/event-calendar.md) shows it on each day it is
+  on: "09:00 – 17:00⁺²" on its first, the end raised by the days it is on;
+  "All day" between; and "Until 17:00" on its last. It said "All day" on every
+  day, and an overnight event under a day long said its times on both. An end
+  at the midnight that closes the first day is that day's: "18:00 – 00:00". A
+  block in the hours shows "22:30 – 06:15⁺¹" too, and a screen reader hears
+  "09:00 – 17:00, 2 days later", never "plus two".
+- **An [event calendar](components/event-calendar.md)'s year flashes today**
+  when the header's today, or `state.showToday()`, is pressed, as its other
+  views do: today's month is brought in first, even from elsewhere in the same
+  year, which it was not, and flashes once it is there.
+- **A carried event keeps its shape.** The copy a carry draws is square and out
+  to the edge where the event runs on into another day, week or past midnight,
+  and rounded only where it really ends, as it was before it was picked up; it
+  was a capsule drawn in from both edges. Carried sideways in a day, three days,
+  a week or a month, the rest of the event comes with it, its far end sliding
+  into view, rather than the copy pulling away from the edge.
+- **An all-day bar that runs on into the next page shows its title once as the
+  pages slide.** The title stays where it is on the screen, and goes with the
+  bar once the bar's end reaches it; both pages drew one each.
+- **A [rail](components/nav-rail.md)'s marker can be dragged while the rail has
+  nothing to scroll, and a [tab bar](components/tab-bar.md)'s while its tabs
+  fit** — always, for a fixed bar — as a nav bar's could. A row that overflows
+  scrolls as before. Asked as each drag begins, so a window resized or a tab
+  added changes it. `markerDrag = NavMarkerDrag.Off` turns it off; a modal rail
+  closes once a drag has chosen.
+- **A [select](components/select.md), [multi-select](components/multi-select.md)
+  or [combobox](components/combobox.md) of more than thirty options composes the
+  ones it shows.** A select of 300 composed and measured every row as it opened
+  — about 125ms on the desktop, where ten take 20 — and now takes about 30. It
+  is as wide as before, settled as it opens from its options' words and not
+  changed by scrolling; one whose options `optionContent` draws opens as wide as
+  a menu goes. A screen reader is told how many options there are and where each
+  is. Thirty or fewer are drawn as they were.
+- **A dialog's blurred backdrop is cheaper to draw on iOS, the desktop and the
+  web.** A dialog that sits open costs nothing, but every frame drawn while it
+  is open — its arrival, a caret blinking in it, a spinner, a clock on the page
+  behind — blurred the whole app again at full size, since Skia keeps no
+  blurred layer between frames. The app is now drawn at a quarter of its size
+  for the blur and scaled back up: the same picture to within a few levels in
+  255, at under half the cost on a software rasteriser. Android, and
+  `BackdropStyle.BlurAndScale`, blur as before.
 
 ### Added
 
@@ -235,6 +308,14 @@ parameters, so anything built against 0.4.4 has to be recompiled — see
 - **The app's own `ToastHostState.dismiss(id)` no longer buys the other
   [toasts](components/toast.md) time.** Only a toast the reader sends away tops
   the rest up by `ToastDefaults.ClearedGrace`.
+- **A drag on an open menu's list no longer scrolls the page under it.** Where
+  an `OverlayHost` sits in a page that scrolls — a card, a pane, a stage with a
+  host of its own — a drag on a [combobox](components/combobox.md)'s or a
+  [select](components/select.md)'s list handed the page whatever the list did
+  not use: all of it, for a list that fits, and the rest of a drag past its end.
+  The drag is the list's now, with its stretch or bounce at the ends, and a
+  wheel's turn stops at the list too. A drag on a combobox's field still scrolls
+  the page, as on any field.
 
 **Navigation and layout**
 
@@ -267,8 +348,6 @@ parameters, so anything built against 0.4.4 has to be recompiled — see
   release back towards the start stopped the list dead rather than flinging it
   back. `topBarCollapse` round a box holding both the bar and its list now
   leaves the bar where it is.
-- **A date-time picker in a page that scrolls stacks by the window's height now**,
-  not by its height when its size class last changed.
 - **An in-app language written the other way from the device's no longer resets
   the app.** Switching `KontourTheme(locale = …)` between English and Arabic
   disposed the whole application and built it again.
@@ -382,7 +461,12 @@ parameters, so anything built against 0.4.4 has to be recompiled — see
 
 **Platforms**
 
-- **A swipe back let go on a 120Hz screen no longer jumps on its first frame.**
+- **A swipe back let go on a 120Hz screen no longer jumps on its first frame**,
+  on iOS, and **Android's back gesture finishes at the screen's own frame
+  rate**: the relayed release was timed as if every screen ran at 60Hz, so on a
+  90Hz or 120Hz phone the page jumped about two frames' worth as it was let go.
+  The frame is measured during the gesture, and the release's first frame, its
+  shortest length and the shortest swipe whose speed is read all use it.
 - **A rumble in the browser no longer starts again on an update after it has
   ended**, and ended rumbles are cleared away.
 - **A desktop app no longer keeps a growing list of every appearance its theme
