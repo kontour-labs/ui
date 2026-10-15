@@ -107,6 +107,12 @@ import io.kontour.ui.theme.toneColours
  *   is on its way to, read as it is measured. Laid out at the width of each
  *   frame instead, its title was wrapped again every frame of the ease, and
  *   jumped about. Null: the box's width.
+ * @param contentAt Where what is inside is placed along the box, in pixels
+ *   from its start, given how wide it came out: a copy reaching on past the
+ *   days on show keeps its title where the event's own is, and a bar's title
+ *   stays where it is on the screen as the pages slide under it. Read as it
+ *   is placed, so a swipe's every frame places it again and composes nothing.
+ *   Null: at the box's start.
  * @param stacked Whether it is laid over another event: ringed in the
  *   surface's colour, so where it starts over the one under it reads as two.
  * @param listedOn The day whose list of events it is in, not on the days: a
@@ -127,6 +133,7 @@ internal fun EventChip(
     focusableOn: ClosedRange<LocalDate>? = null,
     blockHeight: Dp? = null,
     contentWidth: (() -> Int)? = null,
+    contentAt: ((width: Int) -> Int)? = null,
     stacked: Boolean = false,
     listedOn: LocalDate? = null,
 ) {
@@ -199,13 +206,13 @@ internal fun EventChip(
             contentAlignment = if (presentation == EventPresentation.Block) Alignment.TopStart else Alignment.CenterStart,
         ) {
             Box(
-                if (contentWidth == null) {
+                if (contentWidth == null && contentAt == null) {
                     Modifier
                 } else {
                     Modifier.layout { measurable, constraints ->
-                        val width = contentWidth().coerceAtLeast(0)
+                        val width = contentWidth?.invoke()?.coerceAtLeast(0) ?: constraints.maxWidth
                         val placeable = measurable.measure(constraints.copy(minWidth = 0, maxWidth = width))
-                        layout(constraints.maxWidth, placeable.height) { placeable.placeRelative(0, 0) }
+                        layout(constraints.maxWidth, placeable.height) { placeable.placeRelative(contentAt?.invoke(placeable.width) ?: 0, 0) }
                     }
                 },
             ) {

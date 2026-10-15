@@ -90,7 +90,7 @@ does, the day view too.
 | `Schedule` | The days with something on, one under another — each day's weekday and number, then its events, all-day and longer ones first, each with its tone's dot or its icon, its title, and "All day" or its times and where — under each month's name, scrolled through. Today is always there, saying "Nothing planned" when it has nothing on. A timed event that runs into a later day reads as flights and shifts write one: its own times on the day it starts, the end raised by the days on — "09:00 – 17:00⁺²", a night flight "22:30 – 06:15⁺¹" — then "All day" on the days between and "Until 17:00" on the last. An end at midnight is the end of the day before it, so an evening until midnight is "18:00 – 00:00", on its one day. The day at the top is the one the title and the state are about; the arrows go to the start of the month before or after, and a day's number opens it. `visibleDates` is the month before the one in hand and the two after it. |
 | `Year` | Small months, as many to a row as fit, with each busy day marked in the tone of its first event, scrolling up and down through the years — each year's months under its number — as the month scrolls through its weeks. The year most on screen is the one the title and the state are about; the header's arrows go to the same month a year before or after. Each month is drawn whole, so every month on screen is there at once. |
 
-An event that runs on past what a view shows — a bar into the day or the week before or after, or off the page, a block in the hours past midnight — is square on that side, and runs right to the edge there, through the line between the days or the weeks, so its pieces meet and read as one event. Where it really ends it is rounded and stops short of the line, so a rounded end always means the event ends there.
+An event that runs on past what a view shows — a bar into the day or the week before or after, or off the page, a block in the hours past midnight — is square on that side, and runs right to the edge there, through the line between the days or the weeks, so its pieces meet and read as one event. Where it really ends it is rounded and stops short of the line, so a rounded end always means the event ends there. The copy a carry draws keeps the same ends.
 
 Today's date is ringed the way the date picker rings it, in every view, so a
 calendar and a picker on the same screen agree about what today looks like.
@@ -102,7 +102,10 @@ fade, not a movement, so it plays under reduced motion too.
 
 **Moving about.** The header steps back and on, goes to today and switches
 the view. In the day and week views a sideways swipe steps too, the same way
-the date picker pages its months. The month scrolls up and down instead,
+the date picker pages its months. An all-day bar that runs on into the next
+page on the same line keeps one title as the pages slide: the title stays
+where it is on the screen while the bar moves under it, and goes with the bar
+only once the bar's end reaches it. The month scrolls up and down instead,
 through the weeks either side. A finger's swipe or fling settles with a week at
 the top; a mouse's wheel or a trackpad scrolls the weeks freely and leaves them
 where it stops, as a desktop's calendars do. The month
@@ -291,7 +294,13 @@ While an event is carried, the copy left behind is faded and the place it
 would land is drawn as a lifted copy in its own tone with a stronger edge. In
 a month and in the all-day strip, that copy is a bar the event's length whose
 ends spring from day to day as the carry passes each one, a tick for each
-day, as a date range's end does. A carry changes day only once the pointer is
+day, as a date range's end does. The copy has the event's own shape: square
+and out to the edge where the event runs on past the days on show, rounded
+only where it starts or ends, as it is before it is taken up. Carried
+sideways, the rest of the event comes with it: what was past the edge of the
+days slides in, its own end and all, rather than the copy coming away from
+that edge. In the hours, a copy of an event that runs past midnight is
+square at midnight in the same way. A carry changes day only once the pointer is
 well into the next one, so a finger resting on the line between two days
 does not flick the event back and forth.
 

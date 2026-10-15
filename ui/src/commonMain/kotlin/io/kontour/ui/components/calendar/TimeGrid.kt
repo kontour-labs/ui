@@ -529,6 +529,21 @@ private fun AllDayStrip(scope: CalendarScope, gutter: Dp, days: Int) {
     val carrying = edit.live && edit.byDays
     if (!any && !carrying) return
     val item = with(LocalDensity.current) { Theme.typography.labelSmall.lineHeight.toDp() } + Theme.spacing.xxs * 2
+    // Each page's rows, packed once for as long as the events are the same: a
+    // page reads the pages either side of it too, for which of its bars run on
+    // into theirs on the same line. Emptied now and then, so a long way swiped
+    // does not keep every page it passed.
+    val packs = remember(scope.events, days) { HashMap<LocalDate, WeekPack>() }
+    val packOf = { from: LocalDate ->
+        if (from !in packs && packs.size >= KeptPacks) packs.clear()
+        packs.getOrPut(from) {
+            packWeek(weekItems(from, scope.eventsBetween(from, from.plus(days - 1, DateTimeUnit.DAY)), lines = false, days = days), maxRows = AllDayRows, days = days)
+        }
+    }
+    // The page the pager is counted from: the one at rest, or the one a swipe
+    // set off from until the next has come to rest.
+    val origin = scope.pager.periods.origin
+    val still = Theme.motion.reduceMotion
     Row(Modifier.fillMaxWidth()) {
         // No label beside it: the bars say what they are, and "All day" was
         // the widest thing in the gutter, cut to "All" on a phone.
@@ -536,9 +551,10 @@ private fun AllDayStrip(scope: CalendarScope, gutter: Dp, days: Int) {
         PeriodStrip(scope.pager, Modifier.weight(1f)) { period ->
             val from = state.periods.startOf(period, state.view)
             val to = from.plus(days - 1, DateTimeUnit.DAY)
-            val pack = remember(scope.events, from, days) {
-                packWeek(weekItems(from, scope.eventsBetween(from, to), lines = false, days = days), maxRows = AllDayRows, days = days)
-            }
+            val pack = packOf(from)
+            // The pages either side, where they are the days either side.
+            val before = state.periods.startOf(period - 1, state.view).takeIf { it.plus(days, DateTimeUnit.DAY) == from }?.let(packOf)
+            val after = state.periods.startOf(period + 1, state.view).takeIf { it == to.plus(1, DateTimeUnit.DAY) }?.let(packOf)
             val held = (pack.placed.maxOfOrNull { it.row } ?: -1) + 1 + if (pack.more.any { it > 0 }) 1 else 0
             // Carried into a week it is not in, the bar is given a line of its
             // own at the foot, so it is seen where it would land rather than
@@ -561,12 +577,15 @@ private fun AllDayStrip(scope: CalendarScope, gutter: Dp, days: Int) {
                 }
                 for (placement in pack.placed) {
                     val placed = placement.item
+                    val title = if (still) null else runOnTitle(scope.pager, period, origin, placement, before, after, days, cell, gap, constraints.maxWidth)
                     EventChip(
                         event = placed.event,
                         presentation = EventPresentation.Bar,
                         scope = scope,
                         clippedStart = placed.continuesBefore,
                         clippedEnd = placed.continuesAfter,
+                        contentWidth = title?.width,
+                        contentAt = title?.at,
                         modifier = Modifier
                             .padding(top = item * placement.row + gap / 2)
                             .barAcross(cell, placed.from, placed.to, placed.continuesBefore, placed.continuesAfter, gap)
@@ -595,6 +614,99 @@ private fun AllDayStrip(scope: CalendarScope, gutter: Dp, days: Int) {
 }
 
 /**
+ * A bar's title, where the bar runs on into the page beside it on the same
+ * line: one title for the two pages' pieces, which stays where it is on the
+ * screen as the pages slide under it — *"can we just make the label stay in
+ * place as the calendar moves, so it only shows once?"* Each page's piece drew
+ * its own at its own start, so halfway through a swipe there were two.
+ *
+ * At the start of what is on the screen of the two pieces together, and drawn
+ * there by each, cut to itself: where the line between the pages passes under
+ * the title, the two halves meet. Taken along by the bar's end once that
+ * reaches it, rather than run on past it. At rest, at the piece's start, as
+ * every title is.
+ *
+ * Laid out, on the page coming in, at the width the page at rest gives it:
+ * the two halves of one title have to be the same title, cut and faded in the
+ * same place. The page that comes to rest lays it out at its own width again.
+ *
+ * Null for a bar that runs on into neither page beside it on its line: it is
+ * one piece, and its title goes with it.
+ */
+@Composable
+private fun runOnTitle(
+    pager: CalendarPager,
+    period: Int,
+    origin: Int,
+    placement: WeekPlacement,
+    before: WeekPack?,
+    after: WeekPack?,
+    days: Int,
+    cell: Dp,
+    gap: Dp,
+    pagePx: Int,
+): RunOnTitle? {
+    val item = placement.item
+    val id = item.event.id
+    fun WeekPack.hasOnLine() = placed.any { it.row == placement.row && it.item.event.id == id }
+    val joinsBefore = item.continuesBefore && before?.hasOnLine() == true
+    val joinsAfter = item.continuesAfter && after?.hasOnLine() == true
+    if (!joinsBefore && !joinsAfter) return null
+    val density = LocalDensity.current
+    return remember(pager, period, origin, placement, joinsBefore, joinsAfter, days, cell, gap, pagePx, density) {
+        with(density) {
+            // Where a piece across [from] to [to] of a page is, as `barAcross` puts it.
+            fun startOf(from: Int, runsOnBefore: Boolean) = (cell * from + if (runsOnBefore) 0.dp else gap).roundToPx()
+            fun widthOf(from: Int, to: Int, runsOnBefore: Boolean, runsOnAfter: Boolean) =
+                (cell * (to - from + 1) - (if (runsOnBefore) 0.dp else gap) - (if (runsOnAfter) 0.dp else gap)).roundToPx()
+            val start = startOf(item.from, item.continuesBefore)
+            val end = start + widthOf(item.from, item.to, item.continuesBefore, item.continuesAfter)
+            // The pieces either side, in this page's pixels.
+            val beforePiece = before?.placed?.firstOrNull { it.row == placement.row && it.item.event.id == id }?.item
+            val afterPiece = after?.placed?.firstOrNull { it.row == placement.row && it.item.event.id == id }?.item
+            val runsFrom = if (joinsBefore && beforePiece != null) startOf(beforePiece.from, beforePiece.continuesBefore) - pagePx else start
+            val runsTo = if (joinsAfter && afterPiece != null) {
+                pagePx + startOf(afterPiece.from, true) + widthOf(afterPiece.from, afterPiece.to, true, afterPiece.continuesAfter)
+            } else {
+                end
+            }
+            // The width of the piece on the page at rest, where that is the page beside.
+            val width = when {
+                origin == period - 1 && beforePiece != null -> widthOf(beforePiece.from, beforePiece.to, beforePiece.continuesBefore, true)
+                origin == period + 1 && afterPiece != null -> widthOf(afterPiece.from, afterPiece.to, true, afterPiece.continuesAfter)
+                else -> null
+            }
+            RunOnTitle(
+                width = width?.let { w -> { w } },
+                at = { titleWidth ->
+                    val periods = pager.periods
+                    // Read as the title is placed: each frame of a swipe places
+                    // it again, and composes nothing.
+                    val place = periods.placeOf(period)
+                    if (place.isNaN()) {
+                        0
+                    } else {
+                        // Where the strip puts this page, and so the screen's start in its pixels.
+                        val shownFrom = -(place * pagePx).roundToInt()
+                        val slot = periods.slotOf(period)
+                        // The piece beside only where it is the page beside on the screen: not a far jump's.
+                        val from = if (joinsBefore && slot != null && periods.slotOf(period - 1) == slot - 1) runsFrom else start
+                        val to = if (joinsAfter && slot != null && periods.slotOf(period + 1) == slot + 1) runsTo else end
+                        maxOf(from, minOf(maxOf(from, shownFrom), to - titleWidth)) - start
+                    }
+                },
+            )
+        }
+    }
+}
+
+/**
+ * A bar's title as [runOnTitle] places it: laid out [width] wide, where that
+ * is not the bar's own width, and [at] so far along the bar, given its width.
+ */
+private class RunOnTitle(val width: (() -> Int)?, val at: (Int) -> Int)
+
+/**
  * A day's place for an edit by days to find. Where it would land is drawn by
  * `DaysGhostLayer`, over the days, rather than by each day here.
  */
@@ -616,6 +728,9 @@ internal fun DayTarget(scope: CalendarScope, date: LocalDate, modifier: Modifier
             },
     )
 }
+
+/** How many pages' packed rows the all-day strip keeps: the pages in view and those either side, with room to spare. */
+private const val KeptPacks = 12
 
 /** At most this many rows of all-day bars before a day says "+N". */
 private const val AllDayRows = 3
@@ -993,6 +1108,10 @@ private fun TimeGhost(scope: CalendarScope, period: Int, days: Int) {
     // A piece for each day of it in this page — as composed, for the copies'
     // own content; placed from the edit as it is now.
     val composed = timedPieces(start, end, pageStart, pageEnd)
+    // Square, and on to midnight with no gap, at an end it runs on past, as
+    // the event's own pieces are: see [cutShape].
+    val firstComposed = (start.date.toEpochDays() - pageStart.toEpochDays()).toInt()
+    val lastComposed = (lastDayOf(start, end).toEpochDays() - pageStart.toEpochDays()).toInt()
     val hop = remember { GhostHop() }
     LaunchedEffect(hop) { hop.run() }
     // A day's width, as last measured: see the event's own, in `DayColumn`.
@@ -1000,13 +1119,15 @@ private fun TimeGhost(scope: CalendarScope, period: Int, days: Int) {
 
     Layout(
         content = {
-            for ((_, from, to) in composed) {
+            for ((day, from, to) in composed) {
                 val height = with(density) { (maxOf(minChipPx, (to - from) * perMinute) - gapPx).coerceAtLeast(0f).toDp() }
                 EventChip(
                     event = shown,
                     presentation = EventPresentation.Block,
                     scope = scope,
                     ghost = true,
+                    clippedStart = day > firstComposed,
+                    clippedEnd = day < lastComposed,
                     blockHeight = height,
                     // Laid out at the width it is opening out to, as the event under it is.
                     contentWidth = {
@@ -1071,16 +1192,19 @@ private fun TimeGhost(scope: CalendarScope, period: Int, days: Int) {
         val (laneStart, laneWidth) = edit.widenedLane
         val inset = column * (if (rtl) 1f - laneStart - laneWidth else laneStart) * (1f - f)
         val pieceWidth = column * (laneWidth + (1f - laneWidth) * f)
+        // In from midnight by the gap only where it starts or ends there.
+        fun topGap(day: Int) = if (day > firstDay) 0f else gapPx / 2
+        fun footGap(day: Int) = if (day < lastDay) 0f else gapPx / 2
         val placeables = measurables.take(pieces.size).mapIndexed { i, measurable ->
             val (day, from, to) = pieces[i]
             val rect = if (day == leanDay) drawn else box(day, from, to)
-            measurable.measure(Constraints.fixed((pieceWidth - gapPx).roundToInt().coerceAtLeast(0), (rect.height - gapPx).roundToInt().coerceAtLeast(0)))
+            measurable.measure(Constraints.fixed((pieceWidth - gapPx).roundToInt().coerceAtLeast(0), (rect.height - topGap(day) - footGap(day)).roundToInt().coerceAtLeast(0)))
         }
         layout(w, h) {
             placeables.forEachIndexed { i, placeable ->
                 val (day, from, to) = pieces[i]
                 val rect = if (day == leanDay) drawn else box(day, from, to).translate(dx, dy)
-                placeable.place((rect.left + inset + gapPx / 2).roundToInt(), (rect.top + gapPx / 2).roundToInt())
+                placeable.place((rect.left + inset + gapPx / 2).roundToInt(), (rect.top + topGap(day)).roundToInt())
             }
         }
     }
