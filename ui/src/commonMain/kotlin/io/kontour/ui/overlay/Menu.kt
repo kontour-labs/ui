@@ -10,12 +10,15 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.semantics.CollectionItemInfo
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.collectionItemInfo
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -51,6 +54,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberOverscrollEffect
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.DisableSelection
 import androidx.compose.foundation.verticalScroll
@@ -280,6 +284,11 @@ fun AnchoredDropdownMenu(
  * and a frame later the menu took it, so what was typed next filtered nothing.
  * The anchor hands it over itself — [focusRequester] is the menu's, and a
  * combobox asks it on a Down arrow.
+ *
+ * [rows] are a select's options, built while the menu is open and drawn after
+ * [content]. Past [LazyMenuFrom] of them the menu composes only the ones it
+ * shows, and draws them alone: what a select puts in [content] is its "no
+ * matches" line, which a list that long never needs. See `LazyMenuRows`.
  */
 @Composable
 internal fun AnchoredDropdownMenuImpl(
@@ -294,6 +303,7 @@ internal fun AnchoredDropdownMenuImpl(
     scrim: ScrimStyle = ScrimStyle.Transparent,
     anchorTakesPresses: Boolean = false,
     focusRequester: FocusRequester? = null,
+    rows: (() -> MenuRows)? = null,
     content: @Composable MenuScope.() -> Unit,
 ) {
     val host = LocalOverlayHost.current
@@ -310,6 +320,7 @@ internal fun AnchoredDropdownMenuImpl(
     // list its old width, and a new modifier or shape never arrived.
     val latestModifier by rememberUpdatedState(modifier)
     val latestShape by rememberUpdatedState(Theme.shapes.container)
+    val latestRows by rememberUpdatedState(rows)
 
     // Read live by the overlay's measure pass rather than captured when the
     // entry was built — see `AnchoredOverlayLayout` — and never here, in this
@@ -359,6 +370,8 @@ internal fun AnchoredDropdownMenuImpl(
                             modifier = latestModifier,
                             shape = latestShape,
                             matchAnchorWidth = matchAnchorWidth,
+                            anchorWidth = anchorWidth,
+                            rows = latestRows?.invoke(),
                             autoFocus = modality == InputModality.Keyboard && !anchorTakesPresses,
                             focusRequester = focusRequester,
                             onDismissRequest = { dismiss() },
@@ -381,6 +394,8 @@ private fun MenuPanel(
     modifier: Modifier,
     shape: Shape,
     matchAnchorWidth: Boolean,
+    anchorWidth: Dp,
+    rows: MenuRows?,
     autoFocus: Boolean,
     focusRequester: FocusRequester?,
     onDismissRequest: () -> Unit,
@@ -453,7 +468,13 @@ private fun MenuPanel(
                     below = { levels.open.firstOrNull() },
                     levels = levels,
                 ) {
-                    MenuSurface(modifier = sized, shape = shape, dimmedBy = { levels.open.firstOrNull()?.progress?.value ?: 0f }) {
+                    MenuSurface(
+                        modifier = sized,
+                        shape = shape,
+                        dimmedBy = { levels.open.firstOrNull()?.progress?.value ?: 0f },
+                        rows = rows,
+                        anchorWidth = anchorWidth,
+                    ) {
                         MenuScopeImpl(this, onDismissRequest).content()
                     }
                 }
@@ -522,13 +543,16 @@ private fun LevelStack(below: () -> MenuLevel?, levels: MenuLevels, surface: @Co
 /**
  * A menu's panel: the surface, its scrolling rows and its scrollbar. [dimmedBy]
  * is how far a level over it has opened, which dims it, draws it back a little
- * and takes it out of what a screen reader can reach.
+ * and takes it out of what a screen reader can reach. [rows] are a select's
+ * options, and [anchorWidth] the field's, for a list long enough to be lazy.
  */
 @Composable
 private fun MenuSurface(
     modifier: Modifier,
     shape: Shape,
     dimmedBy: () -> Float = { 0f },
+    rows: MenuRows? = null,
+    anchorWidth: Dp = Dp.Unspecified,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val reduced = Theme.motion.reduceMotion
@@ -576,7 +600,6 @@ private fun MenuSurface(
         // menu in the library goes through here, so `Select`, `MultiSelect`,
         // `Combobox`, the context menu and every submenu get it without knowing
         // it exists.
-        val scroll = rememberScrollState()
         Box(
             Modifier.drawWithContent {
                 drawContent()
@@ -584,20 +607,35 @@ private fun MenuSurface(
                 if (level > 0f) drawRect(dim, alpha = LevelDim * level)
             }
         ) {
-            Column(
-                modifier = Modifier
-                    // On the scroller, before its scroll: see `Modifier.scrollbar`.
-                    // Start below the panel's own corner. Derived from the shape
-                    // rather than restated as a number, so a consumer who
-                    // overrides `Theme.shapes.container` gets a scrollbar that
-                    // still clears it. A proportional corner answers zero, which
-                    // is the right degenerate: no inset, as if the panel were square.
-                    .scrollbar(scroll, cornerInset = ScrollbarDefaults.cornerInset(shape))
-                    .verticalScroll(scroll, flingBehavior = ScrollDefaults.flingBehavior())
-                    .padding(horizontal = Theme.spacing.xxs, vertical = Theme.spacing.xxs)
-                    .fillMaxWidth(),
-                content = content,
-            )
+            // A long list of options is composed as it is shown; a short one
+            // all at once, after the rest of the menu, as every menu is.
+            if (rows != null && rows.count > LazyMenuFrom) {
+                LazyMenuRows(rows, shape, anchorWidth)
+            } else {
+                val scroll = rememberScrollState()
+                val overscroll = rememberOverscrollEffect()
+                val fling = ScrollDefaults.flingBehavior()
+                Column(
+                    modifier = Modifier
+                        // On the scroller, before its scroll: see `Modifier.scrollbar`.
+                        // Start below the panel's own corner. Derived from the shape
+                        // rather than restated as a number, so a consumer who
+                        // overrides `Theme.shapes.container` gets a scrollbar that
+                        // still clears it. A proportional corner answers zero, which
+                        // is the right degenerate: no inset, as if the panel were square.
+                        .scrollbar(scroll, cornerInset = ScrollbarDefaults.cornerInset(shape))
+                        // A drag that starts on the list is the list's alone.
+                        .keepsItsScroll(scroll, overscroll, fling)
+                        .verticalScroll(scroll, overscrollEffect = overscroll, flingBehavior = fling)
+                        .padding(horizontal = Theme.spacing.xxs, vertical = Theme.spacing.xxs)
+                        .fillMaxWidth(),
+                ) {
+                    content()
+                    if (rows != null) {
+                        for (index in 0 until rows.count) key(rows.keys[index]) { rows.row(index) }
+                    }
+                }
+            }
         }
     }
 }
@@ -746,6 +784,12 @@ internal val LocalMenuLevels = staticCompositionLocalOf<MenuLevels?> { null }
  */
 internal val LocalMenuPicksOne = staticCompositionLocalOf { false }
 
+/** Whether the rows here are composed only for the menu to measure its width from. */
+internal val LocalMenuRowSizing = staticCompositionLocalOf { false }
+
+/** A row's place in a long list of options, or -1 for a row of an ordinary menu. */
+internal val LocalMenuRowPlace = compositionLocalOf { -1 }
+
 private fun lerp(from: Float, to: Float, fraction: Float): Float = from + (to - from) * fraction
 
 /**
@@ -787,6 +831,10 @@ fun MenuItem(
     val colours = Theme.colours
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val picksOne = LocalMenuPicksOne.current
+    // Composed only to be measured — see `LazyMenuRows` — and so nothing anyone
+    // can press, reach or hear.
+    val sizing = LocalMenuRowSizing.current
+    val place = LocalMenuRowPlace.current
 
     // One shape for the clip and the indication, remembered.
     //
@@ -807,34 +855,7 @@ fun MenuItem(
         Row(
             modifier = modifier
                 .fillMaxWidth()
-                .then(
-                    when {
-                        multiple -> Modifier.webRole(WebRole.Checkbox, selected)
-                        picksOne || selected -> Modifier.webRole(WebRole.Radio, selected)
-                        else -> Modifier
-                    }
-                )
-                .semantics(mergeDescendants = true) {
-                    when {
-                        // Ticked or not, said either way: a checkbox with no
-                        // state is announced as neither.
-                        multiple -> {
-                            role = Role.Checkbox
-                            toggleableState = ToggleableState(selected)
-                        }
-                        // One of a select's options, chosen or not.
-                        picksOne -> {
-                            role = Role.RadioButton
-                            this.selected = selected
-                        }
-                        // A ticked row in a menu of actions — a sort order.
-                        selected -> {
-                            role = Role.RadioButton
-                            this.selected = true
-                        }
-                        else -> role = Role.Button
-                    }
-                }
+                .then(if (sizing) Modifier.clearAndSetSemantics { } else rowSemantics(selected, multiple, picksOne, place))
                 // `fill`, so the row that lights up is the row the finger gets.
                 //
                 // No horizontal inset of its own either. The panel already pads by
@@ -852,16 +873,23 @@ fun MenuItem(
                 // for a 4dp inset, and now every side really is at 4.
                 .minimumTouchTarget(fill = true)
                 .clip(rowShape)
-                // Inside the row: the panel clips anything drawn around it.
-                .insetFocusRing(interactions, rowShape, enabled)
-                .pointerCursor(enabled = enabled)
-                .clickable(
-                    interactionSource = interactions,
-                    // A menu row is a big target; scaling it makes the whole menu
-                    // look like it is wobbling.
-                    indication = kontourIndication(rowShape, pressScale = 1f),
-                    enabled = enabled,
-                    onClick = onClick,
+                .then(
+                    if (sizing) {
+                        Modifier
+                    } else {
+                        Modifier
+                            // Inside the row: the panel clips anything drawn around it.
+                            .insetFocusRing(interactions, rowShape, enabled)
+                            .pointerCursor(enabled = enabled)
+                            .clickable(
+                                interactionSource = interactions,
+                                // A menu row is a big target; scaling it makes the whole menu
+                                // look like it is wobbling.
+                                indication = kontourIndication(rowShape, pressScale = 1f),
+                                enabled = enabled,
+                                onClick = onClick,
+                            )
+                    }
                 )
                 .padding(horizontal = Theme.spacing.sm, vertical = Theme.spacing.xs),
             horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
@@ -907,6 +935,47 @@ fun MenuItem(
         }
     }
 }
+
+/**
+ * What a menu row is to a screen reader: a checkbox where any number can be on,
+ * a radio button among a select's options or for a ticked action, and a button
+ * otherwise.
+ */
+private fun rowSemantics(selected: Boolean, multiple: Boolean, picksOne: Boolean, place: Int): Modifier =
+    Modifier
+        .then(
+            when {
+                multiple -> Modifier.webRole(WebRole.Checkbox, selected)
+                picksOne || selected -> Modifier.webRole(WebRole.Radio, selected)
+                else -> Modifier
+            }
+        )
+        .semantics(mergeDescendants = true) {
+            // Its place in a long list of options, which is composed only where
+            // it is shown, so the rows round it cannot say how many there are.
+            if (place >= 0) {
+                collectionItemInfo = CollectionItemInfo(rowIndex = place, rowSpan = 1, columnIndex = 0, columnSpan = 1)
+            }
+            when {
+                // Ticked or not, said either way: a checkbox with no
+                // state is announced as neither.
+                multiple -> {
+                    role = Role.Checkbox
+                    toggleableState = ToggleableState(selected)
+                }
+                // One of a select's options, chosen or not.
+                picksOne -> {
+                    role = Role.RadioButton
+                    this.selected = selected
+                }
+                // A ticked row in a menu of actions — a sort order.
+                selected -> {
+                    role = Role.RadioButton
+                    this.selected = true
+                }
+                else -> role = Role.Button
+            }
+        }
 
 /**
  * Separates groups of related items.

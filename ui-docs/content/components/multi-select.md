@@ -31,6 +31,9 @@ draws what is ticked in the closed field — given the set, for a stack of faces
 or a row of swatches where a summary of names would do less. `summary` is still
 what a screen reader hears for it.
 
+A long list of options is composed as it is shown, and a drag on the open list
+is the list's, as on a [`Select`](select.md).
+
 **Reach for a [`ChipGroup`](chip.md) of
 `FilterChip`s instead** when the options fit on screen. Chips show the current
 selection without being opened, which is most of what a filter bar is for.

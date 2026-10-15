@@ -13,7 +13,6 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -28,7 +27,6 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.Stable
@@ -80,6 +78,7 @@ import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.overlay.AnchoredDropdownMenuImpl
 import io.kontour.ui.overlay.LocalMenuPicksOne
 import io.kontour.ui.overlay.MenuItem
+import io.kontour.ui.overlay.MenuRows
 import io.kontour.ui.overlay.OverlayAlignment
 import io.kontour.ui.overlay.OverlaySide
 import io.kontour.ui.overlay.ScrimStyle
@@ -281,36 +280,47 @@ fun <T> Select(
                 OtherBox(otherBox, otherText, { change(it) }, label, otherLabel, otherPlaceholder, enabled, variant, metrics)
             }
         },
-    ) { dismiss ->
-        for (option in options) {
-            MenuItem(
-                onClick = {
-                    onValueChange(option)
-                    onOtherTextChange?.invoke(null)
-                    dismiss()
+        rows = { dismiss ->
+            optionRows(
+                options = options,
+                // The "Other" row last, after the options.
+                extra = onOtherTextChange != null,
+                label = { optionLabel(it).takeIf { optionContent == null } },
+                icon = { optionContent == null && optionIcon?.invoke(it) != null },
+                ticked = { !other && it == value },
+                extraLabel = otherLabel,
+                extraTicked = other,
+                row = { option ->
+                    MenuItem(
+                        onClick = {
+                            onValueChange(option)
+                            onOtherTextChange?.invoke(null)
+                            dismiss()
+                        },
+                        enabled = optionEnabled(option),
+                        selected = !other && option == value,
+                    ) {
+                        showOption(option, optionLabel, optionIcon, optionContent)
+                    }
                 },
-                enabled = optionEnabled(option),
-                selected = !other && option == value,
-            ) {
-                showOption(option, optionLabel, optionIcon, optionContent)
-            }
-        }
-        if (onOtherTextChange != null) {
-            MenuItem(
-                onClick = {
-                    onOtherTextChange(otherText ?: "")
-                    otherBox.focusOnShow()
-                    dismiss()
+                extraRow = {
+                    MenuItem(
+                        onClick = {
+                            onOtherTextChange?.invoke(otherText ?: "")
+                            otherBox.focusOnShow()
+                            dismiss()
+                        },
+                        // Its box takes the keyboard from an effect after the tap,
+                        // which iOS WebKit gives no keyboard; this opens it on the tap.
+                        modifier = Modifier.opensKeyboard(enabled = enabled),
+                        selected = other,
+                    ) {
+                        +otherLabel
+                    }
                 },
-                // Its box takes the keyboard from an effect after the tap,
-                // which iOS WebKit gives no keyboard; this opens it on the tap.
-                modifier = Modifier.opensKeyboard(enabled = enabled),
-                selected = other,
-            ) {
-                +otherLabel
-            }
-        }
-    }
+            )
+        },
+    )
 }
 
 /**
@@ -453,48 +463,59 @@ fun <T> MultiSelect(
                 OtherBox(otherBox, otherText, { change(it) }, label, otherLabel, otherPlaceholder, enabled, variant, metrics)
             }
         },
-    ) { dismiss ->
-        for (option in options) {
-            MenuItem(
-                onClick = {
-                    toggled(option !in value)
-                    onValueChange(
-                        if (option in value) value - option else value + option
-                    )
-                },
-                enabled = optionEnabled(option),
-                selected = option in value,
-                // Any number of these can be on, so they are checkboxes.
-                // Announced as radio buttons — which is what they were — a
-                // screen reader told the user that choosing a second mode of
-                // transport would clear the first.
-                multiple = true,
-            ) {
-                showOption(option, optionLabel, optionIcon, optionContent)
-            }
-        }
-        if (onOtherTextChange != null) {
-            MenuItem(
-                onClick = {
-                    toggled(!other)
-                    if (other) {
-                        onOtherTextChange(null)
-                    } else {
-                        // Ticked, the next thing to do is type: the menu goes
-                        // and the box takes the keyboard.
-                        onOtherTextChange("")
-                        otherBox.focusOnShow()
-                        dismiss()
+        rows = { dismiss ->
+            optionRows(
+                options = options,
+                extra = onOtherTextChange != null,
+                label = { optionLabel(it).takeIf { optionContent == null } },
+                icon = { optionContent == null && optionIcon?.invoke(it) != null },
+                // Every row keeps room for its tick: see `MenuItem`'s `multiple`.
+                ticked = { true },
+                extraLabel = otherLabel,
+                extraTicked = true,
+                row = { option ->
+                    MenuItem(
+                        onClick = {
+                            toggled(option !in value)
+                            onValueChange(
+                                if (option in value) value - option else value + option
+                            )
+                        },
+                        enabled = optionEnabled(option),
+                        selected = option in value,
+                        // Any number of these can be on, so they are checkboxes.
+                        // Announced as radio buttons — which is what they were — a
+                        // screen reader told the user that choosing a second mode of
+                        // transport would clear the first.
+                        multiple = true,
+                    ) {
+                        showOption(option, optionLabel, optionIcon, optionContent)
                     }
                 },
-                modifier = Modifier.opensKeyboard(enabled = enabled && !other),
-                selected = other,
-                multiple = true,
-            ) {
-                +otherLabel
-            }
-        }
-    }
+                extraRow = {
+                    MenuItem(
+                        onClick = {
+                            toggled(!other)
+                            if (other) {
+                                onOtherTextChange(null)
+                            } else {
+                                // Ticked, the next thing to do is type: the menu goes
+                                // and the box takes the keyboard.
+                                onOtherTextChange?.invoke("")
+                                otherBox.focusOnShow()
+                                dismiss()
+                            }
+                        },
+                        modifier = Modifier.opensKeyboard(enabled = enabled && !other),
+                        selected = other,
+                        multiple = true,
+                    ) {
+                        +otherLabel
+                    }
+                },
+            )
+        },
+    )
 }
 
 /**
@@ -649,40 +670,49 @@ fun <T> Combobox(
                 }
             }
         },
-    ) { dismiss ->
-        if (filtered.isEmpty()) {
-            Text(
-                text = emptyLabel,
-                modifier = Modifier.padding(
-                    horizontal = Theme.spacing.sm,
-                    vertical = Theme.spacing.xs,
-                ),
-                style = Theme.typography.bodyMedium,
-                colour = Theme.colours.contentMuted,
-            )
-        }
-        for (index in filtered) {
-            val option = options[index]
-            // **Keyed on the option's place in the whole list**, not left to
-            // its place in the filtered one. Unkeyed, the first row was the
-            // first row whatever it held, so every keystroke that narrowed the
-            // list handed each row's composition — its focus, its press, its
-            // hover and anything an `optionContent` remembered — to a different
-            // option. Not on the option itself: two equal options would be two
-            // rows with one key, which throws.
-            key(index) {
-                MenuItem(
-                    onClick = {
-                        onValueChange(option)
-                        dismiss()
-                    },
-                    selected = option == value,
-                ) {
-                    showOption(option, optionLabel, optionIcon, optionContent)
-                }
+        empty = if (filtered.isEmpty()) {
+            {
+                Text(
+                    text = emptyLabel,
+                    modifier = Modifier.padding(
+                        horizontal = Theme.spacing.sm,
+                        vertical = Theme.spacing.xs,
+                    ),
+                    style = Theme.typography.bodyMedium,
+                    colour = Theme.colours.contentMuted,
+                )
             }
-        }
-    }
+        } else {
+            null
+        },
+        // **Keyed on each option's place in the whole list**, not on its place
+        // in the filtered one. Unkeyed, the first row was the first row
+        // whatever it held, so every keystroke that narrowed the list handed
+        // each row's composition — its focus, its press, its hover and anything
+        // an `optionContent` remembered — to a different option. Not on the
+        // option itself: two equal options would be two rows with one key,
+        // which throws.
+        rows = { dismiss ->
+            optionRows(
+                options = options,
+                places = filtered,
+                label = { optionLabel(it).takeIf { optionContent == null } },
+                icon = { optionContent == null && optionIcon?.invoke(it) != null },
+                ticked = { it == value },
+                row = { option ->
+                    MenuItem(
+                        onClick = {
+                            onValueChange(option)
+                            dismiss()
+                        },
+                        selected = option == value,
+                    ) {
+                        showOption(option, optionLabel, optionIcon, optionContent)
+                    }
+                },
+            )
+        },
+    )
 }
 
 /**
@@ -707,8 +737,10 @@ fun <T> Combobox(
  * @param picksOne Whether the options are one choice among them, as a [Select]'s
  *   and a [Combobox]'s are: each is then announced as chosen or not, in one group.
  *   A [MultiSelect]'s say so themselves, as checkboxes.
- * @param content The menu body, given a `dismiss`. [Select] calls it; [MultiSelect]
- *   deliberately does not.
+ * @param empty What the menu says when it has no rows: a combobox's "no matches".
+ * @param rows The options, as the menu's rows, given a `dismiss`. Built only
+ *   while the menu is open. [Select] calls `dismiss` as an option is picked;
+ *   [MultiSelect] deliberately does not.
  */
 @Composable
 private fun SelectFrame(
@@ -729,7 +761,8 @@ private fun SelectFrame(
     onOpenChange: (Boolean) -> Unit = {},
     editor: (@Composable RowScope.(Modifier, FocusRequester) -> Unit)? = null,
     below: (@Composable () -> Unit)? = null,
-    content: @Composable ColumnScope.(dismiss: () -> Unit) -> Unit,
+    empty: (@Composable () -> Unit)? = null,
+    rows: (dismiss: () -> Unit) -> MenuRows,
 ) {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val focused by interactions.collectIsFocusedAsState()
@@ -935,13 +968,58 @@ private fun SelectFrame(
             // without the field flashing pressed on the way.
             anchorTakesPresses = editor != null,
             focusRequester = menuFocus,
+            rows = {
+                val options = rows { setExpanded(false) }
+                MenuRows(options.keys, options.labels, options.furniture) { index ->
+                    CompositionLocalProvider(LocalMenuPicksOne provides picksOne) { options.row(index) }
+                }
+            },
         ) {
-            CompositionLocalProvider(LocalMenuPicksOne provides picksOne) {
-                content { setExpanded(false) }
-            }
+            empty?.invoke()
         }
     }
 }
+
+/**
+ * A select's options as its menu's rows — those at [places] in [options], in
+ * that order — and one more after them when [extra], its "Other".
+ *
+ * Each row is keyed on its option's place in [options], and the extra on the
+ * place after the last. [label] is what a row says, or null where a slot draws
+ * it; [icon] and [ticked] are what it carries beside its words, which the menu
+ * measures its width by.
+ */
+private fun <T> optionRows(
+    options: List<T>,
+    places: List<Int> = options.indices.toList(),
+    label: (T) -> String?,
+    icon: (T) -> Boolean,
+    ticked: (T) -> Boolean,
+    row: @Composable (T) -> Unit,
+    extra: Boolean = false,
+    extraLabel: String = "",
+    extraTicked: Boolean = false,
+    extraRow: @Composable () -> Unit = {},
+): MenuRows {
+    val count = places.size + if (extra) 1 else 0
+    return MenuRows(
+        keys = List(count) { if (it < places.size) places[it] else options.size },
+        labels = List(count) { if (it < places.size) label(options[places[it]]) else extraLabel },
+        furniture = List(count) {
+            if (it < places.size) {
+                val option = options[places[it]]
+                furniture(icon(option), ticked(option))
+            } else {
+                furniture(icon = false, ticked = extraTicked)
+            }
+        },
+    ) { index ->
+        if (index < places.size) row(options[places[index]]) else extraRow()
+    }
+}
+
+/** A row's icon and tick, as one number: rows that differ in either measure apart. */
+private fun furniture(icon: Boolean, ticked: Boolean): Int = (if (icon) 1 else 0) or (if (ticked) 2 else 0)
 
 /**
  * One option's row in a select's menu: its label and its icon, or what

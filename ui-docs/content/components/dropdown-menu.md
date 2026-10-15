@@ -77,6 +77,12 @@ are asked for from a phone; the in-place one is how iOS nests its menus.
 **Nested menus are worth being sparing with.** Two levels is a category; three is
 a filing system, and by then a flat list with section headers is easier to scan.
 
+**A drag on a menu is the menu's.** It scrolls a menu that scrolls, with its
+stretch or bounce at the ends, and does nothing to one that fits; it never moves
+what is under the menu. Nor does the wheel. That mattered where an
+`OverlayHost` sits in a page that scrolls — a card or a pane with a host of its
+own — and the page took whatever the menu's list did not use.
+
 For the same list on a right-click or a long press, see
 [`ContextMenuArea`](context-menu-area.md). For content that is not a list of
 actions, [`Popover`](popover.md).

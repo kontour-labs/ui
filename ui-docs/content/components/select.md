@@ -24,6 +24,19 @@ Its menu anchors to the field frame, using `Modifier.anchorBounds` and
 parent layout" is the wrong node when the menu is declared in one slot of a row
 and has to line up with the whole row. The menu matches the field's width.
 
+**A long list is composed as it is shown.** Past thirty options the menu
+composes the rows on screen and a few beyond rather than every one, so a select
+of 250 countries opens about as quickly as one of ten. It is as wide as it
+always was — its widest option's width, between the field's and the most a menu
+takes — and settles that as it opens, from the options' words, so it never
+changes width as it is scrolled. Where `optionContent` draws the options, a
+long list opens as wide as a menu goes, since a drawing's width is not known
+until it is drawn; that is never narrower than it would have been.
+
+**A drag on the open list is the list's.** It scrolls the list, or does nothing
+where the list fits, and never moves the page under it — the wheel likewise. A
+drag on the field is the page's, as on any field.
+
 **Outlined by default, and it need not be.** `variant = TextFieldVariant.Plain`
 draws the value and its chevron with no box round them — for a select at the end
 of a row, or in a sentence, where the box was more frame than field. Focus and

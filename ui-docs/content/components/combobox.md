@@ -28,7 +28,9 @@ whether what you typed counts as an answer.
 been typed moves the caret, a double-click or a double-tap selects a word, a
 drag selects a run, and the right-click menu offers to copy and cut it — all
 without closing the list. A press on the field around the text puts the caret
-in it; the chevron, a pick or a press anywhere else closes the list.
+in it; the chevron, a pick or a press anywhere else closes the list. A drag on
+the field scrolls the page, as a drag on any field does, and the list goes with
+it; a drag on the list scrolls the list, and nothing under it.
 
 **Options drawn rather than named.** `optionContent` and `valueContent` draw
 the options and the value as a [`Select`](select.md)'s do.
