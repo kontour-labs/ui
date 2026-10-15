@@ -17,7 +17,7 @@ import io.kontour.icons.tabler.outline.MapPin
 import io.kontour.icons.tabler.outline.Route
 import io.kontour.icons.tabler.outline.User
 import io.kontour.ui.nav.NavBar
-import io.kontour.ui.nav.NavBarMarkerDrag
+import io.kontour.ui.nav.NavMarkerDrag
 import io.kontour.ui.nav.NavDefaults
 import io.kontour.ui.overlay.OverlayHost
 import java.awt.image.BufferedImage
@@ -58,7 +58,7 @@ class NavBarGroupDragTest {
 
     private class Bar(val scene: Scene, val clicks: MutableList<String>)
 
-    private fun bar(drag: NavBarMarkerDrag = NavBarMarkerDrag.SelectOnRelease): Bar {
+    private fun bar(drag: NavMarkerDrag = NavMarkerDrag.SelectOnRelease): Bar {
         val clicks = mutableListOf<String>()
         var here by mutableStateOf("a")
         val scene = Scene(width = 800, height = 600, density = Density, reduceMotion = true) {
@@ -173,7 +173,7 @@ class NavBarGroupDragTest {
      */
     @Test
     fun aGroupPassedOverOpensNothing() {
-        val bar = bar(NavBarMarkerDrag.SelectWhileDragging)
+        val bar = bar(NavMarkerDrag.SelectWhileDragging)
         bar.scene.use { scene ->
             scene.drag(from = centre(0), to = centre(3), steps = 24, paceMillis = 30)
             scene.frames(12)

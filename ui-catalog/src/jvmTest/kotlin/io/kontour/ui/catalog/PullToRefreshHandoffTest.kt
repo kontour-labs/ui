@@ -58,7 +58,7 @@ class PullToRefreshHandoffTest {
             Box(Modifier.fillMaxSize().background(Color.White)) {
                 val live = rememberPullToRefreshState()
                 state = live
-                PullToRefresh(refreshing = refreshing, onRefresh = {}, state = live) {
+                PullToRefresh(refreshing = refreshing, onRefresh = {}, scrollState = null, state = live) {
                     Box(Modifier.fillMaxSize().background(Color.White))
                 }
             }

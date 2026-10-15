@@ -130,9 +130,12 @@ fun rememberNavigationSuiteState(railExpanded: Boolean = false): NavigationSuite
  * @param barItemWidth How wide the bar's destinations are; see [NavBarItemWidth].
  * @param barMarker What marks the bar's current destination; see [NavBarMarker].
  *   A rail's marker is its own.
- * @param barMarkerDrag Whether the bar's marker can be dragged between
- *   destinations, and when a drag chooses one; see [NavBarMarkerDrag]. A
- *   rail's cannot be dragged: it scrolls.
+ * @param markerDrag Whether the marker can be dragged between destinations, and
+ *   when a drag chooses one; see [NavMarkerDrag]. The bar's, the rail's and the
+ *   modal rail's alike: whether choosing while dragging suits depends on how
+ *   cheap the app's pages are to show, and they are the same pages whichever
+ *   surface the window has. A rail drags its marker only while it has nothing
+ *   to scroll.
  * @param barFadeUnder Whether the page fades out under a floating bar; see
  *   [NavBar]'s `fadeUnder`.
  * @param showLabels Whether the bar names its destinations. `null` leaves it to
@@ -161,7 +164,7 @@ fun NavigationSuiteScaffold(
     barShape: Shape? = null,
     barItemWidth: NavBarItemWidth = NavBarItemWidth.Equal,
     barMarker: NavBarMarker = NavBarDefaults.destinationMarker(),
-    barMarkerDrag: NavBarMarkerDrag = NavBarMarkerDrag.SelectOnRelease,
+    markerDrag: NavMarkerDrag = NavMarkerDrag.SelectOnRelease,
     showLabels: Boolean? = null,
     railExpandable: Boolean = false,
     railExpandedWidth: Dp = NavRailDefaults.ExpandedWidth,
@@ -210,7 +213,7 @@ fun NavigationSuiteScaffold(
             barShape = barShape,
             barItemWidth = barItemWidth,
             barMarker = barMarker,
-            barMarkerDrag = barMarkerDrag,
+            markerDrag = markerDrag,
             barFadeUnder = barFadeUnder,
             showLabels = showLabels,
             railExpandable = railExpandable,
@@ -291,7 +294,7 @@ private fun NavigationSurface(
     barShape: Shape?,
     barItemWidth: NavBarItemWidth,
     barMarker: NavBarMarker,
-    barMarkerDrag: NavBarMarkerDrag,
+    markerDrag: NavMarkerDrag,
     barFadeUnder: Boolean,
     showLabels: Boolean?,
     railExpandable: Boolean,
@@ -318,7 +321,7 @@ private fun NavigationSurface(
             shape = barShape,
             itemWidth = barItemWidth,
             marker = barMarker,
-            markerDrag = barMarkerDrag,
+            markerDrag = markerDrag,
             fadeUnder = barFadeUnder,
         ) {
             destinations()
@@ -333,6 +336,7 @@ private fun NavigationSurface(
                 } else {
                     null
                 },
+                markerDrag = markerDrag,
                 expandedWidth = railExpandedWidth,
                 colours = colours,
                 windowInsets = windowInsets ?: WindowInsets.leadingEdges,
@@ -346,6 +350,7 @@ private fun NavigationSurface(
             visible = state.modalVisible,
             onDismissRequest = state::hideModal,
             width = railExpandedWidth,
+            markerDrag = markerDrag,
             // A panel over the page is raised, as every modal one is, unless
             // the app chose its ground.
             colours = if (colours.container == Theme.colours.surface) {

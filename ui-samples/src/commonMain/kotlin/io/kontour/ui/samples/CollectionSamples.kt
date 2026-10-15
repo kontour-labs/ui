@@ -143,8 +143,9 @@ fun ReorderableList(initial: List<Stop>) {
 
 @Composable
 fun PullToRefreshBasics(refreshing: Boolean, stops: List<Stop>) {
-    PullToRefresh(refreshing = refreshing, onRefresh = { refresh() }) {
-        LazyColumn {
+    val rows = rememberLazyListState()
+    PullToRefresh(refreshing = refreshing, onRefresh = { refresh() }, scrollState = rows) {
+        LazyColumn(state = rows) {
             listSection(stops) { stop, position ->
                 ListItem(position = position) { +stop.name }
             }

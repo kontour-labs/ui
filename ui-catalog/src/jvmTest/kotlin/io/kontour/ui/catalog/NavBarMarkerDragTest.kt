@@ -21,7 +21,7 @@ import io.kontour.ui.interaction.FeedbackDispatcher
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.nav.NavBar
-import io.kontour.ui.nav.NavBarMarkerDrag
+import io.kontour.ui.nav.NavMarkerDrag
 import io.kontour.ui.nav.NavDefaults
 import java.awt.image.BufferedImage
 import kotlin.math.abs
@@ -57,7 +57,7 @@ class NavBarMarkerDragTest {
     private class Bar(val scene: Scene, val clicks: MutableList<String>, val felt: MutableList<FeedbackIntent>)
 
     private fun bar(
-        drag: NavBarMarkerDrag = NavBarMarkerDrag.SelectOnRelease,
+        drag: NavMarkerDrag = NavMarkerDrag.SelectOnRelease,
         reduceMotion: Boolean = true,
     ): Bar {
         val clicks = mutableListOf<String>()
@@ -221,7 +221,7 @@ class NavBarMarkerDragTest {
      */
     @Test
     fun selectWhileDraggingChoosesEachDestinationAsItIsReached() {
-        val bar = bar(drag = NavBarMarkerDrag.SelectWhileDragging)
+        val bar = bar(drag = NavMarkerDrag.SelectWhileDragging)
         bar.scene.use { scene ->
             scene.drag(from = centre(0), to = centre(2), steps = 16, release = false)
             scene.frames(4)
@@ -235,7 +235,7 @@ class NavBarMarkerDragTest {
     /** And back where it started, the first destination is chosen again: it was left. */
     @Test
     fun selectWhileDraggingChoosesTheFirstAgainWhenTheMarkerComesBack() {
-        val bar = bar(drag = NavBarMarkerDrag.SelectWhileDragging)
+        val bar = bar(drag = NavMarkerDrag.SelectWhileDragging)
         bar.scene.use { scene ->
             scene.drag(from = centre(0), to = centre(1), steps = 10, release = false)
             scene.frames(2)
@@ -255,7 +255,7 @@ class NavBarMarkerDragTest {
     /** The control: with the drag turned off, the same gesture moves nothing and chooses nothing. */
     @Test
     fun turnedOffTheSameDragDoesNothing() {
-        val bar = bar(drag = NavBarMarkerDrag.Off)
+        val bar = bar(drag = NavMarkerDrag.Off)
         bar.scene.use { scene ->
             scene.drag(from = centre(0), to = centre(2), steps = 16, release = false)
             val held = markerCentre(scene.frames(10))

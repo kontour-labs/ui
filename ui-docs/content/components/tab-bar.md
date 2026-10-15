@@ -98,6 +98,21 @@ already see and drag is clutter, and a bar over tabs you *cannot* see is the onl
 thing saying they are there. It appears only when the tabs actually overflow, and
 `scrollState` is hoisted so an app can drive or read the position itself.
 
+### Dragging the marker
+
+The pill can be dragged from tab to tab, as the
+[nav bar's marker](nav-bar.md#dragging-the-marker) can: it follows the finger,
+snaps from tab to tab with a tick at each, and by default the tab under the
+finger when it lifts is chosen, once. `markerDrag` takes the same `NavMarkerDrag`
+— `SelectWhileDragging` chooses each tab as the pill reaches it, for views cheap
+enough to scrub across, and `Off` turns it off.
+
+**Only while the row has nothing to scroll.** A fixed bar never scrolls, so its
+pill can always be dragged. A scrollable bar can be dragged while its tabs fit,
+and scrolls, as it always did, once they run past the edge: a drag along a
+scroller is the one gesture it cannot share. Which it is is asked as each drag
+begins, so a window that narrows, or a tab added, changes it.
+
 ### Swiping between tabs
 
 `Modifier.tabSwipe` goes on the **content**, not on the bar — nobody swipes a tab

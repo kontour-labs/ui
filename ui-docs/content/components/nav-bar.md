@@ -213,7 +213,7 @@ would build and throw away every screen on the way. A drag that comes back to
 where it started, or that something else takes away, chooses nothing, and a tap
 is still a tap.
 
-**`markerDrag = NavBarMarkerDrag.SelectWhileDragging` chooses each destination
+**`markerDrag = NavMarkerDrag.SelectWhileDragging` chooses each destination
 as the marker reaches it**, once, the way a segmented control does, and the lift
 chooses nothing more. Use it for pages cheap enough to scrub across, where
 seeing each one as the finger passes is the point. Asked for as an option:
@@ -232,9 +232,11 @@ destination, so a drag across a group to the one beyond opens nothing and, while
 choosing as it goes, skips the group.
 
 Only sideways, and only from a destination or a group: a slot — a search — keeps
-its own gestures. `NavBarMarkerDrag.Off` turns it off. A rail's marker cannot be
-dragged at all: a rail scrolls, and a drag along it could not be told from a
-scroll.
+its own gestures. `NavMarkerDrag.Off` turns it off.
+
+The same setting drags a [rail's marker](nav-rail.md#dragging-the-marker) and a
+[tab bar's](tab-bar.md#dragging-the-marker), whenever the row they are in has
+nothing to scroll. A bar never scrolls, so a bar's always can.
 
 ### A group in a bar
 

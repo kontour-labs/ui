@@ -468,13 +468,15 @@ internal val PullToRefreshDemo = ComponentDemo(slug = "pull-to-refresh") {
             refreshing = false
         }
     }
+    val scroll = rememberScrollState()
     PullToRefresh(
         refreshing = refreshing,
         onRefresh = { refreshing = true },
+        scrollState = scroll,
         modifier = Modifier.fillMaxWidth().height(200.dp),
     ) {
         Column(
-            Modifier.fillMaxWidth().verticalScroll(rememberScrollState(), flingBehavior = ScrollDefaults.flingBehavior()),
+            Modifier.fillMaxWidth().verticalScroll(scroll, flingBehavior = ScrollDefaults.flingBehavior()),
             verticalArrangement = Arrangement.spacedBy(ListItemDefaults.Spacing),
         ) {
             stops.forEachIndexed { index, (name, detail) ->

@@ -2572,7 +2572,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
             // nothing else, so a card of it would be a card of a list row — and
             // with nothing underneath, the indicator floats in space rather than
             // sitting above the thing it is refreshing.
-            PullToRefresh(refreshing = true, onRefresh = {}, modifier = modifier) {
+            PullToRefresh(refreshing = true, onRefresh = {}, scrollState = null, modifier = modifier) {
                 // Taller than the 80dp threshold on purpose. With shorter
                 // content the indicator lands *below* the list, which is what it
                 // honestly does when it wraps something short — and is not what

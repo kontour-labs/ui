@@ -790,6 +790,7 @@ HAPTIC_FILE_NAMES = {
     "TableRows": "Table",
     "Pressable": "Modifier.pressable",
     "DragHost": "Modifier.dragSource",
+    "MarkerDrag": ("NavBar", "NavRail", "TabBar"),
 }
 
 # The mechanism rather than a component: one defines the dispatcher, one is the

@@ -85,7 +85,11 @@ whose destinations are too many or too nested for a bar: no navigation on screen
 until a menu button calls `state.showModal()`. `NavigationSuiteState` also holds
 whether the rail is expanded, so it persists while the window stays a rail.
 
-`barStyle` reaches the bar; `search` goes in the bar
+`markerDrag` is the bar's and the rail's alike — see
+[dragging the marker](nav-bar.md#dragging-the-marker): whether choosing while
+dragging suits depends on how cheap the app's pages are to show, and they are
+the same pages whichever surface the window has. `barStyle` reaches the bar;
+`search` goes in the bar
 after `searchIndex` destinations, counted — `null`, or a number at or past the
 count, puts it at the end; `action` goes beside a floating bar, after everything
 in a docked one, and at the foot of a rail — see

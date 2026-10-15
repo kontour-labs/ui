@@ -5,8 +5,9 @@ a list that is merely over-scrolled does not fire a request.
 
 <!--sample:PullToRefreshBasics-->
 ```kotlin
-PullToRefresh(refreshing = refreshing, onRefresh = { refresh() }) {
-    LazyColumn {
+val rows = rememberLazyListState()
+PullToRefresh(refreshing = refreshing, onRefresh = { refresh() }, scrollState = rows) {
+    LazyColumn(state = rows) {
         listSection(stops) { stop, position ->
             ListItem(position = position) { +stop.name }
         }
@@ -14,10 +15,20 @@ PullToRefresh(refreshing = refreshing, onRefresh = { refresh() }) {
 }
 ```
 
+**Hand it the list's state.** `scrollState` is the content's `LazyListState`,
+`LazyGridState` or `ScrollState`, and it is how the refresh knows the list is at
+its top. It is required, and `null` is an answer: for content that does not
+scroll, or whose state cannot be had.
+
 **It works with a mouse.** A `LazyColumn` answers a finger and a wheel and
 nothing else — desktops do not drag lists — so a gesture built on nested scroll
 alone did not exist on desktop or the web. Dragging the list down now pulls the
-indicator there too, and only when the list is already at its top.
+indicator there too, and only when the list is already at its top, which is
+what `scrollState` says. Without it the refresh can only judge from the scrolls
+it sees going past, and a list moved any other way — its scrollbar's thumb, a
+key, `animateScrollToItem`, a position restored partway down — is not seen to
+move: a mouse drag halfway down it pulled. Nothing in Compose that a parent can
+reach says how far down its content is, short of the content's own state.
 
 **A wheel is not a pull.** Spinning a wheel at the top of a list is a request to
 read what is above; there is nothing above, so nothing happens. The distinction
@@ -72,8 +83,8 @@ refresh:
 ```kotlin
 Column {
     TopBar(style = TopBarStyle.Large, collapseState = collapse) { +"Departures" }
-    PullToRefresh(refreshing, onRefresh, Modifier.weight(1f)) {
-        LazyColumn(Modifier.topBarCollapse(collapse)) { … }
+    PullToRefresh(refreshing, onRefresh, rows, Modifier.weight(1f)) {
+        LazyColumn(Modifier.topBarCollapse(collapse), state = rows) { … }
     }
 }
 ```
@@ -85,7 +96,7 @@ and the indicator comes in there rather than under the bar:
 
 ```kotlin
 Box {
-    PullToRefresh(refreshing, onRefresh, indicatorPadding = PaddingValues(top = collapse.openHeight)) {
+    PullToRefresh(refreshing, onRefresh, list, indicatorPadding = PaddingValues(top = collapse.openHeight)) {
         LazyColumn(
             state = list,
             modifier = Modifier.topBarCollapse(collapse),

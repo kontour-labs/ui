@@ -1861,7 +1861,7 @@ class DetentHapticsTest {
             Scene(width = 400, height = 400) {
                 Recording(felt) {
                     state = rememberPullToRefreshState()
-                    PullToRefresh(refreshing = false, onRefresh = {}, state = state) {
+                    PullToRefresh(refreshing = false, onRefresh = {}, scrollState = null, state = state) {
                         Box(Modifier.fillMaxSize().background(Color.White))
                     }
                 }

@@ -109,6 +109,7 @@ internal fun DeparturesPage(
         PullToRefresh(
             refreshing = refreshing,
             onRefresh = { refreshing = true },
+            scrollState = list,
             modifier = Modifier.fillMaxSize(),
             // The spinner in the gap a pull opens, below the bar, not under it.
             indicatorPadding = PaddingValues(top = collapse.openHeight),
