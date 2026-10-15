@@ -162,8 +162,8 @@ frame rate.
   wheels, with **Now**, in a popover anchored to it. It replaces the segmented
   control that showed one half at a time below 560dp, which on a 12-hour clock
   was every phone. Only the width given decides, never the height. The pill is
-  a button named "Time" that says its time; opened from the keyboard, focus goes
-  into the popover and back to the pill as it closes. The wheels open into an
+  a button named "Time" that says its time; opened from the keyboard, the focus
+  goes to the hour wheel and back to the pill as it closes. The wheels open into an
   `OverlayHost`, as a menu does.
 - **A `DateTimePicker`'s wheels are narrower**: the hour and minute wheels as
   wide as their widest number with 12dp either side, about 48dp from 72, and
@@ -247,6 +247,17 @@ frame rate.
   changed by scrolling; one whose options `optionContent` draws opens as wide as
   a menu goes. A screen reader is told how many options there are and where each
   is. Thirty or fewer are drawn as they were.
+- **A wheel turns from the keyboard and from a screen reader.** A
+  [`WheelPicker`](components/wheel-picker.md), and each wheel of a
+  [`TimePicker`](components/time-picker.md) and a date-time picker, is a stop
+  for Tab, where Tab went past every one: Up and Down turn it a row, round the
+  ends of an endless one; Page Up and Page Down a face of rows; Home and End to
+  its ends; and typing to the row that begins with what was typed — "17" on an
+  hour wheel. A wheel clicked takes the keys, with a ring inside its band only
+  when the focus came from the keyboard. A screen reader can turn it as an
+  adjustable control, where it could only hear its value. A
+  [`WheelSelect`](components/wheel-select.md)'s field turns its value from the
+  keys, open or closed, and Escape folds its wheel.
 - **Menus are walked from the keyboard.** In a
   [dropdown menu](components/dropdown-menu.md), a context menu and the lists of
   a [select](components/select.md), [multi-select](components/multi-select.md)
@@ -418,6 +429,10 @@ frame rate.
 - **A focus ring no longer starts a collector on a control that cannot be
   focused**, and a closed `WheelSelect` no longer recomposes on every frame its
   page scrolls.
+- **A wheel turned by a tap under reduced motion says it has come to rest.** The
+  turn is a jump there, which the wheel never saw move, so
+  `onSelectedIndexChangeFinished` — and a `TimePicker`'s or a `WheelSelect`'s
+  `onValueChangeFinished` — was never called for it.
 
 **Lists and display**
 

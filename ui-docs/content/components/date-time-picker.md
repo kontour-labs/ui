@@ -85,8 +85,9 @@ the caller's to refuse, since only the caller knows whether now is the floor.
 It is the two pickers, and reads as them. Where the time is a row under the
 calendar, its pill is a button named "Time" that says the time as its state —
 "Time, 8:15 pm, button" — and can be expanded and collapsed. Opened from the
-keyboard, the focus goes into the wheels' popover, and when it closes the focus
-comes back to the pill. The month header is a live region
+keyboard, the focus goes to the hour wheel in the popover, which the arrows and
+typing turn as a [`TimePicker`](time-picker.md)'s do, and when it closes the
+focus comes back to the pill. The month header is a live region
 that announces each month paged to, each day says its full date when pressed and
 whether it can be chosen, and the wheels are named "Hour", "Minute" and, on a
 12-hour clock, "AM or PM", each reporting its centred value as its state.

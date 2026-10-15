@@ -328,7 +328,7 @@ internal class MenuKeys {
 }
 
 /** A key's letter, or null for a key that types none. */
-private fun letterOf(event: KeyEvent): Char? {
+internal fun letterOf(event: KeyEvent): Char? {
     if (event.key == Key.Spacebar) return ' '
     val code = event.utf16CodePoint
     if (code <= 0 || code > Char.MAX_VALUE.code) return null

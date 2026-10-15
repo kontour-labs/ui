@@ -60,6 +60,9 @@ import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.ui.focus.FocusRequester
+import io.kontour.ui.input.insetFocusRing
 import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -315,6 +318,7 @@ internal fun <T> WheelDrum(
     onCentreTap: (() -> Unit)? = null,
     onSettled: (() -> Unit)? = null,
     turn: WheelTurn? = null,
+    takesFocus: Boolean = true,
 ) {
     require(visibleItems % 2 == 1) {
         "WheelPicker's visibleItems must be odd so a row can sit in the centre, not $visibleItems"
@@ -346,6 +350,7 @@ internal fun <T> WheelDrum(
             onCentreTap = onCentreTap,
             onSettled = onSettled,
             turn = turn,
+            takesFocus = takesFocus,
         )
         return
     }
@@ -662,6 +667,40 @@ internal fun <T> WheelDrum(
      */
     val scope = rememberCoroutineScope()
 
+    // The keys and a screen reader turn the drum as a tapped row does: seen,
+    // quietly, and to rest once. See `wheelControl`.
+    val focus = remember { FocusRequester() }
+    val interactions = remember { MutableInteractionSource() }
+    val keyTurn = remember { KeyTurn() }
+    val currentOnSettled by rememberUpdatedState(onSettled)
+
+    /**
+     * Turns the drum to [target] as the reader asked, by a tap or a key, and
+     * reports the rest.
+     *
+     * Under reduced motion the turn is a jump, which `ReportsSettling` never
+     * sees move, so it is reported here: a tapped row or a key under reduced
+     * motion came to rest without saying so, and a save waiting for the rest
+     * never came.
+     */
+    suspend fun turnAsAsked(target: Int) {
+        driving = true
+        try {
+            listState.scrollToItem(target, wheelMotion)
+        } finally {
+            driving = false
+        }
+        if (wheelMotion.reduceMotion) currentOnSettled?.invoke()
+    }
+
+    val turnByKey: (Int) -> Unit = { target ->
+        keyTurn.job?.cancel()
+        keyTurn.aim = target
+        val job = scope.launch { turnAsAsked(target) }
+        keyTurn.job = job
+        job.invokeOnCompletion { if (keyTurn.job === job) keyTurn.aim = -1 }
+    }
+
     /**
      * Keeps the drum's scrolling to the drum, and gives it its ends.
      *
@@ -902,6 +941,9 @@ internal fun <T> WheelDrum(
                 // Whether the drum was still turning when the finger came down.
                 var spinning = false
                 detectTapGestures(onPress = { spinning = listState.isScrollInProgress }) { at ->
+                    // A drum clicked takes the arrows, as a field clicked takes
+                    // typing; a pointer's focus draws no ring.
+                    runCatching { focus.requestFocus() }
                     val rows = ((at.y - size.height / 2f) / itemPx).roundToInt()
                     // A tap on a turning drum catches it on the row in the
                     // middle; it is not a choice, so it does not close anything.
@@ -910,15 +952,8 @@ internal fun <T> WheelDrum(
                         if (rows == 0) onCentreTap?.invoke()
                         return@detectTapGestures
                     }
-                    scope.launch {
-                        driving = true
-                        try {
-                            // A turn nobody's finger is making: at once under reduced motion.
-                            listState.scrollToItem(target, wheelMotion)
-                        } finally {
-                            driving = false
-                        }
-                    }
+                    // A turn nobody's finger is making: at once under reduced motion.
+                    scope.launch { turnAsAsked(target) }
                 }
             }
             // Above the drag and the list, so it sees what either of them
@@ -963,6 +998,10 @@ internal fun <T> WheelDrum(
                 // The band says which row is chosen; at the enhanced tier it
                 // needs an edge to say it at all.
                 .optionalBorder(contrastEdge(), Theme.shapes.medium)
+                // The keyboard's focus, round the row the keys turn. Inside the
+                // band, which fills the drum's width: outside it, the drum's
+                // own edge would cut it off.
+                .insetFocusRing(interactions, Theme.shapes.medium)
         )
 
         LazyColumn(
@@ -990,6 +1029,18 @@ internal fun <T> WheelDrum(
                     if (contentDescription != null) this.contentDescription = contentDescription
                     if (!enabled) disabled()
                 }
+                .wheelControl(
+                    enabled = enabled,
+                    count = items.size,
+                    wraps = false,
+                    page = visibleItems,
+                    at = { if (keyTurn.aim >= 0) keyTurn.aim else centredIndex },
+                    nameOf = { itemLabel(items[it]) },
+                    turnTo = turnByKey,
+                    interactionSource = interactions,
+                    focusRequester = focus,
+                    focusable = takesFocus,
+                )
         )
     }
 }
@@ -1029,6 +1080,7 @@ private fun <T> InfiniteWheel(
     onCentreTap: (() -> Unit)? = null,
     onSettled: (() -> Unit)? = null,
     turn: WheelTurn? = null,
+    takesFocus: Boolean = true,
 ) {
     val density = LocalDensity.current
     val itemPx = with(density) { itemHeight.toPx() }
@@ -1123,7 +1175,28 @@ private fun <T> InfiniteWheel(
      * throw that away and occasionally turn the long way past a row the finger
      * was pointing at.
      */
+    val focus = remember { FocusRequester() }
+    val interactions = remember { MutableInteractionSource() }
+
+    /**
+     * Where the drum is going: the row an animation is turning it to, or the one
+     * in its band. A key carries on from here, so keys pressed faster than the
+     * drum turns are each a row.
+     */
+    val aim: () -> Int = {
+        if (offset.isRunning) wrap((offset.targetValue / itemPx).roundToInt(), items.size) else centredIndex
+    }
+
+    /** A key's turn: to [target] by the short way round, from where the drum is going. */
+    val turnByKey: (Int) -> Unit = { target ->
+        val from = if (offset.isRunning) offset.targetValue else (offset.value / itemPx).roundToInt() * itemPx
+        val turns = shortestTurn(wrap((from / itemPx).roundToInt(), items.size), target, items.size)
+        scope.launch { offset.animateTo(from + turns * itemPx, motion.springOrTween(motion.springSnappy)) }
+    }
+
     val tapToTurn: (Offset, Float, Boolean) -> Unit = { at, height, spinning ->
+        // A drum clicked takes the arrows; a pointer's focus draws no ring.
+        runCatching { focus.requestFocus() }
         val rows = ((at.y - height / 2f) / itemPx).roundToInt()
         if (spinning) {
             // Caught while turning: onto the nearest row, and nothing chosen.
@@ -1297,6 +1370,10 @@ private fun <T> InfiniteWheel(
                 // The band says which row is chosen; at the enhanced tier it
                 // needs an edge to say it at all.
                 .optionalBorder(contrastEdge(), Theme.shapes.medium)
+                // The keyboard's focus, round the row the keys turn. Inside the
+                // band, which fills the drum's width: outside it, the drum's
+                // own edge would cut it off.
+                .insetFocusRing(interactions, Theme.shapes.medium)
         )
 
         Column(
@@ -1383,6 +1460,18 @@ private fun <T> InfiniteWheel(
                     if (contentDescription != null) this.contentDescription = contentDescription
                     if (!enabled) disabled()
                 }
+                .wheelControl(
+                    enabled = enabled,
+                    count = items.size,
+                    wraps = true,
+                    page = visibleItems,
+                    at = aim,
+                    nameOf = { label(items[it]) },
+                    turnTo = turnByKey,
+                    interactionSource = interactions,
+                    focusRequester = focus,
+                    focusable = takesFocus,
+                )
         )
     }
 }

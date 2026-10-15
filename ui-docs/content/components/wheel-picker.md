@@ -94,6 +94,22 @@ has not loaded should do.
 The wheel reports the centred item as its `stateDescription`, so a screen reader
 announces the value the picker has settled on rather than the scroll position.
 
+**It is one stop for the keyboard, and turns from it.** Up and Down turn it a row
+back or on — round the ends of an `infinite` drum, and stopping at the ends of
+one that has them — Page Up and Page Down a drum's face of rows, and Home and End
+to the first and last. Typing turns to the next row that begins with what was
+typed, letters typed together being one word: "17" on an hour drum is five in
+the afternoon. Each key turns the drum as a tapped row does, so the rows are seen
+to go by, `onSelectedIndexChange` hears each, and `onSelectedIndexChangeFinished`
+hears it come to rest once. A drum clicked takes the keys, and draws its focus
+ring only when the focus came from the keyboard: inside the band, round the row
+the keys turn.
+
+**And a screen reader can turn it**, as an adjustable control: the rows are its
+range and the centred row where it is, so a swipe up or down on iOS, or the
+volume keys under TalkBack, moves it a row — and it still says the row's words,
+not a number.
+
 `itemLabel` is what gets announced, so return something speakable: `"08"` reads as
 "zero eight" and is what a clock wants visually — where the two disagree, the
 component drawing the wheel should give it a spoken form.

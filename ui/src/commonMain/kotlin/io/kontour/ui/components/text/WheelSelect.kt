@@ -24,6 +24,11 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Rect
@@ -282,6 +287,35 @@ fun <T> WheelSelect(
                     drive.release(0f)
                 },
             )
+            // The keys turn the value from the field, as a select's do on a
+            // desktop, open or not: the drum in the panel follows. It takes no
+            // focus of its own from here, so a reader's Tab goes on to the next
+            // field rather than into a panel that folds itself away.
+            .onKeyEvent { event ->
+                if (!usable || event.type != KeyEventType.KeyDown || options.isEmpty()) return@onKeyEvent false
+                val last = options.lastIndex
+                fun step(by: Int) = if (infinite) (index + by).mod(options.size) else (index + by).coerceIn(0, last)
+                val target = when (event.key) {
+                    Key.DirectionDown -> step(1)
+                    Key.DirectionUp -> step(-1)
+                    Key.PageDown -> step(visibleItems)
+                    Key.PageUp -> step(-visibleItems)
+                    Key.MoveHome -> 0
+                    Key.MoveEnd -> last
+                    Key.Escape -> if (state.expanded) {
+                        close()
+                        return@onKeyEvent true
+                    } else {
+                        return@onKeyEvent false
+                    }
+                    else -> return@onKeyEvent false
+                }
+                if (target != index) {
+                    onValueChange(options[target])
+                    onValueChangeFinished?.invoke()
+                }
+                true
+            }
             .clickable(
                 interactionSource = interactions,
                 indication = kontourIndication(Theme.shapes.field, pressScale = 1f),
@@ -338,6 +372,9 @@ fun <T> WheelSelect(
                 infinite = infinite,
                 onSettled = onValueChangeFinished,
                 drive = drive,
+                // The field takes the keys; a drum that folds away with its
+                // panel would take the focus with it.
+                takesFocus = false,
                 onCentreTap = { close() },
             )
         }
