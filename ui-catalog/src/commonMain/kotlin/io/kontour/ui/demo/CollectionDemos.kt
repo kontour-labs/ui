@@ -1,6 +1,22 @@
 package io.kontour.ui.demo
 
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.padding
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.snapshots.SnapshotStateList
+import io.kontour.ui.components.action.TextButton
+import io.kontour.ui.dragdrop.DragType
+import io.kontour.ui.dragdrop.DropListState
+import io.kontour.ui.dragdrop.DropStatus
+import io.kontour.ui.dragdrop.dragItems
+import io.kontour.ui.dragdrop.dropList
+import io.kontour.ui.dragdrop.dropTarget
+import io.kontour.ui.dragdrop.rememberDropListState
+import io.kontour.ui.dragdrop.rememberDropTargetState
+import io.kontour.ui.foundation.Icon
+import io.kontour.ui.foundation.Surface
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -823,6 +839,155 @@ internal val TableDemo = ComponentDemo(
 
 private fun dollars(cents: Int): String = "$${cents / 100}.${(cents % 100).toString().padStart(2, '0')}"
 
+/** A card on the drag and drop demo's board. */
+private data class DemoTask(val id: Int, val title: String)
+
+/** What the demo's cards are carried as: a lane and the bin meet on it. */
+private val DemoTaskType = DragType<DemoTask>("demo-task")
+
+/** Off, a card is picked up anywhere on it: held with a finger, dragged with a mouse. */
+private val dndHandles = Knob.Flag("Drag handles", initial = true)
+
+/** On, Doing turns a third card away: it shows refused over the lane and goes home when let go. */
+private val dndLimit = Knob.Flag("Doing takes two")
+
+// Short words: a lane is half a phone wide, and a long one breaks mid-word.
+private val DemoTodo = listOf(DemoTask(1, "Fares"), DemoTask(2, "Stops"), DemoTask(3, "Signage"))
+private val DemoDoing = listOf(DemoTask(4, "Maps"))
+
+/**
+ * Drag and drop, which had no demo of its own: the guide's page drew nothing
+ * and the gallery showed it only inside the board app. Two lanes whose cards
+ * reorder within one and carry across to the other, and a bin that takes a
+ * card from either — `dragItems`, `dropList` and `dropTarget` together, with
+ * the keyboard's moves and a screen reader's named actions coming with them.
+ */
+internal val DragAndDropDemo = ComponentDemo(
+    slug = "drag-and-drop",
+    knobs = listOf(dndHandles, dndLimit),
+) {
+    val handles = this[dndHandles]
+    val limited = this[dndLimit]
+    val todo = remember { mutableStateListOf(*DemoTodo.toTypedArray()) }
+    val doing = remember { mutableStateListOf(*DemoDoing.toTypedArray()) }
+    var binned by remember { mutableStateOf(emptyList<DemoTask>()) }
+    val lanes = remember { mutableMapOf<DropListState<*>, SnapshotStateList<DemoTask>>() }
+
+    // Read out here, where `this` is the `DemoScope`: inside a lane's
+    // `dragItems` it is the item's scope, which has no `echo`.
+    val say: (String) -> Unit = { echo(it) }
+
+    @Composable
+    fun Lane(title: String, tasks: SnapshotStateList<DemoTask>, limit: Int?, modifier: Modifier) {
+        val scroll = rememberLazyListState()
+        val lane = rememberDropListState(
+            listState = scroll,
+            type = DemoTaskType,
+            items = tasks,
+            key = { it.id },
+            label = title,
+            itemLabel = { it.title },
+            onDrop = { drop ->
+                lanes.getValue(drop.fromList!!).removeAt(drop.fromIndex!!)
+                tasks.add(drop.index, drop.payload)
+                say("Moved ${drop.payload.title} to $title, ${drop.index + 1} of ${tasks.size}")
+            },
+            // A card already here is only moving along; one from elsewhere
+            // needs room for it.
+            accepts = { task -> limit == null || task in tasks || tasks.size < limit },
+            previewShape = ListItemDefaults.Shape,
+        )
+        lanes[lane] = tasks
+        Surface(modifier, shape = Theme.shapes.container, containerColour = Theme.colours.surfaceSunken) {
+            Column {
+                Text(
+                    if (limit == null) title else "$title · ${tasks.size} of $limit",
+                    style = Theme.typography.titleSmall,
+                    modifier = Modifier.padding(start = Theme.spacing.md, top = Theme.spacing.sm, end = Theme.spacing.sm),
+                )
+                LazyColumn(
+                    state = scroll,
+                    modifier = Modifier.fillMaxWidth().height(232.dp).dropList(lane),
+                    contentPadding = PaddingValues(Theme.spacing.xs),
+                    verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+                ) {
+                    dragItems(lane) { _, task ->
+                        ListItem(containerColour = Theme.colours.surface) {
+                            +task.title
+                            if (handles) {
+                                trailing {
+                                    Icon(Tabler.Outline.GripVertical, contentDescription = null, modifier = Modifier.dragHandle())
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    val bin = rememberDropTargetState(
+        DemoTaskType,
+        label = "Bin",
+        onDrop = { task ->
+            todo.remove(task)
+            doing.remove(task)
+            binned = binned + task
+            say("Binned ${task.title}")
+        },
+    )
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm)) {
+        Text(
+            if (handles) {
+                "Drag a card by its grip — within a lane, to the other, or to the bin. With a keyboard, Space on a grip picks it up."
+            } else {
+                "Hold a card, or drag it with a mouse — within a lane, to the other, or to the bin. With a keyboard, Alt and an arrow."
+            },
+            style = Theme.typography.bodySmall,
+            colour = Theme.colours.contentMuted,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm)) {
+            Lane("To do", todo, limit = null, modifier = Modifier.weight(1f))
+            Lane("Doing", doing, limit = if (limited) 2 else null, modifier = Modifier.weight(1f))
+        }
+        // The bin answers the drag as it goes: ready while a card is carried,
+        // in the danger colour with one over it.
+        val ground = when (bin.status) {
+            DropStatus.Over -> Theme.colours.danger.container
+            DropStatus.Available -> Theme.colours.surfaceSunken
+            else -> Theme.colours.surface
+        }
+        Surface(
+            modifier = Modifier.fillMaxWidth().dropTarget(bin),
+            shape = Theme.shapes.container,
+            containerColour = ground,
+            border = BorderStroke(Theme.sizing.borderWidth, Theme.colours.outline),
+        ) {
+            Row(
+                Modifier.padding(horizontal = Theme.spacing.md, vertical = Theme.spacing.sm),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
+            ) {
+                Icon(Tabler.Outline.Trash, contentDescription = null)
+                Text(
+                    if (binned.isEmpty()) "Bin" else "Bin · ${binned.size}",
+                    style = Theme.typography.bodyMedium,
+                    modifier = Modifier.weight(1f),
+                )
+                if (binned.isNotEmpty()) {
+                    TextButton(
+                        onClick = {
+                            todo.addAll(binned)
+                            binned = emptyList()
+                            echo("Put back")
+                        },
+                    ) { +"Put back" }
+                }
+            }
+        }
+    }
+}
+
 internal val collectionDemos = listOf(
     ListItemDemo,
     ExpandingListItemDemo,
@@ -831,6 +996,7 @@ internal val collectionDemos = listOf(
     ListSectionDemo,
     SwipeActionsDemo,
     ReorderableItemDemo,
+    DragAndDropDemo,
     PullToRefreshDemo,
     LoadMoreDemo,
     ScrollbarDemo,

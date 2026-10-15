@@ -186,6 +186,14 @@ def page_symbols(path: Path) -> list[str]:
 # would be the start of a list.
 MAX_WITHOUT_DEMO = 1  # unchanged: the overlay and sheet pages arrived with theirs
 
+# Guides that are about something a reader can press, so they carry a demo as a
+# component page does, and the gallery page it is filed under. Named, not
+# inferred: a guide is prose by default, and drag and drop is the one that is
+# a mechanism with nothing else to show it — its guide drew nothing, and the
+# gallery had it only inside the board app. The family is held to the gallery
+# here, since no index claims a guide and `misfiled_demos` cannot see one.
+GUIDE_DEMOS = {"drag-and-drop": "Collections"}
+
 
 def demo_files() -> list[Path]:
     """Every `*Demos.kt` in `:ui-catalog`.
@@ -306,6 +314,13 @@ def misfiled_demos() -> list[str]:
     problems = []
     for name, slug in sorted(slugs.items()):
         gallery = families.get(listed.get(name, ""))
+        if slug in GUIDE_DEMOS:
+            if gallery is not None and gallery != GUIDE_DEMOS[slug]:
+                problems.append(
+                    f"`{name}` is on the gallery's {gallery} page and `GUIDE_DEMOS` "
+                    f"files the `{slug}.md` guide under {GUIDE_DEMOS[slug]}"
+                )
+            continue
         page = pages.get(slug)
         if gallery is None or page is None:
             # Filed under no family at all, or a slug with no page. Both are
@@ -1438,7 +1453,7 @@ def main() -> int:
     # only make the total worse, which is the difference that matters.
     demos = demo_slugs()
     for slug in sorted(demos):
-        if slug not in {page.stem for page in component_pages}:
+        if slug not in {page.stem for page in component_pages} and slug not in GUIDE_DEMOS:
             problems.append(
                 f"there is a demo for `{slug}` and no page of that name — a demo "
                 f"nobody can reach is a demo nobody maintains"

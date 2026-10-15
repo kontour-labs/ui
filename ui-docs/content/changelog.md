@@ -293,6 +293,12 @@ frame rate.
 
 ### Added
 
+- **[Drag and drop](drag-and-drop.md) has a demo to press.** Two lanes whose
+  cards reorder within one and carry across to the other, and a bin that takes a
+  card from either: on the guide's own page, and on the gallery's Collections
+  page. Knobs turn the drag handles off, so a card is held anywhere on it, and
+  cap the second lane at two, so a third is seen turned away. The guide drew
+  nothing before, and the gallery showed drag and drop only inside the board app.
 - **[`SplitListItem`](components/split-list-item.md): two rows of a list side
   by side, as one row.** Each half is a `ListItem` of its own — its own press,
   selection, focus and screen-reader stop — joined as a group's rows are, with
