@@ -86,6 +86,12 @@ frame rate.
 
 ### Changed
 
+- **A [dropped](drag-and-drop.md) card lands as it settles into its place**, not
+  a fraction of a second after. The drop waited for the card's flight to finish
+  on a spring that ran on to a hundredth of a pixel, and for its shadow to come
+  down: on a short flight, `onDrop` ran about a sixth of a second after the eye
+  had seen the card arrive. The flight now ends within half a pixel of its
+  place and the drop happens there, the shadow finishing beside it.
 - **A [bottom sheet](components/bottom-sheet.md) let go and caught again on its
   way back is held where the finger caught it**, and follows the finger from
   there. A full-height sheet pulled down, let go and pulled again before it was
