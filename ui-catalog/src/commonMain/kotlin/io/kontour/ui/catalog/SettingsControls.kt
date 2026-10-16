@@ -1,7 +1,5 @@
 package io.kontour.ui.catalog
 
-import androidx.compose.foundation.ComposeFoundationFlags
-import androidx.compose.foundation.ExperimentalFoundationApi
 import io.kontour.ui.locale.PseudoLocale
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -100,7 +98,6 @@ fun SettingToggle(
  * at once: it reads whether they are all still Auto, and it is the gesture that
  * puts them back.
  */
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun DisplaySettingsControls(
     settings: CatalogSettings,
@@ -159,10 +156,6 @@ fun DisplaySettingsControls(
     SettingToggle("Right to left", settings.rightToLeft) { settings.rightToLeft = it }
     if (showFrameTimes) {
         SettingToggle("Frame times", settings.frameTimes) { settings.frameTimes = it }
-        SettingToggle("Drag offset fix (CMP-10830)", settings.dragOffsetFix) {
-            settings.dragOffsetFix = it
-            ComposeFoundationFlags.isDragNodeOffsetDoubleCountingFixEnabled = it
-        }
     }
 
     Text(

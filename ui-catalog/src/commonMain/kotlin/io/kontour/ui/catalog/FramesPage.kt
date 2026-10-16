@@ -1,5 +1,7 @@
 package io.kontour.ui.catalog
 
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.ComposeFoundationFlags
 import io.kontour.ui.components.list.rememberScrollbarListState
 import io.kontour.ui.components.list.scrollbar
 import androidx.compose.foundation.layout.Arrangement
@@ -70,6 +72,7 @@ import io.kontour.ui.theme.kontourShapes
  * wants a different fix from a run that sits uniformly at 12ms on a 120Hz
  * display — and a mean cannot tell those apart, which is why there is not one.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun FramesPage(modifier: Modifier = Modifier) {
     // Off to start with, because that is now what the app ships: the arm is here
@@ -78,6 +81,7 @@ internal fun FramesPage(modifier: Modifier = Modifier) {
     var blur by remember { mutableStateOf(true) }
     var squircles by remember { mutableStateOf(true) }
     var dark by remember { mutableStateOf(false) }
+    var dragFix by remember { mutableStateOf(ComposeFoundationFlags.isDragNodeOffsetDoubleCountingFixEnabled) }
 
     val run = rememberFrameRun("arms")
     val shapes = rememberArmShapes(squircles)
@@ -98,6 +102,17 @@ internal fun FramesPage(modifier: Modifier = Modifier) {
                 Arm("Theme cross-fade", fade) { fade = it }
                 Arm("Backdrop blur", blur) { blur = it }
                 Arm("Squircle corners", squircles) { squircles = it }
+                // Compose Foundation's own, and the whole app's rather than the
+                // workload's: on in 1.12, where it is CMP-10830 — on iOS a drag
+                // whose node moves while it is dragged, a list inside a sheet,
+                // releases at a fraction of the finger's speed, and a fling
+                // there stops short. Read on every drag event, so it takes from
+                // the next drag. A library does not set a process-wide flag for
+                // its app, so this is the gallery's to compare, not `:ui`'s.
+                Arm("Drag offset fix (CMP-10830)", dragFix) {
+                    dragFix = it
+                    ComposeFoundationFlags.isDragNodeOffsetDoubleCountingFixEnabled = it
+                }
             }
         }
 
