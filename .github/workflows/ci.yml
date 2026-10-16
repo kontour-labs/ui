@@ -473,7 +473,7 @@ jobs:
           if [ "$CATALOG" = true ]; then
             compile+=(:ui-catalog:jvmTestClasses)
             tasks+=(:ui-catalog:jvmTest :ui-catalog:checkScreenshotAssertions)
-            # Without it, the 26 slow classes are left out: see `Slow`.
+            # Without it, the 27 slow classes are left out: see `Slow`.
             if [ "$FULL" = true ]; then
               tasks=(-Pkontour.tests.full=true "${tasks[@]}")
             fi

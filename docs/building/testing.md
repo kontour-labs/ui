@@ -15,7 +15,7 @@ python3 docs/check-settings.py
 
 ### The everyday run, and the full one
 
-`:ui-catalog:jvmTest` leaves out 26 slow classes unless it is asked for them:
+`:ui-catalog:jvmTest` leaves out 27 slow classes unless it is asked for them:
 
 ```sh
 ./gradlew :ui-catalog:jvmTest -Pkontour.tests.full=true

@@ -346,7 +346,7 @@ Run them with:
 ./gradlew :ui:jvmTest :ui-catalog:jvmTest -Pkontour.tests.full=true
 ```
 
-Without `-Pkontour.tests.full=true` the catalog leaves out its 26 slowest
+Without `-Pkontour.tests.full=true` the catalog leaves out its 27 slowest
 classes, which is the quick run for while you work; before a pull request, run
 it with. What each gate asks, and what each has caught, is in
 [`testing.md`](testing.md).

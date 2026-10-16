@@ -107,6 +107,13 @@ The repository moves, `PullToRefresh` takes its list's scroll state,
 
 ### Changed
 
+- **`rememberScrollbarListState` measures its rows once the list is still.**
+  It composed every row ahead from the first frame, each one whole, so a page
+  of heavy rows — the gallery's date and time page — was composed in full while
+  it arrived, and dropped frames on both phones. It now waits until the list
+  has been still for 300ms, stops while it scrolls, and takes a row a frame.
+  The thumb is exact a moment after the list comes to rest rather than within
+  its first frames; until then it is estimated, as on a plain list.
 - **The icons are Tabler 3.49.0.1**, from 3.49.0: the same icons,
   `io.kontour:tabler-icons-outline` and `-filled`, re-released by
   `kontour-labs/tabler` to `maven.kontour.io`.

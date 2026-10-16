@@ -41,9 +41,11 @@ import androidx.compose.foundation.lazy.layout.PrefetchRequest
  * the next row when it scrolls, and thrown away again — and the thumb is right
  * from the first few frames.
  *
- * **What it costs**: every row composed once, in idle time, up to
- * 200 rows, and held until the last is measured; past that the
- * rest are estimated. A list of a few
+ * **What it costs**: every row composed once, up to 200 rows, and held until
+ * the last is measured; past that the rest are estimated. The measuring waits
+ * until the list has been still for a moment and takes a row a frame, so a
+ * page of heavy rows is not composed while it is arriving or being scrolled,
+ * and the thumb is exact a moment after the list comes to rest. A list of a few
  * dozen rows of very different heights — a page of cards — is what it is for.
  * A list of thousands of even rows is estimated exactly enough without it.
  */
@@ -57,6 +59,7 @@ fun rememberScrollbarListState(
     val frames = remember { FramePrefetchScheduler() }
     val strategy = remember(rows, frames) { MeasuringPrefetch(rows, frames) }
     val state = rememberLazyListState(initialFirstVisibleItemIndex, initialFirstVisibleItemScrollOffset, strategy)
+    frames.moving = { state.isScrollInProgress }
     // Its own time between frames: the platform's prefetching is a no-op on a
     // desktop window, and measuring ahead has to happen everywhere.
     LaunchedEffect(frames) { frames.run() }
@@ -86,7 +89,7 @@ internal val MeasuredLists = mutableStateMapOf<LazyListState, RowSizes>()
  * and is then let go of.
  */
 @OptIn(ExperimentalFoundationApi::class)
-private class MeasuringPrefetch(private val rows: RowSizes, frames: PrefetchScheduler) : LazyListPrefetchStrategy {
+private class MeasuringPrefetch(private val rows: RowSizes, private val frames: FramePrefetchScheduler) : LazyListPrefetchStrategy {
     private val default = LazyListPrefetchStrategy()
 
     override val prefetchScheduler: PrefetchScheduler = frames
@@ -123,6 +126,7 @@ private class MeasuringPrefetch(private val rows: RowSizes, frames: PrefetchSche
         for (item in layoutInfo.visibleItemsInfo) rows.record(item.index, item.size, item.key)
         for (index in 0 until minOf(total, MeasuredRowsCap)) {
             if (rows.known(index) || index in inFlight || index in measured) continue
+            frames.ahead = true
             val handle = schedulePrefetch(index) {
                 rows.record(this.index, mainAxisSize, key = null, notify = true)
                 landed += this.index
@@ -138,7 +142,9 @@ private class MeasuringPrefetch(private val rows: RowSizes, frames: PrefetchSche
             }
             // Urgent, or a row's composition waits for an average of earlier
             // ones to fit the time left, and a list that has measured nothing
-            // has no average: our own slice of each frame is the limit.
+            // has no average. Filed apart by the scheduler, which runs these
+            // only while the list is still: see `FramePrefetchScheduler`.
+            frames.ahead = false
             handle.markAsUrgent()
             inFlight[index] = handle
             measured += index
@@ -153,23 +159,48 @@ private class MeasuringPrefetch(private val rows: RowSizes, frames: PrefetchSche
 }
 
 /**
- * Prefetch work run a slice a frame, after the frame: [Budget] of each, for as
- * long as there is work, and nothing at all while there is none.
+ * Prefetch work run a slice a frame: [Budget] of each, for as long as there is
+ * work, and nothing at all while there is none.
+ *
+ * **Two kinds of work, and only one of them is in a hurry.** The list's own
+ * prefetch — the next row in the way it is scrolling — runs as it always did,
+ * in each frame's slice. A row measured *ahead*, for the scrollbar, waits until
+ * the list has been still for [QuietNanos] of frames, stops the moment it
+ * scrolls again, and is one row a frame.
+ *
+ * It used to share the slice, and a row measured ahead is urgent — composed
+ * whole, in the frame it starts in, because a list that has measured nothing
+ * has no average to schedule it by. On a page of heavy rows that was every
+ * card composed in the first frames after the page opened: on the gallery's
+ * date and time page, all twelve demos, the event calendar among them, and
+ * frames at four times the cost of the same page on a plain state, at the
+ * moment the page was arriving and the reader starting to scroll. A frame
+ * nobody sees move costs nothing, so that is where they go now.
  */
 @OptIn(ExperimentalFoundationApi::class)
 private class FramePrefetchScheduler : PrefetchScheduler {
     private val queue = ArrayDeque<PrefetchRequest>()
+    private val aheadQueue = ArrayDeque<PrefetchRequest>()
     private val waiting = Channel<Unit>(Channel.CONFLATED)
 
+    /** Set around a measure-ahead request, which [schedulePrefetch] files apart. */
+    var ahead = false
+
+    /** Whether the list is being scrolled, by a finger or a fling. */
+    var moving: () -> Boolean = { false }
+
+    /** The frame from which the list has been still, or [Long.MIN_VALUE] while it is not. */
+    private var stillSince = Long.MIN_VALUE
+
     override fun schedulePrefetch(prefetchRequest: PrefetchRequest) {
-        queue.addLast(prefetchRequest)
+        (if (ahead) aheadQueue else queue).addLast(prefetchRequest)
         waiting.trySend(Unit)
     }
 
     suspend fun run() {
         while (true) {
-            if (queue.isEmpty()) waiting.receive()
-            withFrameNanos { }
+            if (queue.isEmpty() && aheadQueue.isEmpty()) waiting.receive()
+            val now = withFrameNanos { it }
             val started = TimeSource.Monotonic.markNow()
             val scope = object : PrefetchRequestScope {
                 override fun availableTimeNanos(): Long =
@@ -181,11 +212,27 @@ private class FramePrefetchScheduler : PrefetchScheduler {
                 val more = with(request) { scope.execute() }
                 if (!more) queue.removeFirst()
             }
+            if (moving()) {
+                stillSince = Long.MIN_VALUE
+                continue
+            }
+            if (stillSince == Long.MIN_VALUE) stillSince = now
+            if (aheadQueue.isNotEmpty() && queue.isEmpty() && now - stillSince >= QuietNanos) {
+                val request = aheadQueue.first()
+                val more = with(request) { scope.execute() }
+                if (!more) aheadQueue.removeFirst()
+            }
         }
     }
 
     private companion object {
-        /** A slice of a 120Hz frame: rows measured ahead never cost a frame. */
+        /** A slice of a 120Hz frame: rows prefetched for a scroll never cost a frame. */
         val Budget = 4.milliseconds
+
+        /**
+         * How long the list is still before a row is measured ahead: longer than
+         * a page's arrival, so the measuring starts once the page is still.
+         */
+        const val QuietNanos = 300_000_000L
     }
 }

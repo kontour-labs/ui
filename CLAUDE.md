@@ -81,7 +81,7 @@ python3 docs/export-strings.py --check
 python3 docs/sync-samples.py
 ```
 
-Add `-Pkontour.tests.full=true` for the 26 slow classes when a change touches
+Add `-Pkontour.tests.full=true` for the 27 slow classes when a change touches
 how components lay out, move, take input or announce themselves. That is about
 fifty minutes in CI, and it is the run that finds the problems.
 

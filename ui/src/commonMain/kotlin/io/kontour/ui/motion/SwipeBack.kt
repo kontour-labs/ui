@@ -516,66 +516,88 @@ private suspend fun androidx.compose.ui.input.pointer.PointerInputScope.trackBac
             var claimed = false
             // The frames the page is drawn on under the finger, for the release
             // to be timed from: see [SwipeBackInput.nextFrame].
+            // A single frame at a time, and finished in one, so nothing has to
+            // stop it but the release, which does. No `try`/`finally` round
+            // the loop to cancel it either: see [followFrame] for what this
+            // block did on iOS with one, and a launch, inside it.
             var frames: Job? = null
-            try {
-                while (true) {
-                    val event = awaitPointerEvent(pass)
-                    val change = event.changes.firstOrNull { it.id == id }
-                    if (change == null) {
-                        if (claimed) input.abandon()
-                        break
-                    }
-                    val at = placed.toWindow(change.position)
-                    tracker.addPosition(change.uptimeMillis, at)
-                    val delta = at - start
-                    val along = delta.x * sign
-                    if (!claimed) {
-                        // Somebody inside took it; it was theirs.
-                        if (change.isConsumed || !change.pressed) break
-                        if (abs(delta.x) > claimAt || abs(delta.y) > claimAt) {
-                            // Within 45° of sideways, on the content as at the edge:
-                            // the test a pan recogniser's delegate makes. It was
-                            // twice as far sideways as up or down on the content,
-                            // which a thumb arcing across the screen often is not,
-                            // and the swipe that missed it did nothing at all. A
-                            // list under the page that scrolls up and down has seen
-                            // every move first and took any that were more its own.
-                            val sideways = abs(delta.x) >= abs(delta.y)
-                            if (along > claimAt && sideways) {
-                                claimed = true
-                                input.start(pan.edge, at)
-
-                            } else {
-                                break
-                            }
-                        }
-                    }
-                    if (!claimed) continue
-                    change.consume()
-                    val span = (travel?.invoke() ?: size.width.toFloat()).coerceAtLeast(1f)
-                    // From where the finger went down, not from where the pan was
-                    // claimed: the page is under the finger, as UIKit's is. Measured
-                    // from the claim it trailed by the slop the whole way across, and
-                    // half the width meant half the width and a slop more.
-                    val progress = (along / span).coerceIn(0f, 1f)
-                    if (change.pressed) {
-                        input.move(progress, at)
-                        if (frames?.isActive != true) frames = scope.launch { input.nextFrame() }
-                        continue
-                    }
-                    // Let go: decided by where it would come to rest. See
-                    // [releaseCommits].
-                    val velocity = tracker.calculateVelocity().x * sign
-                    frames?.cancel()
-                    scope.launch { input.release(releaseCommits(progress, velocity / span), velocity / span) }
+            while (true) {
+                val event = awaitPointerEvent(pass)
+                val change = event.changes.firstOrNull { it.id == id }
+                if (change == null) {
+                    if (claimed) input.abandon()
                     break
                 }
-            } finally {
+                val at = placed.toWindow(change.position)
+                tracker.addPosition(change.uptimeMillis, at)
+                val delta = at - start
+                val along = delta.x * sign
+                if (!claimed) {
+                    // Somebody inside took it; it was theirs.
+                    if (change.isConsumed || !change.pressed) break
+                    if (abs(delta.x) > claimAt || abs(delta.y) > claimAt) {
+                        // Within 45° of sideways, on the content as at the edge:
+                        // the test a pan recogniser's delegate makes. It was
+                        // twice as far sideways as up or down on the content,
+                        // which a thumb arcing across the screen often is not,
+                        // and the swipe that missed it did nothing at all. A
+                        // list under the page that scrolls up and down has seen
+                        // every move first and took any that were more its own.
+                        val sideways = abs(delta.x) >= abs(delta.y)
+                        if (along > claimAt && sideways) {
+                            claimed = true
+                            input.start(pan.edge, at)
+
+                        } else {
+                            break
+                        }
+                    }
+                }
+                if (!claimed) continue
+                change.consume()
+                val span = (travel?.invoke() ?: size.width.toFloat()).coerceAtLeast(1f)
+                // From where the finger went down, not from where the pan was
+                // claimed: the page is under the finger, as UIKit's is. Measured
+                // from the claim it trailed by the slop the whole way across, and
+                // half the width meant half the width and a slop more.
+                val progress = (along / span).coerceIn(0f, 1f)
+                if (change.pressed) {
+                    input.move(progress, at)
+                    if (frames?.isActive != true) frames = input.followFrame(scope)
+                    continue
+                }
+                // Let go: decided by where it would come to rest. See
+                // [releaseCommits].
+                val velocity = tracker.calculateVelocity().x * sign
                 frames?.cancel()
+                input.releaseIn(scope, releaseCommits(progress, velocity / span), velocity / span)
+                break
             }
         }
     }
 }
+
+/**
+ * The next frame, followed in [scope]: see [SwipeBackInput.nextFrame].
+ *
+ * **Launched from here, and not from inside the pan's `awaitPointerEventScope`.**
+ * Written there as `scope.launch { input.nextFrame() }`, inside a `try` whose
+ * `finally` cancelled it, the app died on iOS on the first move of a back swipe
+ * or of a side sheet's drag: `Unexpected receiver type: StandaloneCoroutine`,
+ * thrown from the pan block's own state machine running *in the launched
+ * coroutine*, with that coroutine as its receiver. Kotlin/Native compiled the
+ * restricted block wrongly; the JVM erases the receiver it would have checked,
+ * so every test here passed. The launch and the `try` arrived together and
+ * left together, and which of the two was the trigger was not isolated: the
+ * block now makes no suspend lambda and has no `finally` round a suspension. A
+ * suspend lambda made in an ordinary function is outside the restricted scope
+ * altogether, and the pre-existing release launch moved with it.
+ */
+private fun SwipeBackInput.followFrame(scope: CoroutineScope): Job = scope.launch { nextFrame() }
+
+/** The release, run in [scope], for the same reason as [followFrame]. */
+private fun SwipeBackInput.releaseIn(scope: CoroutineScope, commit: Boolean, velocity: Float): Job =
+    scope.launch { release(commit, velocity) }
 
 /** The node's coordinates, live: read at each event, so they carry wherever it has moved to. */
 private class Placed {
