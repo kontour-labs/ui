@@ -73,6 +73,9 @@ object Screenshot {
         System.getProperty("kontour.screenshots.update").toBoolean()
     }
 
+    /** Whether this is a CI runner, which sets `CI` and throws its checkout away. */
+    private val onCi: Boolean by lazy { System.getenv("CI").toBoolean() }
+
     /**
      * Where this fork writes the list of goldens it rendered.
      *
@@ -174,6 +177,16 @@ object Screenshot {
         golden.parentFile?.mkdirs()
         if (!golden.exists()) {
             golden.writeBytes(encoded)
+            // On CI a golden nobody committed is a picture nobody will ever
+            // compare against: it is written into a checkout that is thrown
+            // away, and the test passes. The chart specimens went a round like
+            // that. So there it fails, and leaves what it drew beside the diffs
+            // to be looked at and committed. Here, writing it is the recording.
+            if (onCi) {
+                writeEvidence(name, encoded, diff = null)
+                mismatches += "$name has no golden. What it drew is at " +
+                    "${diffDir.absolutePath}/$name-actual.png; look at it, and commit it as $name.png."
+            }
             return golden
         }
         if (updating) {
