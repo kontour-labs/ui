@@ -347,7 +347,7 @@ fun SectorChart(
                     parts.forEachIndexed { index, _ ->
                         Box(
                             Modifier.semantics {
-                                contentDescription = shares[index]
+                                this.contentDescription = shares[index]
                                 collectionItemInfo = CollectionItemInfo(rowIndex = index, rowSpan = 1, columnIndex = 0, columnSpan = 1)
                                 if (interactive) {
                                     selected = index == chosen
