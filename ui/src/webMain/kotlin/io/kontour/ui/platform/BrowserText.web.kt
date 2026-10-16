@@ -144,7 +144,7 @@ private class BrowserTextNode(var text: BrowserText) :
     fun edit(kind: String, inserted: String, start: Int, end: Int) {
         val state = text.state ?: return
         val transformation = text.inputTransformation
-        val typed = if (text.singleLine) inserted.replace(LineBreaks, " ") else inserted
+        val typed = if (text.singleLine) inserted.oneLine() else inserted
         state.edit {
             val from = min(start, end).coerceIn(0, length)
             val to = max(start, end).coerceIn(0, length)
@@ -163,7 +163,12 @@ private class BrowserTextNode(var text: BrowserText) :
     }
 }
 
-private val LineBreaks = Regex("\r\n|\n|\r")
+/**
+ * Each line break as one space, a Windows `\r\n` as one rather than two.
+ * Replaced in turn rather than by a `Regex`, which would bring a
+ * regular-expression engine into every app with a text field.
+ */
+private fun String.oneLine(): String = replace("\r\n", " ").replace('\n', ' ').replace('\r', ' ')
 
 /** Where a field's text is and what it is set in, in CSS pixels from the top left of its Compose surface. */
 private class TextGeometry(

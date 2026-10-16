@@ -271,7 +271,7 @@ internal class PatternLocaleFormats(
          */
         fun tidy(text: String): String {
             if ("  " !in text && text.firstOrNull()?.isWhitespace() != true && text.lastOrNull()?.isWhitespace() != true) return text
-            return text.replace(Regex("[   ]{2,}"), " ").trim()
+            return collapseSpaces(text).trim()
         }
     }
 }
@@ -379,8 +379,52 @@ internal fun parseNumber(text: String, symbols: NumberSymbols): Double? {
         groupsValid(normal, ",") && '.' !in normal.substringBefore(',') -> normal.replace(",", "")
         else -> normal.replace(',', '.').takeIf { it.count { c -> c == '.' } <= 1 } ?: return null
     }
-    if (!Regex("""-?(\d+\.?\d*|\.\d+)""").matches(candidate)) return null
+    if (!isPlainDecimal(candidate)) return null
     return candidate.toDoubleOrNull()
+}
+
+/**
+ * Each run of two or more spaces, breaking or not, as one plain space: what
+ * `replace(Regex("[ \u00A0\u202F]{2,}"), " ")` did, without the engine.
+ */
+internal fun collapseSpaces(text: String): String = buildString(text.length) {
+    var i = 0
+    while (i < text.length) {
+        if (!text[i].isLayoutSpace()) {
+            append(text[i++])
+            continue
+        }
+        var end = i + 1
+        while (end < text.length && text[end].isLayoutSpace()) end++
+        append(if (end - i >= 2) ' ' else text[i])
+        i = end
+    }
+}
+
+private fun Char.isLayoutSpace() = this == ' ' || this == '\u00A0' || this == '\u202F'
+
+/**
+ * Whether [text] is `-?(\d+\.?\d*|\.\d+)` in ASCII digits: an optional minus,
+ * then digits with at most one point among or after them, or a point and digits.
+ * Written out rather than as a `Regex`: on the web, five patterns were all
+ * that brought a regular-expression engine into every app with a theme.
+ */
+internal fun isPlainDecimal(text: String): Boolean {
+    var i = if (text.startsWith('-')) 1 else 0
+    var digitsBefore = 0
+    while (i < text.length && text[i] in '0'..'9') {
+        i++
+        digitsBefore++
+    }
+    if (i == text.length) return digitsBefore > 0
+    if (text[i] != '.') return false
+    i++
+    var digitsAfter = 0
+    while (i < text.length && text[i] in '0'..'9') {
+        i++
+        digitsAfter++
+    }
+    return i == text.length && (digitsBefore > 0 || digitsAfter > 0)
 }
 
 /** [read]'s answer for each code, kept, and [fallbackCurrency] where it has none. */

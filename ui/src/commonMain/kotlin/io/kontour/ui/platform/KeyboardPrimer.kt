@@ -46,9 +46,9 @@ internal expect fun InstallKeyboardPrimer()
  * default and says it is a Mac: a "Mac" with a touch screen is an iPad.
  */
 internal fun isIosWebKit(userAgent: String, platform: String, maxTouchPoints: Int): Boolean =
-    IosDevice.containsMatchIn(userAgent) || (platform == "MacIntel" && maxTouchPoints > 1)
+    IosDevice.any { it in userAgent } || (platform == "MacIntel" && maxTouchPoints > 1)
 
-private val IosDevice = Regex("iPhone|iPad|iPod")
+private val IosDevice = listOf("iPhone", "iPad", "iPod")
 
 /**
  * Whether this browser is on a device whose text is selected by touch: a phone
@@ -56,9 +56,9 @@ private val IosDevice = Regex("iPhone|iPad|iPod")
  * [isIosWebKit]'s to say, as an iPad says it is a Mac.
  */
 internal fun isTouchFirst(userAgent: String, coarsePointer: Boolean): Boolean =
-    TouchDevice.containsMatchIn(userAgent) || coarsePointer
+    TouchDevice.any { it in userAgent } || coarsePointer
 
-private val TouchDevice = Regex("Android|Mobi")
+private val TouchDevice = listOf("Android", "Mobi")
 
 /**
  * The marked regions, in CSS pixels from the top left of the page's Compose
