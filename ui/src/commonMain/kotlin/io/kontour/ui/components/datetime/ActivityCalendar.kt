@@ -402,7 +402,7 @@ fun ActivityCalendar(
         val words = describe(date, count)
         val meaning = grid.cellOf(date)?.let { (column, row) -> marks?.get(column * 7 + row)?.description }
             ?: return words
-        return "$words. $meaning"
+        return strings.sentences(listOf(words, meaning))
     }
 
     val labelStyle = Theme.typography.labelSmall

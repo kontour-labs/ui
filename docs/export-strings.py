@@ -63,6 +63,7 @@ PHRASES: dict[str, str | dict[str, str]] = {
     "endDayOffset": {"one": "+%1$s", "other": "+%1$s"},
     "endDaysLater": {"one": "%1$s the next day", "other": "%1$s, %2$s days later"},
     "untilTime": "Until %1$s",
+    "labelledValue": "%1$s, %2$s",
     "sentenceSeparator": ". ",
     "colourFormatName_Hex": "Hex",
     "colourFormatName_Rgb": "RGB",

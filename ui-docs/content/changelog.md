@@ -33,8 +33,27 @@ On `main`, and in the next release.
   not in it at all; on the desktop that needs ProGuard, and the section gives
   the one rule the library needs there.
 
+### Breaking
+
+- **`Strings` has new fields**, `labelledValue` and `selectAllRows`, at the end,
+  so an app that builds its own with named arguments needs nothing; one that
+  passes them by position, or overrides `Strings.from`'s keys, recompiles. See
+  [Migrating](migrating.md#045-to-050).
+
 ### Fixed
 
+- **What the library says is joined the reader's way.** A key-value row was
+  read "label, value" with a comma written into the component, and a stat's
+  supporting line and trend, and an activity day's meaning, were joined with an
+  English ". ". The row is now `Strings.labelledValue`, and the rest go through
+  `Strings.sentences`, as the parts around them already did. A table's
+  select-all checkbox has its own `selectAllRows` rather than borrowing the
+  text editor's `selectAll`, which some languages word differently.
+- **Numbers in other scripts animate.** `RelativeTimeText` looked for its
+  number in the sentence as `toString()` writes it, which is not how it is
+  written in Arabic-Indic digits or with a thousands separator, so it fell back
+  to fading the whole sentence. `AnimatedCounter`'s cells were measured from
+  Western digits and clipped wider ones.
 - **A selection is drawn over code and highlights.** Dragged across a sentence
   with `code` in it, a selection lit up the words either side and left the code
   looking unselected, though it was selected and copied. A span's background

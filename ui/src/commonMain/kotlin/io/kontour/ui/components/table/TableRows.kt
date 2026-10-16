@@ -178,7 +178,7 @@ private fun <T> HeaderCell(env: TableEnv<T>, index: Int) {
                 // From part-way, a tap selects the rest; from all, it clears them.
                 onClick = { env.onSelectedChange?.invoke(if (all) env.selected - keys.toSet() else env.selected + keys) },
                 enabled = env.enabled && keys.isNotEmpty(),
-                modifier = Modifier.semantics { contentDescription = strings.selectAll },
+                modifier = Modifier.semantics { contentDescription = strings.selectAllRows },
             )
         }
         return

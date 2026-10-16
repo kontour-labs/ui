@@ -88,6 +88,7 @@ internal fun KeyValueRows(scope: KeyValueScope, modifier: Modifier, labelWidth: 
     val rows = scope.rows
     val gap = Theme.spacing.sm
     val minValue = KeyValueListDefaults.MinValueWidth
+    val labelledValue = Theme.strings.labelledValue
 
     val label: @Composable (KeyValueRow, Modifier) -> Unit = { row, slot ->
         ProvideContentColour(Theme.colours.contentMuted) {
@@ -164,7 +165,7 @@ internal fun KeyValueRows(scope: KeyValueScope, modifier: Modifier, labelWidth: 
                     val rowModifier = Modifier
                         .fillMaxWidth()
                         .semantics(mergeDescendants = true) {
-                            row.spoken?.let { contentDescription = it }
+                            row.spoken?.let { contentDescription = it.say(labelledValue) }
                         }
                         .padding(vertical = Theme.spacing.xs)
 
@@ -210,8 +211,18 @@ private val Measured = Modifier.clearAndSetSemantics { }
 internal class KeyValueRow(
     val label: @Composable ContentScope.() -> Unit,
     val value: @Composable ContentScope.() -> Unit,
-    val spoken: String?,
+    val spoken: Spoken?,
 )
+
+/**
+ * What a row says, kept in its parts until composition, where the reader's
+ * `Strings.labelledValue` joins them: "Operator, Transperth" in English, and
+ * whatever a translation's grammar makes of a label and its value elsewhere.
+ * A row with only an [announcement][KeyValueScope.item] says that alone.
+ */
+internal class Spoken(val label: String?, val value: String) {
+    fun say(labelledValue: (String, String) -> String): String = if (label == null) value else labelledValue(label, value)
+}
 
 /**
  * Collects the rows.
@@ -235,7 +246,7 @@ class KeyValueScope @PublishedApi internal constructor() {
         rows += KeyValueRow(
             label = { +label },
             value = { +value },
-            spoken = "$label, $value",
+            spoken = Spoken(label, value),
         )
     }
 
@@ -255,7 +266,7 @@ class KeyValueScope @PublishedApi internal constructor() {
         rows += KeyValueRow(
             label = { +label },
             value = value,
-            spoken = announcement?.let { "$label, $it" },
+            spoken = announcement?.let { Spoken(label, it) },
         )
     }
 
@@ -271,7 +282,7 @@ class KeyValueScope @PublishedApi internal constructor() {
         announcement: String? = null,
         value: @Composable ContentScope.() -> Unit,
     ) {
-        rows += KeyValueRow(label = label, value = value, spoken = announcement)
+        rows += KeyValueRow(label = label, value = value, spoken = announcement?.let { Spoken(null, it) })
     }
 }
 

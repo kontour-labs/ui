@@ -433,6 +433,19 @@ data class Strings(
     },
     /** An event over several days in a schedule, on the last of them: "Until 17:00". */
     val untilTime: (time: String) -> String = { time -> "Until $time" },
+
+    // Added in 0.5.0, at the end so that the fields before keep their places.
+    /**
+     * A label and its value, said as one: a key-value list's row, "Operator,
+     * Transperth". A phrase rather than a comma written into the component,
+     * because not every language joins the two with a comma, or in that order.
+     */
+    val labelledValue: (label: String, value: String) -> String = { label, value -> "$label, $value" },
+    /**
+     * A table's header checkbox, which selects every row. Not [selectAll], the
+     * text editor's: some languages word the two differently.
+     */
+    val selectAllRows: String = "Select all rows",
 ) {
     companion object {
         /**
@@ -623,6 +636,8 @@ data class Strings(
         deleteEvent = lookup.text("deleteEvent") ?: fallback.deleteEvent,
         eventMoved = { event, time -> lookup.phrase("eventMoved", null, event, time) ?: fallback.eventMoved(event, time) },
         eventDeleted = { event -> lookup.phrase("eventDeleted", null, event) ?: fallback.eventDeleted(event) },
+        labelledValue = { label, value -> lookup.phrase("labelledValue", null, label, value) ?: fallback.labelledValue(label, value) },
+        selectAllRows = lookup.text("selectAllRows") ?: fallback.selectAllRows,
         )
     }
 }
@@ -864,4 +879,6 @@ internal fun Strings.mapped(transform: (String) -> String): Strings = Strings(
     deleteEvent = transform(deleteEvent),
     eventMoved = { a0, a1 -> transform(eventMoved(a0, a1)) },
     eventDeleted = { a0 -> transform(eventDeleted(a0)) },
+    labelledValue = { a0, a1 -> transform(labelledValue(a0, a1)) },
+    selectAllRows = transform(selectAllRows),
 )

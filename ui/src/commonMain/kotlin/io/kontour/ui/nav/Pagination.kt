@@ -25,6 +25,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
@@ -183,7 +184,7 @@ fun Pagination(
                                     // Announcing "ellipsis" between two page numbers
                                     // tells a screen-reader user nothing they can act
                                     // on. When it *is* a control, `JumpGap` labels it.
-                                    .semantics { contentDescription = "" },
+                                    .clearAndSetSemantics { },
                                 style = Theme.typography.bodyMedium,
                                 colour = Theme.colours.contentSubtle,
                             )
