@@ -320,6 +320,9 @@ class ComponentRenderTest {
             // between words and marks. Their ink is held to text contrast by the
             // scheme instead.
             "Stat" to "text on the page, no container",
+            // Since 0.5.0 it draws its chevron by default, at the far end from
+            // its title, and a walk down the middle crosses the gap between.
+            "Accordion" to "a title and its chevron on the page, no container",
             "KeyValueList" to "text on the page, no container",
             "RelativeTimeText" to "text on the page, no container",
             "EmptyState" to "text on the page, no container",
