@@ -104,6 +104,32 @@ class DragKeyboardTest {
         assertEquals(2, dropped.fromIndex)
     }
 
+    /**
+     * A card carried while its list changes is reported from where it is now.
+     *
+     * `fromIndex` was the card's place when it was picked up. With the row
+     * above it removed mid-carry, the drop still said 1 for a card now at 0, and
+     * the `removeAt(fromIndex)` the documentation shows took out the card below
+     * it and left the carried one where it was.
+     */
+    @Test
+    fun aCardWhoseListChangesWhileCarriedIsTakenFromWhereItIsNow() = runComposeUiTest {
+        val board = board()
+        grip("Fares").requestFocus()
+        keys(Key.Spacebar)
+        assertTrue(board.said().startsWith("Picked up Fares"), "the card was not picked up, so this checks nothing")
+
+        runOnIdle { board.todo.items.remove("Timetable") }
+        waitForIdle()
+        keys(Key.DirectionRight)
+        keys(Key.Enter)
+        waitForIdle()
+
+        assertEquals(0, board.drops.single().fromIndex, "the drop reported the card's place before its list changed")
+        assertEquals(listOf("Signage"), board.todo.items.toList())
+        assertTrue("Fares" in board.done.items, "the card did not arrive: ${board.done.items.toList()}")
+    }
+
     // -----------------------------------------------------------------------
 
     private class Column(initial: List<String>, val label: String) {

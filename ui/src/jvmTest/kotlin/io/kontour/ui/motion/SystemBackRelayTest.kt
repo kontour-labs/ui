@@ -2,6 +2,7 @@ package io.kontour.ui.motion
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.BroadcastFrameClock
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -28,6 +29,9 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancel
 
 /**
  * Android's back gesture, relayed so that it finishes at the finger's speed.
@@ -300,6 +304,114 @@ class SystemBackRelayTest {
         framesUntil { rig.recorder.completed >= 2 }
         assertEquals(2, rig.recorder.completed, "two backs in quick succession went back ${rig.recorder.completed} times")
         assertEquals(1, rig.recorder.started, "the second gesture was relayed into the first")
+    }
+
+    /**
+     * A relay on its own, with a frame clock this test advances a frame of
+     * [period] at a time — the screen's real rate, which the relay is not told.
+     *
+     * `runComposeUiTest`'s clock draws a frame every 16ms and cannot be made to
+     * draw one every 8, so the frames here are sent by hand. Each event is
+     * stamped with, and followed by, the frame it is drawn on: Android hands
+     * input to a frame before its animations run.
+     */
+    private class Direct(val period: Long) : AutoCloseable {
+        val clock = BroadcastFrameClock()
+        val scope = CoroutineScope(clock + Dispatchers.Unconfined)
+        val platform = DirectNavigationEventInput()
+        val recorder = Recorder()
+        val input = SwipeBackInput(pacedAtLeast = 3.5f)
+        var now = 1_000_000_000L
+
+        init {
+            NavigationEventDispatcher().apply {
+                addInput(platform)
+                addHandler(SystemBackRelay(input, scope).also { it.isBackEnabled = true })
+            }
+            NavigationEventDispatcher().apply {
+                addHandler(recorder)
+                addInput(input)
+            }
+        }
+
+        /** A gesture from the left edge, at [progress] on each of its frames in turn. */
+        fun swipe(vararg progress: Float) {
+            platform.backStarted(NavigationEvent(NavigationEvent.EDGE_LEFT, 0f, 0f, 0f, now / 1_000_000L))
+            for (p in progress) {
+                platform.backProgressed(NavigationEvent(NavigationEvent.EDGE_LEFT, p, 0f, 0f, (now + period) / 1_000_000L))
+                frame()
+            }
+        }
+
+        fun frame() {
+            now += period
+            clock.sendFrame(now)
+        }
+
+        override fun close() = scope.cancel()
+    }
+
+    /**
+     * On a 120Hz or a 90Hz screen the first frame after letting go moves as far
+     * as the frame after it: one of the screen's frames, not one at sixty a
+     * second.
+     *
+     * The release is timed from the moment the finger lifted, and that moment
+     * was taken as one 60Hz frame before the release's first frame, because the
+     * relay never saw a frame to measure. At 120Hz that is two frames' worth on
+     * the first and one on each after it — the page jumping as it was let go, on
+     * exactly the phones where a jump shows.
+     */
+    @Test
+    fun aRelayedGestureLeavesAtOneFrameOfThisScreen() {
+        for ((hz, step) in listOf(120 to 0.04f, 90 to 0.05f)) {
+            Direct(1_000_000_000L / hz).use { rig ->
+                rig.swipe(*FloatArray(8) { step * (it + 1) })
+                val letGo = step * 8
+                rig.recorder.progress.clear()
+                rig.platform.backCompleted()
+                rig.frame()
+                rig.frame()
+                val seen = rig.recorder.progress
+                assertTrue(seen.size >= 2, "two frames after letting go at ${hz}Hz moved the page ${seen.size} times")
+                val first = seen[0] - letGo
+                val second = seen[1] - seen[0]
+                assertTrue(
+                    first < second * 1.15f && first > second * 0.75f,
+                    "at ${hz}Hz the first frame after letting go moved $first and the next $second: " +
+                        "the release was timed as if a 60Hz frame had passed since the finger lifted",
+                )
+            }
+        }
+    }
+
+    /**
+     * A quick swipe two 120Hz frames long has its speed read over its whole
+     * length, as one two 60Hz frames long does.
+     *
+     * The speed overall is the floor under the last moment's, for when that
+     * reads nothing or reads backwards — here the thumb rolling back a little as
+     * it comes off, after a flick. It was read only for a gesture at least 32ms
+     * long, two frames at sixty a second, so on a 120Hz phone a swipe of up to
+     * three frames counted as no speed at all and left at the least pace.
+     */
+    @Test
+    fun aSwipeTwo120HzFramesLongIsTimedOverItsLength() {
+        Direct(8_333_333L).use { rig ->
+            rig.swipe(0.2f, 0.125f)
+            rig.recorder.progress.clear()
+            rig.platform.backCompleted()
+            rig.frame()
+            val first = rig.recorder.progress.firstOrNull()
+            assertTrue(first != null, "nothing moved on the first frame after the finger lifted")
+            // 0.125 in two frames is 7.5 of the way a second, and a frame of it
+            // 0.0625. Most of that, rather than the least pace's 0.029.
+            assertTrue(
+                first - 0.125f > 0.045f,
+                "the first frame after letting go of a swipe two 120Hz frames long, at 0.125, moved " +
+                    "${first - 0.125f}: its speed over its length was not read",
+            )
+        }
     }
 
     private companion object {

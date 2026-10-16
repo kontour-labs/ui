@@ -107,6 +107,7 @@ class ShadowMotionScreenshotTest {
                     PullToRefresh(
                         refreshing = refreshing,
                         onRefresh = {},
+                        scrollState = null,
                         modifier = Modifier.fillMaxSize(),
                     ) {
                         Column(

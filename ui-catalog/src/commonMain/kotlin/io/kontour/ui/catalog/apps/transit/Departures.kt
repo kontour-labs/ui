@@ -1,5 +1,6 @@
 package io.kontour.ui.catalog.apps.transit
 
+import androidx.compose.runtime.derivedStateOf
 import io.kontour.ui.components.list.rememberScrollbarListState
 import io.kontour.ui.components.list.scrollbar
 import androidx.compose.foundation.gestures.Orientation
@@ -52,6 +53,7 @@ import io.kontour.ui.nav.TopBar
 import io.kontour.ui.nav.navigationSuitePadding
 import io.kontour.ui.nav.TopBarStyle
 import io.kontour.ui.nav.rememberTopBarCollapseState
+import io.kontour.ui.nav.topBarCollapse
 import io.kontour.ui.overlay.DropdownMenu
 import io.kontour.ui.overlay.coachmarkStep
 import io.kontour.ui.overlay.rememberCoachmarkTour
@@ -98,7 +100,8 @@ internal fun DeparturesPage(
         toast("Departures updated")
     }
 
-    val visible = shown.filter { it.mode in showing }
+    val visible = remember(shown, showing) { shown.filter { it.mode in showing } }
+    val atTop by remember { derivedStateOf { list.firstVisibleItemIndex == 0 } }
 
     Box(Modifier.fillMaxSize()) {
         // The list under the bar, which is drawn over it and follows its
@@ -108,13 +111,22 @@ internal fun DeparturesPage(
         PullToRefresh(
             refreshing = refreshing,
             onRefresh = { refreshing = true },
+            scrollState = list,
             modifier = Modifier.fillMaxSize(),
             // The spinner in the gap a pull opens, below the bar, not under it.
             indicatorPadding = PaddingValues(top = collapse.openHeight),
         ) {
             LazyColumn(
                 state = list,
-                modifier = Modifier.fillMaxSize().scrollbar(list, contentPadding = navigationSuitePadding().plusTop(collapse.openHeight)).testTag("departures"),
+                // The collapse on the list, for a push past its end — the
+                // filters narrowed until it is only just long enough to
+                // scroll — which takes the bar with it rather than sliding
+                // the rows up under the picture.
+                modifier = Modifier
+                    .fillMaxSize()
+                    .topBarCollapse(collapse)
+                    .scrollbar(list, contentPadding = navigationSuitePadding().plusTop(collapse.openHeight))
+                    .testTag("departures"),
                 // Starting below the bar drawn over it.
                 contentPadding = transitPagePadding().plusTop(collapse.openHeight),
                 // No arrangement: the departures are a `listSection`,
@@ -207,7 +219,7 @@ internal fun DeparturesPage(
             ExtendedFloatingActionButton(
                 icon = Tabler.Outline.Route,
                 contentDescription = "Plan a trip",
-                expanded = list.firstVisibleItemIndex == 0,
+                expanded = atTop,
                 onClick = onPlan,
                 modifier = Modifier
                     .align(Alignment.BottomEnd)

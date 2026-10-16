@@ -34,11 +34,14 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.interaction.pressable
+import io.kontour.ui.locale.LocaleFormats
 import io.kontour.ui.locale.NameWidth
+import io.kontour.ui.theme.Strings
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.toneColours
 import kotlinx.coroutines.flow.collectLatest
@@ -239,19 +242,19 @@ private fun ScheduleDayRow(scope: CalendarScope, day: ScheduleDay) {
                     modifier = Modifier.padding(vertical = Theme.spacing.xs, horizontal = Theme.spacing.xs),
                 )
             }
-            for (event in day.events) ScheduleEventRow(scope, event)
+            for (event in day.events) ScheduleEventRow(scope, event, day.date)
         }
     }
 }
 
 /**
- * An event in the schedule: its tone's dot, or its icon, its title, and when —
- * "All day" or its times — and where, on the line under. Pressed, it is the
- * calendar's `onEventClick`; held, or clicked with a mouse's other button, its
- * menu; Delete, deleted where it may be.
+ * An event in the schedule, on [day]: its tone's dot, or its icon, its title,
+ * and when — "All day" or its times, see [scheduleTime] — and where, on the
+ * line under. Pressed, it is the calendar's `onEventClick`; held, or clicked
+ * with a mouse's other button, its menu; Delete, deleted where it may be.
  */
 @Composable
-private fun ScheduleEventRow(scope: CalendarScope, event: CalendarEvent) {
+private fun ScheduleEventRow(scope: CalendarScope, event: CalendarEvent, day: LocalDate) {
     val colours = toneColours(event.tone)
     val formats = scope.formats
     val strings = scope.strings
@@ -301,10 +304,33 @@ private fun ScheduleEventRow(scope: CalendarScope, event: CalendarEvent) {
         }
         Column(Modifier.weight(1f).clearAndSetSemantics { }) {
             Text(event.title, style = style, colour = colours.onContainer, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            val time = if (!event.isTimed()) strings.allDay else strings.timeRange(formats.time(event.start.time), formats.time(event.end.time))
-            val line = formats.list(listOfNotNull(time, event.location), io.kontour.ui.locale.ListStyle.Unit)
-            Text(line, style = Theme.typography.labelSmall, colour = colours.onContainer, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            val time = scheduleTime(event, day, formats, strings)
+            val line = formats.list(listOfNotNull(time.text, event.location), io.kontour.ui.locale.ListStyle.Unit)
+            Text(time.placedIn(line), style = Theme.typography.labelSmall, colour = colours.onContainer, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
+    }
+}
+
+/**
+ * When [event] is on [day], for the line under its title in a schedule.
+ *
+ * An all-day event is "All day" on each day it is on, and one inside a day
+ * its times. One that runs into a later day — a conference from nine on
+ * Monday to five on Wednesday, a flight from half ten at night — reads as
+ * flights and shifts write it: its own times on the day it starts, the end
+ * raised by the days on, "09:00 – 17:00⁺²"; "All day" on the days between;
+ * and "Until 17:00" on the last, unless it ends at the midnight that closes
+ * it and so has all of that day too. Its first day read "09:00 – 00:00",
+ * the part of it on the day, which was asked to be *"the fairly standard
+ * superscript '+1' notation"* instead.
+ */
+internal fun scheduleTime(event: CalendarEvent, day: LocalDate, formats: LocaleFormats, strings: Strings): AnnotatedString {
+    if (event.allDay) return AnnotatedString(strings.allDay)
+    val lastDay = if (event.end > event.start) event.end.plusMinutes(-1).date else event.start.date
+    return when {
+        day <= event.start.date -> eventTimes(event.start, event.end, formats, strings)
+        day >= lastDay && event.end != day.plus(1, DateTimeUnit.DAY).atMidnight -> AnnotatedString(strings.untilTime(formats.time(event.end.time)))
+        else -> AnnotatedString(strings.allDay)
     }
 }
 

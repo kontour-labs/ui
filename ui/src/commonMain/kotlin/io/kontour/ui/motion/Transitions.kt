@@ -30,6 +30,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.height
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
 import io.kontour.ui.theme.Motion
 import io.kontour.ui.theme.Theme
 
@@ -97,7 +99,9 @@ object Transitions {
      *   back.
      * @param axis [MotionAxis.X] for a horizontal flow, [MotionAxis.Y] for a
      *   vertical one, [MotionAxis.Z] for going *into* something — a list row
-     *   opening a detail on top of itself rather than beside it.
+     *   opening a detail on top of itself rather than beside it. Along X,
+     *   forward is the way the line reads: from the right in left to right, and
+     *   from the left in right to left.
      */
     @Composable
     @ReadOnlyComposable
@@ -114,12 +118,14 @@ object Transitions {
         val exit: ExitTransition
         when (axis) {
             MotionAxis.X -> {
-                enter = slideInHorizontally(motion.tweenDefault()) { w ->
-                    if (forward) w / 3 else -w / 3
-                } + fadeIn(motion.tweenFast())
-                exit = slideOutHorizontally(motion.tweenDefault()) { w ->
-                    if (forward) -w / 3 else w / 3
-                } + fadeOut(motion.tweenFast())
+                // The slides are in pixels, which do not turn round with the
+                // line, so the sign does: in right to left, forward comes in from
+                // the left. Without it a step forward arrived from where the
+                // reader had just come from, and back from where they were going.
+                val along = if (LocalLayoutDirection.current == LayoutDirection.Rtl) -1 else 1
+                val sign = if (forward) along else -along
+                enter = slideInHorizontally(motion.tweenDefault()) { w -> sign * w / 3 } + fadeIn(motion.tweenFast())
+                exit = slideOutHorizontally(motion.tweenDefault()) { w -> -sign * w / 3 } + fadeOut(motion.tweenFast())
             }
 
             MotionAxis.Y -> {

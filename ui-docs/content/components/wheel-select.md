@@ -86,6 +86,12 @@ announces its value the same way. The drag is a shortcut for a finger and adds
 nothing a screen reader needs: activating the field opens the wheel, and the
 wheel is operated as any other.
 
+From the keyboard the field turns the value itself, open or closed, as a
+select's does on a desktop: Up and Down a row, Page Up and Page Down a wheel's
+face, Home and End the first and last, and Escape folds an open wheel. The wheel
+in the panel follows, and takes no focus of its own, so Tab goes on to the next
+field rather than into a panel that folds itself away.
+
 At high contrast the field's frame thickens with the tier, as every field's
 does. The open wheel's panel takes the overlay border, and its selection band
 takes the edge the `WheelPicker` gains at that tier.

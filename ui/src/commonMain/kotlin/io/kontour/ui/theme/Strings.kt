@@ -121,6 +121,8 @@ data class Strings(
     val increase: String = "Increase",
     val rangeStart: String = "Range start",
     val rangeEnd: String = "Range end",
+    /** A day inside a chosen range of dates, between its start and its end. */
+    val inRange: String = "In range",
     /** The action that opens a control's value for typing — a knob's readout. */
     val editValue: String = "Edit value",
     /** A score against its scale: "4.5 out of 5". `value` is already written out. */
@@ -220,6 +222,8 @@ data class Strings(
     val colourPalette: String = "Palette",
 
     // Dates and times
+    /** A date and time picker's name for its time, on the row that opens the wheels: "Time  8:15 pm". */
+    val time: String = "Time",
     val hour: String = "Hour",
     val minute: String = "Minute",
     /** The morning-or-afternoon wheel of a 12-hour time picker. */
@@ -421,6 +425,14 @@ data class Strings(
     val schedule: String = "Schedule",
     /** An event calendar's schedule, under today when today has nothing on. */
     val nothingPlanned: String = "Nothing planned",
+    /** The raised "+1" after an event's end time on a later day than its start: "22:30 – 06:15⁺¹". */
+    val endDayOffset: (days: Quantity) -> String = { days -> "+${days.formatted}" },
+    /** That end time as a screen reader is told it, in words rather than "plus one": "06:15 the next day", "17:00, 2 days later". */
+    val endDaysLater: (time: String, days: Quantity) -> String = { time, days ->
+        days.select(one = "$time the next day", other = "$time, ${days.formatted} days later")
+    },
+    /** An event over several days in a schedule, on the last of them: "Until 17:00". */
+    val untilTime: (time: String) -> String = { time -> "Until $time" },
 ) {
     companion object {
         /**
@@ -482,6 +494,7 @@ data class Strings(
         increase = lookup.text("increase") ?: fallback.increase,
         rangeStart = lookup.text("rangeStart") ?: fallback.rangeStart,
         rangeEnd = lookup.text("rangeEnd") ?: fallback.rangeEnd,
+        inRange = lookup.text("inRange") ?: fallback.inRange,
         editValue = lookup.text("editValue") ?: fallback.editValue,
         outOf = { value, count -> lookup.phrase("outOf", count, value, count.formatted) ?: fallback.outOf(value, count) },
         inProgress = lookup.text("inProgress") ?: fallback.inProgress,
@@ -537,6 +550,10 @@ data class Strings(
         chooseView = lookup.text("chooseView") ?: fallback.chooseView,
         schedule = lookup.text("schedule") ?: fallback.schedule,
         nothingPlanned = lookup.text("nothingPlanned") ?: fallback.nothingPlanned,
+        endDayOffset = { days -> lookup.phrase("endDayOffset", days, days.formatted) ?: fallback.endDayOffset(days) },
+        endDaysLater = { time, days -> lookup.phrase("endDaysLater", days, time, days.formatted) ?: fallback.endDaysLater(time, days) },
+        untilTime = { time -> lookup.phrase("untilTime", null, time) ?: fallback.untilTime(time) },
+        time = lookup.text("time") ?: fallback.time,
         chooseMonthAndYear = lookup.text("chooseMonthAndYear") ?: fallback.chooseMonthAndYear,
         resizePanes = lookup.text("resizePanes") ?: fallback.resizePanes,
         navigation = lookup.text("navigation") ?: fallback.navigation,
@@ -717,6 +734,7 @@ internal fun Strings.mapped(transform: (String) -> String): Strings = Strings(
     increase = transform(increase),
     rangeStart = transform(rangeStart),
     rangeEnd = transform(rangeEnd),
+    inRange = transform(inRange),
     editValue = transform(editValue),
     outOf = { a0, a1 -> transform(outOf(a0, a1)) },
     inProgress = transform(inProgress),
@@ -769,6 +787,10 @@ internal fun Strings.mapped(transform: (String) -> String): Strings = Strings(
     chooseView = transform(chooseView),
     schedule = transform(schedule),
     nothingPlanned = transform(nothingPlanned),
+    endDayOffset = { a0 -> transform(endDayOffset(a0)) },
+    endDaysLater = { a0, a1 -> transform(endDaysLater(a0, a1)) },
+    untilTime = { a0 -> transform(untilTime(a0)) },
+    time = transform(time),
     chooseMonthAndYear = transform(chooseMonthAndYear),
     resizePanes = transform(resizePanes),
     navigation = transform(navigation),

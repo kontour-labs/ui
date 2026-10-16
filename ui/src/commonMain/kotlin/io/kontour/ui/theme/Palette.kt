@@ -85,17 +85,23 @@ object Palette {
     val Grey400 = Color(0xFFA3A3A3)
 
     /**
-     * Lightest grey that still clears 3:1 on every fill it has to bound.
+     * A grey that clears 3:1 on every fill it has to bound, with a little to
+     * spare.
      *
-     * Not the `#8A8A8A` it was: the binding fill is the accent tint,
-     * [VioletTintLight], not the well. A selected chip is that tint, this is its
-     * border, and it reads 3.23:1 against it. The well going back to [Grey50]
-     * does not release this one.
+     * Not the `#8A8A8A` it was, nor the `#818181` after it: the binding fill is
+     * the accent tint, [VioletTintLight], not the well, and each time the tint
+     * deepens so does this. It reads 3.10:1 against the tint, 4.17:1 on white
+     * and 3.86:1 in the well. The well going back to [Grey50] does not release
+     * this one.
      */
-    val Grey500 = Color(0xFF818181)
+    val Grey500 = Color(0xFF7C7C7C)
 
-    /** Lightest grey that still clears 4.5:1 on white, [Grey50] and [VioletTintLight]. */
-    val Grey600 = Color(0xFF646464)
+    /**
+     * Clears 4.5:1 on white, [Grey50] and [VioletTintLight] — on the tint
+     * because a focused filled field is that tint, and its placeholder is this.
+     * 4.60:1 there, and 6.19:1 on white.
+     */
+    val Grey600 = Color(0xFF616161)
 
     /** Uber gray500, and close to `home --text-muted`. */
     val Grey700 = Color(0xFF545454)
@@ -124,7 +130,7 @@ object Palette {
      */
     val VioletReadable = Color(0xFF7C37BE)
 
-    /** Text on [VioletTintLight], 8.9:1, and the light scheme's code keyword. */
+    /** Text on [VioletTintLight], 7.99:1, and the light scheme's code keyword. */
     val VioletDeep = Color(0xFF542482)
 
     /** The high-contrast tier's text on a tint. 11.7:1 on its tint. */
@@ -134,22 +140,34 @@ object Palette {
     val VioletStrong = Color(0xFF62259B)
 
     /**
-     * The accent container.
+     * The accent container: a selected chip, row, page or nav item, and a
+     * focused field's ground.
      *
-     * Bounded on both sides: 1.21:1 against white, over the 1.15 a selected
-     * fill needs to separate from the page, and [Grey500] still clears 3.23:1
-     * against it, because a selected chip is this tint and that is its border.
+     * **1.35:1 against white and 1.25 against the [Grey50] rows it is selected
+     * among.** It was `#F1E5FF`, at 1.21 and 1.12, and a selected row in a
+     * group of rows was hard to find. It is bounded from below by what is drawn
+     * on it rather than by taste: [Grey600], a focused field's placeholder, is
+     * 4.60:1 here, and [Grey500] has to keep 3:1 against it as the edge a tint
+     * can be given. Same hue, 306° in OKLCH, a little more chroma.
      */
-    val VioletTintLight = Color(0xFFF1E5FF)
+    val VioletTintLight = Color(0xFFE9D7FD)
     val VioletTintLightHc = Color(0xFFEEE1FF)
 
     /**
      * The dark accent container.
      *
-     * Dark has a narrow window here: at least 1.15:1 against `surface`, and dark
-     * enough that `outlineStrong` keeps 3:1 against it. This is 1.17 and 3.11.
+     * **1.52:1 against the page, 1.33 against `surface` and 1.43 against the
+     * well a row is drawn in.** It was `#332742`, at 1.35, 1.17 and 1.26, and a
+     * selected chip on the page was reported as hard to see.
+     *
+     * Dark's window is narrow, and it is narrow from above: a tint is lit by
+     * what is drawn on it. Lighter than this and three things stop being
+     * readable — the accent itself, [VioletLight], as a hovered `TextButton`'s
+     * label (4.65:1 here); [Slate500], a focused field's placeholder (4.65);
+     * and the [Slate600] edge a tint can be given (3.08). Getting this far took
+     * lifting both greys. Same hue, 304° in OKLCH, a little more chroma.
      */
-    val VioletTintDark = Color(0xFF332742)
+    val VioletTintDark = Color(0xFF3D2E50)
     val VioletTintDarkHc = Color(0xFF392B4C)
 
     /**
@@ -248,9 +266,27 @@ object Palette {
     val SlateIndicator = Color(0xFF403852)
 
     val Slate700 = Color(0xFF3C3547)
-    val Slate600 = Color(0xFF7C7484)
-    val Slate500 = Color(0xFF9A93A2)
-    val Slate400 = Color(0xFFA79FB0)
+
+    /**
+     * Dark `outlineStrong`, and so a switch's off track.
+     *
+     * Lifted from `#7C7484` to keep 3:1 against [VioletTintDark] when the tint
+     * came up, which takes every control's edge up with it — 3.42:1 on the
+     * raised ground, where it was 3.06. The cost is the switch: its off track is
+     * 3.58:1 from the on track, `Paper`, where it was 4.01. Still over the 3:1 a
+     * pair of marks needs, and `StatePairContrastTest` holds it there.
+     */
+    val Slate600 = Color(0xFF847C8D)
+
+    /**
+     * Dark `contentSubtle`. 5.17:1 on the raised ground, where `#9A93A2` was
+     * 4.61, and 4.65:1 on [VioletTintDark], where a focused field's placeholder
+     * sits.
+     */
+    val Slate500 = Color(0xFFA49CAC)
+
+    /** Dark `contentMuted`, kept a step above [Slate500]. 6.10:1 on the raised ground. */
+    val Slate400 = Color(0xFFB2AABB)
     val Slate300 = Color(0xFF5C5566)
     /**
      * Dark-mode body text.

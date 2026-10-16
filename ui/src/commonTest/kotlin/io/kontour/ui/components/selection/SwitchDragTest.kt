@@ -203,4 +203,53 @@ class SwitchDragTest {
                 "itself still answers, and it goes through `LocalRowToggle`.",
         )
     }
+
+    /**
+     * A disabled row's switch cannot be dragged either.
+     *
+     * The switch is drawn disabled in a disabled row, and the row refuses its
+     * tap — but the drag was gated on the switch's own `enabled`, which the
+     * caller leaves alone because it said so once on the row, and it went on
+     * reporting through `LocalRowToggle`.
+     */
+    @Test
+    fun aDragInsideADisabledRowReportsNothing() {
+        var checked by mutableStateOf(false)
+        val reported = mutableListOf<Boolean>()
+
+        runComposeUiTest {
+            setContent {
+                KontourTheme(reduceMotion = true) {
+                    SelectionRow(
+                        selected = checked,
+                        onSelectedChange = {
+                            reported += it
+                            checked = it
+                        },
+                        enabled = false,
+                        role = Role.Switch,
+                    ) {
+                        +"Delays"
+                        trailing {
+                            Switch(
+                                checked = checked,
+                                onCheckedChange = null,
+                                modifier = Modifier.testTag("switch"),
+                            )
+                        }
+                    }
+                }
+            }
+
+            onNodeWithTag("switch", useUnmergedTree = true).performTouchInput {
+                down(Offset(width * 0.2f, height / 2f))
+                repeat(6) { moveBy(Offset(width * 0.12f, 0f)) }
+                up()
+            }
+            waitForIdle()
+        }
+
+        assertEquals(emptyList<Boolean>(), reported, "a switch in a disabled row was dragged and reported $reported")
+        assertEquals(false, checked)
+    }
 }

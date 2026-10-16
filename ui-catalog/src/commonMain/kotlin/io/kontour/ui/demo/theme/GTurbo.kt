@@ -148,9 +148,17 @@ private val Raised = Color(0xFF2C2A2E)
 
 private val Ink = Color(0xFFE5E2E3)
 
-/** A cool lavender grey rather than a neutral one. 5.84:1 on [Card]. */
-private val Muted = Color(0xFF9991A6)
-private val Subtle = Color(0xFF9891A0)
+/**
+ * A cool lavender grey rather than a neutral one. 6.79:1 on [Card], and 5.20:1
+ * on [Raised], the hardest of the four grounds.
+ *
+ * A step lighter than `#9991A6`, which read 4.71 on [Raised]: room the selected
+ * tint needed, since a selected row's supporting line is this, drawn on
+ * [RedSelected]. [Subtle] came up the same step, for a focused field's
+ * placeholder there.
+ */
+private val Muted = Color(0xFFA199AE)
+private val Subtle = Color(0xFFA099A8)
 private val Disabled = Color(0xFF55505C)
 
 private val Line = Color(0xFF2A2A2B)
@@ -179,8 +187,8 @@ private val LineStrong = Color(0xFF7B7484)
  * The same three greys at [ContrastLevel.High], on the same purple-grey hue.
  *
  * Lightened until each clears its threshold against `surfaceRaised`, which is
- * the hardest of GTurbo's four grounds rather than the page — 8.11, 7.36 and
- * 4.91 against 5.17, 4.99 and 3.01. `DisabledHc` is exempt from the walk (WCAG
+ * the hardest of GTurbo's four grounds rather than the page — 7.57, 7.28 and
+ * 4.65 against the standard tier's 5.20, 5.15 and 3.16. `DisabledHc` is exempt from the walk (WCAG
  * 1.4.3 exempts disabled controls) and moves with them anyway: a disabled
  * control that has become invisible is not a passing result.
  */
@@ -230,6 +238,22 @@ private val LogoRed = Color(0xFFE11F26)
 /** Red where red has to be read. 11.59:1 on the ground. */
 private val Salmon = Color(0xFFFFB3AD)
 private val RedTint = Color(0xFF2A0F11)
+
+/**
+ * The accent's container: what a selected chip, row or nav item is filled with.
+ *
+ * It was [RedTint], which `danger` shares, and that is **1.11:1 on the page and
+ * 1.04 on a card** — a selected chip was told apart by hue alone. This is the
+ * tint lifted at the same red, OKLCH lightness 0.21 to 0.30: 1.40:1 on the page,
+ * 1.32 on [Card] and 1.22 in [Well], where a group's rows are.
+ *
+ * It stops where what is drawn on it would stop being readable: the accent,
+ * [RedReadable], as a hovered `TextButton`'s label, is 4.65:1 here, and
+ * [LineStrong] keeps the 3:1 an edge round a tint needs at 3.14. It is all but
+ * [Raised]'s own lightness, so in a menu it reads by its red alone. A danger
+ * banner keeps [RedTint]: it is not saying anything is selected.
+ */
+private val RedSelected = Color(0xFF4F191C)
 private val RedEdge = Color(0xFF4A1A1D)
 
 private val Green = Color(0xFF79FC7B)
@@ -296,7 +320,7 @@ private fun gTurboStandardColours(): ColourScheme = darkColourScheme(
     accent = StatusColours(
         solid = RedReadable,
         onSolid = Ground,
-        container = RedTint,
+        container = RedSelected,
         onContainer = Salmon,
         border = RedEdge,
     ),
@@ -393,13 +417,13 @@ private fun gTurboStandardColours(): ColourScheme = darkColourScheme(
  * ### The three greys, measured against the worst ground rather than the page
  *
  * A token has to clear every surface it can land on, and GTurbo's `surfaceRaised`
- * is the hard one. The standard values read 5.17, 4.99 and 3.01 there.
+ * is the hard one. The standard values read 5.20, 5.15 and 3.16 there.
  *
  * | | standard | worst | enhanced | worst | needs |
  * |---|---|---|---|---|---|
- * | `contentMuted` | `#958DA1` | 5.17 | `#B9B4C1` | 8.11 | 7 |
- * | `contentSubtle` | `#928B9A` | 4.99 | `#B1ABBA` | 7.36 | 7 |
- * | `outlineStrong` | `#6D6775` | 3.01 | `#908A98` | 4.91 | 4.5 |
+ * | `contentMuted` | `#A199AE` | 5.20 | `#C0BBC8` | 7.57 | 7 |
+ * | `contentSubtle` | `#A099A8` | 5.15 | `#BDB7C7` | 7.28 | 7 |
+ * | `outlineStrong` | `#7B7484` | 3.16 | `#9791A0` | 4.65 | 4.5 |
  *
  * All three are the same purple-grey hue, lightened — the tier reads as this
  * design turned up, not as a different one.

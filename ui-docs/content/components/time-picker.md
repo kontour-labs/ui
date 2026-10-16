@@ -18,7 +18,9 @@ where the locale writes it there, as Korean and Japanese do — which is a
 what sits between the hour and the minute (`.` in Finnish), and the digits.
 
 `onValueChange` follows every row a wheel passes; `onValueChangeFinished` comes
-once a wheel has come to rest, which is where a save or a request belongs.
+once a wheel has come to rest, which is where a save or a request belongs. A
+`value` between two of `minuteStep`'s rows is put on the row before it, in the
+same hour, and reported: 9:58 by fives opens on 9:55.
 
 **Now, under the wheels.** A small button that scrolls the wheels to the time
 now, rounded to the nearest `minuteStep`. They turn through the rows to get
@@ -36,6 +38,11 @@ no name announces a number and nothing about what the number is.
 
 Each wheel reports its centred value as its state, so moving it says the new
 value rather than only that something scrolled.
+
+Each wheel is a stop for the keyboard, hour then minute then AM or PM, and turns
+from it as a [`WheelPicker`](wheel-picker.md) does: Up and Down a row, Page Up
+and Page Down a face, Home and End the ends, and typing to a row — "45" on the
+minute wheel. A screen reader can turn each one too, as an adjustable control.
 
 `minuteStep` is worth setting. At the default of 1 the minute wheel has sixty
 stops, which is sixty announcements to cross by swipe.

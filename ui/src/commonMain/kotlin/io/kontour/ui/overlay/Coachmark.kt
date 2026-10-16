@@ -1011,7 +1011,7 @@ private fun TourMark(step: TourStep, tour: CoachmarkTour, scene: TourScene, morp
             // does not sit on top of the thing it is pointing at.
             gap = step.padding + Theme.spacing.xxs,
             margin = MenuDefaults.ScreenMargin,
-            arrow = ArrowSpec(colour = colours.container),
+            arrow = ArrowSpec(colour = colours.container, panelShape = Theme.shapes.container),
             modifier = faded,
         ) {
             CoachmarkBubble(step = step, index = index, tour = tour, colours = colours, modifier = placed)

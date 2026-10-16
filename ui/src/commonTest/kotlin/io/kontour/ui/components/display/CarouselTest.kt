@@ -4,7 +4,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.SemanticsActions
@@ -23,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.theme.KontourTheme
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -161,5 +165,77 @@ class CarouselTest {
         waitForIdle()
 
         onAllNodes(hasClickAction()).assertCountEquals(4)
+    }
+
+    /**
+     * A carousel over a list it was handed, the way the KDoc writes one.
+     *
+     * `{ photos.size }` captures a parameter, so it is a new lambda each time
+     * the list changes — which is exactly what a state remembered against the
+     * first lambda never sees.
+     */
+    @Composable
+    private fun ListHarness(photos: List<String>, onState: (CarouselState) -> Unit = {}) {
+        KontourTheme {
+            val carousel = rememberCarouselState { photos.size }
+            onState(carousel)
+            Carousel(
+                state = carousel,
+                contentDescription = "Stop photos",
+                modifier = Modifier.testTag("carousel").fillMaxWidth().height(120.dp),
+            ) { page ->
+                Text("Photo ${photos[page]}")
+            }
+        }
+    }
+
+    /**
+     * A list that grows is counted again.
+     *
+     * The state used to keep the first lambda it was given, so a carousel over
+     * a parameter stayed at the count it started with: two photos, then four,
+     * and it still said "1 of 2" and never offered the other two.
+     */
+    @Test
+    fun aCountCapturedFromAParameterFollowsIt() = runComposeUiTest {
+        var photos by mutableStateOf(listOf("a", "b"))
+        setContent { ListHarness(photos) }
+        waitForIdle()
+        onNodeWithTag("carousel").assert(
+            SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "1 of 2"),
+        )
+
+        photos = listOf("a", "b", "c", "d")
+        waitForIdle()
+
+        onNodeWithTag("carousel").assert(
+            SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "1 of 4"),
+        )
+    }
+
+    /**
+     * And one that shrinks under the page on show does not compose the pages it lost.
+     *
+     * With the first lambda kept, the carousel went on composing page 3 of a
+     * list of two, and `photos[page]` threw.
+     */
+    @Test
+    fun aListThatShrinksIsNotAskedForPagesItNoLongerHas() = runComposeUiTest {
+        var photos by mutableStateOf(listOf("a", "b", "c", "d"))
+        lateinit var carousel: CarouselState
+        setContent { ListHarness(photos) { carousel = it } }
+        waitForIdle()
+        runOnIdle { runBlocking { carousel.scrollToPage(3) } }
+        waitForIdle()
+        onNodeWithTag("carousel").assert(
+            SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "4 of 4"),
+        )
+
+        photos = listOf("a", "b")
+        waitForIdle()
+
+        onNodeWithTag("carousel").assert(
+            SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "2 of 2"),
+        )
     }
 }

@@ -1,5 +1,6 @@
 package io.kontour.ui.components.text
 
+import io.kontour.ui.theme.clipProxy
 import io.kontour.ui.motion.exitOrFade
 import io.kontour.ui.motion.enterOrFade
 import androidx.compose.animation.AnimatedContent
@@ -222,7 +223,7 @@ internal fun FieldScaffold(
 
         // Drawn round the frame's row, or round the row and what is below it.
         fun Modifier.outlined() = this
-            .clip(shape)
+            .clip(shape.clipProxy())
             .background(containerColour, shape)
             .border(borderWidth, borderColour, shape)
         @Composable

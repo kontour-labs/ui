@@ -1,6 +1,22 @@
 package io.kontour.ui.demo
 
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.padding
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.snapshots.SnapshotStateList
+import io.kontour.ui.components.action.TextButton
+import io.kontour.ui.dragdrop.DragType
+import io.kontour.ui.dragdrop.DropListState
+import io.kontour.ui.dragdrop.DropStatus
+import io.kontour.ui.dragdrop.dragItems
+import io.kontour.ui.dragdrop.dropList
+import io.kontour.ui.dragdrop.dropTarget
+import io.kontour.ui.dragdrop.rememberDropListState
+import io.kontour.ui.dragdrop.rememberDropTargetState
+import io.kontour.ui.foundation.Icon
+import io.kontour.ui.foundation.Surface
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -8,6 +24,10 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import io.kontour.icons.tabler.outline.Bike
 import io.kontour.icons.tabler.outline.HelpCircle
 import io.kontour.ui.components.list.DisclosureListItem
+import io.kontour.ui.components.list.ListItemScope
+import io.kontour.ui.components.list.ListItemSplit
+import io.kontour.ui.components.list.SplitListItem
+import io.kontour.icons.tabler.outline.Train
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -47,6 +67,7 @@ import io.kontour.ui.components.list.ExpandingListItem
 import io.kontour.ui.components.list.ListGroup
 import io.kontour.ui.components.list.ListItem
 import io.kontour.ui.components.list.ListItemDefaults
+import io.kontour.ui.components.selection.SegmentedControl
 import androidx.compose.foundation.layout.fillMaxSize
 import io.kontour.ui.components.list.indexedBy
 import io.kontour.ui.components.list.listSection
@@ -172,6 +193,72 @@ internal val DisclosureListItemDemo = ComponentDemo(slug = "disclosure-list-item
     }
 }
 
+/** How the two halves share a row, by the names the page gives them. */
+private val splitPreset = Knob.Choice(
+    "Split",
+    listOf(
+        "50/50" to ListItemSplit.Halves,
+        "Auto/square" to ListItemSplit.AutoSquare,
+        "Square/auto" to ListItemSplit.SquareAuto,
+        "2/1" to ListItemSplit.TwoToOne,
+        "1/2" to ListItemSplit.OneToTwo,
+    ),
+    name = { it.first },
+)
+
+internal val SplitListItemDemo = ComponentDemo(slug = "split-list-item", knobs = listOf(splitPreset)) {
+    val split = this[splitPreset].second
+    val square = split == ListItemSplit.AutoSquare || split == ListItemSplit.SquareAuto
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(ListItemDefaults.Spacing)) {
+        if (square) {
+            // A stop, and beside it the one thing to do with it: a tile that
+            // saves it, as wide as the row is tall.
+            var saved by remember { mutableStateOf(setOf("Perth Underground")) }
+            val stops = listOf(
+                "Perth Underground" to "Platform 2 · Joondalup line",
+                "Elizabeth Quay" to "Stand C · Route 950",
+            )
+            stops.forEachIndexed { index, (stop, where) ->
+                SplitListItem(split = split, position = GroupPosition.of(index, stops.size)) {
+                    val words: ListItemScope.() -> Unit = {
+                        leading { +Tabler.Outline.Train }
+                        +stop
+                        supporting { +where }
+                    }
+                    val star: ListItemScope.() -> Unit = { leading { +Tabler.Outline.Star } }
+                    val toggle = { saved = if (stop in saved) saved - stop else saved + stop }
+                    if (split == ListItemSplit.SquareAuto) {
+                        start(onClick = toggle, selected = stop in saved, role = Role.Checkbox, contentDescription = "Save $stop", content = star)
+                        end(onClick = { echo(stop) }, content = words)
+                    } else {
+                        start(onClick = { echo(stop) }, content = words)
+                        end(onClick = toggle, selected = stop in saved, role = Role.Checkbox, contentDescription = "Save $stop", content = star)
+                    }
+                }
+            }
+        } else {
+            // Two of a kind to a row, each a place to go: short words, as a
+            // third of a phone's width has room for.
+            val modes = listOf(
+                ("Trains" to "Next in 4 min") to ("Buses" to "Next in 11 min"),
+                ("Ferries" to "Next in 25 min") to ("Bikes" to "3 docks free"),
+            )
+            modes.forEachIndexed { index, (first, second) ->
+                SplitListItem(split = split, position = GroupPosition.of(index, modes.size)) {
+                    start(onClick = { echo(first.first) }) {
+                        +first.first
+                        supporting { +first.second }
+                    }
+                    end(onClick = { echo(second.first) }) {
+                        +second.first
+                        supporting { +second.second }
+                    }
+                }
+            }
+        }
+    }
+}
+
 /**
  * The sentence under the rows, which is the slot the page explains and the
  * demo did not show.
@@ -183,42 +270,73 @@ internal val DisclosureListItemDemo = ComponentDemo(slug = "disclosure-list-item
  */
 private val sectionFooter = Knob.Flag("Footer", initial = true)
 
+/**
+ * What the section holds: rows, or a paragraph and a control.
+ *
+ * The second is how a good many sections are really used, and the one where the
+ * title's inset is decided by what is under it — flush with the paragraph, not
+ * 16dp in over a column of rows that is not there.
+ */
+private val sectionContent = Knob.Choice("Content", listOf("Rows", "Other"))
+
 internal val ListSectionDemo = ComponentDemo(
     slug = "list-section",
-    knobs = listOf(sectionFooter),
+    knobs = listOf(sectionFooter, sectionContent),
 ) {
     var theme by remember { mutableStateOf(0) }
     var alerts by remember { mutableStateOf(true) }
+    var units by remember { mutableStateOf(0) }
     val themes = listOf("Match system", "Always light", "Always dark")
+    val rows = this[sectionContent] == "Rows"
     ListSection(
         modifier = Modifier.fillMaxWidth(),
-        title = { +"Appearance" },
-        supporting = { +"How the app looks on this device" },
-        footer = if (this[sectionFooter]) {
-            { +"Always dark keeps the screen dark even when the system is light." }
+        title = { +if (rows) "Appearance" else "Planning" },
+        supporting = if (rows) {
+            { +"How the app looks on this device" }
         } else {
             null
         },
+        footer = when {
+            !this[sectionFooter] -> null
+            rows -> {
+                { +"Always dark keeps the screen dark even when the system is light." }
+            }
+            else -> {
+                { +"Used to work out how long the walks between stops take." }
+            }
+        },
+        // Separate things rather than one card, so the room a form has.
+        spacing = if (rows) ListItemDefaults.Spacing else Theme.spacing.md,
     ) {
-        // One of each: a row that opens a choice, and a row that is one.
-        SelectionRow(
-            onClick = { theme = (theme + 1) % themes.size },
-            position = GroupPosition.First,
-        ) {
-            +"Theme"
-            leading { +Tabler.Outline.Moon }
-            trailing { +themes[theme] }
-        }
-        SelectionRow(
-            selected = alerts,
-            onSelectedChange = { alerts = it },
-            role = Role.Switch,
-            position = GroupPosition.Last,
-        ) {
-            +"Delay alerts"
-            supporting { +"Only for favourited routes" }
-            leading { +Tabler.Outline.Bell }
-            trailing { Switch(checked = alerts, onCheckedChange = null) }
+        if (rows) {
+            // One of each: a row that opens a choice, and a row that is one.
+            SelectionRow(
+                onClick = { theme = (theme + 1) % themes.size },
+                position = GroupPosition.First,
+            ) {
+                +"Theme"
+                leading { +Tabler.Outline.Moon }
+                trailing { +themes[theme] }
+            }
+            SelectionRow(
+                selected = alerts,
+                onSelectedChange = { alerts = it },
+                role = Role.Switch,
+                position = GroupPosition.Last,
+            ) {
+                +"Delay alerts"
+                supporting { +"Only for favourited routes" }
+                leading { +Tabler.Outline.Bell }
+                trailing { Switch(checked = alerts, onCheckedChange = null) }
+            }
+        } else {
+            Text("Trips are planned at the speed you walk, in the units you read distances in.")
+            SegmentedControl(
+                options = listOf("Kilometres", "Miles"),
+                selectedIndex = units,
+                onSelectedIndexChange = { units = it },
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
     }
 }
@@ -436,13 +554,15 @@ internal val PullToRefreshDemo = ComponentDemo(slug = "pull-to-refresh") {
             refreshing = false
         }
     }
+    val scroll = rememberScrollState()
     PullToRefresh(
         refreshing = refreshing,
         onRefresh = { refreshing = true },
+        scrollState = scroll,
         modifier = Modifier.fillMaxWidth().height(200.dp),
     ) {
         Column(
-            Modifier.fillMaxWidth().verticalScroll(rememberScrollState(), flingBehavior = ScrollDefaults.flingBehavior()),
+            Modifier.fillMaxWidth().verticalScroll(scroll, flingBehavior = ScrollDefaults.flingBehavior()),
             verticalArrangement = Arrangement.spacedBy(ListItemDefaults.Spacing),
         ) {
             stops.forEachIndexed { index, (name, detail) ->
@@ -719,13 +839,164 @@ internal val TableDemo = ComponentDemo(
 
 private fun dollars(cents: Int): String = "$${cents / 100}.${(cents % 100).toString().padStart(2, '0')}"
 
+/** A card on the drag and drop demo's board. */
+private data class DemoTask(val id: Int, val title: String)
+
+/** What the demo's cards are carried as: a lane and the bin meet on it. */
+private val DemoTaskType = DragType<DemoTask>("demo-task")
+
+/** Off, a card is picked up anywhere on it: held with a finger, dragged with a mouse. */
+private val dndHandles = Knob.Flag("Drag handles", initial = true)
+
+/** On, Doing turns a third card away: it shows refused over the lane and goes home when let go. */
+private val dndLimit = Knob.Flag("Doing takes two")
+
+// Short words: a lane is half a phone wide, and a long one breaks mid-word.
+private val DemoTodo = listOf(DemoTask(1, "Fares"), DemoTask(2, "Stops"), DemoTask(3, "Signage"))
+private val DemoDoing = listOf(DemoTask(4, "Maps"))
+
+/**
+ * Drag and drop, which had no demo of its own: the guide's page drew nothing
+ * and the gallery showed it only inside the board app. Two lanes whose cards
+ * reorder within one and carry across to the other, and a bin that takes a
+ * card from either — `dragItems`, `dropList` and `dropTarget` together, with
+ * the keyboard's moves and a screen reader's named actions coming with them.
+ */
+internal val DragAndDropDemo = ComponentDemo(
+    slug = "drag-and-drop",
+    knobs = listOf(dndHandles, dndLimit),
+) {
+    val handles = this[dndHandles]
+    val limited = this[dndLimit]
+    val todo = remember { mutableStateListOf(*DemoTodo.toTypedArray()) }
+    val doing = remember { mutableStateListOf(*DemoDoing.toTypedArray()) }
+    var binned by remember { mutableStateOf(emptyList<DemoTask>()) }
+    val lanes = remember { mutableMapOf<DropListState<*>, SnapshotStateList<DemoTask>>() }
+
+    // Read out here, where `this` is the `DemoScope`: inside a lane's
+    // `dragItems` it is the item's scope, which has no `echo`.
+    val say: (String) -> Unit = { echo(it) }
+
+    @Composable
+    fun Lane(title: String, tasks: SnapshotStateList<DemoTask>, limit: Int?, modifier: Modifier) {
+        val scroll = rememberLazyListState()
+        val lane = rememberDropListState(
+            listState = scroll,
+            type = DemoTaskType,
+            items = tasks,
+            key = { it.id },
+            label = title,
+            itemLabel = { it.title },
+            onDrop = { drop ->
+                lanes.getValue(drop.fromList!!).removeAt(drop.fromIndex!!)
+                tasks.add(drop.index, drop.payload)
+                say("Moved ${drop.payload.title} to $title, ${drop.index + 1} of ${tasks.size}")
+            },
+            // A card already here is only moving along; one from elsewhere
+            // needs room for it.
+            accepts = { task -> limit == null || task in tasks || tasks.size < limit },
+            previewShape = ListItemDefaults.Shape,
+        )
+        lanes[lane] = tasks
+        Surface(modifier, shape = Theme.shapes.container, containerColour = Theme.colours.surfaceSunken) {
+            Column {
+                Text(
+                    if (limit == null) title else "$title · ${tasks.size} of $limit",
+                    style = Theme.typography.titleSmall,
+                    modifier = Modifier.padding(start = Theme.spacing.md, top = Theme.spacing.sm, end = Theme.spacing.sm),
+                )
+                LazyColumn(
+                    state = scroll,
+                    modifier = Modifier.fillMaxWidth().height(232.dp).dropList(lane),
+                    contentPadding = PaddingValues(Theme.spacing.xs),
+                    verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+                ) {
+                    dragItems(lane) { _, task ->
+                        ListItem(containerColour = Theme.colours.surface) {
+                            +task.title
+                            if (handles) {
+                                trailing {
+                                    Icon(Tabler.Outline.GripVertical, contentDescription = null, modifier = Modifier.dragHandle())
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    val bin = rememberDropTargetState(
+        DemoTaskType,
+        label = "Bin",
+        onDrop = { task ->
+            todo.remove(task)
+            doing.remove(task)
+            binned = binned + task
+            say("Binned ${task.title}")
+        },
+    )
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm)) {
+        Text(
+            if (handles) {
+                "Drag a card by its grip — within a lane, to the other, or to the bin. With a keyboard, Space on a grip picks it up."
+            } else {
+                "Hold a card, or drag it with a mouse — within a lane, to the other, or to the bin. With a keyboard, Alt and an arrow."
+            },
+            style = Theme.typography.bodySmall,
+            colour = Theme.colours.contentMuted,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm)) {
+            Lane("To do", todo, limit = null, modifier = Modifier.weight(1f))
+            Lane("Doing", doing, limit = if (limited) 2 else null, modifier = Modifier.weight(1f))
+        }
+        // The bin answers the drag as it goes: ready while a card is carried,
+        // in the danger colour with one over it.
+        val ground = when (bin.status) {
+            DropStatus.Over -> Theme.colours.danger.container
+            DropStatus.Available -> Theme.colours.surfaceSunken
+            else -> Theme.colours.surface
+        }
+        Surface(
+            modifier = Modifier.fillMaxWidth().dropTarget(bin),
+            shape = Theme.shapes.container,
+            containerColour = ground,
+            border = BorderStroke(Theme.sizing.borderWidth, Theme.colours.outline),
+        ) {
+            Row(
+                Modifier.padding(horizontal = Theme.spacing.md, vertical = Theme.spacing.sm),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
+            ) {
+                Icon(Tabler.Outline.Trash, contentDescription = null)
+                Text(
+                    if (binned.isEmpty()) "Bin" else "Bin · ${binned.size}",
+                    style = Theme.typography.bodyMedium,
+                    modifier = Modifier.weight(1f),
+                )
+                if (binned.isNotEmpty()) {
+                    TextButton(
+                        onClick = {
+                            todo.addAll(binned)
+                            binned = emptyList()
+                            echo("Put back")
+                        },
+                    ) { +"Put back" }
+                }
+            }
+        }
+    }
+}
+
 internal val collectionDemos = listOf(
     ListItemDemo,
     ExpandingListItemDemo,
     DisclosureListItemDemo,
+    SplitListItemDemo,
     ListSectionDemo,
     SwipeActionsDemo,
     ReorderableItemDemo,
+    DragAndDropDemo,
     PullToRefreshDemo,
     LoadMoreDemo,
     ScrollbarDemo,

@@ -54,14 +54,26 @@ every arrangement, moved rather than rebuilt, so a list keeps its scroll positio
 when the window crosses the two-pane breakpoint and the main pane keeps whatever
 it holds while the supporting pane opens and closes. Both used to reset.
 
+**On one pane the list keeps its saved state while the detail is open.** It
+leaves the composition while the detail has the screen — moved content is kept
+only while it is somewhere — so the scaffold saves what it holds in
+`rememberSaveable` as it goes and hands it back when it returns: back from a
+stop finds the list where it was scrolled to, and so does narrowing to one pane
+with a stop open. A plain `remember` in the list starts again, as it does
+anywhere a composable leaves and comes back; hoist it above the scaffold if it
+must outlast the detail. The detail is not kept this way, because it is usually
+a different stop each time it opens.
+
 ---
 
 ## Accessibility
 
 The resize handle is a control, not a decoration. It reports
-`contentDescription = "Resize panes"` and a `ProgressBarRangeInfo` over
-`0.2..0.8`, with `setProgress` wired to the split — so the panes can be resized
-from a screen reader without the drag gesture.
+`contentDescription = "Resize panes"` and a `ProgressBarRangeInfo` of the first
+pane's share of the width, over the range the drag can reach — as close to either
+end as leaves that pane its 280dp minimum — with `setProgress` putting the seam
+at the share asked for. So the panes can be resized from a screen reader without
+the drag gesture, and a request for 0.6 is 0.6 of the window, whatever its width.
 
 On a compact window there is one pane, and `onBack` is what returns from the
 detail to the list. The scaffold calls it for back itself — the system gesture,

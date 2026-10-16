@@ -221,3 +221,76 @@ internal fun rememberHandleClearingInsets(base: WindowInsets, reach: Dp): Window
     val tappable = standIn?.tappable ?: WindowInsets.tappableElement
     return remember(base, navigationBars, tappable, reach) { HandleClearingInsets(base, navigationBars, tappable, reach) }
 }
+
+/**
+ * The margin something floating keeps from each edge of the window: [margin]
+ * from the window's edge where nothing but a system handle is there, and
+ * [margin] clear of whatever stands at it where something does.
+ *
+ * **Even, from what can be seen.** A floating sheet used to keep the union of the
+ * margin and [base] — the larger of the two, side by side — so its foot sat on
+ * top of the whole strip a home indicator or a gesture handle reserves: 34dp up
+ * on an iPhone against 12 at the sides, with the line drawn over empty space
+ * under it, and, over Android's three buttons, flush on the bar with no margin
+ * at all. *"can we have uniform padding around edges of the screen … if there is
+ * like 3-button navigation on android, it should be even padding under that and
+ * around the edges, because that is opaque."*
+ *
+ * So a handle — the navigation bars' inset less the part of it that takes taps,
+ * the rule [HandleClearingInsets] has — counts for nothing: the margin is taken
+ * from the window's edge, under it. Anything more at the foot — Android's
+ * buttons, the keyboard — counts whole, and the margin is kept beyond it, so a
+ * floating search field stands as far above the keyboard as it does above the
+ * edge of the window. Coming up past the handle, the keyboard is followed
+ * continuously, as [handleClearedBottom] has it with no reach.
+ *
+ * The sides the same, over the part of the side insets that takes taps — the
+ * three buttons, in landscape — and as before everywhere else: the larger of the
+ * margin and the inset, which keeps a landscape iPhone's sheet out from the
+ * notch. The top as before too, the larger of the two, for a sheet whose head
+ * reaches the status bar.
+ *
+ * Read in layout, like any inset.
+ */
+@Stable
+internal class FloatingMarginInsets(
+    private val base: WindowInsets,
+    private val navigationBars: WindowInsets,
+    private val tappable: WindowInsets,
+    private val margin: Dp,
+) : WindowInsets {
+    override fun getLeft(density: Density, layoutDirection: LayoutDirection): Int =
+        side(density, base.getLeft(density, layoutDirection), tappable.getLeft(density, layoutDirection))
+
+    override fun getTop(density: Density): Int = maxOf(with(density) { margin.roundToPx() }, base.getTop(density))
+
+    override fun getRight(density: Density, layoutDirection: LayoutDirection): Int =
+        side(density, base.getRight(density, layoutDirection), tappable.getRight(density, layoutDirection))
+
+    override fun getBottom(density: Density): Int {
+        val handle = (navigationBars.getBottom(density) - tappable.getBottom(density)).coerceAtLeast(0)
+        return with(density) { margin.roundToPx() } + handleClearedBottom(base.getBottom(density), handle, reach = 0)
+    }
+
+    private fun side(density: Density, inset: Int, taps: Int): Int {
+        val margin = with(density) { margin.roundToPx() }
+        return maxOf(margin + minOf(inset, taps), inset, margin)
+    }
+
+    override fun equals(other: Any?): Boolean =
+        other is FloatingMarginInsets && other.base == base && other.navigationBars == navigationBars &&
+            other.tappable == tappable && other.margin == margin
+
+    override fun hashCode(): Int = ((base.hashCode() * 31 + navigationBars.hashCode()) * 31 + tappable.hashCode()) * 31 + margin.hashCode()
+
+    override fun toString(): String = "FloatingMarginInsets($base, $margin)"
+}
+
+/** [FloatingMarginInsets] over [base], against the platform's insets or a test's. */
+@Composable
+internal fun rememberFloatingMargin(base: WindowInsets, margin: Dp): WindowInsets {
+    val standIn = LocalHandleInsets.current
+    val navigationBars = standIn?.navigationBars ?: WindowInsets.navigationBars
+    val tappable = standIn?.tappable ?: WindowInsets.tappableElement
+    return remember(base, navigationBars, tappable, margin) { FloatingMarginInsets(base, navigationBars, tappable, margin) }
+}

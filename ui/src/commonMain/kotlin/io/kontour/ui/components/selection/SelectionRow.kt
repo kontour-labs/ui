@@ -1,5 +1,6 @@
 package io.kontour.ui.components.selection
 
+import io.kontour.ui.theme.clipProxy
 import io.kontour.ui.platform.webRole
 import io.kontour.ui.platform.WebRole
 import io.kontour.ui.input.focusRing
@@ -162,8 +163,10 @@ fun SelectionRow(
     // The toggle goes with it so a switch in the row can be dragged as well as
     // shown. Only for a genuinely toggleable row: a radio row can only ever set
     // true, and a drag has nothing to express there.
+    // And not for a disabled row, whose tap is already refused: a drag is the
+    // same request by another gesture.
     val rowToggle: ((Boolean) -> Unit)? = when {
-        onSelectedChange == null || role == Role.RadioButton -> null
+        !enabled || onSelectedChange == null || role == Role.RadioButton -> null
         else -> { now ->
             onSelectedChange(now)
         }
@@ -304,7 +307,7 @@ private fun SelectionRowFrame(
                     .fillMaxWidth()
                     // The row is the control, so the row shows where the keyboard is.
                     .focusRing(interactions, shape, enabled = focusable)
-                    .clip(shape)
+                    .clip(shape.clipProxy())
                     .then(interaction)
                     .padding(horizontal = Theme.spacing.sm, vertical = Theme.spacing.sm),
                 horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm),

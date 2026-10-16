@@ -5,21 +5,27 @@ import org.gradle.kotlin.dsl.configure
 import org.gradle.kotlin.dsl.withType
 
 /**
- * Publishing, for every module that ships: the version, the coordinate task and
- * the POM.
+ * Publishing, for every module that ships: the version, the coordinate task,
+ * the repository and the POM.
  *
- * Where it goes is Maven Central, through the `com.vanniktech.maven.publish`
- * plugin each module applies beside this, with a `mavenPublishing` block that
- * turns on the upload and the signing. The plugin also makes the sources and
- * javadoc jars Central requires of every artifact. It runs in CI from a tag:
- * `publishAndReleaseToMavenCentral`, with the Central Portal user token and the
- * signing key from the environment (`ORG_GRADLE_PROJECT_mavenCentralUsername`,
- * `…Password`, `…signingInMemoryKey`, `…signingInMemoryKeyPassword`).
+ * Here rather than in `ui/build.gradle.kts` because there are three published
+ * modules, `:ui`, `:ui-nav3` and `:haptics`, and they must never disagree about
+ * which release they are. A second copy of the version rule below would be a
+ * second set of answers to the question it exists to settle.
  *
- * Here rather than in `ui/build.gradle.kts` because there are two published
- * modules now, `:ui` and `:ui-nav3`, and they must never disagree about which
- * release they are. A second copy of the version rule below would be a second
- * set of answers to the question it exists to settle.
+ * ### The repository
+ *
+ * `https://maven.kontour.io`: an R2 bucket, public through its custom domain,
+ * holding files laid out as Maven lays them out. Gradle publishes into
+ * `build/release-repo` (`publishAllPublicationsToReleaseRepository`), and
+ * `.github/scripts/r2-release.sh` uploads that, having first fetched each
+ * artifact's `maven-metadata.xml` into it so that publishing adds the new
+ * version to the list rather than writing a list of one. The set-up is
+ * `docs/building/releasing.md`.
+ *
+ * Not Maven Central: its free tier caps how much a month's releases may weigh,
+ * and one release of the icons is about that. Until 0.4.5 the library was on
+ * GitHub Packages, which needs a token even to read.
  *
  * ### The version
  *
@@ -36,8 +42,9 @@ import org.gradle.kotlin.dsl.withType
  * outside a tag, while the comment above it claimed a branch build was a
  * snapshot. `GITHUB_REF_TYPE` is the field that answers the question.
  *
- * The result is then checked, because the failure mode is silent: an unpublish
- * on a package registry is a support ticket, and the check costs one regex.
+ * The result is then checked, because the failure mode is silent: a release is
+ * never replaced — the upload refuses a version already there — and the check
+ * costs one regex.
  *
  * Everything is read through `providers`, never `System.getenv`. The
  * configuration cache is on (`gradle.properties`), and a direct environment read
@@ -100,6 +107,13 @@ fun Project.kontourPublishing(
     }
 
     extensions.configure<PublishingExtension> {
+        repositories {
+            maven {
+                name = "Release"
+                url = rootProject.layout.buildDirectory.dir("release-repo").get().asFile.toURI()
+            }
+        }
+
         publications.withType<MavenPublication>().configureEach {
             pom {
                 name.set(displayName)
@@ -113,7 +127,6 @@ fun Project.kontourPublishing(
                         if (licenceNote != null) comments.set(licenceNote)
                     }
                 }
-                // Central refuses a POM without a developer.
                 developers {
                     developer {
                         id.set("kontour-labs")

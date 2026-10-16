@@ -135,6 +135,102 @@ class PullToRefreshGestureTest {
         assertEquals(0, refreshes, "a wheel refreshed the list")
     }
 
+    /**
+     * A list moved by anything but a scroll gesture is still where it was moved
+     * to, and a mouse drag there is not a pull.
+     *
+     * The list is sent halfway down by its state, as a scrollbar's thumb, a
+     * key, `animateScrollToItem` or a restored position sends it, none of which
+     * passes through nested scroll. The pull used to know where the list was
+     * only from what it saw of the scrolls going past, so it still believed the
+     * list was at its top, and a mouse drag halfway down it pulled.
+     */
+    @Test
+    fun aMouseDragHalfwayDownAListMovedByItsStateIsNotAPull() {
+        var refreshes = 0
+        var bounds = Rect.Zero
+        var reached = 0f
+        var state: PullToRefreshState? = null
+        var listState: LazyListState? = null
+
+        Scene(width = 400, height = 600) {
+            state = Pull(onRefresh = { refreshes++ }, report = { bounds = it }, list = { listState = it })
+        }.use { scene ->
+            scene.frames(4)
+            val pull = requireNotNull(state)
+            val list = requireNotNull(listState)
+            onComposeUiThread { list.requestScrollToItem(20) }
+            scene.frames(4)
+            assertEquals(20, list.firstVisibleItemIndex, "the list never moved, so the drag below proves nothing")
+
+            val from = Offset(bounds.center.x, bounds.top + 40f)
+            scene.drag(
+                from = from,
+                to = Offset(from.x, from.y + PastThreshold),
+                steps = 24,
+                release = false,
+                pointer = PointerType.Mouse,
+            ) { _, _ -> reached = maxOf(reached, pull.progress) }
+            scene.release(Offset(from.x, from.y + PastThreshold), PointerType.Mouse)
+            scene.frames(20)
+        }
+
+        assertEquals(
+            0f,
+            reached,
+            "a mouse drag halfway down a list moved there by its state pulled the " +
+                "indicator to $reached of its threshold. The list was not at its top",
+        )
+        assertEquals(0, refreshes, "a mouse drag halfway down the list refreshed it")
+    }
+
+    /**
+     * And the other way: a list scrolled down by the wheel and brought back to
+     * its top by its state is at its top, and a mouse drag there pulls.
+     *
+     * The wheel going down told the pull the list had left its top; nothing
+     * that goes past the pull says it came back.
+     */
+    @Test
+    fun aMouseDragAtTheTopOfAListBroughtBackByItsStatePulls() {
+        var refreshes = 0
+        var bounds = Rect.Zero
+        var listState: LazyListState? = null
+
+        Scene(width = 400, height = 600) {
+            Pull(onRefresh = { refreshes++ }, report = { bounds = it }, list = { listState = it })
+        }.use { scene ->
+            scene.frames(4)
+            val list = requireNotNull(listState)
+            repeat(8) {
+                scene.scroll(bounds.center, Offset(0f, 1f))
+                scene.frame()
+            }
+            scene.renderUntil(timeoutMillis = 3_000) { !list.isScrollInProgress }
+            assertTrue(list.firstVisibleItemIndex > 0, "the wheel never moved the list down")
+            onComposeUiThread { list.requestScrollToItem(0) }
+            scene.frames(4)
+            assertEquals(0, list.firstVisibleItemIndex, "the list never came back to its top")
+
+            val from = Offset(bounds.center.x, bounds.top + 40f)
+            scene.drag(
+                from = from,
+                to = Offset(from.x, from.y + PastThreshold),
+                steps = 24,
+                pointer = PointerType.Mouse,
+            )
+            scene.frames(20)
+        }
+
+        assertEquals(
+            1,
+            refreshes,
+            "a mouse drag at the top of a list brought back there by its state " +
+                "refreshed nothing: the pull still believed the list was down where " +
+                "the wheel had left it",
+        )
+    }
+
     /** 23e — and the list holds still while the indicator is put away. */
     @Test
     fun theListHoldsStillWhileTheIndicatorComesBack() {
@@ -196,6 +292,7 @@ private fun Pull(
     onRefresh: () -> Unit,
     report: (Rect) -> Unit,
     list: (LazyListState) -> Unit = {},
+    rowTop: (Float) -> Unit = {},
 ): PullToRefreshState {
     var refreshing by mutableStateOf(false)
     val pull = rememberPullToRefreshState()
@@ -204,6 +301,7 @@ private fun Pull(
     PullToRefresh(
         refreshing = refreshing,
         onRefresh = { refreshing = false; onRefresh() },
+        scrollState = rows,
         state = pull,
         modifier = Modifier.fillMaxSize().reportBounds(report),
     ) {
@@ -211,6 +309,7 @@ private fun Pull(
             items(40) { index ->
                 Box(
                     Modifier
+                        .then(if (index == 0) Modifier.reportBounds { rowTop(it.top) } else Modifier)
                         .fillMaxWidth()
                         .height(40.dp)
                         .background(if (index % 2 == 0) Color.LightGray else Color.White)
@@ -224,3 +323,54 @@ private fun Pull(
 /** Comfortably past the 80dp threshold at this scene's density, plus slop. */
 private const val PastThreshold = 260f
 private const val Steps = 24
+
+/**
+ * The content comes down with the finger, not after it.
+ *
+ * The content's offset was an `animateFloatAsState` whose target was the pull,
+ * read in composition: every move recomposed the container and restarted a
+ * spring towards where the finger now was, so the list trailed the finger by a
+ * few frames for the whole pull, and caught up only when it stopped. A spring is
+ * for the way home after the finger lets go.
+ */
+class PullToRefreshTrackingTest {
+
+    @Test
+    fun theContentFollowsTheFingerFrameForFrame() {
+        var bounds = Rect.Zero
+        var listTop = 0f
+        var furthest = 0f
+        var caughtUp = 0f
+
+        Scene(width = 400, height = 600) {
+            Box(Modifier.fillMaxSize()) {
+                Pull(onRefresh = {}, report = { bounds = it }, rowTop = { listTop = it })
+            }
+        }.use { scene ->
+            scene.frames(4)
+            val start = listTop
+            val from = Offset(bounds.center.x, bounds.top + 40f)
+            scene.press(from)
+            scene.frame()
+            repeat(20) { step ->
+                scene.move(Offset(from.x, from.y + (step + 1) * 6f))
+                scene.frame()
+            }
+            // The finger stops. Content that follows it has already stopped too;
+            // content chasing it on an animation goes on arriving.
+            val atStop = listTop
+            furthest = atStop - start
+            scene.frames(20)
+            caughtUp = listTop - atStop
+            scene.release(Offset(from.x, from.y + 120f))
+            scene.frames(30)
+        }
+
+        assertTrue(furthest > 20f, "the content never came down, so this measured nothing (it moved ${furthest}px)")
+        assertTrue(
+            kotlin.math.abs(caughtUp) < 1f,
+            "after the finger stopped, the content went on moving ${caughtUp}px: it was " +
+                "chasing the finger on an animation instead of following it",
+        )
+    }
+}

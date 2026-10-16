@@ -19,8 +19,11 @@ import kotlin.math.pow
  *   settles down onto the screen, which is right for a dialog that arrives from
  *   in front of it. Menus barely scale; a tooltip can afford
  *   more, because it is small and the movement is what draws the eye to it.
- * @param origin What it grows out of. Anchored overlays point this at their
- *   anchor, so a menu unfolds from the control it belongs to.
+ * @param origin What it grows out of, or null for the middle. Anchored overlays
+ *   point this at their anchor, so a menu unfolds from the control it belongs
+ *   to. A lambda, read in the layer block for the reason [progress] is: an
+ *   anchor's position is written in measure and moves on every frame its page
+ *   scrolls.
  *
  * ### Apply this well outside the panel, not to the panel
  *
@@ -72,12 +75,12 @@ import kotlin.math.pow
 internal fun Modifier.overlayAppearance(
     progress: () -> Float,
     fromScale: Float = 0.9f,
-    origin: TransformOrigin = TransformOrigin.Center,
+    origin: (() -> TransformOrigin)? = null,
 ): Modifier {
     // See "Under reduced motion it fades and does not scale" above.
     val from = if (Theme.motion.reduceMotion) 1f else fromScale
     return graphicsLayer {
-        transformOrigin = origin
+        transformOrigin = origin?.invoke() ?: TransformOrigin.Center
         val arrived = progress().coerceIn(0f, 1f)
         // Scale on the plain progress, alpha ahead of it — see [PanelFade].
         val scale = from + (1f - from) * arrived

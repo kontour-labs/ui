@@ -67,6 +67,9 @@ enum class DropStatus { Idle, Available, Over, Refused }
  * is the remove from the one and the add to the other. [fromList] and
  * [fromIndex] say where it came from: both `null` for something that was not in
  * a list, [fromList] the same state as the target's for a move within a list.
+ * [fromIndex] is where the payload is in [fromList] as it is dropped, found by
+ * its key, so a list that changed while it was carried is still right to
+ * `removeAt`.
  */
 @Immutable
 class DropEvent<T : Any> internal constructor(

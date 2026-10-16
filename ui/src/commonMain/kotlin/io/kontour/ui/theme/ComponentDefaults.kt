@@ -230,9 +230,12 @@ data class ComponentDefaults(
     /**
      * How far a `SheetPresentation.Floating` sheet sits from the window's edges.
      *
-     * A *minimum* clearance rather than a gap added to the system's own: the
-     * sheet unions this with its window insets, so on a phone with a 24dp gesture
-     * bar it floats 24dp up and not 36.
+     * Even all round, from what can be seen: taken from the window's edge under
+     * a home indicator or a gesture handle, which draw over the app, and kept
+     * beyond anything opaque — Android's three buttons, the keyboard — so a
+     * sheet over three buttons floats this far above the bar, not on it. It was
+     * the larger of this and the window insets, which put an iPhone's sheet
+     * 34dp off the bottom against 12 at the sides.
      *
      * The same number as [backdropInset], and for the same reason — both are the
      * frame a surface leaves around what is behind it, and two frames a couple of

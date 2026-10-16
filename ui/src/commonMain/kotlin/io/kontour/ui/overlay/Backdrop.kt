@@ -23,8 +23,15 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.runtime.State
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.RenderEffect
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.Shape
@@ -35,7 +42,9 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.lerp
+import io.kontour.ui.platform.platformBlursReduced
 import io.kontour.ui.platform.platformOpaqueBottomInset
+import io.kontour.ui.platform.platformReducedBlur
 import io.kontour.ui.platform.platformSupportsBackdropBlur
 import io.kontour.ui.theme.LocalBackdropBlur
 import io.kontour.ui.theme.Theme
@@ -415,6 +424,38 @@ private fun backdropOpaqueBottom(): Float =
  * single worst thing this modifier could do. So it is a lambda pulled from
  * snapshot state inside the `graphicsLayer` block, the same shape of answer
  * `Scrim` already uses for the dim it is matching.
+ *
+ * ### Paid on every frame that draws, and on Skia drawn smaller
+ *
+ * Measured, a dialog that sits open costs nothing at all: nothing asks for a
+ * frame, so nothing is drawn. What costs is every frame that *is* drawn while
+ * it is open — the dialog arriving and leaving, a caret blinking in it twice a
+ * second, a spinner, a clock ticking on the page behind — and on Skia each one
+ * blurs the whole application again from scratch. Skiko's render node keeps no
+ * picture of its filtered layer: a `saveLayer`, the application rasterised into
+ * it at full size and the blur run over the result, for a caret's blink exactly
+ * as for a page that moved. A blink in a dialog on a phone-sized desktop scene
+ * took 272ms to draw against 48 with the blur off.
+ *
+ * Nothing in Compose can say whether a frame changed the application or only
+ * the dialog over it, so the result cannot be kept and reused — not without
+ * freezing a live map behind the dialog. What can change is how many pixels
+ * the blur is paid in. A blur this wide keeps nothing finer than a few pixels,
+ * so on Skia — desktop, iOS and the web — the application is drawn at a quarter
+ * of its size, blurred by a quarter of the radius and scaled back up: a
+ * sixteenth of the offscreen and of everything drawn into it, and the same
+ * picture to within a few levels in 255. See [reducedBlur]. Not under a
+ * recede, which is noted where it is decided.
+ *
+ * On the same software rasteriser that is 168ms for the blink, and a settled
+ * frame at 3.7 times an unblurred one against 8.5. Most of what is left there
+ * is the bilinear scale back up over every pixel, which a CPU pays in full and
+ * a GPU's texture units barely notice; the frame a GPU draws is not measured
+ * here, and is the one this is for.
+ *
+ * Android is left as it was. Its render node is a hardware layer, and the
+ * filtered layer is reused until something in it changes — the caching Skia's
+ * lacks.
  */
 @Composable
 internal fun Modifier.overlayBackdrop(
@@ -435,6 +476,13 @@ internal fun Modifier.overlayBackdrop(
 
     // Every blur the ramp can reach, built once. See [rememberBlurRamp].
     val ramp = rememberBlurRamp()
+    // **Not under a recede.** Scaled, the full-size blur lets the content's
+    // own edge go see-through, and the ring [backdropGround] puts behind it
+    // shows there as a pale rim; a reduced blur is clamped to the content's
+    // pixels exactly and keeps the edge solid. Better, arguably, and visibly
+    // not the same picture. Only [BackdropStyle.BlurAndScale] blurs and
+    // recedes, and nothing in the library asks for it.
+    val reduced = blurs && !scaling && platformBlursReduced
 
     return graphicsLayer {
         // Two numbers now, and each from every entry that asks for its effect:
@@ -450,7 +498,10 @@ internal fun Modifier.overlayBackdrop(
         // is, so a zero-radius `BlurEffect` produces the identical see-through
         // rim with nothing behind it. Which is what it did, on exactly the
         // frames where the round goes to zero.
-        renderEffect = if (blurs) ramp[rampStep(b)] else null
+        //
+        // Where the blur is drawn smaller, it is [reducedBlur]'s instead, and
+        // this layer only moves the page.
+        renderEffect = if (blurs && !reduced) ramp[rampStep(b)] else null
 
         if (scaling) {
             val fit = backdropFit(size.width, size.height, insetPx, opaqueBottomPx)
@@ -485,7 +536,7 @@ internal fun Modifier.overlayBackdrop(
             // it looks like it should. This cost is architectural and a CPU
             // rasteriser does not have it.
         }
-    }
+    }.then(if (reduced) Modifier.reducedBlur(rememberBlurStep(state, blurring)) else Modifier)
 }
 
 /**
@@ -820,11 +871,143 @@ private fun rememberBlurRamp(): Array<BlurEffect?> {
 @Composable
 internal fun Modifier.blurredBehind(state: OverlayHostState, blurring: List<Any>): Modifier {
     if (blurring.isEmpty() || !blurAvailable()) return this
+    if (platformBlursReduced) return reducedBlur(rememberBlurStep(state, blurring))
     val ramp = rememberBlurRamp()
     return graphicsLayer {
         renderEffect = ramp[rampStep(state.furthestIn(blurring))]
     }
 }
+
+/**
+ * Which step of the ramp [blurring] has the blur at, as state that changes only
+ * when the step does.
+ *
+ * Read in a draw rather than a layer block, so it has to be this: the fraction
+ * itself changes on every frame of the animation, and a draw that read it
+ * would run again on every one rather than on the twelve the step changes on.
+ */
+@Composable
+private fun rememberBlurStep(state: OverlayHostState, blurring: List<Any>): State<Int> =
+    remember(state, blurring) { derivedStateOf { rampStep(state.furthestIn(blurring)) } }
+
+/**
+ * Blurs what this wraps by [step] of the ramp, drawn smaller and scaled back
+ * up where the platform can: Skia's, so the desktop, iOS and the web.
+ *
+ * ### How much smaller
+ *
+ * By four once the blur's standard deviation reaches 16px, by two from 8px,
+ * and not at all below that: whichever leaves at least [LeastReducedSigma]
+ * for the blur where it is done. That is about where Skia's GPU blur stops
+ * scaling down of its own accord — it halves the picture until the deviation
+ * is 4 or less — so on a GPU the blur itself still runs at the size it always
+ * did. What goes is the full-size offscreen it was scaled down *from*, and the
+ * application drawn into it at full size: a quarter is a sixteenth of the
+ * pixels.
+ *
+ * At [BackdropDefaults.BlurRadius] on a 3x phone that is a quarter from the
+ * fifth of the ramp's twelve steps to the end, a half on the two before, and
+ * the full size on the first two.
+ *
+ * ### Why the effect is set in a draw, and the content has a layer of its own
+ *
+ * The content is drawn smaller by the canvas, not by a layer's scale. A layer's
+ * scale moves the content's coordinates — its hit testing, its position in the
+ * window, anything anchored to it — where a canvas transform moves only pixels.
+ * So the scale is a draw, and the effect that scales back up has to change in
+ * the same frame as it, or the page shows at a quarter or four times its size
+ * for that frame. One draw block sets both.
+ *
+ * The content gets a layer of its own underneath, so that a new step runs this
+ * block again and not the application's drawing: the content is drawn here as
+ * a layer already recorded, and recorded again only when something in it
+ * changes.
+ *
+ * Clipped to its bounds, because scaling back up from half a pixel in reaches
+ * two pixels past each edge. In a full-window host that is off screen; in a
+ * smaller one it would be drawn over the host's neighbours. A rectangle is the
+ * clip with no offscreen of its own, and it is the canvas's: the layer's own
+ * `clip`, with no outline set, drew nothing at all on Skiko.
+ */
+@Composable
+private fun Modifier.reducedBlur(step: State<Int>): Modifier {
+    val radiusPx = with(LocalDensity.current) { BackdropDefaults.BlurRadius.toPx() }
+    val ramp = remember(radiusPx) { ReducedBlurRamp(radiusPx) }
+    val layer = rememberGraphicsLayer()
+    return drawWithContent {
+        val blur = ramp.at(step.value, size.width.roundToInt(), size.height.roundToInt())
+        if (blur == null) {
+            // Step 0 is no effect at all rather than one of radius zero: see
+            // [overlayBackdrop] for what a zero-radius effect still does.
+            drawContent()
+            return@drawWithContent
+        }
+        layer.renderEffect = blur.effect
+        layer.record {
+            scale(blur.drawScaleX, blur.drawScaleY, pivot = Offset.Zero) {
+                this@drawWithContent.drawContent()
+            }
+        }
+        clipRect { drawLayer(layer) }
+    }.graphicsLayer()
+}
+
+/** One step of the ramp as [reducedBlur] draws it: the effect, and how much smaller the content is drawn for it. */
+private class RampBlur(val effect: RenderEffect, val drawScaleX: Float, val drawScaleY: Float)
+
+/**
+ * Every blur the ramp can reach at one size, each built when first asked for
+ * and all of them again when the size changes. A reduced blur is cut to the
+ * content's own pixels, so unlike [rememberBlurRamp]'s these depend on it.
+ */
+private class ReducedBlurRamp(private val radiusPx: Float) {
+    private var width = 0
+    private var height = 0
+    private val steps = arrayOfNulls<RampBlur>(RampSteps + 1)
+
+    fun at(step: Int, width: Int, height: Int): RampBlur? {
+        if (step == 0 || width < 2 || height < 2) return null
+        if (width != this.width || height != this.height) {
+            steps.fill(null)
+            this.width = width
+            this.height = height
+        }
+        return steps[step] ?: build(step).also { steps[step] = it }
+    }
+
+    private fun build(step: Int): RampBlur {
+        val radius = radiusPx * (step.toFloat() / RampSteps)
+        val full = RampBlur(BlurEffect(radius, radius, edgeTreatment = TileMode.Clamp), 1f, 1f)
+        // The standard deviation Compose's own `BlurEffect` makes of a radius.
+        val sigma = BlurSigmaScale * radius + 0.5f
+        val factor = when {
+            sigma / 4f >= LeastReducedSigma -> 4
+            sigma / 2f >= LeastReducedSigma -> 2
+            else -> return full
+        }
+        // Whole pixels, so the edge the blur clamps to is a pixel's edge rather
+        // than one the content only partly covers.
+        val cropWidth = (width / factor.toFloat()).roundToInt().coerceAtLeast(2)
+        val cropHeight = (height / factor.toFloat()).roundToInt().coerceAtLeast(2)
+        val effect = platformReducedBlur(
+            sigma = sigma / factor,
+            cropWidth = cropWidth,
+            cropHeight = cropHeight,
+            scaleX = width / (cropWidth - 1f),
+            scaleY = height / (cropHeight - 1f),
+        ) ?: return full
+        return RampBlur(effect, cropWidth / width.toFloat(), cropHeight / height.toFloat())
+    }
+}
+
+/** Compose's `BlurEffect`: standard deviations to a radius, plus the half pixel it adds. */
+private const val BlurSigmaScale = 0.57735f
+
+/**
+ * The least standard deviation a reduced blur is left with, in its own pixels:
+ * where Skia's GPU blur stops scaling down by itself. See [reducedBlur].
+ */
+private const val LeastReducedSigma = 4f
 
 /**
  * The ground's scratch geometry, kept across frames.

@@ -7,6 +7,8 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import kotlin.test.assertNotSame
 import kotlin.test.assertSame
 
@@ -93,16 +95,59 @@ class SquirclePathCacheTest {
     fun smoothingIsPartOfWhatAPathIs() {
         // The one field that does not appear in the corners and does change the
         // curve. A key that left it out would hand a theme asking for square
-        // corners the smoothed path built for the theme before it.
+        // corners the smoothed path built for the theme before it. Square
+        // corners do not come from the cache at all now: with nothing to smooth
+        // the shape is a rounded rectangle, and is handed out as one.
         val smooth = SquircleShape(20.dp, smoothing = 0.6f)
         val plain = SquircleShape(20.dp, smoothing = 0f)
 
-        assertNotSame(
-            smooth.pathAt(200f, 80f),
-            plain.pathAt(200f, 80f),
-            "two smoothings at one size came back as the same path, so a theme " +
-                "that turns continuous corners off would get them anyway",
+        smooth.pathAt(200f, 80f)
+        val outline = plain.createOutline(Size(200f, 80f), LayoutDirection.Ltr, density)
+        assertTrue(
+            outline is Outline.Rounded,
+            "a squircle with no smoothing came back as $outline rather than a rounded rectangle, " +
+                "so a theme that turns continuous corners off would get a path, or the smoothed one",
         )
+        assertEquals(20f, outline.roundRect.topLeftCornerRadius.x)
+    }
+
+    /**
+     * A circle is exactly a rounded rectangle — every corner saturated on both
+     * its edges leaves nothing to smooth — and is handed to Skia as one, which
+     * clips and shadows it without a mask. An avatar in a list paid a path for it.
+     */
+    @Test
+    fun aCircleIsARoundedRectangle() {
+        val circle = SquircleShape(50.dp).createOutline(Size(40f, 40f), LayoutDirection.Ltr, density)
+        assertTrue(circle is Outline.Rounded, "a 40px squircle at a saturating radius came back as $circle")
+        assertEquals(20f, circle.roundRect.bottomRightCornerRadius.x)
+        // And a capsule wider than it is tall still smooths its long edges.
+        val capsule = SquircleShape(50.dp).createOutline(Size(120f, 40f), LayoutDirection.Ltr, density)
+        assertTrue(capsule is Outline.Generic, "a capsule lost the smoothing along its long edges: $capsule")
+    }
+
+    /**
+     * A smoothing below nought is a curve as well, and is drawn as one.
+     *
+     * The rounded-rectangle shortcut asked whether the smoothing was *above*
+     * nought, and the path asks whether it is anything but nought — so a negative
+     * one, which the path draws as an arc reaching past the quarter, was handed
+     * out as a plain rounded rectangle instead, and the shape's clip, fill and
+     * shadow disagreed with the shape.
+     */
+    @Test
+    fun aNegativeSmoothingIsStillACurve() {
+        val shape = SquircleShape(20.dp, smoothing = -0.3f)
+        val roomy = shape.createOutline(Size(200f, 80f), LayoutDirection.Ltr, density)
+        assertTrue(
+            roomy is Outline.Generic,
+            "a squircle smoothed by -0.3 came back as $roomy: the shortcut read a negative " +
+                "smoothing as none, and the path it stood in for does not",
+        )
+        // Saturated too: the arc's own sides are what a negative smoothing bends,
+        // so not even a circle is a rounded rectangle with one.
+        val circle = SquircleShape(50.dp, smoothing = -0.3f).createOutline(Size(40f, 40f), LayoutDirection.Ltr, density)
+        assertTrue(circle is Outline.Generic, "a circle smoothed by -0.3 came back as $circle")
     }
 
     @Test

@@ -4,6 +4,10 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.RectangleShape
@@ -222,6 +226,43 @@ class ConcentricTest {
             radius,
             "an uneven ring has no concentric answer, so this has to be the " +
                 "`control` fallback rather than 6 or 14 — measured $radius",
+        )
+    }
+
+    /**
+     * And a ring that goes from even to uneven keeps what is inside it.
+     *
+     * Even and uneven were two calls — one through the `Dp` overload, one
+     * straight to a provider of nothing — so they were two places in the
+     * composition, and a card whose padding answered the window's width threw
+     * its content away and built it again the moment the padding stopped being
+     * the same on all four sides.
+     */
+    @Test
+    fun aRingChangingFromEvenToUnevenKeepsTheContent() = runComposeUiTest {
+        var padding by mutableStateOf(PaddingValues(16.dp))
+        var held: Any? = null
+        var radius = Float.NaN
+        setContent {
+            KontourTheme {
+                Card(contentPadding = padding) {
+                    held = remember { Any() }
+                    radius = Theme.shapes.concentric().radius()
+                }
+            }
+        }
+        waitForIdle()
+        val before = held
+        assertEquals(6f, radius, "an even 16dp ring inside a card did not publish its corner")
+
+        padding = PaddingValues(horizontal = 24.dp, vertical = 16.dp)
+        waitForIdle()
+        assertEquals(18f, radius, "an uneven ring went on publishing a corner")
+        assertSame(
+            before,
+            held,
+            "the card's content was thrown away when its padding stopped being even, " +
+                "because even and uneven were provided from two different places",
         )
     }
 

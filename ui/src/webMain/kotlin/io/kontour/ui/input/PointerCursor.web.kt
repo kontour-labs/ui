@@ -42,3 +42,5 @@ private val GrabIcon by lazy { PointerIcon.fromKeyword("grab") }
 private val GrabbingIcon by lazy { PointerIcon.fromKeyword("grabbing") }
 private val NotAllowedIcon by lazy { PointerIcon.fromKeyword("not-allowed") }
 private val ProgressIcon by lazy { PointerIcon.fromKeyword("progress") }
+
+internal actual val platformHasCursor: Boolean = true

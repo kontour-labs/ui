@@ -75,6 +75,17 @@ class EventCalendarState internal constructor(
     /** Today, as the calendar was last told — null when it was told nothing. */
     internal var today: LocalDate? by mutableStateOf(null)
 
+    /**
+     * How many times an event's box has composed, in any view.
+     *
+     * An increment and a field, as `SheetState.surfaceCompositions` is, so the
+     * test suite can ask whether something that is nothing to an event — the
+     * time now moving on a minute — composes every event again. Counting the
+     * app's `eventContent` cannot tell: a box composed again calls it with
+     * what it had, and it skips, while the box round it has done the work.
+     */
+    internal var eventCompositions: Int = 0
+
     /** The hours' scroll, shared by the day and week views so a switch between them keeps the time in view. */
     internal val timeScroll = ScrollState(0)
 

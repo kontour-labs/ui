@@ -1,5 +1,6 @@
 package io.kontour.ui.components.list
 
+import io.kontour.ui.theme.clipProxy
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.expandVertically
@@ -101,7 +102,7 @@ fun DisclosureListItem(
         targetValue = if (expanded) 1f else 0f,
         animationSpec = motion.tweenDefault(),
         label = "disclosureCorners",
-    )
+    ).inMorphSteps()
     val card = position.shape(ListItemDefaults.Shape, ListItemDefaults.InnerCorner, Orientation.Vertical)
     val slots = listItemSlots {
         header()
@@ -125,9 +126,12 @@ fun DisclosureListItem(
     }
 
     Column(
-        modifier
+        // A row to the section it sits in, open or not: its body is part of
+        // the card, not something else under a row.
+        ListRowEdges
+            .then(modifier)
             .fillMaxWidth()
-            .clip(card)
+            .clip(card.clipProxy())
             .background(if (enabled) colours.surfaceSunken else colours.surfaceSunken.copy(alpha = 0.5f), card)
             // One edge round the whole card at high contrast, header and body
             // together, rather than one round the header alone.

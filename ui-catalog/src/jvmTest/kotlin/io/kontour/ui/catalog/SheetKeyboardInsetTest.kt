@@ -115,9 +115,11 @@ class SheetKeyboardInsetTest {
     fun aFloatingSheetStillClearsAKeyboardNobodyMadeRoomFor() {
         val alone = measure(SheetPresentation.Floating, WindowInsets(0.dp))
         val lifted = measure(SheetPresentation.Floating, WindowInsets(bottom = Keyboard))
-        val margin = 12.dp
+        // Its margin is kept above the keyboard, as above the window's edge, so
+        // it rises by the whole keyboard: it used to keep the larger of the two,
+        // and rose by the keyboard less the margin. See `FloatingMarginInsets`.
         assertNear(
-            alone.content.bottom - px(Keyboard - margin),
+            alone.content.bottom - px(Keyboard),
             lifted.content.bottom,
             "a floating sheet over a keyboard in a container that reaches the window's bottom sits",
         )

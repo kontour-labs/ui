@@ -45,6 +45,15 @@ LazyColumn(state = listState, verticalArrangement = Arrangement.spacedBy(ListIte
 }
 ```
 
+**`index` is the row's index in the `LazyColumn`**, and it is what `onMove` is
+given. In a list of rows and nothing else that is the row's index in your
+collection. With a header item above the rows it is one more, and `onMove` takes
+the header off both before it moves anything. An item that is not a
+`ReorderableItem` — a header, a footer, a "load more" — is never where a drag
+lands: a row carried over one stays where it was. It used to land there, and the
+last row carried over a footer reported a move to one past the end, which the
+`add(to, removeAt(from))` above throws on.
+
 **A `handleIcon` adds a gesture rather than replacing one.** The grip picks the
 row up the moment it is pressed, because a grip has no scroll to steal. **The
 row stays draggable too**, on a long press, exactly as it is without a handle —
@@ -79,7 +88,8 @@ drag-shaped path in front of a screen reader.
 Reordering is exposed as `CustomAccessibilityAction`s — move up and move down —
 on each row, wired to the same state the drag uses. A list that could only be
 reordered by dragging could not be reordered at all by a screen-reader user, and
-this is what the actions exist for.
+this is what the actions exist for. A row with `enabled = false` offers neither,
+as it offers no drag.
 
 `moveUpLabel` and `moveDownLabel` are what those actions announce. The defaults
 are generic; where the rows are ordered stops or ranked preferences, saying so

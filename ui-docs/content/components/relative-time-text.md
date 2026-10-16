@@ -1,18 +1,23 @@
 # `RelativeTimeText`
 
-**It re-renders at the resolution it is displaying** — every second under a
-minute, every twenty above — rather than on a fixed timer that is either
-wasteful or stale.
+**It re-renders when what it shows changes** — the moment "in 2 min" becomes
+"in 1 min", and no more often — rather than on a fixed timer that is either
+wasteful or stale. The time left is read off the clock each time, so a phone
+that slept or an app that was in the background comes back to the right
+number.
 
 <!--sample:RelativeTimeTextBasics-->
 ```kotlin
-// A duration, not an instant: the caller owns the clock, so this is
-// testable without freezing time and does not need a time source of its own.
+// A duration from now, not an instant: it reads the clock from there on,
+// so it stays right however long the app was away.
 RelativeTimeText(until = 4.minutes)
 ```
 
 **It rounds down.** Telling someone their bus is 2 minutes away when it is 90
-seconds away is the error that makes them miss it.
+seconds away is the error that makes them miss it. The time left is counted in
+whole seconds first, rounded up, as a countdown is shown: `until = 4.minutes`
+reads "in 4 min" as it appears, not "in 3 min" for the milliseconds it took to
+get on screen.
 
 It is a polite live region, so a screen reader announces the change without
 interrupting whatever is being read.
@@ -30,9 +35,9 @@ at once.
 following — a list of live times all announcing themselves is a list nobody can
 listen to.
 
-`until` is a `Duration`, so the caller owns the clock: what is announced is
-derived from a value under test rather than from a time source inside the
-component.
+`until` is a `Duration`, so the caller says when the moment is without handing
+over a clock: the moment is fixed as `until` from when it was composed, and
+what is announced is what is left of it on the system's clock.
 
 At high contrast it is text in the colour you pass, or the one it inherits, from
 the enhanced scheme; nothing else changes.

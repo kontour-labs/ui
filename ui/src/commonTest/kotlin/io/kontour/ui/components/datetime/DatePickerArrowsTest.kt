@@ -3,6 +3,7 @@ package io.kontour.ui.components.datetime
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -52,6 +53,39 @@ class DatePickerArrowsTest {
         onNodeWithContentDescription("Previous month").performClick()
         waitForIdle()
         assertEquals(LocalDate(2026, 9, 1), month, "the previous-month button did not page")
+    }
+
+    /**
+     * The month paged to is the one kept: what was saved was the date the
+     * calendar opened on, so taken off screen and put back it opened there.
+     */
+    @Test
+    fun theMonthPagedToSurvivesBeingTakenAwayAndBroughtBack() = runComposeUiTest {
+        var shown by mutableStateOf(true)
+        var month = LocalDate(2026, 9, 1)
+        setContent {
+            KontourTheme {
+                val holder = rememberSaveableStateHolder()
+                if (shown) {
+                    holder.SaveableStateProvider("picker") {
+                        val navigation = rememberCalendarNavigationState(LocalDate(2026, 9, 26))
+                        month = navigation.visibleMonth
+                        DatePicker(value = null, onValueChange = {}, navigation = navigation)
+                    }
+                }
+            }
+        }
+        waitForIdle()
+        repeat(2) {
+            onNodeWithContentDescription("Next month").performClick()
+            waitForIdle()
+        }
+        assertEquals(LocalDate(2026, 11, 1), month)
+        shown = false
+        waitForIdle()
+        shown = true
+        waitForIdle()
+        assertEquals(LocalDate(2026, 11, 1), month, "the calendar came back on the month it opened on")
     }
 
     @Test

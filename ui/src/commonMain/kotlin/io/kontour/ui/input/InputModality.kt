@@ -7,6 +7,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -68,6 +69,13 @@ enum class InputModality {
  * few dozen controls that draw a hover or a focus ring differently.
  */
 val LocalInputModality = compositionLocalOf { InputModality.Touch }
+
+/**
+ * The theme's [InputModalityState], for the few things that move the keyboard's
+ * focus on a key the tracker does not count as moving it: a letter typed in a
+ * menu goes to the row it begins, and that row should show it has the focus.
+ */
+internal val LocalInputModalityState = staticCompositionLocalOf<InputModalityState?> { null }
 
 /** Mutable holder behind [LocalInputModality]. Created by [rememberInputModalityState]. */
 @Stable

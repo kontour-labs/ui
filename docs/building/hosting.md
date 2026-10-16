@@ -1,9 +1,10 @@
 # Hosting the documentation
 
 The site is served at **`https://docs.kontour.io/ui/`** from Cloudflare Pages,
-in public: no sign-in for people, and no headers for agents. `docs.kontour.io` is
-meant to hold Kontour's documentation in general; this
-library's is the part under `/ui/`.
+in public: no sign-in, and no token for an agent. `docs.kontour.io` is meant to
+hold Kontour's documentation in general; this library's is the part under
+`/ui/`. Until 0.4.5 it was behind Cloudflare Access, open to members of the
+kontour-labs organisation and to a service token.
 
 ## What is uploaded
 
@@ -19,7 +20,7 @@ the site is built from:
 | `/ui/llms.txt`, `/ui/llms-full.txt` | The index of those, one line a page; and all of them in one file |
 | `/ui/icons/manifest.txt`, `/ui/icons/<hash>/` | The Icons page's data: every Tabler icon's name, category and tags, and their paths in chunks of 128, fetched as rows scroll into view. Laid out by `docs/icondata.py` from the `@tabler/icons` release the library is built from, the directory named for its content |
 | `/llms.txt` | The root index, pointing at each library's own |
-| `/_headers` | A year's public cache for the two content-hashed `.wasm` files and the content-named icon data, and no other; plain text for the mirror. Nothing asks search engines to stay away |
+| `/_headers` | A year's cache for the two content-hashed `.wasm` files and the content-named icon data, and no other; plain text for the mirror |
 | `/_redirects` | `/` goes to `/ui/`, with a 302 so no browser remembers it after the root gains a second library |
 
 The `deploy` job uploads it with `wrangler pages deploy`. **A Direct Upload
@@ -35,8 +36,8 @@ later.
 ## When CI runs
 
 Pushes to `main`, `v*` tags and manual runs. Not on pull requests or other
-branches: a run is long, and nobody has asked for one yet. The `changes`
-job decides what a push has to run. [`testing.md`](testing.md#what-ci-actually-runs-and-what-it-does-not-run-twice)
+branches, so that a pull request is not held up by a run nobody asked for. The
+`changes` job decides what a push has to run. [`testing.md`](testing.md#what-ci-actually-runs-and-what-it-does-not-run-twice)
 has the table.
 
 ## Setting it up
@@ -59,19 +60,23 @@ settings.
    If `kontour.io` is a Cloudflare zone the record is made for you; otherwise
    add a `CNAME` from `docs` to `kontour-docs.pages.dev`.
 5. **Deploy.** Merge to `main`; the first run deploys. Then check, in a private
-   window, that `https://docs.kontour.io/ui/` opens with no sign-in, and that an
-   agent's plain request gets the index:
+   window, that `https://docs.kontour.io/ui/` loads, and that an agent's request
+   gets the index:
 
    ```sh
    curl -fsS https://docs.kontour.io/ui/llms.txt | head
    ```
 
+If a Cloudflare Access application is still set up for these hostnames from
+when the site was private, delete it — Zero Trust → Access → Applications — or
+the site keeps asking for a sign-in whatever the headers say.
+
 ## Agents
 
 [`ui-docs/content/agents.md`](../../ui-docs/content/agents.md) is the page an
-agent reads: what to fetch, and a `CLAUDE.md` snippet for an app. Nothing has to
-be configured for an agent to read the site; an agent in a sandbox with an
-allowlist needs `docs.kontour.io` allowed.
+agent reads. It covers what to fetch and a `CLAUDE.md` snippet for an app. For
+Claude Code on the web, `docs.kontour.io` has to be allowed by the environment's
+network access.
 
 Building the site in a sandboxed environment needs `codeload.github.com`
 allowed. The Kotlin/JS toolchain fetches a package from there, and without it

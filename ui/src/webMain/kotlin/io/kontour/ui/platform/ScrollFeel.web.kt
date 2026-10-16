@@ -12,3 +12,6 @@ internal actual val platformLosesRestedFlicks: Boolean = false
 internal actual val platformScrollDeltaInPixels: Boolean = true
 
 internal actual val platformGuardsHomeIndicator: Boolean = false
+
+/** No overscroll of Compose's own. */
+internal actual val platformOverscrollMovesContent: Boolean = false

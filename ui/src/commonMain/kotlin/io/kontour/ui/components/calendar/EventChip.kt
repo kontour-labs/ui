@@ -1,11 +1,20 @@
 package io.kontour.ui.components.calendar
 
+import io.kontour.ui.theme.clipProxy
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.LocalTime
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.style.BaselineShift
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.foundation.border
@@ -99,6 +108,12 @@ import io.kontour.ui.theme.toneColours
  *   is on its way to, read as it is measured. Laid out at the width of each
  *   frame instead, its title was wrapped again every frame of the ease, and
  *   jumped about. Null: the box's width.
+ * @param contentAt Where what is inside is placed along the box, in pixels
+ *   from its start, given how wide it came out: a copy reaching on past the
+ *   days on show keeps its title where the event's own is, and a bar's title
+ *   stays where it is on the screen as the pages slide under it. Read as it
+ *   is placed, so a swipe's every frame places it again and composes nothing.
+ *   Null: at the box's start.
  * @param stacked Whether it is laid over another event: ringed in the
  *   surface's colour, so where it starts over the one under it reads as two.
  * @param listedOn The day whose list of events it is in, not on the days: a
@@ -119,9 +134,11 @@ internal fun EventChip(
     focusableOn: ClosedRange<LocalDate>? = null,
     blockHeight: Dp? = null,
     contentWidth: (() -> Int)? = null,
+    contentAt: ((width: Int) -> Int)? = null,
     stacked: Boolean = false,
     listedOn: LocalDate? = null,
 ) {
+    scope.state.eventCompositions++
     val colours = toneColours(event.tone)
     // A block is a box of time, cornered like the library's other small boxes;
     // a bar and a line are labels across days, and capsules as chips are —
@@ -182,7 +199,7 @@ internal fun EventChip(
                 .matchParentSize()
                 .graphicsLayer { alpha = fade.value }
                 .then(if (stacked) Modifier.drawBehind { drawRing(shape, ring, ringWidth.toPx()) } else Modifier)
-                .clip(shape)
+                .clip(shape.clipProxy())
                 .background(fill)
                 .then(if (edge != null) Modifier.border(edge, shape) else Modifier),
             // A block's text from its top, as time runs; a bar's and a line's level
@@ -190,13 +207,13 @@ internal fun EventChip(
             contentAlignment = if (presentation == EventPresentation.Block) Alignment.TopStart else Alignment.CenterStart,
         ) {
             Box(
-                if (contentWidth == null) {
+                if (contentWidth == null && contentAt == null) {
                     Modifier
                 } else {
                     Modifier.layout { measurable, constraints ->
-                        val width = contentWidth().coerceAtLeast(0)
+                        val width = contentWidth?.invoke()?.coerceAtLeast(0) ?: constraints.maxWidth
                         val placeable = measurable.measure(constraints.copy(minWidth = 0, maxWidth = width))
-                        layout(constraints.maxWidth, placeable.height) { placeable.placeRelative(0, 0) }
+                        layout(constraints.maxWidth, placeable.height) { placeable.placeRelative(contentAt?.invoke(placeable.width) ?: 0, 0) }
                     }
                 },
             ) {
@@ -337,9 +354,16 @@ private fun Modifier.eventControl(
     return this
         .onGloballyPositioned { coordinates ->
             placed.coordinates = coordinates
-            if (movable) edit.draggables[placed] = coordinates
+            // Told again on every frame a scroll moves it, with the same
+            // coordinates: written only where something has changed.
+            if (movable && edit.draggables[placed] !== coordinates) edit.draggables[placed] = coordinates
             // Empty time under it steps aside for its hold.
-            if (holdable) edit.events[placed] = Grab(coordinates, current, byDays, edges = edges)
+            if (holdable) {
+                val known = edit.events[placed]
+                if (known == null || known.coordinates !== coordinates || known.event != current || known.byDays != byDays || known.edges != edges) {
+                    edit.events[placed] = Grab(coordinates, current, byDays, edges = edges)
+                }
+            }
         }
         .then(
             if (focusableOn != null) {
@@ -429,7 +453,7 @@ private fun Modifier.eventControl(
                             true
                         }
                         !holding && movable && key.key == Key.Spacebar -> {
-                            edit.beginKeyboard(current)
+                            edit.beginKeyboard(current, byDays)
                             scope.announcer.say(scope.strings.dragPickedUp(current.title))
                             true
                         }
@@ -452,8 +476,15 @@ private fun Modifier.eventControl(
                                 } else if (resizable) {
                                     edit.nudge(by, resizeEnd = true)
                                 }
-                            } else if (movable) {
+                            } else if (movable && !byDays) {
                                 edit.nudge(by)
+                            } else if (movable && scope.state.view == CalendarView.Month) {
+                                // By days, up and down are a week in a month, as
+                                // the grid's cursor goes and a carry down its
+                                // weeks does. In the all-day strip a carry has
+                                // no up or down, and neither do they.
+                                val week = DaysPerWeek * MinutesPerDay.toLong()
+                                edit.nudge(if (by > 0) week else -week)
                             }
                             true
                         }
@@ -517,8 +548,12 @@ private fun BoxScope.ResizeHandle(event: CalendarEvent, scope: CalendarScope, at
             )
             .onGloballyPositioned { coordinates ->
                 placed.coordinates = coordinates
-                edit.draggables[placed] = coordinates
-                edit.events[placed] = Grab(coordinates, current, byDays = bar, edge = true, atStart = atStart)
+                // Written only where something has changed, as the event's own are.
+                if (edit.draggables[placed] !== coordinates) edit.draggables[placed] = coordinates
+                val known = edit.events[placed]
+                if (known == null || known.coordinates !== coordinates || known.event != current || known.byDays != bar || known.atStart != atStart) {
+                    edit.events[placed] = Grab(coordinates, current, byDays = bar, edge = true, atStart = atStart)
+                }
             }
             .pointerCursor(if (bar) Cursor.ResizeColumn else Cursor.ResizeRow)
             .pointerInput(edit, event.id, atStart, bar) {
@@ -571,7 +606,7 @@ internal fun CalendarScope.moveBy(event: CalendarEvent, minutes: Long, resize: B
         if (end == event.end.epochMinute) return
         val newEnd = localDateTimeOfEpochMinute(end)
         onEventResize?.invoke(event, event.start, newEnd)
-        announce(event.title, event.start, newEnd)
+        announce(event.title, event.start, newEnd, event.allDay)
     } else {
         val length = event.end.epochMinute - event.start.epochMinute
         // Earlier or later by a step keeps to its day; a day either way is a day.
@@ -584,7 +619,7 @@ internal fun CalendarScope.moveBy(event: CalendarEvent, minutes: Long, resize: B
         val start = localDateTimeOfEpochMinute(from)
         val end = localDateTimeOfEpochMinute(from + length)
         onEventMove?.invoke(event, start, end)
-        announce(event.title, start, end)
+        announce(event.title, start, end, event.allDay)
     }
 }
 
@@ -592,16 +627,95 @@ internal fun CalendarScope.moveBy(event: CalendarEvent, minutes: Long, resize: B
  * An event as a screen reader says it: its title, its day, its time or that
  * it is all day, and where — a list, in the reader's own way of writing one.
  */
-internal fun eventDescription(event: CalendarEvent, formats: LocaleFormats, strings: Strings): String {
-    val lastDay = if (event.end > event.start) event.end.plusMinutes(-1).date else event.start.date
-    val days = if (lastDay == event.start.date) {
-        formats.date(event.start.date, DateStyle.Full)
+internal fun eventDescription(event: CalendarEvent, formats: LocaleFormats, strings: Strings): String =
+    formats.list(
+        listOf(event.title) + eventWhen(event.start, event.end, event.allDay, formats, strings) + listOfNotNull(event.location),
+        ListStyle.Unit,
+    )
+
+/**
+ * When an event from [start] to [end] is, as a screen reader is told it: its
+ * day, or its first and last days, and its times or that it is [allDay].
+ * Shared by what an event is called and what is read out once it has been
+ * moved, so the two say the same thing.
+ */
+internal fun eventWhen(start: LocalDateTime, end: LocalDateTime, allDay: Boolean, formats: LocaleFormats, strings: Strings): List<String> {
+    val lastDay = if (end > start) end.plusMinutes(-1).date else start.date
+    val days = if (lastDay == start.date) {
+        formats.date(start.date, DateStyle.Full)
     } else {
-        strings.timeRange(formats.date(event.start.date, DateStyle.Full), formats.date(lastDay, DateStyle.Full))
+        strings.timeRange(formats.date(start.date, DateStyle.Full), formats.date(lastDay, DateStyle.Full))
     }
-    val time = if (event.allDay) strings.allDay else strings.timeRange(formats.time(event.start.time), formats.time(event.end.time))
-    return formats.list(listOfNotNull(event.title, days, time, event.location), ListStyle.Unit)
+    val time = if (allDay) strings.allDay else spokenTimes(start, end, formats, strings)
+    return listOf(days, time)
 }
+
+/**
+ * How many days on from [start]'s the day [end] is on, for the "+1" after an
+ * end time on a later day, as flights and shifts write it: "22:30 – 06:15⁺¹".
+ *
+ * An end at the midnight that closes the first day is that day's end, not
+ * the next's — 0, and "18:00 – 00:00" — as the calendar has it everywhere
+ * else: the event is drawn on that day, listed under it and read out as on
+ * it alone, and a "+1" would point at a day it has no part of. A later
+ * midnight is its own date's, so the number is still the day the end is on:
+ * from nine on Monday to midnight going into Wednesday is "09:00 – 00:00⁺²".
+ */
+internal fun daysOn(start: LocalDateTime, end: LocalDateTime): Int {
+    val days = (end.date.toEpochDays() - start.date.toEpochDays()).toInt()
+    return if (days == 1 && end.time == Midnight) 0 else days.coerceAtLeast(0)
+}
+
+/**
+ * An event's times as a line shows them, "09:00 – 10:30", and for one that
+ * ends on a later day the end raised by how many: "09:00 – 17:00⁺²". The
+ * "+2" is the line's own type, smaller and lifted — not a superscript
+ * character, which some faces lack and others draw at a size of their own —
+ * straight after the end time wherever a translation puts it.
+ */
+internal fun eventTimes(start: LocalDateTime, end: LocalDateTime, formats: LocaleFormats, strings: Strings): AnnotatedString {
+    val to = formats.time(end.time)
+    val range = strings.timeRange(formats.time(start.time), to)
+    val days = daysOn(start, end)
+    if (days == 0) return AnnotatedString(range)
+    val found = range.lastIndexOf(to)
+    val at = if (found < 0) range.length else found + to.length
+    return buildAnnotatedString {
+        append(range, 0, at)
+        withStyle(DayOffsetStyle) { append(strings.endDayOffset(formats.quantity(days))) }
+        append(range, at, range.length)
+    }
+}
+
+/**
+ * The same times as a screen reader is told them: the later day in words,
+ * "09:00 – 17:00, 2 days later", where it would read the "+2" as "plus two",
+ * and where the times alone sounded like nine to five on each day.
+ */
+internal fun spokenTimes(start: LocalDateTime, end: LocalDateTime, formats: LocaleFormats, strings: Strings): String {
+    val to = formats.time(end.time)
+    val days = daysOn(start, end)
+    return strings.timeRange(formats.time(start.time), if (days == 0) to else strings.endDaysLater(to, formats.quantity(days)))
+}
+
+/** [this], which is somewhere in [whole], with its styles where it is there: a time's raised "+1", in its line. */
+internal fun AnnotatedString.placedIn(whole: String): AnnotatedString {
+    val at = whole.indexOf(text)
+    if (at < 0 || spanStyles.isEmpty()) return AnnotatedString(whole)
+    return buildAnnotatedString {
+        append(whole)
+        for (span in spanStyles) addStyle(span.item, span.start + at, span.end + at)
+    }
+}
+
+/**
+ * The raised days after an end time, against the line's type: about
+ * two-thirds its size, as a superscript is set, its baseline lifted by half
+ * its own size so it sits level with the top of the figures beside it.
+ */
+private val DayOffsetStyle = SpanStyle(fontSize = 0.7.em, baselineShift = BaselineShift.Superscript)
+
+private val Midnight = LocalTime(0, 0)
 
 /** The ink for text on the calendar's own ground: muted for the days outside the month, and not at high contrast. */
 @Composable

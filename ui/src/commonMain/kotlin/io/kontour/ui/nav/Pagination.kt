@@ -1,5 +1,6 @@
 package io.kontour.ui.nav
 
+import io.kontour.ui.theme.clipProxy
 import io.kontour.ui.a11y.contrastEdge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -249,7 +250,7 @@ private fun JumpGap(
                 .semantics(mergeDescendants = true) { contentDescription = label }
                 .focusRing(interactions, shape)
                 .sizeIn(minWidth = GapWidth, minHeight = PageButtonSize)
-                .clip(shape)
+                .clip(shape.clipProxy())
                 .pointerCursor()
                 .clickable(interactionSource = interactions, indication = kontourIndication(shape)) {
                     onOpenChange(!open)
@@ -336,7 +337,7 @@ private fun PageButton(number: Int, selected: Boolean, enabled: Boolean, onClick
             .minimumTouchTarget()
             .focusRing(interactions, shape)
             .sizeIn(minWidth = PageButtonSize, minHeight = PageButtonSize)
-            .clip(shape)
+            .clip(shape.clipProxy())
             .background(
                 if (selected) colours.accent.container else androidx.compose.ui.graphics.Color.Transparent,
                 shape,

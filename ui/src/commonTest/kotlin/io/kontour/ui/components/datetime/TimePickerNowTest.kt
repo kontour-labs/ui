@@ -141,6 +141,33 @@ class TimePickerNowTest {
         assertEquals(LocalTime(9, 0), value.time)
     }
 
+    /**
+     * Now at 23:58 by fives rounds to midnight, tomorrow's; where tomorrow is
+     * refused it is the last step of today, not midnight on the day before.
+     */
+    @Test
+    fun aDateAndTimePickersNowThatCannotTakeTomorrowStopsAtTheEndOfToday() = runComposeUiTest {
+        var value by mutableStateOf(LocalDateTime(2026, 6, 10, 18, 0))
+        var now = ""
+        setContent {
+            KontourTheme(reduceMotion = true) {
+                now = Theme.strings.now
+                DateTimePicker(
+                    value = value,
+                    onValueChange = { value = it },
+                    minuteStep = 5,
+                    now = { LocalDateTime(2026, 6, 13, 23, 58) },
+                    isDateSelectable = { it != LocalDate(2026, 6, 14) },
+                    modifier = Modifier.width(900.dp),
+                )
+            }
+        }
+        waitForIdle()
+        onNode(hasText(now) and hasClickAction()).performClick()
+        waitForIdle()
+        assertEquals(LocalDateTime(2026, 6, 13, 23, 55), value, "Now went a day back from the time now")
+    }
+
     @Test
     fun roundingPastMidnightIsTomorrow() {
         assertEquals(LocalTime(0, 0) to true, nearestStep(LocalTime(23, 58), 5))

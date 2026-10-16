@@ -85,8 +85,13 @@ fun TopBarHeroCollapsing() {
 
     Box {
         // Under the bar, starting where the open bar ends: the list is the
-        // only thing that scrolls, and the bar follows it.
-        LazyColumn(state = list, contentPadding = PaddingValues(top = collapse.openHeight)) {
+        // only thing that scrolls, and the bar follows it. The collapse on
+        // the list is for a push past its end, which takes the bar with it.
+        LazyColumn(
+            state = list,
+            modifier = Modifier.topBarCollapse(collapse),
+            contentPadding = PaddingValues(top = collapse.openHeight),
+        ) {
             stopRows()
         }
         // The picture runs under the status bar and fades into the bar's colour

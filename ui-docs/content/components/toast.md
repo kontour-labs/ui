@@ -98,10 +98,13 @@ a pill with no animation at all.
 **Clearing one by hand buys the others time.** Every toast counts down wherever
 it sits in the stack, which is deliberate; the consequence is that working
 through the ones in front spends the time of the one behind them, so reaching for
-a toast deep in a stack is what takes it away. A dismissal now tops the rest back
-up by `ToastDefaults.ClearedGrace` of their own duration, capped at a full
-lifetime. Expiring does not — routing both through one path would have every
-expiry extend every other toast, and a stack that never empties.
+a toast deep in a stack is what takes it away. A dismissal by hand — a swipe, the
+close control, the action — now tops the rest back up by
+`ToastDefaults.ClearedGrace` of their own duration, capped at a full lifetime.
+Expiring does not — routing both through one path would have every expiry extend
+every other toast, and a stack that never empties — and nor does the app's own
+`ToastHostState.dismiss(id)`: a toast taken down because its work finished is
+not the reader working through the stack.
 
 **Every direction sends a toast away except the one aimed back into the screen.**
 Push it toward the edge it is anchored to, or sideways either way, and it goes;

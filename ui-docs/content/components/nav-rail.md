@@ -93,6 +93,31 @@ squashing its rows.
 [`LocalNavExpansion`](nav-search.md) tells what is in them how wide the rail
 currently is.
 
+### Dragging the marker
+
+**While the rail has nothing to scroll, its marker can be dragged** up and down
+it, as the [bar's](nav-bar.md#dragging-the-marker) is along the bar: it follows
+the finger, snaps from destination to destination with a tick at each, and by
+default the destination under the finger when it lifts is chosen, once.
+`markerDrag` takes the same `NavMarkerDrag` as the bar's — `SelectWhileDragging`
+chooses each as the marker reaches it, and `Off` turns it off. Narrow, a group's
+icon is somewhere to drag it, and its menu opens on the lift; wide, a group is a
+disclosure, and its open destinations are each somewhere of their own.
+
+**A rail whose destinations run past its foot scrolls instead**, as it always
+did. A drag along a scroller is the one gesture it cannot share, and the rail
+never takes it from one that can move. Which of the two it is is asked as each
+drag begins, of the rail as it is then: a window made taller, or a destination
+taken away, so that everything fits, turns the drag on, and the reverse turns it
+off.
+
+The rail's dragged marker was asked for as *"any use where the underlying
+composable can't be scrolled in the given container. that includes things like
+lazy lists which can normally be scrolled, but might not overflow their
+container"*. `ModalNavRail` has it too, and closes once a drag has chosen rather
+than as it passes each destination; a drag across it is still the panel's, and
+puts it away.
+
 ---
 
 ## Accessibility

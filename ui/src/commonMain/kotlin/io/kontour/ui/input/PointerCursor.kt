@@ -159,7 +159,11 @@ enum class Cursor {
 fun Modifier.pointerCursor(
     cursor: Cursor = Cursor.Pointer,
     enabled: Boolean = true,
-): Modifier = pointerHoverIcon(pointerIconFor(if (enabled) cursor else Cursor.Default))
+): Modifier =
+    // Nothing at all where there is no cursor to set. The node is inert on iOS,
+    // and every row, button and field in a list carried one: one more node in
+    // every hit test and every pointer event, for a shape nobody can see.
+    if (!platformHasCursor) this else pointerHoverIcon(pointerIconFor(if (enabled) cursor else Cursor.Default))
 
 /**
  * [Cursor.Grabbing] over this component and everything inside it, while [held].
@@ -220,3 +224,6 @@ internal val Cursor.nearest: PointerIcon
  * Null for the four common shapes too, which [nearest] already is exactly.
  */
 internal expect fun platformPointerIcon(cursor: Cursor): PointerIcon?
+
+/** Whether this platform draws a cursor a component can set: everywhere but iOS. */
+internal expect val platformHasCursor: Boolean

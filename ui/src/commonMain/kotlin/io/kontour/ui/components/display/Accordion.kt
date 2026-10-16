@@ -1,5 +1,6 @@
 package io.kontour.ui.components.display
 
+import io.kontour.ui.theme.clipProxy
 import io.kontour.ui.motion.exitOrFade
 import io.kontour.ui.motion.enterOrFade
 import androidx.compose.animation.AnimatedVisibility
@@ -110,7 +111,7 @@ fun Accordion(
                     // the same defect.
                     .minimumTouchTarget(fill = true)
                     .focusRing(interactions, shape)
-                    .clip(shape)
+                    .clip(shape.clipProxy())
                     .pointerCursor(enabled = enabled)
                     .clickable(
                         interactionSource = interactions,

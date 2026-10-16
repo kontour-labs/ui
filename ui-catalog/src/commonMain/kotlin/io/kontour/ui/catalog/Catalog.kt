@@ -171,7 +171,10 @@ private fun DemoFamilyPage(family: DemoFamily, modifier: Modifier = Modifier) {
         flingBehavior = ScrollDefaults.flingBehavior(),
         verticalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
     ) {
-        items(family.demos, key = { it.slug }) { demo ->
+        // Every demo is a different tree, so each is its own content type: a
+        // demo leaving the screen is not handed to the next one arriving to be
+        // reused, which would rebuild it anyway after paying to try.
+        items(family.demos, key = { it.slug }, contentType = { it.slug }) { demo ->
             Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs)) {
                 Text(demo.slug, style = Theme.typography.labelMedium)
                 DemoCard(demo)

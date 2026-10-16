@@ -392,12 +392,12 @@ class EndStopSquashTest {
             // Down to the last row and held there, with nothing refused yet.
             scene.press(top)
             walk(scene, top, last)
-            val atWall = scene.frames(Settle).thumbDown(bounds, probe, track)
+            val atWall = scene.frames(Settle).fillDown(bounds, probe, track)
 
             // And on past the end of the track.
             val past = Offset(bounds.center.x, bounds.bottom + Overshoot)
             walk(scene, last, past)
-            val pushed = scene.frames(2).thumbDown(bounds, probe, track)
+            val pushed = scene.frames(2).fillDown(bounds, probe, track)
             scene.release(past)
 
             assertTrue(
@@ -405,8 +405,12 @@ class EndStopSquashTest {
                 "the thumb measured ${atWall}px tall at the end of a stacked " +
                     "track, which is not a thumb — this measured nothing",
             )
+            // Read off the fill alone, which is exact to the pixel, so a pixel
+            // of tolerance either side is all it needs: the squash two frames
+            // past the wall is about 4px of a 63px thumb. It measured 10 when
+            // the thumb's shadow was counted with it — see `fillDown`.
             assertTrue(
-                pushed < atWall - Tolerance,
+                pushed < atWall - FillTolerance,
                 "the stacked thumb is ${atWall}px tall resting against the end " +
                     "of its track and ${pushed}px while the finger pushes past " +
                     "it. Stacked, the wall is the bottom of the track and the " +
@@ -856,8 +860,13 @@ class EndStopSquashTest {
         /** Far enough in to be the track and not the control's border. */
         const val TrackProbe = 30f
 
-        /** Far enough in to be on the thumb, far enough out to miss the labels. */
-        const val StackedProbe = 20f
+        /**
+         * Far enough in to be on the thumb, far enough out to miss the labels —
+         * and past the curve of the thumb's rounded end, so the column crosses
+         * the thumb's whole height rather than a chord of its end, which shortens
+         * by less than the thumb does.
+         */
+        const val StackedProbe = 44f
 
         /** Inside the first of two stacked rows, and inside the last. */
         const val StackedFirst = 0.25f
@@ -1028,6 +1037,34 @@ private fun BufferedImage.thumbDown(bounds: Rect, x: Int, track: Int): Int {
     return best
 }
 
+/**
+ * The longest run down column [x] of the thumb's own fill: rows **lighter** than
+ * the [track] by more than [Faint], which the thumb is and its shadow under it is
+ * not.
+ *
+ * For the stacked thumb, whose probe column runs into the shadow below it.
+ * [thumbDown] counts anything not the track, so the thumb and its shadow were one
+ * run wherever a single row between them came out a level darker — a matter of
+ * how one pixel of the thumb's rounded end was anti-aliased, and it read as 18px
+ * of growth when the thumb came to be clipped to a rounded rectangle.
+ */
+private fun BufferedImage.fillDown(bounds: Rect, x: Int, track: Int): Int {
+    val top = bounds.top.toInt().coerceAtLeast(0)
+    val bottom = (bounds.bottom.toInt() - 1).coerceAtMost(height - 1)
+    val ground = track and 0xFF
+    var best = 0
+    var run = 0
+    for (y in top..bottom) {
+        if ((getRGB(x, y) and 0xFF) > ground + Faint) {
+            run++
+            if (run > best) best = run
+        } else {
+            run = 0
+        }
+    }
+    return best
+}
+
 /** How tall the fill at column [x] is, in rows that are not the [track]. */
 private fun BufferedImage.runDown(bounds: Rect, x: Int, track: Int): Int {
     val top = bounds.top.toInt().coerceAtLeast(0)
@@ -1084,6 +1121,9 @@ private const val Margin = 16f
  * dither.
  */
 private const val Faint = 4
+
+/** What a reading of [fillDown] may be out by: a pixel of anti-aliasing at each end. */
+private const val FillTolerance = 2
 
 private fun differs(a: Int, b: Int, by: Int = 24): Boolean =
     abs((a shr 16 and 0xFF) - (b shr 16 and 0xFF)) > by ||

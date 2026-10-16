@@ -1,6 +1,11 @@
 package io.kontour.ui.components.text
 
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredSize
@@ -22,6 +27,7 @@ import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.theme.KontourTheme
 import kotlin.math.abs
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
@@ -109,7 +115,59 @@ class WheelSelectOpeningTest {
         assertTrue(o.before.top > o.wheel.top && o.after.bottom < o.wheel.bottom, "a row either side is cut: ${o.before} ${o.after} in ${o.wheel}")
     }
 
+    /**
+     * A closed wheel select does not recompose while its page scrolls.
+     *
+     * Its anchor — the field's place in the window — is written on every frame
+     * of a scroll, and it was read in the component's body, so every wheel
+     * select on a scrolling page recomposed every frame for a wheel that was
+     * not open. Counted through its label, which the body asks for each time it
+     * runs and nothing else asks for while the wheel is closed.
+     */
+    @Test
+    fun aClosedWheelSelectDoesNotRecomposeAsItsPageScrolls() = runComposeUiTest {
+        var labelled = 0
+        val scroll = ScrollState(initial = 0)
+        setContent {
+            KontourTheme(darkTheme = false, reduceMotion = true) {
+                Box(Modifier.requiredSize(360.dp, 640.dp)) {
+                    OverlayHost(Modifier.fillMaxSize()) {
+                        Column(Modifier.fillMaxSize().verticalScroll(scroll)) {
+                            Spacer(Modifier.height(100.dp))
+                            WheelSelect(
+                                value = 4,
+                                options = Options,
+                                onValueChange = {},
+                                optionLabel = {
+                                    labelled++
+                                    it.toString()
+                                },
+                                modifier = Modifier.width(240.dp),
+                            )
+                            Spacer(Modifier.height(2000.dp))
+                        }
+                    }
+                }
+            }
+        }
+        waitForIdle()
+        val settled = labelled
+        assertTrue(settled >= 1, "the wheel select never composed")
+
+        repeat(20) {
+            runOnIdle { scroll.dispatchRawDelta(10f) }
+            waitForIdle()
+        }
+
+        assertTrue(scroll.value > 0, "the page never scrolled")
+        assertEquals(
+            settled, labelled,
+            "twenty frames of scrolling ran the closed wheel select's body ${labelled - settled} more times",
+        )
+    }
+
     private companion object {
         const val Row = 40f
+        val Options = (1..9).toList()
     }
 }

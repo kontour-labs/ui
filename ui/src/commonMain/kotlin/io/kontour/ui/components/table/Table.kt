@@ -1,5 +1,6 @@
 package io.kontour.ui.components.table
 
+import io.kontour.ui.theme.clipProxy
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.Orientation
@@ -379,7 +380,7 @@ fun <T> Table(
 
     SubcomposeLayout(
         modifier = modifier
-            .then(if (outlined) Modifier.clip(shape).border(borderWidth, colours.lines, shape) else Modifier)
+            .then(if (outlined) Modifier.clip(shape.clipProxy()).border(borderWidth, colours.lines, shape) else Modifier)
             .background(colours.container)
             .semantics {
                 isTraversalGroup = true

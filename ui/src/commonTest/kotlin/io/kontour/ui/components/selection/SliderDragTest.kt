@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import io.kontour.ui.theme.KontourTheme
 import kotlin.math.abs
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
@@ -131,6 +132,43 @@ class SliderDragTest {
             "a stepped slider dragged to the middle landed on $afterDrag, not the " +
                 "0.5 detent",
         )
+    }
+
+    /**
+     * The far end of the track is the end of the range, exactly.
+     *
+     * It was `start + 1f * (end - start)`, and the subtraction rounds: a drag to
+     * the end of `0.3f..1.9f` reported 1.8999999, and one to the end of
+     * `-273.15f..0.7f` reported 0.70001 — a value outside the range the caller
+     * gave, which a caller comparing against its own maximum never reaches.
+     */
+    @Test
+    fun aDragToTheEndReportsTheEndExactly() {
+        for (range in listOf(0.3f..1.9f, -273.15f..0.7f)) {
+            var value by mutableFloatStateOf(range.start)
+            runComposeUiTest {
+                setContent {
+                    KontourTheme(reduceMotion = true) {
+                        Slider(
+                            value = value,
+                            onValueChange = { value = it },
+                            modifier = Modifier.testTag(Tag).width(Width.dp),
+                            valueRange = range,
+                        )
+                    }
+                }
+
+                // Well past the end, so the finger, not the arithmetic, is
+                // what reaches it.
+                onNodeWithTag(Tag).performTouchInput {
+                    down(Offset(centerX, centerY))
+                    repeat(Moves) { moveBy(Offset(width / Moves.toFloat(), 0f), delayMillis = 0) }
+                    up()
+                }
+                waitForIdle()
+            }
+            assertEquals(range.endInclusive, value, "a drag to the end of $range")
+        }
     }
 
     private companion object {

@@ -28,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -199,7 +200,49 @@ class OverlayEntry(
      */
     val onDismiss: (() -> Unit)? = null,
     val content: @Composable () -> Unit,
-)
+) {
+    /**
+     * A rectangle, in root coordinates, where a press goes past this entry's
+     * scrim to whatever is underneath it. Null, which is every entry but one,
+     * and the scrim takes every press it covers.
+     *
+     * The one is a combobox's list, whose field the user is still typing in:
+     * see `AnchoredDropdownMenuImpl`. Read in the scrim's measure pass, so a
+     * rectangle that moves takes its way through with it.
+     *
+     * Set once, as the entry is built, and never after — which is what keeps
+     * the class's `@Immutable` true. Not a constructor parameter, because the
+     * constructor is public and the need is the library's own.
+     */
+    internal var passThrough: (() -> Rect?)? = null
+
+    /**
+     * Whether the user may dismiss this entry, asked at the moment they try —
+     * or null, which is every entry but the library's own modal ones, to go by
+     * [dismissOnOutside], [dismissOnBack] and [dismissOnScroll] as they were
+     * built.
+     *
+     * Set, it answers for all three. The flags are fixed when the entry is
+     * published, and a component publishes its entry when it is shown, so a
+     * `dismissible` that changed while it was up changed nothing: a form sheet
+     * opened with `dismissible = !form.dirty` could still be tapped away after
+     * the reader had typed into it, and the typing went with it. The components
+     * that take `dismissible` hand it over through this instead, read live.
+     *
+     * Set once, as the entry is built, like [passThrough], and for the same
+     * reason not a constructor parameter.
+     */
+    internal var dismissibleNow: (() -> Boolean)? = null
+
+    /** [dismissOnOutside], or [dismissibleNow] where there is one. */
+    internal val outsideDismisses: Boolean get() = dismissibleNow?.invoke() ?: dismissOnOutside
+
+    /** [dismissOnBack], or [dismissibleNow] where there is one. */
+    internal val backDismisses: Boolean get() = dismissibleNow?.invoke() ?: dismissOnBack
+
+    /** [dismissOnScroll], or [dismissibleNow] where there is one. */
+    internal val scrollDismisses: Boolean get() = dismissibleNow?.invoke() ?: dismissOnScroll
+}
 
 /**
  * The overlay stack.
@@ -398,7 +441,7 @@ class OverlayHostState {
      * nothing because a toast happened to be up is worse than one that leaves
      * the screen.
      */
-    val canDismissOnBack: Boolean get() = visible.any { it.dismissOnBack }
+    val canDismissOnBack: Boolean get() = visible.any { it.backDismisses }
 
     /**
      * Dismisses the topmost dismissible entry, and reports whether it did.
@@ -409,7 +452,7 @@ class OverlayHostState {
      * one that leaves the screen.
      */
     fun dismissTop(): Boolean {
-        val target = visible.lastOrNull { it.dismissOnBack } ?: return false
+        val target = visible.lastOrNull { it.backDismisses } ?: return false
         target.onDismiss?.invoke()
         if (!target.managesOwnExit) hide(target.key)
         return true
@@ -426,17 +469,17 @@ class OverlayHostState {
      * tooltip neither dims nor dismisses on back, so back goes past it.
      */
     internal val backTarget: OverlayEntry?
-        get() = visible.lastOrNull { it.dismissOnBack || it.scrim == ScrimStyle.Dimmed }
+        get() = visible.lastOrNull { it.backDismisses || it.scrim == ScrimStyle.Dimmed }
 
     /** What a completed back gesture aimed at [entry] does: [dismissTop], for that entry. */
     internal fun dismissForBack(entry: OverlayEntry) {
-        if (!entry.dismissOnBack || isGoing(entry.key)) return
+        if (!entry.backDismisses || isGoing(entry.key)) return
         entry.onDismiss?.invoke()
         if (!entry.managesOwnExit) hide(entry.key)
     }
 
     internal fun dismissOutside(entry: OverlayEntry) {
-        if (!entry.dismissOnOutside) return
+        if (!entry.outsideDismisses) return
         entry.onDismiss?.invoke()
         // An entry that animates itself out calls `hide` when it is done. Doing
         // it here as well is what made a sheet disappear mid-slide.
@@ -486,7 +529,7 @@ private fun EntryHost(
         // sheet, by a gesture moving towards its own edge, or by a key. A
         // bottom sheet is dragged down there, and a dialog answered.
         closes = { back, edge ->
-            entry.dismissOnBack && when (backStyle) {
+            entry.backDismisses && when (backStyle) {
                 BackStyle.Predictive -> true
                 BackStyle.Swipe -> back.swipeAwayEdge.let { away -> away != null && (edge == null || edge == away) }
             }
@@ -580,8 +623,14 @@ private fun EntryHost(
         // times per open. Mostly that is waste; the part that is not is that a
         // tap landing in the wrong frame meets a detector that has just been
         // torn down.
-        val dismiss: (() -> Unit)? = remember(entry, state, entry.dismissOnOutside, going) {
-            if (entry.dismissOnOutside && !going) {
+        //
+        // Read here rather than off the entry inside the lambda, so a sheet or a
+        // dialog whose `dismissible` changes while it is up — see
+        // [OverlayEntry.dismissibleNow] — gives up or takes back its scrim's tap
+        // and the dismiss action a screen reader is offered with it.
+        val outside = entry.outsideDismisses
+        val dismiss: (() -> Unit)? = remember(entry, state, outside, going) {
+            if (outside && !going) {
                 { state.dismissOutside(entry) }
             } else {
                 // No dismissal for something already dismissed, or for
@@ -592,12 +641,19 @@ private fun EntryHost(
         // Remembered for the same reason `dismiss` is: `Scrim` keys a gesture
         // coroutine on it, and `EntryHost` recomposes every frame an overlay is
         // animating.
-        val scrolled: (() -> Unit)? = remember(entry, state, entry.dismissOnScroll, going) {
-            if (entry.dismissOnScroll && !going) {
+        val onScroll = entry.scrollDismisses
+        val scrolled: (() -> Unit)? = remember(entry, state, onScroll, going) {
+            if (onScroll && !going) {
                 { state.dismissOutside(entry) }
             } else {
                 null
             }
+        }
+        // The entry's way through, in the host's coordinates rather than the
+        // root's, which is what the scrim is laid out in. Remembered for the
+        // same reason as the two above.
+        val hole: (() -> Rect?)? = remember(entry, state) {
+            entry.passThrough?.let { inRoot -> { inRoot()?.translate(-state.originInRoot) } }
         }
         ScrimLayer(
             // The same number the panel is drawn with, so the dimming and the
@@ -612,6 +668,7 @@ private fun EntryHost(
             // it from is already on its way off the screen. Material's scrim
             // does the same.
             blocks = !going,
+            hole = hole,
         )
     }
 

@@ -1,5 +1,6 @@
 package io.kontour.ui.components.display
 
+import io.kontour.ui.theme.clipProxy
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloat
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -79,7 +81,7 @@ fun Skeleton(
     Box(
         modifier
             .clearAndSetSemantics { }
-            .clip(shape)
+            .clip(shape.clipProxy())
             .skeletonFill(angle)
     )
 }
@@ -113,6 +115,13 @@ internal fun Modifier.skeletonFill(
     highlight: Color = Color.Unspecified,
     /** One pass of the band, start to end. `Modifier.shimmer` lets a caller set it. */
     duration: Duration = SkeletonSweep,
+    /**
+     * Where a sweep shared with other placeholders is, from 0 to 1, or `null` for
+     * one of this fill's own. A redacted block passes its own — see
+     * `LocalRedactionSweep` — so everything in it is lit as one surface; [duration]
+     * is then the shared sweep's business.
+     */
+    sweep: State<Float>? = null,
 ): Modifier {
     val colours = Theme.colours
     val reduceMotion = Theme.motion.reduceMotion
@@ -130,17 +139,10 @@ internal fun Modifier.skeletonFill(
     // when it is composed, so a page of skeletons was asking for sixty frames a
     // second to paint a flat rectangle — the exact opposite of what the setting
     // asks for, and invisible from the outside because the picture was right.
-    val sweep = if (reduceMotion) {
-        null
-    } else {
-        rememberInfiniteTransition(label = "skeleton").animateFloat(
-            initialValue = 0f,
-            targetValue = 1f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(durationMillis = duration.inWholeMilliseconds.toInt(), easing = LinearEasing),
-            ),
-            label = "skeletonSweep",
-        )
+    val sweep = when {
+        reduceMotion -> null
+        sweep != null -> sweep
+        else -> rememberSkeletonSweep(duration)
     }
 
     return this
@@ -200,6 +202,24 @@ internal fun Modifier.skeletonFill(
                 }
             )
 }
+
+/**
+ * One sweep of the lit band, from 0 to 1 and round again, every [duration].
+ *
+ * `rememberInfiniteTransition` subscribes to the frame clock when it is composed,
+ * so each one of these is a subscriber for as long as it lives — which is why a
+ * redacted block keeps one for everything inside it rather than one each.
+ */
+@Composable
+internal fun rememberSkeletonSweep(duration: Duration = SkeletonSweep): State<Float> =
+    rememberInfiniteTransition(label = "skeleton").animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = duration.inWholeMilliseconds.toInt(), easing = LinearEasing),
+        ),
+        label = "skeletonSweep",
+    )
 
 /**
  * Skeleton lines standing in for a paragraph.

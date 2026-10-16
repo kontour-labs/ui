@@ -56,7 +56,7 @@ import io.kontour.ui.nav.Breadcrumbs
 import io.kontour.ui.nav.Crumb
 import io.kontour.ui.nav.ModalNavRail
 import io.kontour.ui.nav.NavBar
-import io.kontour.ui.nav.NavBarMarkerDrag
+import io.kontour.ui.nav.NavMarkerDrag
 import io.kontour.ui.nav.NavBarDefaults
 import io.kontour.ui.nav.NavBarItemWidth
 import io.kontour.ui.nav.NavBarStyle
@@ -232,12 +232,12 @@ private val barRounded = Knob.Choice("Shape", listOf(false, true), name = { if (
  * Drag the marker along the bar: off, choosing the destination it is let go
  * on, or choosing each one as it gets there.
  */
-private val barDrag = Knob.Choice("Drag the marker", NavBarMarkerDrag.entries.toList(), NavBarMarkerDrag.SelectOnRelease, name = ::markerDragName)
+private val barDrag = Knob.Choice("Drag the marker", NavMarkerDrag.entries.toList(), NavMarkerDrag.SelectOnRelease, name = ::markerDragName)
 
-private fun markerDragName(drag: NavBarMarkerDrag): String = when (drag) {
-    NavBarMarkerDrag.Off -> "Off"
-    NavBarMarkerDrag.SelectOnRelease -> "Choose on lift"
-    NavBarMarkerDrag.SelectWhileDragging -> "Choose while dragging"
+private fun markerDragName(drag: NavMarkerDrag): String = when (drag) {
+    NavMarkerDrag.Off -> "Off"
+    NavMarkerDrag.SelectOnRelease -> "Choose on lift"
+    NavMarkerDrag.SelectWhileDragging -> "Choose while dragging"
 }
 
 /** Four more destinations than the bar has room for, behind `more` at its end. */
@@ -316,9 +316,19 @@ private val railAlignment = Knob.Choice(
     name = { if (it == Alignment.Top) "Top" else "Centred" },
 )
 
+/**
+ * Drag the marker up and down the rail, as the bar's is dragged along the bar.
+ * Only while the rail has nothing to scroll, which nine destinations in 320dp
+ * have.
+ */
+private val railDrag = Knob.Choice("Drag the marker", NavMarkerDrag.entries.toList(), NavMarkerDrag.SelectOnRelease, name = ::markerDragName)
+
+/** Four destinations, which fit, rather than nine, which scroll: the drag is only for the first. */
+private val railFew = Knob.Flag("Fewer")
+
 internal val NavRailDemo = ComponentDemo(
     slug = "nav-rail",
-    knobs = listOf(railExpanded, railToggle, railTree, railAlignment),
+    knobs = listOf(railExpanded, railToggle, railTree, railAlignment, railDrag, railFew),
 ) {
     var here by remember { mutableStateOf("map") }
     var expanded by remember { mutableStateOf(false) }
@@ -331,12 +341,14 @@ internal val NavRailDemo = ComponentDemo(
             expanded = if (toggle) expanded else fixed,
             onExpandedChange = if (toggle) ({ expanded = it }) else null,
             itemAlignment = this@ComponentDemo[railAlignment],
+            markerDrag = this@ComponentDemo[railDrag],
         ) {
             if (tree) {
                 tree(here, { here = it }, groupOpen, { groupOpen = it })
             } else {
-                // More than a 320dp rail is tall: it scrolls rather than squashing.
-                destinations(here, { here = it }, count = 9)
+                // Nine is more than a 320dp rail is tall: it scrolls rather than
+                // squashing, and its marker cannot be dragged. Four fit.
+                destinations(here, { here = it }, count = if (this@ComponentDemo[railFew]) 4 else 9)
             }
         }
     }
@@ -531,7 +543,12 @@ internal val TopBarDemo = ComponentDemo(
     Frame(height = if (tall) 560.dp else 320.dp) {
         if (hero) {
             Box(Modifier.fillMaxSize()) {
-                LazyColumn(Modifier.fillMaxSize(), state = list, contentPadding = PaddingValues(top = follow.openHeight), content = departures)
+                LazyColumn(
+                    Modifier.fillMaxSize().topBarCollapse(follow),
+                    state = list,
+                    contentPadding = PaddingValues(top = follow.openHeight),
+                    content = departures,
+                )
                 bar(follow)
             }
         } else {
@@ -649,9 +666,12 @@ private val tabDivider = Knob.Flag("Divider")
  */
 private val tabScrollable = Knob.Flag("Scrollable")
 
+/** Drag the marker along the bar, while its tabs fit. */
+private val tabDrag = Knob.Choice("Drag the marker", NavMarkerDrag.entries.toList(), NavMarkerDrag.SelectOnRelease, name = ::markerDragName)
+
 internal val TabBarDemo = ComponentDemo(
     slug = "tab-bar",
-    knobs = listOf(tabDivider, tabScrollable),
+    knobs = listOf(tabDivider, tabScrollable, tabDrag),
 ) {
     var tab by remember { mutableStateOf(1) }
     var narrow by remember { mutableStateOf(0) }
@@ -664,6 +684,7 @@ internal val TabBarDemo = ComponentDemo(
             showDivider = divider,
             scrollable = scrollable,
             actions = { OverflowMenu(::echo) },
+            markerDrag = this@ComponentDemo[tabDrag],
         ) {
             Tab(selected = tab == 0, onClick = { tab = 0 }, key = 0) { +"Departures" }
             Tab(selected = tab == 1, onClick = { tab = 1 }, key = 1) { +"Route map" }

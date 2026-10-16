@@ -1,5 +1,6 @@
 package io.kontour.ui.components.calendar
 
+import io.kontour.ui.theme.clipProxy
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -21,6 +22,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -36,6 +38,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.isCtrlPressed
@@ -48,6 +51,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.layoutId
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -117,7 +121,7 @@ internal fun MonthView(scope: CalendarScope) {
                 // In a box, cornered as the library's containers are and edged
                 // with the grid's own line: the days' lines meet an edge rather
                 // than stopping in the open.
-                .clip(frame)
+                .clip(frame.clipProxy())
                 .border(Theme.sizing.borderWidth, gridLine(), frame)
                 // Ctrl, or Cmd, and plus or minus: a week fewer or more, as a
                 // browser zooms its page. Before the cursor, which leaves keys
@@ -194,6 +198,9 @@ internal fun MonthView(scope: CalendarScope) {
             }
             // Each week's events, found once for as long as the events are the same.
             val byWeek = remember(scope.events, periods) { HashMap<LocalDate, List<CalendarEvent>>() }
+            // Each bar's row, the same in every week it is in, so one running
+            // on into the next week is on the same line there: see [barRows].
+            val rowsOf = remember(scope.events) { barRows(scope.events, lines = true) }
             val gap = Theme.spacing.xxs / 2
             val cell = maxWidth / DaysPerWeek
             val edit = scope.edit
@@ -226,14 +233,14 @@ internal fun MonthView(scope: CalendarScope) {
                         state = list,
                         flingBehavior = snap,
                         userScrollEnabled = scope.enabled,
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier.fillMaxSize().tellsWheelFromFinger(snap),
                     ) {
                         items(WeekRows, key = { it }) { index ->
                             val weekStart = periods.weekOfRow(index)
                             val events = byWeek.getOrPut(weekStart) {
                                 scope.eventsBetween(weekStart, weekStart.plus(DaysPerWeek - 1, DateTimeUnit.DAY))
                             }
-                            MonthWeek(scope, weekStart, events, item, itemPx, maxRows, cell, onList, Modifier.fillMaxWidth().weekRow(rowPx))
+                            MonthWeek(scope, weekStart, events, rowsOf, item, itemPx, maxRows, cell, onList, Modifier.fillMaxWidth().weekRow(rowPx))
                         }
                     }
                     // Where a carried event would land, over the weeks on screen:
@@ -334,6 +341,8 @@ private fun MonthWeek(
     scope: CalendarScope,
     weekStart: LocalDate,
     weekEvents: List<CalendarEvent>,
+    /** Each bar's row, the same in every week: see [barRows]. */
+    barRows: Map<CalendarEvent, Int>,
     item: Dp,
     /** An event's height as the rows are laid out, which follows a pinch: see [monthItemPx]. */
     itemPx: () -> Float,
@@ -370,7 +379,7 @@ private fun MonthWeek(
             drawCursorRing(Rect(left, 0f, left + width, size.height), ringColour, ringWidth.toPx())
         },
     ) {
-        val pack = remember(weekEvents, weekStart, maxRows) { packWeek(weekItems(weekStart, weekEvents, lines = true), maxRows) }
+        val pack = remember(weekEvents, weekStart, maxRows, barRows) { packWeek(weekItems(weekStart, weekEvents, lines = true), maxRows, rows = barRows) }
         Row(Modifier.fillMaxSize()) {
             for (column in 0 until DaysPerWeek) {
                 val date = dayInWeek(weekStart, column)
@@ -687,6 +696,21 @@ private fun DayList(scope: CalendarScope, listing: DayListing?, month: PlacedAt,
  * copy gone from one row and another come in the next. A cut under reduced
  * motion.
  *
+ * **Shaped as the event is where it was taken from.** Square, and out to the
+ * edge, at a side it runs on past — into the week before or after, or off the
+ * page — and round, in by the gap, only where it starts or ends: see
+ * [cutShape]. It was a capsule cut to the days on show whatever the event did
+ * there, so taken up, a bar running on into the next week changed shape under
+ * the finger.
+ *
+ * **The rest of it comes with it.** Where it runs on, a piece reaches on past
+ * its row by [GhostReach] days, and the layer is cut at that side of the days:
+ * carried sideways, what was past the edge comes in with it, its own end and
+ * all, rather than the piece coming away from the edge it ran on past —
+ * *"if we drag it one way, it needs to look like the rest of the event is
+ * attached to the bar as we move it"*. Its title is where the event's own is,
+ * at the start of what the row shows of it, and goes with it.
+ *
  * @param slot How far down its row a new event's copy is: under the date.
  * @param item How tall a row's line of events is.
  */
@@ -715,7 +739,8 @@ internal fun DaysGhostLayer(
     val shown = remember(event, start, end) {
         CalendarEvent(DaysGhostId, event?.title ?: scope.strings.newEvent, start, end, tone = event?.tone ?: Tone.Accent)
     }
-    // As composed, for how many copies; placed from the edit as it is now.
+    // As composed, for which copies and their shapes; placed from the edit as
+    // it is now, each by the week it is in.
     val composed = dayPieces(start, end, rowStart, weeks, days)
     val density = LocalDensity.current
     val slotPx = with(density) { slot.toPx() }
@@ -723,6 +748,8 @@ internal fun DaysGhostLayer(
     val gapPx = with(density) { gap.toPx() }
     val hop = remember { GhostHop() }
     LaunchedEffect(hop) { hop.run() }
+    // A day's width, as last laid out: for each copy's title to be as wide as the event's own.
+    val dayWidth = remember { MeasuredCell() }
 
     Layout(
         // As the event is drawn where it was taken from: a timed event's line
@@ -731,9 +758,23 @@ internal fun DaysGhostLayer(
         // it was let go.
         content = {
             val presentation = if (event?.isTimed() == true) EventPresentation.Line else EventPresentation.Bar
-            repeat(composed.size) { EventChip(event = shown, presentation = presentation, scope = scope, ghost = true) }
+            for (piece in composed) {
+                key(piece.week) {
+                    EventChip(
+                        event = shown,
+                        presentation = presentation,
+                        scope = scope,
+                        ghost = true,
+                        clippedStart = !piece.startsHere,
+                        clippedEnd = !piece.endsHere,
+                        contentWidth = { (piece.shownRight(dayWidth.px, gapPx) - piece.shownLeft(dayWidth.px, gapPx)).roundToInt() },
+                        contentAt = { (piece.shownLeft(dayWidth.px, gapPx) - piece.drawnLeft(dayWidth.px, gapPx)).roundToInt() },
+                        modifier = Modifier.layoutId(piece.week),
+                    )
+                }
+            }
         },
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize().clipAcross(start = composed.any { it.from < it.shownFrom }, end = composed.any { it.to > it.shownTo }),
     ) { measurables, constraints ->
         val w = constraints.maxWidth
         val h = constraints.maxHeight
@@ -741,6 +782,7 @@ internal fun DaysGhostLayer(
         val nowEnd = edit.end
         if (nowStart == null || nowEnd == null || w <= 0 || h <= 0 || weeks <= 0) return@Layout layout(w, h) {}
         val cell = w.toFloat() / days
+        dayWidth.px = cell
         // A scrolling month's rows as they are laid out now, read here so the
         // first row and where it is are always the same frame's.
         val rowStart = rows?.start() ?: rowStart
@@ -771,11 +813,11 @@ internal fun DaysGhostLayer(
             // The piece with the end in it, if this page shows it.
             val moving = if (atEnd) pieces.lastIndex else 0
             val onPage = pieces.isNotEmpty() && edgeIndex in 0 until weeks * days
-            fun rectOf(piece: Triple<Int, Int, Int>) = Rect(
-                piece.second * cell + gapPx,
-                piece.first * rowHeight + y,
-                (piece.third + 1) * cell - gapPx,
-                piece.first * rowHeight + y + itemPx - gapPx,
+            fun rectOf(piece: GhostPiece) = Rect(
+                piece.drawnLeft(cell, gapPx),
+                piece.row * rowHeight + y,
+                piece.drawnRight(cell, gapPx),
+                piece.row * rowHeight + y + itemPx - gapPx,
             )
             val stretched = if (!onPage) null else {
                 val snapped = rectOf(pieces[moving])
@@ -784,13 +826,13 @@ internal fun DaysGhostLayer(
                 // Into another week, it is there: a hop across the month would not be an end stretching.
                 hop.drawnAt(nowStart to nowEnd, target, still) { last, aim -> if (last.top != aim.top) Rect.Zero else null }
             }
-            val rects = pieces.mapIndexed { i, piece -> if (i == moving && stretched != null) stretched else rectOf(piece) }
-            val placeables = measurables.take(rects.size).mapIndexed { i, measurable ->
-                val rect = rects[i]
-                measurable.measure(Constraints.fixed(rect.width.roundToInt().coerceAtLeast(0), rect.height.roundToInt().coerceAtLeast(0)))
+            val placed = pieces.mapIndexedNotNull { i, piece ->
+                val rect = if (i == moving && stretched != null) stretched else rectOf(piece)
+                val measurable = measurables.firstOrNull { it.layoutId == piece.week } ?: return@mapIndexedNotNull null
+                rect to measurable.measure(Constraints.fixed(rect.width.roundToInt().coerceAtLeast(0), rect.height.roundToInt().coerceAtLeast(0)))
             }
             return@Layout layout(w, h) {
-                placeables.forEachIndexed { i, placeable -> placeable.placeRelative(rects[i].left.roundToInt(), rects[i].top.roundToInt()) }
+                placed.forEach { (rect, placeable) -> placeable.placeRelative(rect.left.roundToInt(), rect.top.roundToInt()) }
             }
         }
         // The first day's box, in reading order — mirrored in placing — and
@@ -814,16 +856,16 @@ internal fun DaysGhostLayer(
         }
         val dx = drawn.left - snapped.left
         val dy = drawn.top - snapped.top
-        val pieces = dayPieces(nowStart, nowEnd, rowStart, weeks, days)
-        val placeables = measurables.take(pieces.size).mapIndexed { i, measurable ->
-            val (_, from, to) = pieces[i]
-            val width = ((to - from + 1) * cell - gapPx * 2).roundToInt().coerceAtLeast(0)
-            measurable.measure(Constraints.fixed(width, (itemPx - gapPx).roundToInt().coerceAtLeast(0)))
+        // Each piece by the week it is in: one a scrolling month has not
+        // composed yet waits a frame, rather than taking another week's shape.
+        val placed = dayPieces(nowStart, nowEnd, rowStart, weeks, days).mapNotNull { piece ->
+            val measurable = measurables.firstOrNull { it.layoutId == piece.week } ?: return@mapNotNull null
+            val width = (piece.drawnRight(cell, gapPx) - piece.drawnLeft(cell, gapPx)).roundToInt().coerceAtLeast(0)
+            piece to measurable.measure(Constraints.fixed(width, (itemPx - gapPx).roundToInt().coerceAtLeast(0)))
         }
         layout(w, h) {
-            placeables.forEachIndexed { i, placeable ->
-                val (row, from, _) = pieces[i]
-                placeable.placeRelative((from * cell + gapPx + dx).roundToInt(), (row * rowHeight + y + dy).roundToInt())
+            placed.forEach { (piece, placeable) ->
+                placeable.placeRelative((piece.drawnLeft(cell, gapPx) + dx).roundToInt(), (piece.row * rowHeight + y + dy).roundToInt())
             }
         }
     }
@@ -843,16 +885,94 @@ internal interface GhostRows {
 /** The day an event's last minute is on. */
 private fun lastDayOf(start: LocalDateTime, end: LocalDateTime): LocalDate = if (end > start) end.plusMinutes(-1).date else start.date
 
-/** A piece of an event for each week of [weeks] rows of [days] from [rowStart] it is in: its row, and its first and last day's columns. */
-private fun dayPieces(start: LocalDateTime, end: LocalDateTime, rowStart: LocalDate, weeks: Int, days: Int): List<Triple<Int, Int, Int>> = buildList {
-    val last = lastDayOf(start, end)
+/**
+ * A piece of the copy a carry by days draws: one a row it is in.
+ *
+ * @property row Which of the layer's rows, from its first.
+ * @property week The row's first day: what the piece is known by, as rows scroll.
+ * @property from The first day it is drawn across, from the row's first: before
+ *   it, past the row's start, where the event runs on from before the row.
+ * @property to The last, likewise past the row's end.
+ * @property shownFrom The first of the row's own days it is on: where the
+ *   event's own piece in the row starts, and its title.
+ * @property shownTo The last of them.
+ * @property startsHere Whether the event starts on [from]: round there, and in
+ *   by the gap; square, and out to the edge, where it runs on.
+ * @property endsHere The same at [to].
+ */
+private class GhostPiece(
+    val row: Int,
+    val week: LocalDate,
+    val from: Int,
+    val to: Int,
+    val shownFrom: Int,
+    val shownTo: Int,
+    val startsHere: Boolean,
+    val endsHere: Boolean,
+) {
+    fun drawnLeft(cell: Float, gap: Float): Float = from * cell + if (startsHere) gap else 0f
+    fun drawnRight(cell: Float, gap: Float): Float = (to + 1) * cell - if (endsHere) gap else 0f
+    fun shownLeft(cell: Float, gap: Float): Float = shownFrom * cell + if (startsHere && from == shownFrom) gap else 0f
+    fun shownRight(cell: Float, gap: Float): Float = (shownTo + 1) * cell - if (endsHere && to == shownTo) gap else 0f
+}
+
+/**
+ * A piece of an event for each week of [weeks] rows of [days] from [rowStart]
+ * it is in, reaching on past the row by up to [GhostReach] days at a side the
+ * event runs on past.
+ */
+private fun dayPieces(start: LocalDateTime, end: LocalDateTime, rowStart: LocalDate, weeks: Int, days: Int): List<GhostPiece> = buildList {
+    val firstDay = start.date.toEpochDays()
+    val lastDay = lastDayOf(start, end).toEpochDays()
     for (row in 0 until weeks) {
-        val first = rowStart.plus(row * days, DateTimeUnit.DAY)
-        val lastInRow = first.plus(days - 1, DateTimeUnit.DAY)
-        if (last < first || start.date > lastInRow) continue
-        val from = (maxOf(start.date, first).toEpochDays() - first.toEpochDays()).toInt()
-        val to = (minOf(last, lastInRow).toEpochDays() - first.toEpochDays()).toInt()
-        add(Triple(row, from, to))
+        val week = rowStart.plus(row * days, DateTimeUnit.DAY)
+        val first = week.toEpochDays()
+        val last = first + days - 1
+        if (lastDay < first || firstDay > last) continue
+        add(
+            GhostPiece(
+                row = row,
+                week = week,
+                from = (maxOf(firstDay, first - GhostReach) - first).toInt(),
+                to = (minOf(lastDay, last + GhostReach) - first).toInt(),
+                shownFrom = (maxOf(firstDay, first) - first).toInt(),
+                shownTo = (minOf(lastDay, last) - first).toInt(),
+                startsHere = firstDay >= first - GhostReach,
+                endsHere = lastDay <= last + GhostReach,
+            ),
+        )
+    }
+}
+
+/**
+ * How many days on past its row a piece of the copy reaches, where the event
+ * runs on: more than the copy ever moves from its days — half a day's lean at
+ * the detent's pull, and a hop of at most [RebaseCells] — so no edge of it
+ * comes into view that the event does not have.
+ */
+private const val GhostReach = 2
+
+/** A day's width in pixels, kept from laying out for what is measured inside to read. Not state: written in layout, read in layout. */
+private class MeasuredCell {
+    var px = 0f
+}
+
+/**
+ * Cut at the [start] side of the days, the [end] side, or both — where a copy
+ * reaches on past them, so it is seen only on them — and never at their top or
+ * foot, so one leaning toward a pointer above or below its row is not cut off.
+ * A side it does not reach past is left open: an event starting on the first
+ * day still leans out over the hours' gutter, its round end and its title
+ * with it, as it did.
+ */
+private fun Modifier.clipAcross(start: Boolean, end: Boolean): Modifier = if (!start && !end) {
+    this
+} else {
+    drawWithContent {
+        val rtl = layoutDirection == LayoutDirection.Rtl
+        val left = if (if (rtl) end else start) 0f else -size.width
+        val right = if (if (rtl) start else end) size.width else size.width * 2f
+        clipRect(left, -size.height, right, size.height * 2f) { this@drawWithContent.drawContent() }
     }
 }
 

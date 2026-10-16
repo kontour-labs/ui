@@ -3,11 +3,14 @@ package io.kontour.ui.theme
 import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.runtime.Immutable
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
@@ -36,14 +39,19 @@ import kotlin.math.tan
  *
  * ### What it costs
  *
- * `createOutline` returns [Outline.Generic], not [Outline.Rounded]. A generic
- * outline clips through a path rather than a fast rounded-rect path, and the
- * same is true of the border and the shadow. Every rung of the token scale pays
- * it, the two small ones included: continuity that stops partway up a scale is a
- * discontinuity *in* the scale, and a badge with a corner from a different
- * design system to the card under it is more visible than the cost. What does
- * not pay it is [Shapes.pill], which is a circle by intent rather than by
- * saturation — an avatar, a status dot, a scrollbar thumb.
+ * `createOutline` returns [Outline.Generic], not [Outline.Rounded], wherever a
+ * corner smooths. A generic outline clips through a path rather than a fast
+ * rounded-rect path, and the same is true of the border and the shadow. Every
+ * rung of the token scale pays it, the two small ones included: continuity that
+ * stops partway up a scale is a discontinuity *in* the scale, and a badge with a
+ * corner from a different design system to the card under it is more visible
+ * than the cost. What does not pay it is a shape with nothing to smooth — no
+ * smoothing, or every corner saturated on both its edges, which is a circle: an
+ * avatar, a status dot, a radio ring. That is exactly a rounded rectangle, and
+ * is handed out as one. A [Shapes.pill] wider than it is tall does smooth along
+ * its long edges, and pays.
+ *
+ * Where only the *clip* has to be fast, `clipProxy` stands in for the path.
  *
  * The path is cached on the size, the four resolved radii and the layout
  * direction, so a shape that draws every frame at a steady size builds its path
@@ -122,6 +130,8 @@ class SquircleShape(
         val bottomRight = if (ltr) bottomEnd else bottomStart
         val bottomLeft = if (ltr) bottomStart else bottomEnd
 
+        roundRectOrNull(size, topLeft, topRight, bottomRight, bottomLeft)?.let { return Outline.Rounded(it) }
+
         val cached = SquirclePaths.find(size, topLeft, topRight, bottomRight, bottomLeft, smoothing)
         if (cached != null) return Outline.Generic(cached)
 
@@ -129,6 +139,70 @@ class SquircleShape(
         SquirclePaths.put(size, topLeft, topRight, bottomRight, bottomLeft, smoothing, path)
         return Outline.Generic(path)
     }
+
+    /**
+     * The outline as a rounded rectangle, where that is exactly what it is: no
+     * smoothing at all, or every corner saturated on both its edges — a circle, a
+     * status dot, a radio ring, an icon button. Null where any corner smooths.
+     *
+     * **Exactly, not nearly.** Such a corner's two blends are empty (see
+     * [params]), so the path [buildPath] would draw is four circular arcs and
+     * straight edges, the same outline drawn as an [Outline.Rounded] instead. And
+     * that is what Skia has a fast path for: a clip, a fill or a shadow of a
+     * rounded rectangle is worked out analytically, where a generic path is
+     * masked, and on iOS, where the scene is drawn again whenever anything moves,
+     * that mask is rebuilt with it. Every avatar in a scrolling list paid it.
+     */
+    private fun roundRectOrNull(
+        size: Size,
+        topLeft: Float,
+        topRight: Float,
+        bottomRight: Float,
+        bottomLeft: Float,
+    ): RoundRect? {
+        val corners = corners(size, topLeft, topRight, bottomRight, bottomLeft)
+        for (corner in corners) {
+            val radius = drawnRadius(corner)
+            if (radius <= 0f) continue
+            // The same two numbers [params] draws each side's blend from, so the
+            // shortcut is taken exactly where the path would have no blend in it.
+            //
+            // It asked whether the smoothing was *above* nought, and the path asks
+            // whether it is anything else: a negative smoothing, which the path
+            // draws as an arc reaching past the quarter, was handed out as a plain
+            // rounded rectangle, and the clip, fill and shadow disagreed with the
+            // shape.
+            val sIn = min(smoothing, (corner.budgetIn / radius - 1f).coerceIn(0f, 1f))
+            val sOut = min(smoothing, (corner.budgetOut / radius - 1f).coerceIn(0f, 1f))
+            if (sIn != 0f || sOut != 0f) return null
+        }
+        return roundRectOf(size, corners)
+    }
+
+    /**
+     * The rounded rectangle of the radii this shape *draws* at [size], smoothed or
+     * not: each corner clamped to half the short side and to its share of both its
+     * edges, as [params] clamps it. What [Shape.clipProxy] stands in with.
+     */
+    internal fun drawnRoundRect(
+        size: Size,
+        topLeft: Float,
+        topRight: Float,
+        bottomRight: Float,
+        bottomLeft: Float,
+    ): RoundRect = roundRectOf(size, corners(size, topLeft, topRight, bottomRight, bottomLeft))
+
+    private fun roundRectOf(size: Size, corners: List<Corner>): RoundRect = RoundRect(
+        rect = Rect(Offset.Zero, size),
+        topLeft = CornerRadius(drawnRadius(corners[0])),
+        topRight = CornerRadius(drawnRadius(corners[1])),
+        bottomRight = CornerRadius(drawnRadius(corners[2])),
+        bottomLeft = CornerRadius(drawnRadius(corners[3])),
+    )
+
+    /** The radius [corner] is drawn at: its own, clamped to its share of each edge. */
+    private fun drawnRadius(corner: Corner): Float =
+        min(corner.radius, min(corner.budgetIn, corner.budgetOut)).coerceAtLeast(0f)
 
     private fun buildPath(
         size: Size,
@@ -811,4 +885,92 @@ private object SquirclePaths {
         // are far less varied than the high ones and the mask only keeps the low.
         return (hash xor (hash ushr 16)) and (Capacity - 1)
     }
+}
+
+/**
+ * A shape to **clip** by in place of this one, where that is cheaper and looks
+ * the same: a [SquircleShape]'s corners as a rounded rectangle.
+ *
+ * A squircle's outline is a generic path, and Skia masks a path clip where it
+ * works a rounded rectangle's out analytically. The two differ by at most
+ * 1.25% of the radius at the default smoothing, with the squircle inside —
+ * measured against the path [SquircleShape] builds, the largest gap is at 45°
+ * through the corner — so content clipped by this reaches under half a dp past
+ * the squircle at a 34dp corner, inside the anti-aliased edge the ground is
+ * drawn with. Any rounded rectangle wholly inside the squircle has to start
+ * where its blend does, at `(1 + smoothing)` times the radius, and cuts a fifth
+ * of the radius off what is in the corner, which is seen.
+ *
+ * For a clip and a shadow only. The ground and the edge are what make a
+ * squircle look like one, and are drawn with the shape itself.
+ *
+ * A shape that is not a squircle, or has one inside it that it can stand in for
+ * — [ClipProxied] — is its own proxy, or that one.
+ */
+internal fun Shape.clipProxy(): Shape = when (this) {
+    is SquircleShape -> SquircleClip(this)
+    is ClipProxied -> clipProxy()
+    else -> this
+}
+
+/**
+ * [squircle]'s corners as a rounded rectangle, at the radii it draws them.
+ *
+ * **Not a `RoundedCornerShape` of the same corner sizes**, which is what this was.
+ * The two settle a corner too big for its box differently: a rounded rectangle
+ * scales a pair down only once the two on one side overlap, and a squircle clamps
+ * every corner to half the short side and shares each edge between its two
+ * corners. So a row with 24dp corners at the top and 4dp at the bottom, 40dp
+ * tall, drew 20dp corners and was clipped at 24 — cutting into content inside
+ * the squircle's edge. Resolved by the squircle, the two agree wherever a corner
+ * is clamped and are the same numbers wherever it is not.
+ *
+ * Corner-based, so `lerpCorners` and the rest of the shape algebra carry it as
+ * they carry the squircle; a sheet's morph between two proxies stays a rounded
+ * rectangle the whole way.
+ */
+private class SquircleClip(private val squircle: SquircleShape) :
+    CornerBasedShape(squircle.topStart, squircle.topEnd, squircle.bottomEnd, squircle.bottomStart) {
+
+    override fun copy(
+        topStart: CornerSize,
+        topEnd: CornerSize,
+        bottomEnd: CornerSize,
+        bottomStart: CornerSize,
+    ): CornerBasedShape = SquircleClip(SquircleShape(topStart, topEnd, bottomEnd, bottomStart, squircle.smoothing))
+
+    override fun createOutline(
+        size: Size,
+        topStart: Float,
+        topEnd: Float,
+        bottomEnd: Float,
+        bottomStart: Float,
+        layoutDirection: LayoutDirection,
+    ): Outline {
+        if (topStart + topEnd + bottomEnd + bottomStart == 0f) {
+            return Outline.Rectangle(Rect(Offset.Zero, size))
+        }
+        val ltr = layoutDirection == LayoutDirection.Ltr
+        return Outline.Rounded(
+            squircle.drawnRoundRect(
+                size,
+                topLeft = if (ltr) topStart else topEnd,
+                topRight = if (ltr) topEnd else topStart,
+                bottomRight = if (ltr) bottomEnd else bottomStart,
+                bottomLeft = if (ltr) bottomStart else bottomEnd,
+            )
+        )
+    }
+
+    override fun equals(other: Any?): Boolean = other is SquircleClip && other.squircle == squircle
+
+    override fun hashCode(): Int = squircle.hashCode() * 31 + 1
+
+    override fun toString(): String = "SquircleClip($squircle)"
+}
+
+/** A shape that knows a cheaper one to clip by: see [Shape.clipProxy]. */
+internal interface ClipProxied {
+    /** The shape to clip by in place of this one. */
+    fun clipProxy(): Shape
 }

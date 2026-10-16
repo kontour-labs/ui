@@ -19,6 +19,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -249,14 +250,19 @@ internal fun TooltipOverlay(
     val colours = Theme.colours
     val modality = LocalInputModality.current
     val dismiss by rememberUpdatedState(onDismissRequest)
-    // Read here rather than by the caller. The bounds change on every frame the
-    // trigger scrolls, and read by the caller — `Modifier.tooltip` is part of
-    // whatever composable it is written in — that recomposed the whole screen
-    // around a tooltip that was not even showing. Read here, only this does.
-    val anchorNow = anchor()
-    // Read live by the overlay's measure pass rather than captured when the
-    // entry was built — see `AnchoredOverlayLayout`.
-    val latestAnchor by rememberUpdatedState(anchorNow)
+    // Not read by the caller: the bounds change on every frame the trigger
+    // scrolls, and read by the caller — `Modifier.tooltip` is part of whatever
+    // composable it is written in — that recomposed the whole screen around a
+    // tooltip that was not even showing.
+    //
+    // **Nor here, beyond whether there is one.** Reading the rectangle here
+    // moved the recomposition in from the caller and kept it: every row of a
+    // list with tooltips on it composed its closed tooltip again on every frame
+    // of a scroll. The overlay's measure pass reads the rectangle itself — see
+    // `AnchoredOverlayLayout` — and composition only has to know whether to
+    // show, which a scroll does not change.
+    val latestAnchor by rememberUpdatedState(anchor)
+    val anchored by remember { derivedStateOf { latestAnchor() != null } }
     val latestModifier by rememberUpdatedState(modifier)
     // Same reason as the anchor: the bubble's content is read when the overlay
     // composes, not captured when the entry was built. It also keeps the slot
@@ -267,8 +273,8 @@ internal fun TooltipOverlay(
 
     DisposableEffect(Unit) { onDispose { host.hide(key) } }
 
-    LaunchedEffect(visible, anchorNow != null, side, alignment) {
-        if (!visible || anchorNow == null) {
+    LaunchedEffect(visible, anchored, side, alignment) {
+        if (!visible || !anchored) {
             host.hide(key)
             return@LaunchedEffect
         }
@@ -285,7 +291,7 @@ internal fun TooltipOverlay(
                 trapFocus = false,
                 content = {
                     AnchoredOverlayLayout(
-                        anchorInRoot = { latestAnchor },
+                        anchorInRoot = { latestAnchor() },
                         // A little overshoot on the way in. A tooltip is one of
                         // the few places a flourish costs nothing — it is already
                         // transient, and nobody is waiting on it to finish before
@@ -295,7 +301,7 @@ internal fun TooltipOverlay(
                         alignment = alignment,
                         gap = 0.dp,
                         margin = MenuDefaults.ScreenMargin,
-                        arrow = ArrowSpec(colour = colours.surfaceInverse),
+                        arrow = ArrowSpec(colour = colours.surfaceInverse, panelShape = Theme.shapes.container),
                     ) {
                         TooltipBubble(latestContent, latestModifier)
                     }
@@ -409,7 +415,22 @@ fun Modifier.coachmark(
     // goes null and the condition stops holding.
     // Re-registered after every composition rather than during it, so a
     // composition that gets discarded does not leave a request behind.
-    SideEffect { queue.request(request) { enabled && bounds != null } }
+    //
+    // **The same condition every time, not a new one.** The queue keeps its
+    // conditions in snapshot state, and `queue.current` below reads them, so a
+    // fresh lambda written after each composition was a change to something
+    // this composition had just read: it composed again, wrote again, and the
+    // screen round a pending coach mark recomposed on every frame for as long
+    // as it was pending. One remembered lambda, reading [enabled] live, puts the
+    // value that is already there.
+    //
+    // Whether there are bounds rather than what they are, for the same reason:
+    // the condition is read in this composition, and the rectangle moves on
+    // every frame the anchor scrolls.
+    val latestEnabled by rememberUpdatedState(enabled)
+    val placed by remember { derivedStateOf { bounds != null } }
+    val condition = remember { { latestEnabled && placed } }
+    SideEffect { queue.request(request, condition) }
     DisposableEffect(id) { onDispose { queue.withdraw(id) } }
 
     CoachMarkOverlay(
@@ -445,16 +466,15 @@ private fun CoachMarkOverlay(
     val colours = solidTone(tone)
     val key = remember { Any() }
     val dismissNow by rememberUpdatedState(onDismiss)
-    // Read here rather than by the caller — see [TooltipOverlay].
-    val anchorNow = anchor()
-    // Read live by the overlay's measure pass rather than captured when the
-    // entry was built — see `AnchoredOverlayLayout`.
-    val latestAnchor by rememberUpdatedState(anchorNow)
+    // Read by the overlay's measure pass, and here only for whether there is
+    // one — see [TooltipOverlay].
+    val latestAnchor by rememberUpdatedState(anchor)
+    val anchored by remember { derivedStateOf { latestAnchor() != null } }
 
     DisposableEffect(Unit) { onDispose { host.hide(key) } }
 
-    LaunchedEffect(visible, anchorNow != null, title, message, side, alignment, tone) {
-        if (!visible || anchorNow == null) {
+    LaunchedEffect(visible, anchored, title, message, side, alignment, tone) {
+        if (!visible || !anchored) {
             host.hide(key)
             return@LaunchedEffect
         }
@@ -473,13 +493,13 @@ private fun CoachMarkOverlay(
                 trapFocus = false,
                 content = {
                     AnchoredOverlayLayout(
-                        anchorInRoot = { latestAnchor },
+                        anchorInRoot = { latestAnchor() },
                         fromScale = 0.85f,
                         side = side,
                         alignment = alignment,
                         gap = Theme.spacing.xxs,
                         margin = MenuDefaults.ScreenMargin,
-                        arrow = ArrowSpec(colour = colours.container),
+                        arrow = ArrowSpec(colour = colours.container, panelShape = Theme.shapes.container),
                     ) {
                         CoachMarkBubble(
                             title = title,

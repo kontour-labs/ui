@@ -186,6 +186,14 @@ def page_symbols(path: Path) -> list[str]:
 # would be the start of a list.
 MAX_WITHOUT_DEMO = 1  # unchanged: the overlay and sheet pages arrived with theirs
 
+# Guides that are about something a reader can press, so they carry a demo as a
+# component page does, and the gallery page it is filed under. Named, not
+# inferred: a guide is prose by default, and drag and drop is the one that is
+# a mechanism with nothing else to show it — its guide drew nothing, and the
+# gallery had it only inside the board app. The family is held to the gallery
+# here, since no index claims a guide and `misfiled_demos` cannot see one.
+GUIDE_DEMOS = {"drag-and-drop": "Collections"}
+
 
 def demo_files() -> list[Path]:
     """Every `*Demos.kt` in `:ui-catalog`.
@@ -306,6 +314,13 @@ def misfiled_demos() -> list[str]:
     problems = []
     for name, slug in sorted(slugs.items()):
         gallery = families.get(listed.get(name, ""))
+        if slug in GUIDE_DEMOS:
+            if gallery is not None and gallery != GUIDE_DEMOS[slug]:
+                problems.append(
+                    f"`{name}` is on the gallery's {gallery} page and `GUIDE_DEMOS` "
+                    f"files the `{slug}.md` guide under {GUIDE_DEMOS[slug]}"
+                )
+            continue
         page = pages.get(slug)
         if gallery is None or page is None:
             # Filed under no family at all, or a slug with no page. Both are
@@ -790,6 +805,7 @@ HAPTIC_FILE_NAMES = {
     "TableRows": "Table",
     "Pressable": "Modifier.pressable",
     "DragHost": "Modifier.dragSource",
+    "MarkerDrag": ("NavBar", "NavRail", "TabBar"),
 }
 
 # The mechanism rather than a component: one defines the dispatcher, one is the
@@ -887,6 +903,7 @@ MAX_ROUNDED_RECT_SHAPES = 0
 
 PILL_USE = re.compile(r"shapes\.pill\b")
 ROUNDED_RECT = re.compile(r"\bRoundedCornerShape\s*\(")
+ROUNDED_RECT_ALLOWED = {"SquircleShape.kt"}
 
 
 def circles() -> list[str]:
@@ -1023,11 +1040,17 @@ def hand_rolled_rounded_rects() -> list[str]:
     """`RoundedCornerShape` literals anywhere in `:ui`.
 
     There used to be an exemption for `Shapes.kt`, which held the only legitimate
-    one. `pill` is a `SquircleShape` now, so the exemption has nothing left to
-    exempt and the ban is total.
+    one. `pill` is a `SquircleShape` now, so that exemption went with it.
+
+    The one left is `SquircleShape.kt`'s `clipProxy`, which is not a corner of its
+    own: it is a squircle's corners, read off the squircle, handed to Skia's
+    rounded-rectangle fast path for a clip or a shadow only. It tracks the scale
+    because it is made from a shape that does.
     """
     offenders: list[str] = []
     for path in sorted(Path("ui/src/commonMain/kotlin").rglob("*.kt")):
+        if path.name in ROUNDED_RECT_ALLOWED:
+            continue
         text = LINE_COMMENT.sub("", BLOCK_COMMENT.sub("", path.read_text()))
         count = len(ROUNDED_RECT.findall(text))
         if count:
@@ -1430,7 +1453,7 @@ def main() -> int:
     # only make the total worse, which is the difference that matters.
     demos = demo_slugs()
     for slug in sorted(demos):
-        if slug not in {page.stem for page in component_pages}:
+        if slug not in {page.stem for page in component_pages} and slug not in GUIDE_DEMOS:
             problems.append(
                 f"there is a demo for `{slug}` and no page of that name — a demo "
                 f"nobody can reach is a demo nobody maintains"

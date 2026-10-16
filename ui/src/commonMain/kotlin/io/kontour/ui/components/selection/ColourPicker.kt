@@ -1,5 +1,6 @@
 package io.kontour.ui.components.selection
 
+import io.kontour.ui.theme.clipProxy
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -413,7 +414,7 @@ private fun SaturationValueArea(hsv: Hsv, onHsvChange: (Hsv) -> Unit, enabled: B
                 colourFinished()
             }
             .focusable(enabled, interactions)
-            .clip(Theme.shapes.small)
+            .clip(Theme.shapes.small.clipProxy())
             // Taken in the layout phase. Reading `size` inside the draw block
             // and writing it to state is a write from draw, which is the one
             // thing this repository's frame-rate comments keep coming back to:
@@ -531,7 +532,7 @@ private fun PaletteGrid(hsv: Hsv, onHsvChange: (Hsv) -> Unit, enabled: Boolean) 
                 colourFinished()
             }
             .focusable(enabled, interactions)
-            .clip(Theme.shapes.small)
+            .clip(Theme.shapes.small.clipProxy())
             .onSizeChanged { box = it.toSize() }
             .freeDragOwning(
                 enabled = enabled,
@@ -726,7 +727,7 @@ private fun Track(
             //
             // `capsule` rather than `pill`: this is a lozenge, not a circle, so
             // it takes the family's own curvature — see `Shapes`.
-            .clip(Theme.shapes.capsule)
+            .clip(Theme.shapes.capsule.clipProxy())
             .horizontalDragOwning(
                 enabled = enabled,
                 interactionSource = null,

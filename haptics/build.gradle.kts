@@ -6,7 +6,7 @@ plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.androidMultiplatformLibrary)
     alias(libs.plugins.dokka)
-    alias(libs.plugins.mavenPublish)
+    `maven-publish`
 }
 
 // Haptics for every platform `:ui` ships on, and nothing else.
@@ -26,14 +26,6 @@ kontourPublishing(
     displayName = "Kontour Haptics",
     summary = "Platform haptics for Kotlin Multiplatform — Android, iOS, the web and Mac trackpads — with no Compose dependency.",
 )
-
-// Maven Central: see `kontourPublishing` in buildSrc for the rest. Signed
-// wherever there is a key, which CI always has and Central insists on; without
-// one, as for a `publishToMavenLocal` on a laptop, unsigned.
-mavenPublishing {
-    publishToMavenCentral(automaticRelease = true)
-    if (providers.gradleProperty("signingInMemoryKey").isPresent) signAllPublications()
-}
 
 dokka {
     // The same gate `:ui` sets: a warning is a broken `[Link]` in the KDoc.

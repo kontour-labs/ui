@@ -102,13 +102,11 @@ private fun Install() {
         KeyValueList {
             item("Group", "io.kontour")
             item("Artifact", "ui")
-            item("Repository", "Maven Central")
+            item("Repository", "maven.kontour.io")
         }
         Text(
-            "Open source, under the Apache License 2.0, and on Maven Central: " +
-                "mavenCentral() is the only repository it needs, with no token. " +
-                "Versions are tags: v0.4.4 publishes 0.4.4, and anything untagged " +
-                "is a snapshot.",
+            "It is on Kontour's own Maven repository, which needs no token. " +
+                "Versions are tags: v0.4.5 publishes 0.4.5.",
             style = Theme.typography.bodyMedium,
             colour = Theme.colours.contentMuted,
         )

@@ -47,7 +47,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CornerBasedShape
@@ -112,6 +111,9 @@ import io.kontour.ui.adaptive.ContainerGaps
 import io.kontour.ui.adaptive.OverlapInsets
 import io.kontour.ui.adaptive.allEdges
 import io.kontour.ui.adaptive.measuresGaps
+import io.kontour.ui.adaptive.rememberFloatingMargin
+import io.kontour.ui.theme.ClipProxied
+import io.kontour.ui.theme.clipProxy
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.rememberDetentTicker
@@ -390,7 +392,11 @@ fun BottomSheet(
      * Whether the sheet meets the window's edges or floats clear of them.
      *
      * [SheetPresentation.Floating], the default, lifts it off all three edges by
-     * [Theme.componentDefaults][io.kontour.ui.theme.ComponentDefaults.sheetFloatingInset] and rounds every corner. Two things follow
+     * [Theme.componentDefaults][io.kontour.ui.theme.ComponentDefaults.sheetFloatingInset] and rounds every corner — the same margin
+     * at the foot as at the sides, from the window's edge under a home indicator
+     * or a gesture handle, and above Android's three buttons or the keyboard
+     * rather than on them. Its content is handed the part of the bottom safe area
+     * the margin leaves it standing in. Two things follow
      * that are the reason to reach for it. It reads as a *panel over* the screen
      * rather than a drawer pulled out of it, which is what a sheet that is
      * permanently present wants to look like. And it can shrink to something the
@@ -620,25 +626,23 @@ fun BottomSheet(
     val gaps = remember { ContainerGaps() }
     val insets = remember(windowInsets, gaps) { OverlapInsets(windowInsets, gaps) }
 
-    // The margin a floating sheet keeps, on each of the four sides.
+    // The margin a floating sheet keeps, on each of the four sides: even from what
+    // can be seen. Measured from the window's edge under a home indicator or a
+    // gesture handle, which the content is padded clear of instead, and kept
+    // beyond anything opaque at the foot — Android's three buttons, the keyboard.
+    // See `FloatingMarginInsets`.
     //
-    // `union` and not a sum, because the margin is a *minimum* clearance rather
-    // than a gap added to whatever the system asks for. On a phone with a 24dp
-    // gesture bar, a sum floats the sheet 36dp up — a margin that reads as a
-    // mistake next to the 12dp at the sides. The union gives 24, which is the
-    // clearance that was already required, and the sides stay at 12.
+    // It was the union of the margin and the insets, so a floating sheet on an
+    // iPhone stood 34dp off the bottom against 12 at the sides, and one over
+    // three buttons sat on the bar with no margin under it at all.
     //
     // The keyboard is in `allEdges`, so the same line is what lifts a floating
     // search field above the IME instead of letting it be covered. The status bar
-    // is in there too now, which is the same fix as the chrome's below: a
-    // floating sheet tall enough to reach the top of the window has rounded
-    // corners up there, and they belong below the bar rather than under it.
+    // is in there too, which is the same fix as the chrome's below: a floating
+    // sheet tall enough to reach the top of the window has rounded corners up
+    // there, and they belong below the bar rather than under it.
     val floatInsets = if (floating) {
-        val inset = Theme.componentDefaults.sheetFloatingInset
-        remember(insets, inset) {
-            WindowInsets(left = inset, top = inset, right = inset, bottom = inset)
-                .union(insets)
-        }
+        rememberFloatingMargin(insets, Theme.componentDefaults.sheetFloatingInset)
     } else {
         insets
     }
@@ -878,6 +882,11 @@ fun BottomSheet(
                 // insets, less whatever the margin is still clearing of them,
                 // which is all of them until the morph starts.
                 windowInsets = if (floating && morph == null) NoInsets else insets,
+                // The foot, for a floating sheet either way: the part of the
+                // safe area its margin does not clear, which under a home
+                // indicator is most of it now the margin is measured from the
+                // window's edge. See `BottomInsetTheMarginNoLongerClears`.
+                safeInsets = insets,
                 containerColour = containerColour,
                 contentColour = contentColour,
                 // A handle on a sheet that cannot be dragged is a lie — and so
@@ -1244,8 +1253,19 @@ fun ModalBottomSheet(
                             content = body,
                         )
                     },
-                )
+                ).also { entry ->
+                    // **Read live, not as it was when the sheet opened.** The
+                    // two flags above are fixed for the life of the entry, so a
+                    // sheet given `dismissible = !form.dirty` could still be
+                    // tapped or backed away after the reader had typed into it.
+                    // The drag already read it live, through the sheet; the
+                    // scrim and the back gesture ask this.
+                    entry.dismissibleNow = { canDismiss }
+                }
             )
+            // From the bottom of the window the sheet is in now: see
+            // [SheetState.forgetAnchors].
+            state.forgetAnchors()
             state.show()
         } else {
             // `hide()` suspends until the sheet has finished sliding down, so
@@ -1261,14 +1281,24 @@ fun ModalBottomSheet(
                 // rest: the entry stayed, and the sheet stayed up after its
                 // caller had closed it. Caught, it waits for the finger to lift
                 // and goes again.
-                while (state.isVisible) {
+                //
+                // **And not at all where there is nowhere to go.** A sheet with
+                // no hidden detent, or one refusing it through
+                // `confirmDetentChange` — the documented way to make a sheet the
+                // user must answer — is one `hide()` returns from at once without
+                // moving. This went round again without suspending and held the
+                // main thread for good: the app hung on the close. Such a sheet
+                // goes with its entry, without a slide.
+                while (state.isVisible && state.canHide) {
                     try {
                         state.hide()
                     } catch (caught: CancellationException) {
                         currentCoroutineContext().ensureActive()
                         snapshotFlow { state.finger.pressed }.first { !it }
-                        withFrameNanos { }
                     }
+                    // Never round again without a frame between: whatever else
+                    // leaves the sheet short of hidden, this must not spin.
+                    if (state.isVisible) withFrameNanos { }
                 }
             } finally {
                 host.hide(key)
@@ -1289,6 +1319,7 @@ private fun BoxScope.SheetSurface(
     floatInsets: WindowInsets,
     morph: SheetEdgeMorph?,
     windowInsets: WindowInsets,
+    safeInsets: WindowInsets,
     containerColour: Color,
     contentColour: Color,
     dragHandle: (@Composable () -> Unit)?,
@@ -1455,14 +1486,16 @@ private fun BoxScope.SheetSurface(
             // `calculateBottomPadding()` in composition would recompose the
             // whole of a sheet's content on every frame of the keyboard
             // sliding up.
-            val safeArea = if (morph == null) {
+            val safeArea = if (!floating) {
                 windowInsets.only(WindowInsetsSides.Bottom).asPaddingValues()
             } else {
-                // The same, less what the bottom margin still clears —
-                // zero while floating, the whole inset as an edge sheet.
-                // Resolved by the consumer for the reason above.
-                remember(windowInsets, state, floatInsets, morph, density) {
-                    BottomInsetTheMarginNoLongerClears(windowInsets, state, floatInsets, morph, density)
+                // The same, less what the bottom margin clears — under a home
+                // indicator the part of it below the margin, over Android's
+                // buttons or the keyboard none, and the whole inset once the
+                // sheet has morphed into an edge sheet. Resolved by the
+                // consumer for the reason above.
+                remember(safeInsets, state, floatInsets, morph, density) {
+                    BottomInsetTheMarginNoLongerClears(safeInsets, state, floatInsets, morph, density)
                 }
             }
             // What the content is handed: the safe area, and the room the
@@ -1531,10 +1564,9 @@ private fun BoxScope.SheetSurface(
                 // edge sheet came to rest at the handle and the top part, and its
                 // foot sat behind the home indicator or the gesture bar — *"the
                 // edge bottom sheet style now doesn't clear the safe area when
-                // it's collapsed with a pinned item"*. A floating sheet's margin
-                // has cleared it already, and hands out none.
-                val bottomAtRest = bottomBlock?.let { block -> block.height - now + safeAtRest }
-                    ?: if (floating && morph == null) 0 else safeAtRest
+                // it's collapsed with a pinned item"*. A floating sheet hands out
+                // only what its margin does not clear.
+                val bottomAtRest = bottomBlock?.let { block -> block.height - now + safeAtRest } ?: safeAtRest
                 state.slotsHeight = if (topBlock == null && bottomBlock == null && collapsedBlock == null) {
                     0f
                 } else {
@@ -2466,9 +2498,14 @@ private class MorphingShape(
     private val from: Shape,
     private val to: Shape,
     private val fraction: () -> Float,
-) : Shape {
+) : Shape, ClipProxied {
     override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline =
         morphShape(from, to, fraction()).createOutline(size, layoutDirection, density)
+
+    // The same morph between the two ends' clip proxies: a rounded rectangle the
+    // whole way, which is what keeps the clip of a sheet the size of the window
+    // off a mask rebuilt on every frame of the morph. See `clipProxy`.
+    override fun clipProxy(): Shape = MorphingShape(from.clipProxy(), to.clipProxy(), fraction)
 }
 
 /**
@@ -2699,8 +2736,15 @@ private fun Modifier.fillsWithTheSheet(
 }
 
 /**
- * The bottom inset a morphing sheet hands its content: none of it while the sheet
- * floats, since its margin clears it, and all of it once it is an edge sheet.
+ * The bottom inset a floating sheet hands its content: the part of it the sheet's
+ * margin does not clear, and all of it once it has morphed into an edge sheet.
+ *
+ * The margin is measured from the window's edge under a home indicator or a
+ * gesture handle (see `FloatingMarginInsets`), so the foot of a floating sheet
+ * stands in the lower part of the strip they reserve, and this is the rest of it:
+ * 22dp of an iPhone's 34 under a 12dp margin. Over Android's three buttons, or
+ * the keyboard, the margin is beyond the whole inset and this is nothing. It was
+ * nothing everywhere while the margin was the larger of the two.
  *
  * A `PaddingValues` rather than a number, for the reason the edge sheet hands out
  * `asPaddingValues()`: it is resolved where it is used, which for a `LazyColumn`
@@ -2719,10 +2763,27 @@ private class BottomInsetTheMarginNoLongerClears(
     override fun calculateLeftPadding(layoutDirection: LayoutDirection): Dp = 0.dp
     override fun calculateTopPadding(): Dp = 0.dp
     override fun calculateRightPadding(layoutDirection: LayoutDirection): Dp = 0.dp
-    override fun calculateBottomPadding(): Dp = with(density) {
-        val kept = 1f - edgeness(state, morph)
-        val margin = (floatInsets.getBottom(this) * kept).roundToInt()
-        (insets.getBottom(this) - margin).coerceAtLeast(0).toDp()
+    override fun calculateBottomPadding(): Dp = with(density) { bottom.value.toDp() }
+
+    /**
+     * The padding in whole pixels, derived — which is the difference between a
+     * list that re-measures through the morph and one that re-measures on every
+     * frame the sheet moves.
+     *
+     * The morph is read from the sheet's offset, so a measure that read it
+     * directly was subscribed to the offset, and a `LazyColumn` handed this as
+     * its `contentPadding` reads it in measure: every frame of every drag, settle,
+     * open and close measured the content again, though the number only changes
+     * across the morph and is constant everywhere else. That was the lag reported
+     * from a floating sheet. A layout pass that reads a derived value is asked to
+     * run again only when the value itself changes.
+     */
+    private val bottom = derivedStateOf {
+        with(density) {
+            val kept = 1f - edgeness(state, morph)
+            val margin = (floatInsets.getBottom(this) * kept).roundToInt()
+            (insets.getBottom(this) - margin).coerceAtLeast(0)
+        }
     }
 
     /** The same while the sheet floats: what it is at a detent below the morph. */

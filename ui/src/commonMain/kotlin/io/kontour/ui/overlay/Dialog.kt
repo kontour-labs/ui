@@ -134,6 +134,7 @@ fun Dialog(
     val latestActions by rememberUpdatedState(actions)
     val latestDismiss = rememberUpdatedState(onDismissRequest)
     val latestVisible = rememberUpdatedState(visible)
+    val latestDismissible = rememberUpdatedState(dismissible)
 
     // Taken down with the composable that showed it, not only by `visible =
     // false`: the entry lives in the host, and a screen navigated away from, or
@@ -157,7 +158,11 @@ fun Dialog(
                     // page — and refuses it; see `OverlayHostState.backTarget`.
                     dismissOnBack = dismissible,
                     dismissLabel = dismissLabel,
-                    onDismiss = onDismissRequest,
+                    // The callback as it is now, not as it was when the dialog
+                    // opened: a scrim tap or a back gesture used to report to
+                    // whichever `onDismissRequest` was passed first, though the
+                    // dialog's own buttons already went through `latestDismiss`.
+                    onDismiss = { latestDismiss.value() },
                     content = {
                         // Only the part of an inset over the overlay's own
                         // container: see `ContainerGaps`. Measured outside the
@@ -275,7 +280,13 @@ fun Dialog(
                             }
                         }
                     },
-                )
+                ).also { entry ->
+                    // Asked when the reader tries, not fixed when the dialog
+                    // opened — see `OverlayEntry.dismissibleNow`. A dialog made
+                    // undismissable once its form has changes is one that can no
+                    // longer be tapped away with them.
+                    entry.dismissibleNow = { latestDismissible.value }
+                }
             )
         } else {
             host.hide(key)

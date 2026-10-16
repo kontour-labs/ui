@@ -173,7 +173,9 @@ always are: "Speed" is what it is, "62 km/h" is what it says.
 
 Increment and decrement come from `ProgressBarRangeInfo` and `setProgress`, so
 the slider is adjustable without a drag. `steps` makes those increments
-meaningful — a continuous slider moves by an arbitrary fraction.
+meaningful — a continuous slider moves by an arbitrary fraction. On a stepped
+slider the arrow keys and `setProgress` land on a step, as a drag does, so a
+value set from the keyboard is one the ticks show.
 
 At high contrast the track under the fill becomes `inactive`, the not-yet half of
 a pair, a stepped slider's ticks are cut into it in the page's colour, and the

@@ -1,5 +1,7 @@
 package io.kontour.ui.components.list
 
+import io.kontour.ui.theme.clipProxy
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationSpec
@@ -23,7 +25,6 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.snapTo
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -102,6 +103,8 @@ import kotlin.math.roundToInt
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -345,12 +348,18 @@ object SwipeActionsDefaults {
  * only once the row has moved far enough to make room for it — small and round
  * when each appears, full-height buttons by the time the row has uncovered them.
  * An icon grows in as its button does, and a label unfolds under it once the
- * button is tall enough to hold both. Carry the row on past its actions and, at the
- * point of no return, the outermost one takes over the whole strip while the
- * others fold into it: letting go then runs it, and the others stay folded until
- * the row is home. Asked for in those words — "an Apple-like animation where (up
- * to) three squircle shapes expand out of the side when you start swiping, and
- * then continuing to swipe across will select the rightmost one".
+ * button is tall enough to hold both. Carry the row on past its actions and the
+ * outermost one — the one a full swipe runs — keeps growing with the finger,
+ * pushing the others smaller, until at the point of no return it has the whole
+ * strip and they are gone: letting go then runs it, and the others stay folded
+ * until the row is home. Asked for in those words — "an Apple-like animation
+ * where (up to) three squircle shapes expand out of the side when you start
+ * swiping, and then continuing to swipe across will select the rightmost one".
+ * They used to share the extra width evenly and give it all to the outermost
+ * at the line, which hid which of them the swipe was heading for until it got
+ * there; asked for as *"the action that takes the full swipe should keep
+ * expanding and slowly push the other 1 or 2 action/s to zero"*. A side where
+ * no action takes a full swipe still shares it evenly.
  *
  * A full swipe ends on a tick. The row holds at the far edge while the action's
  * icon gives way to a check mark, drawn in, and runs the action once it has been
@@ -614,7 +623,19 @@ fun SwipeActions(
             }
             releasedToCommit = false
             onFull(action)
-            state.reset()
+            // **The way home can be taken over**, and that must not end this
+            // collector. A tap on the row as it slides back, a finger taking it,
+            // or the app's own `reset()` each start a move of their own, and the
+            // one here is interrupted with a cancellation. Let through, it ended
+            // the collector: the tick stayed drawn, the row stayed fully swiped,
+            // and no full swipe after it ran anything. Only this coroutine's own
+            // cancellation is passed on; whatever took the row over finishes the
+            // trip, and the settle it arrives at is what this hears next.
+            try {
+                state.reset()
+            } catch (_: CancellationException) {
+                currentCoroutineContext().ensureActive()
+            }
             confirmation.snapTo(0f)
         }
     }
@@ -787,11 +808,15 @@ fun SwipeActions(
             .closesOpenSwipeRows()
             .semantics {
                 // The only route to these that does not require knowing the
-                // gesture exists.
-                customActions = (start + end).map { action ->
-                    CustomAccessibilityAction(action.label) {
-                        action.onAction()
-                        true
+                // gesture exists. Withheld while disabled, as the gesture is: a
+                // row that could not be swiped still ran its actions for a
+                // screen reader that asked.
+                if (enabled) {
+                    customActions = (start + end).map { action ->
+                        CustomAccessibilityAction(action.label) {
+                            action.onAction()
+                            true
+                        }
                     }
                 }
             }
@@ -991,6 +1016,12 @@ fun SwipeActions(
                 gap = gapPx,
                 maxHeight = maxActionHeightPx,
                 reveal = { if (side > 0) startTravel else -endTravel },
+                // Where the others are gone: the point of no return, on a side
+                // that has a full swipe.
+                commit = {
+                    val full = if (side > 0) fullStart else fullEnd
+                    if (full == null || width <= 0f) Float.NaN else commitAt(side.toFloat())
+                },
                 offset = { state.anchoredState.offset + band.offset },
                 takeover = { takeover.value },
                 confirmation = { confirmation.value },
@@ -1032,7 +1063,7 @@ fun SwipeActions(
                 // The row itself carries the shape, so the page shows between it
                 // and the buttons rather than the buttons sitting in a strip cut
                 // out of one clipped box.
-                .clip(shape)
+                .clip(shape.clipProxy())
                 // **A tap on a row showing its actions puts it back**, rather than
                 // opening whatever the row opens. The row is half off the screen;
                 // what a tap on it asks for is the row, not the thing it links to.
@@ -1145,9 +1176,10 @@ internal fun swipeTarget(
  * row — so a swipe reads as the actions being dealt out rather than all swelling at
  * once. Each is no taller than it is wide, so each begins as a small circle and
  * lengthens into a full-height button — full height up to [maxHeight], past
- * which it stays centred on a tall row. Past the reveal they share the extra width
- * evenly, and [takeover] then widens the outermost over the whole strip and folds
- * the others away.
+ * which it stays centred on a tall row. Past the reveal the outermost takes the
+ * extra width and the others fold away into it by [commit] — see
+ * [swipeActionWidth] — and [takeover] keeps them folded on a committed row's
+ * way out and home.
  */
 @Composable
 private fun SwipeActionButtons(
@@ -1158,6 +1190,7 @@ private fun SwipeActionButtons(
     gap: Float,
     maxHeight: Float,
     reveal: () -> Float,
+    commit: () -> Float,
     offset: () -> Float,
     takeover: () -> Float,
     confirmation: () -> Float,
@@ -1173,13 +1206,16 @@ private fun SwipeActionButtons(
                 SwipeActionButton(
                     action = action,
                     shape = shape,
+                    // As wide as it has grown, so a button folding away past the
+                    // reveal takes its icon and label with it as it came.
                     arrival = {
                         val live = abs(offset().let { if (it.isNaN()) 0f else it })
                         val full = fullButtonWidth(reveal(), count, gap)
                         if (full <= 0f) {
                             1f
                         } else {
-                            (grownWidth(edgeIndex, live, count, reveal(), gap) / full).coerceIn(0f, 1f)
+                            val grown = swipeActionWidth(edgeIndex, live, count, reveal(), gap, commit(), takeover())
+                            (grown / full).coerceIn(0f, 1f)
                         }
                     },
                     // The action a tap is confirming, while one is; otherwise
@@ -1198,14 +1234,11 @@ private fun SwipeActionButtons(
         val boxWidth = constraints.maxWidth
         val rowHeight = constraints.maxHeight
         val live = offset().let { if (it.isNaN()) 0f else abs(it) }.coerceAtMost(boxWidth.toFloat())
-        val t = takeover().coerceIn(0f, 1f)
-        val usable = (live - gap).coerceAtLeast(0f)
+        val t = takeover()
         val span = reveal()
-
-        val widths = FloatArray(count) { i ->
-            val grown = grownWidth(i, live, count, span, gap)
-            if (i == 0) grown + (usable - grown) * t else grown * (1f - t)
-        }
+        val to = commit()
+        val fold = swipeFold(live, span, to, t)
+        val widths = FloatArray(count) { i -> swipeActionWidth(i, live, count, span, gap, to, t) }
         val placeables = measurables.mapIndexed { i, measurable ->
             val w = widths[i].roundToInt().coerceAtLeast(0)
             val h = minOf(rowHeight.toFloat(), widths[i], maxHeight).roundToInt().coerceAtLeast(0)
@@ -1214,13 +1247,13 @@ private fun SwipeActionButtons(
         layout(boxWidth, rowHeight) {
             // From the edge inward, each after the last with a gap between — a gap
             // only once there is a button to have one, and folding away with the
-            // buttons during a takeover.
+            // buttons as the outermost takes the strip.
             var along = gap / 2f
             placeables.forEachIndexed { i, placeable ->
                 val y = (rowHeight - placeable.height) / 2
                 val x = if (fromLeadingEdge) along else boxWidth - along - placeable.width
                 placeable.placeRelative(x.roundToInt(), y)
-                if (widths[i] > 0f) along += widths[i] + if (i == 0) gap else gap * (1f - t)
+                if (widths[i] > 0f) along += widths[i] + gap * (1f - fold)
             }
         }
     }
@@ -1298,9 +1331,10 @@ private fun fullButtonWidth(reveal: Float, count: Int, gap: Float): Float =
     if (count <= 0) 0f else (reveal / count - gap).coerceAtLeast(0f)
 
 /**
- * Button [index]'s width, counted from the edge, with [live] of the strip uncovered:
- * dealt out one after the other up to the reveal, and sharing the strip evenly past
- * it. The two agree at the reveal, where every button is exactly full.
+ * Button [index]'s width, counted from the edge, with [live] of the strip uncovered,
+ * as the buttons are dealt: one after the other up to the reveal, and sharing the
+ * strip evenly past it. The two agree at the reveal, where every button is exactly
+ * full. [swipeActionWidth] is what a full swipe makes of it.
  */
 private fun grownWidth(index: Int, live: Float, count: Int, reveal: Float, gap: Float): Float {
     val full = fullButtonWidth(reveal, count, gap)
@@ -1308,7 +1342,68 @@ private fun grownWidth(index: Int, live: Float, count: Int, reveal: Float, gap: 
     return (live - index * (full + gap) - gap).coerceIn(0f, full)
 }
 
+/**
+ * How far a side's other actions have folded away into the outermost, 0 to 1:
+ * from none at the reveal to all of them at [commit], the point of no return,
+ * and all of them while [takeover] holds a committed row's strip for it. `NaN`
+ * for [commit] is a side with no full swipe, whose actions never fold past the
+ * reveal.
+ */
+internal fun swipeFold(live: Float, reveal: Float, commit: Float, takeover: Float): Float {
+    val held = takeover.coerceIn(0f, 1f)
+    if (commit.isNaN() || live < reveal) return held
+    val toward = if (commit <= reveal) 1f else ((live - reveal) / (commit - reveal)).coerceIn(0f, 1f)
+    return maxOf(toward, held)
+}
+
+/**
+ * Button [index]'s width, counted from the edge, with [live] of the strip uncovered.
+ *
+ * Up to the reveal, dealt out one after the other — see [grownWidth]. Past it, on a
+ * side with a full swipe, the outermost takes every pixel the finger adds and the
+ * others shrink evenly to nothing by [commit], so the button letting go will run
+ * is seen growing toward the strip rather than handed it at the line; the buttons
+ * and the gaps between them always fill the strip. A side with no full swipe
+ * ([commit] `NaN`) shares the extra width evenly instead.
+ *
+ * [takeover] is a committed row's: on its way out to the edge and home again the
+ * outermost holds the whole strip and the others stay folded, wherever the row is.
+ */
+internal fun swipeActionWidth(
+    index: Int,
+    live: Float,
+    count: Int,
+    reveal: Float,
+    gap: Float,
+    commit: Float,
+    takeover: Float,
+): Float {
+    val usable = (live - gap).coerceAtLeast(0f)
+    if (live < reveal || commit.isNaN()) {
+        val held = takeover.coerceIn(0f, 1f)
+        val grown = grownWidth(index, live, count, reveal, gap)
+        return if (index == 0) grown + (usable - grown) * held else grown * (1f - held)
+    }
+    val left = 1f - swipeFold(live, reveal, commit, takeover)
+    val full = fullButtonWidth(reveal, count, gap)
+    return if (index == 0) {
+        (usable - (count - 1) * (full + gap) * left).coerceAtLeast(0f)
+    } else {
+        full * left
+    }
+}
+
+/** Every button's [swipeActionWidth], from the edge. */
+internal fun swipeActionWidths(live: Float, count: Int, reveal: Float, gap: Float, commit: Float, takeover: Float): FloatArray =
+    FloatArray(count) { swipeActionWidth(it, live, count, reveal, gap, commit, takeover) }
+
 private val NoConfirmation: () -> Float = { 0f }
+
+/** How much of itself a swipe action's button has room to show: see `SwipeActionButton`. */
+private const val RoomUnknown = -1
+private const val RoomNone = 0
+private const val RoomIcon = 1
+private const val RoomLabel = 2
 
 @Composable
 private fun SwipeActionButton(
@@ -1330,7 +1425,30 @@ private fun SwipeActionButton(
         contentColour = content,
         contentAlignment = Alignment.Center,
     ) {
-        BoxWithConstraints(
+        // The label goes when there is no room for it, rather than being
+        // clipped to a stripe of its own ascenders; measured rather than
+        // compared against a magic dp, so it stays right at 200% type.
+        val labelHeight = with(LocalDensity.current) {
+            Theme.typography.labelSmall.lineHeight.toDp()
+        }
+        val iconLarge = Theme.sizing.iconLarge
+        val iconMedium = Theme.sizing.iconMedium
+        val gap = Theme.spacing.xxs
+        // **Decided in measure, read in composition only when it changes.** The
+        // button grows with the finger, and it was a `BoxWithConstraints`, which
+        // composes its content again for every new width: every button of a
+        // swipe, every frame of it. The room is three answers, and this asks
+        // for a composition when the answer changes, a handful of times a swipe.
+        //
+        // **Unknown until measure has answered**, not none. Starting at none, a
+        // button that is already wide the first time it is measured — a row
+        // composed open, as a restored or a screenshotted one is — went from no
+        // room to room for everything between its first two frames, and faded
+        // its icon and label in over a row that had not moved. Nothing is
+        // composed until the answer is in, and the first answer is shown as it
+        // is: an `AnimatedVisibility` composed visible does not enter.
+        val room = remember { mutableIntStateOf(RoomUnknown) }
+        Box(
             // `fillMaxSize`, so the whole button is the target and not only the
             // icon and label in the middle of it.
             modifier = Modifier
@@ -1348,47 +1466,54 @@ private fun SwipeActionButton(
                         scaleY = scale
                     }
                 }
-                .padding(Theme.spacing.xxs),
+                .padding(gap)
+                .layout { measurable, constraints ->
+                    val width = constraints.maxWidth.toDp()
+                    val height = constraints.maxHeight.toDp()
+                    room.intValue = when {
+                        height >= iconLarge + gap + labelHeight && width >= iconLarge * 2 -> RoomLabel
+                        width >= iconMedium && height >= iconMedium -> RoomIcon
+                        else -> RoomNone
+                    }
+                    val placeable = measurable.measure(constraints)
+                    layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+                },
             contentAlignment = Alignment.Center,
         ) {
-            // The label goes when there is no room for it, rather than being
-            // clipped to a stripe of its own ascenders; measured rather than
-            // compared against a magic dp, so it stays right at 200% type.
-            val labelHeight = with(LocalDensity.current) {
-                Theme.typography.labelSmall.lineHeight.toDp()
-            }
-            val roomForLabel = maxHeight >= Theme.sizing.iconLarge + Theme.spacing.xxs + labelHeight &&
-                maxWidth >= Theme.sizing.iconLarge * 2
-            val roomForIcon = maxWidth >= Theme.sizing.iconMedium && maxHeight >= Theme.sizing.iconMedium
-            // **Arriving, not appearing.** Both came in on the frame there was
-            // room for them, which on a swipe is a pop partway through a smooth
-            // motion — reported as "a little bit janky when the text first
-            // appears". They fade and grow in as the room opens instead, and out
-            // the same way. A fade alone under reduced motion.
-            AnimatedVisibility(
-                visible = roomForIcon,
-                enter = if (reduceMotion) fadeIn() else fadeIn() + scaleIn(initialScale = SwipeContentFrom),
-                exit = if (reduceMotion) fadeOut() else fadeOut() + scaleOut(targetScale = SwipeContentFrom),
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(Theme.spacing.xxs),
+            val answer = room.intValue
+            if (answer != RoomUnknown) {
+                val roomForLabel = answer == RoomLabel
+                val roomForIcon = answer != RoomNone
+                // **Arriving, not appearing.** Both came in on the frame there was
+                // room for them, which on a swipe is a pop partway through a smooth
+                // motion — reported as "a little bit janky when the text first
+                // appears". They fade and grow in as the room opens instead, and out
+                // the same way. A fade alone under reduced motion.
+                AnimatedVisibility(
+                    visible = roomForIcon,
+                    enter = if (reduceMotion) fadeIn() else fadeIn() + scaleIn(initialScale = SwipeContentFrom),
+                    exit = if (reduceMotion) fadeOut() else fadeOut() + scaleOut(targetScale = SwipeContentFrom),
                 ) {
-                    ConfirmingIcon(action.icon, content, confirmation, reduceMotion)
-                    // Dropping it costs nothing a screen reader can tell: the label
-                    // still reaches `CustomAccessibilityAction` on the row and
-                    // `onClickLabel` on this button.
-                    AnimatedVisibility(
-                        visible = roomForLabel,
-                        enter = if (reduceMotion) fadeIn() else fadeIn() + expandVertically(),
-                        exit = if (reduceMotion) fadeOut() else fadeOut() + shrinkVertically(),
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(Theme.spacing.xxs),
                     ) {
-                        Text(
-                            text = action.label,
-                            style = Theme.typography.labelSmall,
-                            colour = content,
-                            maxLines = 1,
-                        )
+                        ConfirmingIcon(action.icon, content, confirmation, reduceMotion)
+                        // Dropping it costs nothing a screen reader can tell: the label
+                        // still reaches `CustomAccessibilityAction` on the row and
+                        // `onClickLabel` on this button.
+                        AnimatedVisibility(
+                            visible = roomForLabel,
+                            enter = if (reduceMotion) fadeIn() else fadeIn() + expandVertically(),
+                            exit = if (reduceMotion) fadeOut() else fadeOut() + shrinkVertically(),
+                        ) {
+                            Text(
+                                text = action.label,
+                                style = Theme.typography.labelSmall,
+                                colour = content,
+                                maxLines = 1,
+                            )
+                        }
                     }
                 }
             }

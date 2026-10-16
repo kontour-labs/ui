@@ -6,13 +6,19 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.IntRect
+import androidx.compose.ui.unit.LayoutDirection
 import io.kontour.ui.theme.Theme
+import kotlin.math.roundToInt
 
 /**
  * Dims everything behind a modal surface.
@@ -94,72 +100,137 @@ internal fun ScrimLayer(
     colour: Color = Theme.colours.scrim,
     onScrollRequest: (() -> Unit)? = null,
     blocks: Boolean = true,
+    hole: (() -> Rect?)? = null,
 ) {
-    Box(
-        modifier
-            .fillMaxSize()
-            .drawBehind {
-                val f = fraction().coerceIn(0f, 1f)
-                if (f > 0f) drawRect(colour.copy(alpha = colour.alpha * f))
-            }
-            .then(
-                if (blocks && onScrollRequest != null) {
-                    Modifier.pointerInput(onScrollRequest) {
-                        awaitPointerEventScope {
-                            while (true) {
-                                val event = awaitPointerEvent()
-                                // **A scroll something else used is not a scroll at
-                                // the scrim.**
-                                //
-                                // This fires because the page behind cannot scroll
-                                // while a scrim is over it, so a scroll here means
-                                // "close this and let me read what is underneath".
-                                // A scroll the overlay's *own* panel consumed means
-                                // the opposite, and the scrim is `fillMaxSize` so it
-                                // is in the hit path for every pointer over that
-                                // panel too.
-                                //
-                                // It cost nothing until anchored panels were bounded
-                                // to their own side and given scrollers to cope —
-                                // from which point scrolling a popover closed it
-                                // mid-gesture.
-                                //
-                                // A panel with nothing left to scroll consumes
-                                // nothing, so an overlay whose content fits still
-                                // dismisses exactly as it always did.
-                                if (
-                                    event.type == PointerEventType.Scroll &&
-                                    event.changes.none { it.isConsumed }
-                                ) {
-                                    onScrollRequest()
-                                }
+    // What the scrim does with a pointer, kept apart from what it draws and
+    // says: with a [hole], the drawing and the dismiss action stay on the
+    // whole window and the pointer handling goes round the hole instead.
+    val input = Modifier
+        .then(
+            if (blocks && onScrollRequest != null) {
+                Modifier.pointerInput(onScrollRequest) {
+                    awaitPointerEventScope {
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            // **A scroll something else used is not a scroll at
+                            // the scrim.**
+                            //
+                            // This fires because the page behind cannot scroll
+                            // while a scrim is over it, so a scroll here means
+                            // "close this and let me read what is underneath".
+                            // A scroll the overlay's *own* panel consumed means
+                            // the opposite, and the scrim is `fillMaxSize` so it
+                            // is in the hit path for every pointer over that
+                            // panel too.
+                            //
+                            // It cost nothing until anchored panels were bounded
+                            // to their own side and given scrollers to cope —
+                            // from which point scrolling a popover closed it
+                            // mid-gesture.
+                            //
+                            // A panel with nothing left to scroll consumes
+                            // nothing, so an overlay whose content fits still
+                            // dismisses exactly as it always did.
+                            if (
+                                event.type == PointerEventType.Scroll &&
+                                event.changes.none { it.isConsumed }
+                            ) {
+                                onScrollRequest()
                             }
                         }
                     }
-                } else {
-                    Modifier
                 }
-            )
-            .then(
-                if (!blocks) {
-                    Modifier
-                } else if (onDismissRequest != null) {
-                    Modifier
-                        .pointerInput(onDismissRequest) {
-                            detectTapGestures { onDismissRequest() }
-                        }
-                        .semantics {
-                            if (dismissLabel != null) contentDescription = dismissLabel
-                            onClick(label = dismissLabel) {
-                                onDismissRequest()
-                                true
-                            }
-                        }
-                } else {
-                    // Still consumes pointer input, so taps cannot reach content
-                    // the user can no longer see.
-                    Modifier.pointerInput(Unit) { detectTapGestures { } }
+            } else {
+                Modifier
+            }
+        )
+        .then(
+            if (!blocks) {
+                Modifier
+            } else if (onDismissRequest != null) {
+                Modifier.pointerInput(onDismissRequest) {
+                    detectTapGestures { onDismissRequest() }
                 }
+            } else {
+                // Still consumes pointer input, so taps cannot reach content
+                // the user can no longer see.
+                Modifier.pointerInput(Unit) { detectTapGestures { } }
+            }
+        )
+    val said = if (blocks && onDismissRequest != null) {
+        Modifier.semantics {
+            if (dismissLabel != null) contentDescription = dismissLabel
+            onClick(label = dismissLabel) {
+                onDismissRequest()
+                true
+            }
+        }
+    } else {
+        Modifier
+    }
+    val drawn = modifier
+        .fillMaxSize()
+        .drawBehind {
+            val f = fraction().coerceIn(0f, 1f)
+            if (f > 0f) drawRect(colour.copy(alpha = colour.alpha * f))
+        }
+
+    if (hole == null || !blocks) {
+        Box(drawn.then(input).then(said))
+    } else {
+        Box(drawn.then(said)) { AroundHole(hole, input) }
+    }
+}
+
+/**
+ * [input] over everything but [hole]: four bands round it, so a press inside the
+ * hole meets nothing here and goes on to what is underneath.
+ *
+ * Four nodes rather than one with a hole cut in it, because Compose hit-tests a
+ * node by its rectangle and by nothing else — there is no shape a pointer can
+ * fall through. A band with no area is not placed, and so is not there to be
+ * hit at all, near or direct.
+ *
+ * The hole is read in measure, so one that moves — a field on a page scrolled
+ * under an open list — is followed without recomposing anything.
+ */
+@Composable
+private fun AroundHole(hole: () -> Rect?, input: Modifier) {
+    Layout(
+        content = { repeat(4) { Box(input) } },
+        modifier = Modifier.fillMaxSize(),
+    ) { measurables, constraints ->
+        val width = constraints.maxWidth
+        val height = constraints.maxHeight
+        val cut = hole()
+        val left = cut?.left?.roundToInt()?.coerceIn(0, width) ?: 0
+        val top = cut?.top?.roundToInt()?.coerceIn(0, height) ?: 0
+        val right = cut?.right?.roundToInt()?.coerceIn(left, width) ?: left
+        val bottom = cut?.bottom?.roundToInt()?.coerceIn(top, height) ?: top
+        val bands = if (right <= left || bottom <= top) {
+            // No hole, or one entirely off this host: the scrim is whole.
+            listOf(IntRect(0, 0, width, height), IntRect.Zero, IntRect.Zero, IntRect.Zero)
+        } else {
+            listOf(
+                IntRect(0, 0, width, top),
+                IntRect(0, bottom, width, height),
+                IntRect(0, top, left, bottom),
+                IntRect(right, top, width, bottom),
             )
-    )
+        }
+        val placeables = measurables.mapIndexed { index, band ->
+            band.measure(Constraints.fixed(bands[index].width, bands[index].height))
+        }
+        layout(width, height) {
+            placeables.forEachIndexed { index, placeable ->
+                val band = bands[index]
+                // Where the band is in the window, whichever way the layout
+                // runs: the hole is in the window's own coordinates, which do
+                // not turn round right to left, so a relative placement is
+                // handed the mirror of it.
+                val start = if (layoutDirection == LayoutDirection.Ltr) band.left else width - band.right
+                if (band.width > 0 && band.height > 0) placeable.placeRelative(start, band.top)
+            }
+        }
+    }
 }

@@ -1,5 +1,7 @@
 package io.kontour.ui.components.calendar
 
+import io.kontour.ui.foundation.snappedLineWidth
+import io.kontour.ui.foundation.snappedLineCentre
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.foundation.layout.fillMaxSize
@@ -56,6 +58,7 @@ import io.kontour.ui.motion.scrollSpec
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -64,6 +67,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.constrainHeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -119,12 +123,13 @@ internal fun TimeView(scope: CalendarScope) {
     val cursor = scope.slotDescription(state.date, state.cursorMinute?.let { scope.cursorMinute { it } })
 
     val hoursView: @Composable (Modifier) -> Unit = { boxModifier ->
-        BoxWithConstraints(boxModifier.fillMaxWidth()) {
-            // In a page that scrolls, the hours have no height to fill: a working
-            // day's worth of them, scrolling within.
-            val viewport = if (constraints.hasBoundedHeight) Modifier.fillMaxHeight() else Modifier.height(scope.hourHeight * UnboundedHours)
+        // Not a `BoxWithConstraints`: the all-day strip above changes height
+        // on every frame of a swipe, and one of those composes its content
+        // again for each.
+        Box(boxModifier.fillMaxWidth()) {
             Row(
-                viewport
+                Modifier
+                    .fillHeightOr(scope.hourHeight * UnboundedHours)
                     .fillMaxWidth()
                     .onGloballyPositioned { hours.coordinates = it }
                     .hoursFrame(gutter, frame, gridLine(), Theme.sizing.borderWidth)
@@ -520,25 +525,47 @@ private val WeekdayHeadingWidth = 48.dp
 @Composable
 private fun AllDayStrip(scope: CalendarScope, gutter: Dp, days: Int) {
     val state = scope.state
-    val start = state.periods.startOf(state.period, state.view)
-    val end = start.plus(days - 1, DateTimeUnit.DAY)
-    val any = remember(scope.events, start, days) { weekItems(start, scope.eventsBetween(start, end), lines = false, days = days).isNotEmpty() }
+    // Each bar's row, the same on every page it is in, so a bar running on
+    // into the next page is on the same line there: see [barRows].
+    val rowsOf = remember(scope.events) { barRows(scope.events, lines = false) }
+    // Each page's rows, packed once for as long as the events are the same: a
+    // page reads the pages either side of it too, for which of its bars run on
+    // into theirs on the same line. Emptied now and then, so a long way swiped
+    // does not keep every page it passed.
+    val packs = remember(scope.events, days) { HashMap<LocalDate, WeekPack>() }
+    val packOf = { from: LocalDate ->
+        if (from !in packs && packs.size >= KeptPacks) packs.clear()
+        packs.getOrPut(from) {
+            val items = weekItems(from, scope.eventsBetween(from, from.plus(days - 1, DateTimeUnit.DAY)), lines = false, days = days)
+            packWeek(items, maxRows = AllDayRows, days = days, rows = rowsOf)
+        }
+    }
+    val still = Theme.motion.reduceMotion
+    // There while any page on the screen has a bar, so a page swiped in has
+    // its bars as it comes, under a strip that grows to them with the swipe.
+    val inView = if (still) listOf(state.period) else scope.pager.periods.inView
+    val any = inView.any { period -> packOf(state.periods.startOf(period, state.view)).let { it.placed.isNotEmpty() || it.more.any { more -> more > 0 } } }
     // A bar being carried, or days drawn out, needs the strip to be there to be
     // seen in, whatever week it is carried into.
     val edit = scope.edit
     val carrying = edit.live && edit.byDays
     if (!any && !carrying) return
     val item = with(LocalDensity.current) { Theme.typography.labelSmall.lineHeight.toDp() } + Theme.spacing.xxs * 2
+    // The page the pager is counted from: the one at rest, or the one a swipe
+    // set off from until the next has come to rest.
+    val origin = scope.pager.periods.origin
     Row(Modifier.fillMaxWidth()) {
         // No label beside it: the bars say what they are, and "All day" was
         // the widest thing in the gutter, cut to "All" on a phone.
         Spacer(Modifier.width(gutter))
-        PeriodStrip(scope.pager, Modifier.weight(1f)) { period ->
+        // Mid-swipe, as tall as each page's share of the screen makes it: see [PeriodStrip].
+        PeriodStrip(scope.pager, Modifier.weight(1f), blendHeights = true) { period ->
             val from = state.periods.startOf(period, state.view)
             val to = from.plus(days - 1, DateTimeUnit.DAY)
-            val pack = remember(scope.events, from, days) {
-                packWeek(weekItems(from, scope.eventsBetween(from, to), lines = false, days = days), maxRows = AllDayRows, days = days)
-            }
+            val pack = packOf(from)
+            // The pages either side, where they are the days either side.
+            val before = state.periods.startOf(period - 1, state.view).takeIf { it.plus(days, DateTimeUnit.DAY) == from }?.let(packOf)
+            val after = state.periods.startOf(period + 1, state.view).takeIf { it == to.plus(1, DateTimeUnit.DAY) }?.let(packOf)
             val held = (pack.placed.maxOfOrNull { it.row } ?: -1) + 1 + if (pack.more.any { it > 0 }) 1 else 0
             // Carried into a week it is not in, the bar is given a line of its
             // own at the foot, so it is seen where it would land rather than
@@ -561,12 +588,15 @@ private fun AllDayStrip(scope: CalendarScope, gutter: Dp, days: Int) {
                 }
                 for (placement in pack.placed) {
                     val placed = placement.item
+                    val title = if (still) null else runOnTitle(scope.pager, period, origin, placement, before, after, days, cell, gap, constraints.maxWidth)
                     EventChip(
                         event = placed.event,
                         presentation = EventPresentation.Bar,
                         scope = scope,
                         clippedStart = placed.continuesBefore,
                         clippedEnd = placed.continuesAfter,
+                        contentWidth = title?.width,
+                        contentAt = title?.at,
                         modifier = Modifier
                             .padding(top = item * placement.row + gap / 2)
                             .barAcross(cell, placed.from, placed.to, placed.continuesBefore, placed.continuesAfter, gap)
@@ -595,6 +625,99 @@ private fun AllDayStrip(scope: CalendarScope, gutter: Dp, days: Int) {
 }
 
 /**
+ * A bar's title, where the bar runs on into the page beside it on the same
+ * line: one title for the two pages' pieces, which stays where it is on the
+ * screen as the pages slide under it — *"can we just make the label stay in
+ * place as the calendar moves, so it only shows once?"* Each page's piece drew
+ * its own at its own start, so halfway through a swipe there were two.
+ *
+ * At the start of what is on the screen of the two pieces together, and drawn
+ * there by each, cut to itself: where the line between the pages passes under
+ * the title, the two halves meet. Taken along by the bar's end once that
+ * reaches it, rather than run on past it. At rest, at the piece's start, as
+ * every title is.
+ *
+ * Laid out, on the page coming in, at the width the page at rest gives it:
+ * the two halves of one title have to be the same title, cut and faded in the
+ * same place. The page that comes to rest lays it out at its own width again.
+ *
+ * Null for a bar that runs on into neither page beside it on its line: it is
+ * one piece, and its title goes with it.
+ */
+@Composable
+internal fun runOnTitle(
+    pager: CalendarPager,
+    period: Int,
+    origin: Int,
+    placement: WeekPlacement,
+    before: WeekPack?,
+    after: WeekPack?,
+    days: Int,
+    cell: Dp,
+    gap: Dp,
+    pagePx: Int,
+): RunOnTitle? {
+    val item = placement.item
+    val id = item.event.id
+    fun WeekPack.hasOnLine() = placed.any { it.row == placement.row && it.item.event.id == id }
+    val joinsBefore = item.continuesBefore && before?.hasOnLine() == true
+    val joinsAfter = item.continuesAfter && after?.hasOnLine() == true
+    if (!joinsBefore && !joinsAfter) return null
+    val density = LocalDensity.current
+    return remember(pager, period, origin, placement, joinsBefore, joinsAfter, days, cell, gap, pagePx, density) {
+        with(density) {
+            // Where a piece across [from] to [to] of a page is, as `barAcross` puts it.
+            fun startOf(from: Int, runsOnBefore: Boolean) = (cell * from + if (runsOnBefore) 0.dp else gap).roundToPx()
+            fun widthOf(from: Int, to: Int, runsOnBefore: Boolean, runsOnAfter: Boolean) =
+                (cell * (to - from + 1) - (if (runsOnBefore) 0.dp else gap) - (if (runsOnAfter) 0.dp else gap)).roundToPx()
+            val start = startOf(item.from, item.continuesBefore)
+            val end = start + widthOf(item.from, item.to, item.continuesBefore, item.continuesAfter)
+            // The pieces either side, in this page's pixels.
+            val beforePiece = before?.placed?.firstOrNull { it.row == placement.row && it.item.event.id == id }?.item
+            val afterPiece = after?.placed?.firstOrNull { it.row == placement.row && it.item.event.id == id }?.item
+            val runsFrom = if (joinsBefore && beforePiece != null) startOf(beforePiece.from, beforePiece.continuesBefore) - pagePx else start
+            val runsTo = if (joinsAfter && afterPiece != null) {
+                pagePx + startOf(afterPiece.from, true) + widthOf(afterPiece.from, afterPiece.to, true, afterPiece.continuesAfter)
+            } else {
+                end
+            }
+            // The width of the piece on the page at rest, where that is the page beside.
+            val width = when {
+                origin == period - 1 && beforePiece != null -> widthOf(beforePiece.from, beforePiece.to, beforePiece.continuesBefore, true)
+                origin == period + 1 && afterPiece != null -> widthOf(afterPiece.from, afterPiece.to, true, afterPiece.continuesAfter)
+                else -> null
+            }
+            RunOnTitle(
+                width = width?.let { w -> { w } },
+                at = { titleWidth ->
+                    val periods = pager.periods
+                    // Read as the title is placed: each frame of a swipe places
+                    // it again, and composes nothing.
+                    val place = periods.placeOf(period)
+                    if (place.isNaN()) {
+                        0
+                    } else {
+                        // Where the strip puts this page, and so the screen's start in its pixels.
+                        val shownFrom = -(place * pagePx).roundToInt()
+                        val slot = periods.slotOf(period)
+                        // The piece beside only where it is the page beside on the screen: not a far jump's.
+                        val from = if (joinsBefore && slot != null && periods.slotOf(period - 1) == slot - 1) runsFrom else start
+                        val to = if (joinsAfter && slot != null && periods.slotOf(period + 1) == slot + 1) runsTo else end
+                        maxOf(from, minOf(maxOf(from, shownFrom), to - titleWidth)) - start
+                    }
+                },
+            )
+        }
+    }
+}
+
+/**
+ * A bar's title as [runOnTitle] places it: laid out [width] wide, where that
+ * is not the bar's own width, and [at] so far along the bar, given its width.
+ */
+internal class RunOnTitle(val width: (() -> Int)?, val at: (Int) -> Int)
+
+/**
  * A day's place for an edit by days to find. Where it would land is drawn by
  * `DaysGhostLayer`, over the days, rather than by each day here.
  */
@@ -609,10 +732,16 @@ internal fun DayTarget(scope: CalendarScope, date: LocalDate, modifier: Modifier
         modifier
             .onGloballyPositioned { coordinates ->
                 placed.coordinates = coordinates
-                edit.days[placed] = DayPlace(date, coordinates)
+                // Told again on every frame a scroll moves the day, with the
+                // same coordinates: a new place only where there is one.
+                val known = edit.days[placed]
+                if (known == null || known.coordinates !== coordinates || known.date != date) edit.days[placed] = DayPlace(date, coordinates)
             },
     )
 }
+
+/** How many pages' packed rows the all-day strip keeps: the pages in view and those either side, with room to spare. */
+private const val KeptPacks = 12
 
 /** At most this many rows of all-day bars before a day says "+N". */
 private const val AllDayRows = 3
@@ -699,7 +828,9 @@ private fun DayColumn(scope: CalendarScope, date: LocalDate, modifier: Modifier)
         layoutTimedDay(date, scope.eventsBetween(date, date), minMinutes, cascadeMinutes)
     }
     val indentPx = with(density) { CascadeIndent.toPx() }
-    val now = scope.now?.takeIf { it.date == date }?.time
+    // Read as the line is drawn: the time now moves it each minute without
+    // the day's events composing again.
+    val now = scope.now
     val click by rememberUpdatedState(scope.onTimeClick)
     val step = TapStepMinutes
     val gapPx = with(density) { (Theme.spacing.xxs / 2).toPx() }
@@ -764,21 +895,35 @@ private fun DayColumn(scope: CalendarScope, date: LocalDate, modifier: Modifier)
         modifier = modifier
             .onGloballyPositioned { coordinates ->
                 placed.coordinates = coordinates
-                edit.columns[placed] = DayPlace(date, coordinates)
+                // Told again on every frame the hours scroll, with the same
+                // coordinates: written only where something has changed.
+                val known = edit.columns[placed]
+                if (known == null || known.coordinates !== coordinates || known.date != date) edit.columns[placed] = DayPlace(date, coordinates)
                 edit.pixelsPerMinute = hourPx / MinutesPerHour
-                if (creates) edit.draggables[placed] = coordinates else edit.draggables.remove(placed)
+                if (!creates) {
+                    edit.draggables.remove(placed)
+                } else if (edit.draggables[placed] !== coordinates) {
+                    edit.draggables[placed] = coordinates
+                }
             }
             .drawBehind {
-                val width = line.toPx()
+                // Whole pixels, below each hour's edge: centred on it, each
+                // line was two pale pixels.
+                val width = snappedLineWidth(line.toPx())
                 // The day's start edge, and an hour's line across it each hour.
-                val x = if (layoutDirection == LayoutDirection.Rtl) size.width - width / 2 else width / 2
+                val x = if (layoutDirection == LayoutDirection.Rtl) {
+                    snappedLineCentre(size.width, width, after = false)
+                } else {
+                    snappedLineCentre(0f, width)
+                }
                 drawLine(lineColour, Offset(x, 0f), Offset(x, size.height), width)
                 for (h in 1 until HoursPerDay) {
-                    val y = h * hourPx
+                    val y = snappedLineCentre(h * hourPx, width)
                     drawLine(lineColour, Offset(0f, y), Offset(size.width, y), width)
                 }
-                if (now != null) {
-                    val y = now.minuteOfDay * hourPx / MinutesPerHour
+                val nowTime = now()?.takeIf { it.date == date }?.time
+                if (nowTime != null) {
+                    val y = nowTime.minuteOfDay * hourPx / MinutesPerHour
                     val stroke = nowLine.toPx()
                     drawLine(nowColour, Offset(0f, y), Offset(size.width, y), stroke)
                     // Wholly inside the day, past its start edge: centred on the
@@ -980,6 +1125,10 @@ private fun TimeGhost(scope: CalendarScope, period: Int, days: Int) {
     // A piece for each day of it in this page — as composed, for the copies'
     // own content; placed from the edit as it is now.
     val composed = timedPieces(start, end, pageStart, pageEnd)
+    // Square, and on to midnight with no gap, at an end it runs on past, as
+    // the event's own pieces are: see [cutShape].
+    val firstComposed = (start.date.toEpochDays() - pageStart.toEpochDays()).toInt()
+    val lastComposed = (lastDayOf(start, end).toEpochDays() - pageStart.toEpochDays()).toInt()
     val hop = remember { GhostHop() }
     LaunchedEffect(hop) { hop.run() }
     // A day's width, as last measured: see the event's own, in `DayColumn`.
@@ -987,13 +1136,15 @@ private fun TimeGhost(scope: CalendarScope, period: Int, days: Int) {
 
     Layout(
         content = {
-            for ((_, from, to) in composed) {
+            for ((day, from, to) in composed) {
                 val height = with(density) { (maxOf(minChipPx, (to - from) * perMinute) - gapPx).coerceAtLeast(0f).toDp() }
                 EventChip(
                     event = shown,
                     presentation = EventPresentation.Block,
                     scope = scope,
                     ghost = true,
+                    clippedStart = day > firstComposed,
+                    clippedEnd = day < lastComposed,
                     blockHeight = height,
                     // Laid out at the width it is opening out to, as the event under it is.
                     contentWidth = {
@@ -1058,19 +1209,33 @@ private fun TimeGhost(scope: CalendarScope, period: Int, days: Int) {
         val (laneStart, laneWidth) = edit.widenedLane
         val inset = column * (if (rtl) 1f - laneStart - laneWidth else laneStart) * (1f - f)
         val pieceWidth = column * (laneWidth + (1f - laneWidth) * f)
+        // In from midnight by the gap only where it starts or ends there.
+        fun topGap(day: Int) = if (day > firstDay) 0f else gapPx / 2
+        fun footGap(day: Int) = if (day < lastDay) 0f else gapPx / 2
         val placeables = measurables.take(pieces.size).mapIndexed { i, measurable ->
             val (day, from, to) = pieces[i]
             val rect = if (day == leanDay) drawn else box(day, from, to)
-            measurable.measure(Constraints.fixed((pieceWidth - gapPx).roundToInt().coerceAtLeast(0), (rect.height - gapPx).roundToInt().coerceAtLeast(0)))
+            measurable.measure(Constraints.fixed((pieceWidth - gapPx).roundToInt().coerceAtLeast(0), (rect.height - topGap(day) - footGap(day)).roundToInt().coerceAtLeast(0)))
         }
         layout(w, h) {
             placeables.forEachIndexed { i, placeable ->
                 val (day, from, to) = pieces[i]
                 val rect = if (day == leanDay) drawn else box(day, from, to).translate(dx, dy)
-                placeable.place((rect.left + inset + gapPx / 2).roundToInt(), (rect.top + gapPx / 2).roundToInt())
+                placeable.place((rect.left + inset + gapPx / 2).roundToInt(), (rect.top + topGap(day)).roundToInt())
             }
         }
     }
+}
+
+/**
+ * The height there is, or [unbounded] where there is no end to it: in a page
+ * that scrolls, the hours have no height to fill, and have a working day's
+ * worth of them, scrolling within.
+ */
+private fun Modifier.fillHeightOr(unbounded: Dp): Modifier = layout { measurable, constraints ->
+    val height = if (constraints.hasBoundedHeight) constraints.maxHeight else constraints.constrainHeight(unbounded.roundToPx())
+    val placeable = measurable.measure(constraints.copy(minHeight = height, maxHeight = height))
+    layout(placeable.width, placeable.height) { placeable.place(0, 0) }
 }
 
 /** The day an event's last minute is on. */

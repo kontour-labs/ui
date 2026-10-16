@@ -34,7 +34,10 @@ with a single row hits immediately.
 
 `ListGroup` counts the rows for you, so there is no position to pass. Its
 builder is composable: a row's text can be read from the theme where the row is
-written, `item("Departs", supporting = Theme.formats.time(departure))`.
+written, `item("Departs", supporting = Theme.formats.time(departure))`. Besides
+`item`, it takes `setting` for a [`SelectionRow`](selection-row.md) that opens a
+choice, `split` for a [`SplitListItem`](split-list-item.md), and
+`item { position -> … }` for any row of your own that takes a `position`.
 
 **Rows default to a *sunken* ground.** In this scheme `surface` and `background`
 are the same white, so a row drawn on `surface` is invisible on a page and a

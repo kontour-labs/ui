@@ -62,10 +62,15 @@ has the gesture.
 
 **Past the point of no return, letting go commits — at any speed.** The point is
 48dp past the actions and at least 55% of the row (and never within 24dp of its far
-edge, so it can always be reached). There the outermost action widens over the
-whole strip while the others fold into it, and one `DragThreshold` buzz marks the
-line. Back off it by 16dp and the takeover undoes itself with a second buzz, since
-backing off has a consequence too.
+edge, so it can always be reached). On the way there the outermost action — the
+one a full swipe runs — takes every bit of width the finger adds and pushes the
+others smaller, until at the line it has the whole strip and they are gone; one
+`DragThreshold` buzz marks it. Back off it by 16dp and a second buzz says so, since
+backing off has a consequence too. The actions used to share the extra width
+evenly and then give it all to the outermost at the line, which hid which of them
+the swipe was heading for until it got there: *"the action that takes the full
+swipe should keep expanding and slowly push the other 1 or 2 action/s to zero"*.
+A side where no action takes a full swipe still shares it evenly.
 
 **Short of it, a flick opens or closes the actions** by the way it was thrown —
 400dp/s and at least 12dp of travel. A slow release opens several actions once
@@ -236,7 +241,8 @@ full-height buttons back.
 
 Every action is exposed as a `CustomAccessibilityAction` on the row, so a swipe
 is never the only way to reach one. That is the rule the component was built
-around, and it is the one most often broken by rolling your own.
+around, and it is the one most often broken by rolling your own. A row with
+`enabled = false` offers none of them, as it offers no swipe.
 
 `label` is what that action announces, and it is also the visible label — one
 string, so the two cannot disagree. That matters more than it sounds: split into
@@ -252,8 +258,7 @@ button's focus ring thicken with every other line. The row is your content, and
 answers the tier itself.
 
 Under [reduced motion](../tokens.md#motion) a row the app opens or puts back
-arrives at once, the outermost action takes over the strip at once past the
-point of no return, and a full swipe's or a tapped action's tick appears whole
+arrives at once, the outermost action holds the strip at once on a full swipe, and a full swipe's or a tapped action's tick appears whole
 instead of drawing itself; icons and labels fade without growing. The give past
 the last resting place is off. A drag is untouched — the row
 follows the finger at every setting — and it settles after the finger lifts on a

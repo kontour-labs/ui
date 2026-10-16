@@ -4,7 +4,14 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.click
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.performKeyInput
+import androidx.compose.ui.test.pressKey
+import androidx.compose.ui.test.requestFocus
 import androidx.compose.ui.test.down
 import androidx.compose.ui.test.moveBy
 import androidx.compose.ui.test.onNodeWithTag
@@ -146,5 +153,129 @@ class RangeSliderTest {
             "the end thumb was pushed past the end of its own track, to " +
                 "${range.endInclusive}",
         )
+    }
+
+    /**
+     * A stepped `5f..5f` range takes a tap and a key without throwing.
+     *
+     * The detent tick divided by the width of the range, and `roundToInt`
+     * throws on the `NaN` — from a tap, from an arrow key and from
+     * `setProgress`, on a range `require` lets through.
+     */
+    @Test
+    fun aZeroWidthSteppedRangeTakesATapAndAKey() = runComposeUiTest {
+        var range = 5f..5f
+        setContent {
+            KontourTheme(reduceMotion = true) {
+                RangeSlider(
+                    value = range,
+                    onValueChange = { range = it },
+                    modifier = Modifier.width(200.dp).testTag("range"),
+                    valueRange = 5f..5f,
+                    steps = 3,
+                    startContentDescription = "From",
+                    endContentDescription = "To",
+                )
+            }
+        }
+
+        onNodeWithTag("range").performTouchInput { click(Offset(centerX, centerY)) }
+        waitForIdle()
+        assertEquals(5f..5f, range, "a tap moved a zero-width range")
+
+        onNodeWithContentDescription("From").requestFocus()
+        onNodeWithContentDescription("From").performKeyInput { pressKey(Key.DirectionRight) }
+        waitForIdle()
+        assertEquals(5f..5f, range, "an arrow key moved a zero-width range")
+    }
+
+    /**
+     * A key builds on the caller's range, not on the last one a key emitted.
+     *
+     * The caller here takes nothing: it holds `0..10` throughout, as one that
+     * had reset or clamped in between would. The first key moves the end thumb
+     * to 9.9 and that is reported; the second moves the *start* thumb, and the
+     * end it reports has to be the caller's 10 — it was 9.9, the end thumb
+     * jumping back to where a press the caller refused had left it.
+     */
+    @Test
+    fun aKeyBuildsOnTheCallersRangeNotTheLastOneEmitted() = runComposeUiTest {
+        val reported = mutableListOf<ClosedFloatingPointRange<Float>>()
+        setContent {
+            KontourTheme(reduceMotion = true) {
+                RangeSlider(
+                    value = 0f..10f,
+                    onValueChange = { reported += it },
+                    modifier = Modifier.width(200.dp).testTag("range"),
+                    valueRange = 0f..10f,
+                    startContentDescription = "From",
+                    endContentDescription = "To",
+                )
+            }
+        }
+
+        onNodeWithContentDescription("To").requestFocus()
+        onNodeWithContentDescription("To").performKeyInput { pressKey(Key.DirectionLeft) }
+        waitForIdle()
+        assertEquals(9.9f, reported.last().endInclusive, 0.001f, "Left on the end thumb, reported ${reported.last()}")
+
+        onNodeWithContentDescription("From").requestFocus()
+        onNodeWithContentDescription("From").performKeyInput { pressKey(Key.DirectionRight) }
+        waitForIdle()
+        val last = reported.last()
+        assertEquals(0.1f, last.start, 0.001f, "Right on the start thumb, reported $last")
+        assertEquals(
+            10f, last.endInclusive, 0.001f,
+            "the end thumb came back as ${last.endInclusive}: the key built on the range the " +
+                "previous key emitted, not on the 0..10 the caller holds",
+        )
+    }
+
+    /**
+     * A minimum that is a whole number of steps is that many steps, not one more.
+     *
+     * `0.3f / 0.01f` is 30.000002, and rounding that up onto the grid made the
+     * minimum 31 steps, so the start thumb's ceiling on a `0f..1f` range was
+     * 0.69 rather than 0.7.
+     */
+    @Test
+    fun aWholeStepMinimumIsNotRoundedUpAStep() = runComposeUiTest {
+        setContent {
+            KontourTheme(reduceMotion = true) {
+                RangeSlider(
+                    value = 0.2f..0.8f,
+                    onValueChange = {},
+                    modifier = Modifier.width(200.dp),
+                    minDistance = 0.3f,
+                    steps = 99,
+                    startContentDescription = "From",
+                    endContentDescription = "To",
+                )
+            }
+        }
+
+        val info = onNodeWithContentDescription("From").fetchSemanticsNode()
+            .config[SemanticsProperties.ProgressBarRangeInfo]
+        assertEquals(0.7f, info.range.endInclusive, 0.001f, "the start thumb's ceiling with a 0.3 minimum")
+    }
+
+    /** A tap at the far end of the track is the end of the range, exactly — see `SliderDragTest`. */
+    @Test
+    fun aTapAtTheEndReportsTheEndExactly() = runComposeUiTest {
+        var range = 0.3f..1.0f
+        setContent {
+            KontourTheme(reduceMotion = true) {
+                RangeSlider(
+                    value = range,
+                    onValueChange = { range = it },
+                    modifier = Modifier.width(200.dp).testTag("range"),
+                    valueRange = 0.3f..1.9f,
+                )
+            }
+        }
+
+        onNodeWithTag("range").performTouchInput { click(Offset(right - 1f, centerY)) }
+        waitForIdle()
+        assertEquals(1.9f, range.endInclusive, "a tap at the end of 0.3..1.9 reported $range")
     }
 }

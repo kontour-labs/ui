@@ -132,6 +132,35 @@ class ListGroupScope @PublishedApi internal constructor() {
     }
 
     /**
+     * Two rows side by side as one row of the group: a [SplitListItem], given
+     * where it sits.
+     *
+     * ```kotlin
+     * ListGroup {
+     *     item("Notifications") { … }
+     *     split(ListItemSplit.Halves) {
+     *         start(onClick = ::openWifi) { +"Wi-Fi" }
+     *         end(onClick = ::openBluetooth) { +"Bluetooth" }
+     *     }
+     * }
+     * ```
+     *
+     * The shorthand for `item { position -> SplitListItem(position = position) { … } }`,
+     * which is what it was written as, and the one row in the library with a
+     * `position` that had no shorthand of its own.
+     *
+     * @param split How the row's width is shared between the halves.
+     * @param content [SplitListItemScope.start] and [SplitListItemScope.end],
+     *   each once, as [SplitListItem] takes them.
+     */
+    fun split(
+        split: ListItemSplit = ListItemSplit.Halves,
+        content: SplitListItemScope.() -> Unit,
+    ) {
+        rows += { position -> SplitListItem(split = split, position = position, content = content) }
+    }
+
+    /**
      * A row of your own, given where it sits.
      *
      * The escape hatch, and the reason the shorthands can stay small. Anything

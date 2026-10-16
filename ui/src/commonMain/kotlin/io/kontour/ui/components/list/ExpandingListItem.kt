@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -94,7 +96,17 @@ fun ExpandingListItem(
 ) {
     val tap = rememberTapFeedback()
     val motion = Theme.motion
-    val children = ListGroupScope().apply(content).rows
+    // Remembered on the builder, so a recomposition of this row — its corners
+    // stepping as it opens — hands the same rows to the body rather than new
+    // lambdas that compose every child again.
+    //
+    // **And derived, so a state the builder reads still counts.** The builder
+    // is the same lambda when a state it reads changes — `if (signedIn)
+    // item("Sign out")` — and remembered on the lambda alone the rows stayed
+    // as first collected: the row never appeared. Collected in a derived
+    // state, the builder runs again when a state it read changes, and only
+    // then.
+    val children by remember(content) { derivedStateOf { ListGroupScope().apply(content).rows } }
 
     // Nothing to unfold is not an error, and it is not a disclosure either — a
     // chevron on a row that opens onto nothing is a promise the row cannot keep.
@@ -105,9 +117,11 @@ fun ExpandingListItem(
         targetValue = if (open) 1f else 0f,
         animationSpec = motion.tweenDefault(),
         label = "expandingListItemCorners",
-    )
+    ).inMorphSteps()
 
-    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(spacing)) {
+    // A row to the section it sits in, open or closed, whatever its children
+    // are — see `ListRowEdges`.
+    Column(ListRowEdges.then(modifier).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(spacing)) {
         ListItem(
             enabled = enabled,
             onClick = if (opens) {

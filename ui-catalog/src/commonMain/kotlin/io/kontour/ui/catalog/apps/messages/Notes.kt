@@ -1,5 +1,6 @@
 package io.kontour.ui.catalog.apps.messages
 
+import androidx.compose.runtime.derivedStateOf
 import io.kontour.ui.catalog.pageScroll
 import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.calculateEndPadding
@@ -148,12 +149,15 @@ internal fun NotesPage(
             }
         }
         // Shrinks to its icon once the list has scrolled, so it stops covering
-        // the rows it was sitting over at the top.
+        // the rows it was sitting over at the top. Derived, so the page
+        // recomposes when the answer changes rather than on every pixel of a
+        // scroll: `scroll.value` read here was the whole page, every frame.
+        val atTop by remember { derivedStateOf { scroll.value == 0 } }
         ExtendedFloatingActionButton(
             onClick = onNewNote,
             icon = Tabler.Outline.Plus,
             contentDescription = "New note",
-            expanded = scroll.value == 0,
+            expanded = atTop,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(end = Theme.spacing.md, bottom = contentPadding.calculateBottomPadding() + Theme.spacing.md),

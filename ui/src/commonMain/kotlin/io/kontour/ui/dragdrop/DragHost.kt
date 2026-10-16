@@ -1,5 +1,7 @@
 package io.kontour.ui.dragdrop
 
+import androidx.compose.animation.core.VisibilityThreshold
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.AnimationVector2D
@@ -22,6 +24,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameMillis
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -132,9 +135,10 @@ internal class DragHost {
         if (next.keyboard) {
             // In its own list, at its own place, until a key moves it.
             val home = next.fromList?.target
-            if (home != null && next.fromIndex != null) {
+            val at = next.fromIndex
+            if (home != null && at != null) {
                 next.target = home
-                home.place(next, next.fromIndex)
+                home.place(next, at)
                 for (target in targets) {
                     target.statusState = when {
                         target.type !== next.type -> DropStatus.Idle
@@ -332,7 +336,8 @@ internal class DragSession(
     val label: String,
     val source: SourceHandle,
     val fromList: DropListState<*>?,
-    val fromIndex: Int?,
+    /** Where it was in [fromList] when it was picked up: see [fromIndex]. */
+    private val pickedUpAt: Int?,
     /** The pointer's distance from the source's top left when it was picked up. */
     val grab: Offset,
     val size: IntSize,
@@ -366,6 +371,22 @@ internal class DragSession(
 
     val topLeft: Offset get() = pointer - grab
 
+    /**
+     * Where the carried thing is in [fromList] **now**, found by its key, and
+     * where it was picked up from if the list no longer has it.
+     *
+     * Not fixed at the pick-up. The list it came from can change while it is
+     * carried — a row above it removed, one arriving from the network — and a
+     * drop reporting where it *was* had the documented `removeAt(fromIndex)`
+     * take out the row beside it, and the place it would land counted against
+     * the wrong row being away.
+     */
+    val fromIndex: Int?
+        get() {
+            val at = pickedUpAt ?: return null
+            return fromList?.indexOfPayload(payload) ?: at
+        }
+
     companion object {
         /** A session for a move that is never carried: a screen reader's, straight to its place. */
         fun probe(spec: SourceSpec) = DragSession(
@@ -374,7 +395,7 @@ internal class DragSession(
             label = spec.label,
             source = SourceHandle(),
             fromList = spec.fromList,
-            fromIndex = spec.fromIndex,
+            pickedUpAt = spec.fromIndex,
             grab = Offset.Zero,
             size = IntSize.Zero,
             layer = null,
@@ -637,7 +658,7 @@ internal fun Modifier.pickUpGesture(
                 label = what.label,
                 source = handle,
                 fromList = what.fromList,
-                fromIndex = what.fromIndex,
+                pickedUpAt = what.fromIndex,
                 grab = centre,
                 size = element.size,
                 layer = handle.layer,
@@ -683,7 +704,7 @@ internal fun Modifier.pickUpGesture(
                                 label = what.label,
                                 source = handle,
                                 fromList = what.fromList,
-                                fromIndex = what.fromIndex,
+                                pickedUpAt = what.fromIndex,
                                 grab = pointer - element.positionInRoot(),
                                 size = element.size,
                                 layer = layer,
@@ -839,24 +860,32 @@ internal fun DragLayer(host: DragHost) {
     // Then to where it ends, and the drop happens when it gets there. Keyed on
     // whether it has been let go, not on the phase: the phase moves on to
     // Dropped inside this, and must not restart it.
+    //
+    // **The drop happens as it settles, not after.** It waited for the flight's
+    // spring to finish, and a spring with no threshold of its own runs on to a
+    // hundredth of a pixel — on a short flight, a tenth of a second after the eye
+    // has seen the card arrive; and for the shadow, on a spring of its own.
+    // Reported as *"the final 'drop' happens just a fraction of a second too
+    // late"*. So the flight ends within half a pixel of its place, and the
+    // shadow finishes coming down beside the drop rather than ahead of it.
     val letGo = session.phase != DragPhase.Carrying
     LaunchedEffect(session, letGo) {
         if (!letGo) return@LaunchedEffect
+        var settling: Job? = null
         if (motion.reduceMotion) {
             // No flight: to its place at once, and down with the drop.
             session.aim()?.let { position.snapTo(it.topLeft) }
             lift.snapTo(0f)
         } else {
-            val spring = motion.springOrTween<Offset>(motion.springSnappy)
-            coroutineScope {
-                // The same spring as the flight, so the two arrive together.
-                launch { lift.animateTo(0f, motion.springOrTween(motion.springSnappy)) }
-                if (session.aim() != null) {
-                    chase(position, session::aim, spring)
-                } else {
-                    // Into a target with no place of its own: in, and gone.
-                    scale.animateTo(0.6f, motion.tweenFast())
-                }
+            val snappy = motion.springSnappy
+            val spring = spring(snappy.dampingRatio, snappy.stiffness, visibilityThreshold = Offset.VisibilityThreshold)
+            // The same spring as the flight, so the two arrive together.
+            settling = launch { lift.animateTo(0f, motion.springOrTween(snappy)) }
+            if (session.aim() != null) {
+                chase(position, session::aim, spring)
+            } else {
+                // Into a target with no place of its own: in, and gone.
+                scale.animateTo(0.6f, motion.tweenFast())
             }
         }
         if (session.phase == DragPhase.Landing) {
@@ -877,6 +906,9 @@ internal fun DragLayer(host: DragHost) {
                 withFrameMillis { }
             }
         }
+        // Flat before it hands over to the item in its place, which casts no
+        // shadow: by now the last few hundredths of it, if anything.
+        settling?.join()
         host.finish(session)
     }
 
@@ -918,15 +950,25 @@ private suspend fun chase(
 ) = coroutineScope {
     var to = aim()?.topLeft ?: return@coroutineScope
     var flight = launch { position.animateTo(to, spec) }
-    while (flight.isActive) {
-        withFrameMillis { }
-        val now = aim()?.topLeft ?: continue
-        if ((now - to).getDistance() > 0.5f) {
-            to = now
-            // Takes over from the flight under way, keeping its velocity.
-            flight = launch { position.animateTo(to, spec) }
+    val watch = launch {
+        while (true) {
+            withFrameMillis { }
+            val now = aim()?.topLeft ?: continue
+            if ((now - to).getDistance() > 0.5f) {
+                to = now
+                // Takes over from the flight under way, keeping its velocity.
+                flight = launch { position.animateTo(to, spec) }
+            }
         }
     }
+    // Over the moment the last flight arrives, not a frame later: a loop that
+    // looked each frame saw it finished on the one after.
+    while (true) {
+        val current = flight
+        current.join()
+        if (current === flight) break
+    }
+    watch.cancel()
 }
 
 /**

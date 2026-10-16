@@ -12,6 +12,8 @@ import androidx.compose.foundation.lazy.LazyItemScope
 import androidx.compose.foundation.lazy.LazyListItemInfo
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
@@ -106,6 +108,41 @@ class ReorderableState internal constructor(
     private var draggingKey: Any? = null
 
     /**
+     * The rows in the list that can be reordered, as each [ReorderableItem]
+     * composed in it reports its index.
+     *
+     * A drag lands only on these. It used to land on any item the list had on
+     * screen, so a list with a header or a footer — an item that is not a row
+     * of the caller's collection — reported the last row carried over the
+     * footer as a move to one past the end, and the `add(to, removeAt(from))`
+     * every caller writes threw.
+     *
+     * One holder per item, whose index it keeps current, rather than a set of
+     * indices: two rows trading places each add the other's index and remove
+     * their own, and in a set whichever went second took the first one's away.
+     * Plain, not snapshot state: only a drag reads it, never a composition.
+     */
+    private val rows = mutableSetOf<RowIndex>()
+
+    /** One [ReorderableItem]'s index, as the list last composed it. */
+    internal class RowIndex(var index: Int)
+
+    internal fun register(row: RowIndex) {
+        rows += row
+    }
+
+    internal fun unregister(row: RowIndex) {
+        rows -= row
+    }
+
+    /**
+     * Whether the item at [index] is a row that can be reordered. Every item is,
+     * in a list with no [ReorderableItem] in it — one driven through [start] and
+     * [drag] alone — as it always was.
+     */
+    private fun isRow(index: Int): Boolean = rows.isEmpty() || rows.any { it.index == index }
+
+    /**
      * Begins a drag on the row at [index], as a long press would.
      *
      * Public because a state a caller cannot reach is a state nobody can
@@ -134,9 +171,11 @@ class ReorderableState internal constructor(
         val dragged = itemAt(index) ?: return
         val draggedCentre = dragged.offset + dragOffset + dragged.size / 2f
 
-        // The row the dragged one is now sitting over.
+        // The row the dragged one is now sitting over: a row, not a header or a
+        // footer the list holds besides them.
         val target = listState.layoutInfo.visibleItemsInfo.firstOrNull { candidate ->
             candidate.index != index &&
+                isRow(candidate.index) &&
                 draggedCentre >= candidate.offset &&
                 draggedCentre <= candidate.offset + candidate.size
         } ?: return
@@ -253,6 +292,12 @@ enum class ReorderHandleSide { Start, End }
  * makes a whole feature unreachable. Pass [itemCount] so "move down" can be
  * withheld on the last row.
  *
+ * @param index The row's index **in the `LazyColumn`**, which is also what
+ *   `onMove` is given. In a list of rows and nothing else that is the row's
+ *   index in the collection; with a header item above them it is one more, and
+ *   `onMove` takes the header off both before it moves anything. An item that is
+ *   not a `ReorderableItem` — a header, a footer, a "load more" — is never where
+ *   a drag lands, so a row carried over one stays where it was.
  * @param shape The row's own shape, for the shadow it casts while lifted.
  *   Null — the default — derives it from [index] and [itemCount], which is what
  *   decides a row's corners everywhere else here: a first row is rounded on top,
@@ -352,6 +397,15 @@ fun LazyItemScope.ReorderableItem(
      */
     val currentIndex by rememberUpdatedState(index)
 
+    // Says to the state that this item is a row a drag may land on. See
+    // `ReorderableState.rows`.
+    val row = remember(state) { ReorderableState.RowIndex(index) }
+    SideEffect { row.index = index }
+    DisposableEffect(state, row) {
+        state.register(row)
+        onDispose { state.unregister(row) }
+    }
+
     val lift by animateFloatAsState(
         targetValue = if (dragging) 1f else 0f,
         animationSpec = motion.springOrTween(motion.springSnappy),
@@ -423,17 +477,22 @@ fun LazyItemScope.ReorderableItem(
             // drag-and-drop behaves; overriding the row's children is the nearest
             // Compose has to that.
             .heldCursor(dragging)
+            // Withheld while disabled, as the drag is: a row that cannot be
+            // carried offered a screen reader move up and move down regardless,
+            // and moved when asked.
             .semantics {
-                customActions = buildList {
-                    if (index > 0) {
-                        add(CustomAccessibilityAction(moveUpLabel) { state.moveUp(index) })
-                    }
-                    if (index < itemCount - 1) {
-                        add(
-                            CustomAccessibilityAction(moveDownLabel) {
-                                state.moveDown(index, itemCount)
-                            }
-                        )
+                if (enabled) {
+                    customActions = buildList {
+                        if (index > 0) {
+                            add(CustomAccessibilityAction(moveUpLabel) { state.moveUp(index) })
+                        }
+                        if (index < itemCount - 1) {
+                            add(
+                                CustomAccessibilityAction(moveDownLabel) {
+                                    state.moveDown(index, itemCount)
+                                }
+                            )
+                        }
                     }
                 }
             }

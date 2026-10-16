@@ -151,6 +151,7 @@ class PullIndicatorTest {
                 PullToRefresh(
                     refreshing = false,
                     onRefresh = {},
+                    scrollState = null,
                     state = live,
                     modifier = Modifier.fillMaxSize(),
                 ) {

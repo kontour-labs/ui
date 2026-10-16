@@ -15,10 +15,10 @@ Scaffold(
         )
     },
 ) { padding ->
-    // Handed over rather than applied, so content can scroll *under* the
-    // bar instead of starting below it.
-    Column(Modifier.fillMaxSize().padding(padding)) {
-        Screen()
+    // The list's content padding, not the list's own: its rows start below
+    // the bar and scroll *under* it, and its last row clears the button.
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = padding) {
+        items(stops) { stop -> ListItem { +stop.name } }
     }
 }
 ```

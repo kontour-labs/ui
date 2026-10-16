@@ -1,5 +1,6 @@
 package io.kontour.ui.components.display
 
+import io.kontour.ui.theme.clipProxy
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.runtime.withFrameNanos
 import io.kontour.ui.a11y.highContrast
@@ -231,7 +232,14 @@ class CarouselState internal constructor(
 fun rememberCarouselState(pageCount: () -> Int): CarouselState {
     val listState = rememberLazyListState()
     val reduceMotion = Theme.motion.reduceMotion
-    return remember(listState) { CarouselState(listState, pageCount) }.also { it.reduceMotion = reduceMotion }
+    // The state outlives the lambda it was first given. `{ photos.size }` over a
+    // parameter is a new lambda each time `photos` changes, and the state held on
+    // to the first one, so the count never moved: a list that grew showed its
+    // first pages only, and one that shrank composed pages it no longer had. The
+    // state reads whichever lambda this call was given last.
+    val latest = rememberUpdatedState(pageCount)
+    return remember(listState) { CarouselState(listState) { latest.value() } }
+        .also { it.reduceMotion = reduceMotion }
 }
 
 /**
@@ -682,7 +690,7 @@ private fun Modifier.heroPage(
             placeable.placeRelative(box?.shift?.roundToInt() ?: 0, 0)
         }
     }
-    .clip(shape)
+    .clip(shape.clipProxy())
     .layout { measurable, constraints ->
         val frame = constraints.maxWidth
         val last = page == count - 1
@@ -1202,7 +1210,7 @@ private fun PageDots(
                     modifier = Modifier
                         .width(if (vertical) PageIndicatorDefaults.DotSize else width)
                         .height(if (vertical) width else PageIndicatorDefaults.DotSize)
-                        .clip(Theme.shapes.capsule),
+                        .clip(Theme.shapes.capsule.clipProxy()),
                     shape = Theme.shapes.capsule,
                     // Under a travelling style every dot is a track, and the pill
                     // drawn over them is what says which page this is.

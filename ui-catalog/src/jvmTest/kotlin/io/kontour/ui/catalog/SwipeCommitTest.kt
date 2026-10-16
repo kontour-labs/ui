@@ -16,6 +16,9 @@ import io.kontour.icons.tabler.outline.Trash
 import io.kontour.ui.components.list.ListItem
 import io.kontour.ui.components.list.SwipeAction
 import io.kontour.ui.components.list.SwipeActions
+import io.kontour.ui.components.list.SwipeActionsState
+import io.kontour.ui.components.list.SwipeValue
+import io.kontour.ui.components.list.rememberSwipeActionsState
 import java.awt.image.BufferedImage
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -129,26 +132,33 @@ class SwipeCommitTest {
     }
 
     /**
-     * At the point of no return, the outermost action takes the strip.
+     * Past the reveal, the outermost action grows and pushes the other aside, and at
+     * the point of no return it has the strip.
+     *
+     * *"Instead of expanding at the same rate, the action that takes the full swipe
+     * should keep expanding and slowly push the other 1 or 2 action/s to zero."* They
+     * used to share the strip evenly up to the line and then the outer one took it
+     * all at once.
      *
      * Counted rather than sampled at a point. The buttons are internal, have no
      * semantics of their own and move every frame, so what is observable is ink: how
      * much of the vacated strip is the outer action's colour and how much is the
-     * inner one's. Short of the line, two actions of equal width share it; past it,
-     * the inner one has folded into the outer.
+     * inner one's.
      *
      * Held rather than released, so the measurement is of the gesture rather than of
      * what it committed to. Under reduced motion, so the takeover is a cut and the
      * frame after the line already shows it.
      */
     @Test
-    fun atThePointOfNoReturnTheOutermostActionTakesTheStrip() {
+    fun pastTheRevealTheOutermostActionPushesTheOtherAsideAndTakesTheStrip() {
+        val (nearOuter, nearInner) = heldAt(JustPastTheReveal)
         val (shortOuter, shortInner) = heldAt(ShortOfTheLine)
         assertTrue(
-            shortOuter > 0 && shortInner > shortOuter / 2,
-            "held short of the point of no return, the outer action holds " +
-                "${shortOuter}px of the strip and the inner one ${shortInner}px. " +
-                "Short of the line they share it.",
+            shortOuter > nearOuter && shortInner in 1 until nearInner,
+            "carried from just past the reveal to short of the point of no return, " +
+                "the outer action went from ${nearOuter}px of the strip to ${shortOuter}px " +
+                "and the inner one from ${nearInner}px to ${shortInner}px. The outer " +
+                "should grow and the inner shrink, still showing.",
         )
         val (outer, inner) = heldAt(Travel)
         assertTrue(
@@ -433,6 +443,69 @@ class SwipeCommitTest {
                 "and ${inner}px of the other — it stayed where the swipe left it " +
                 "instead of going back",
         )
+    }
+
+    /**
+     * A row put back by a tap on its way home from a full swipe still commits the next one.
+     *
+     * The return after the action is the row's own slide back, and a tap on the
+     * row while it slides puts it back too — a second slide, which takes over
+     * from the first. The first one ending that way used to end the whole of
+     * what watches for a full swipe: the tick stayed drawn, the row stayed
+     * counted as fully swiped, and every full swipe after it went out to the
+     * edge and ran nothing.
+     *
+     * Motion on, as the test above is: under reduced motion the row arrives
+     * home at once, and there is no slide to interrupt.
+     */
+    @Test
+    fun aFullSwipeInterruptedOnItsWayBackStillLetsTheNextOneRun() {
+        var runs = 0
+        var bounds = Rect.Zero
+        lateinit var state: SwipeActionsState
+
+        Scene(width = Width, height = Height) {
+            state = rememberSwipeActionsState()
+            Box(Modifier.fillMaxSize().background(Color.White)) {
+                SwipeActions(
+                    end = twoActions(OptIn.OuterOnly) { if (it == "Remove") runs++ },
+                    state = state,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(RowHeight.dp)
+                        .reportBounds { bounds = it },
+                ) {
+                    ListItem { +"Perth Underground" }
+                }
+            }
+        }.use { scene ->
+            scene.frames(4)
+            val from = Offset(Width - 20f, bounds.center.y)
+            scene.drag(from = from, to = Offset(20f, from.y), steps = FlickSteps)
+            var waited = 0
+            while (runs == 0 && waited++ < SettleFrames * 2) scene.frame()
+            assertEquals(1, runs, "the first full swipe ran nothing")
+
+            // Partway home, with the row under the middle of the strip and the
+            // action's button clear of it.
+            waited = 0
+            while (onComposeUiThread { state.offset } !in -250f..-20f && waited++ < SettleFrames) scene.frame()
+            val midway = onComposeUiThread { state.offset }
+            assertTrue(midway in -250f..-20f, "the row was never caught on its way back: at $midway px")
+            scene.tap(Offset(Width / 2f, from.y))
+            scene.frames(SettleFrames)
+            assertEquals(0f, onComposeUiThread { state.offset }, 0.5f, "the tap did not put the row back")
+
+            scene.drag(from = from, to = Offset(20f, from.y), steps = FlickSteps)
+            scene.frames(SettleFrames * 2)
+
+            assertEquals(2, runs, "the full swipe after the interrupted return ran nothing")
+            assertEquals(
+                SwipeValue.Resting,
+                onComposeUiThread { state.currentValue },
+                "the second full swipe left the row at the edge",
+            )
+        }
     }
 
     /**
@@ -762,6 +835,9 @@ class SwipeCommitTest {
 
         /** Past the 352px reveal, short of the 448px point of no return. */
         const val ShortOfTheLine = 400f
+
+        /** A little past the 352px reveal, where the inner action has barely begun to fold. */
+        const val JustPastTheReveal = 364f
 
         /** 130px a move at 16ms: 8125px/s, well past any definition of a flick. */
         const val FlickSteps = 4

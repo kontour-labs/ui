@@ -60,6 +60,7 @@ class PullToRefreshArcTest {
             PullToRefresh(
                 refreshing = refreshing,
                 onRefresh = {},
+                scrollState = rows,
                 state = pull,
                 modifier = Modifier.fillMaxSize().reportBounds { bounds = it },
             ) {

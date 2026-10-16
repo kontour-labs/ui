@@ -2,6 +2,11 @@ package io.kontour.ui.components.calendar
 
 import androidx.compose.animation.core.exponentialDecay
 import androidx.compose.foundation.gestures.FlingBehavior
+import androidx.compose.foundation.gestures.ScrollScope
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.Modifier
 import androidx.compose.foundation.gestures.snapping.SnapLayoutInfoProvider
 import androidx.compose.foundation.gestures.snapping.SnapPosition
 import androidx.compose.foundation.gestures.snapping.snapFlingBehavior
@@ -18,6 +23,7 @@ import kotlin.math.abs
 import kotlin.math.floor
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.first
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.plus
@@ -83,8 +89,8 @@ internal fun CalendarPeriods.dominantMonth(rows: List<VisibleRow>, viewport: Int
  * @param rowPx How tall a row is, in pixels, read when it is needed: it moves
  *   with every frame of a pinch, and nothing here should recompose for it.
  * @param zooming Whether a pinch is under way: the month does not settle on a
- *   week under one, which it would otherwise do a moment after the list stopped
- *   scrolling — and a pinch moves the list without scrolling it.
+ *   week under one, and settles a moment after one ends, as after a carry — a
+ *   pinch moves the list without scrolling it.
  */
 @Composable
 internal fun rememberMonthList(scope: CalendarScope, rowsInView: Int, rowPx: () -> Float, zooming: State<Boolean>): LazyListState {
@@ -156,11 +162,30 @@ internal fun rememberMonthList(scope: CalendarScope, rowsInView: Int, rowPx: () 
         }
     }
 
-    // Left between weeks by a wheel or a carry's scroll, it settles on one.
+    // Left between weeks by a carry's scroll, it settles on one once the
+    // event is put down and the list has stopped.
+    //
+    // **Not after a wheel.** This used to settle whenever the list had been
+    // still for 150ms, and a mouse's wheel is still between every notch: each
+    // turn scrolled, paused, and slid on to the nearest week — back where it
+    // came from, for a notch under half a week — so a slow turn of the wheel
+    // went nowhere and a quicker one lurched; a trackpad's pause mid-swipe did
+    // the same. *"scrolling the month event calendar on desktop (i.e. with
+    // mouse) is a bit janky"*. A wheel and a trackpad now scroll the weeks
+    // freely and leave them where they stop, as a desktop's calendars do; a
+    // finger's fling still ends on a week, by `rememberWeekSnap`, and a pinch
+    // by its own settle.
     LaunchedEffect(list) {
-        snapshotFlow { list.isScrollInProgress || edit.live || zooming.value }.collectLatest { moving ->
-            if (moving) return@collectLatest
-            delay(WheelSettleMillis)
+        var carried = false
+        snapshotFlow { edit.live || zooming.value }.collectLatest { holding ->
+            if (holding) {
+                carried = true
+                return@collectLatest
+            }
+            if (!carried) return@collectLatest
+            carried = false
+            snapshotFlow { list.isScrollInProgress }.first { !it }
+            delay(CarrySettleMillis)
             val first = list.layoutInfo.visibleItemsInfo.firstOrNull() ?: return@collectLatest
             if (first.offset == 0) return@collectLatest
             val back = -first.offset
@@ -172,21 +197,59 @@ internal fun rememberMonthList(scope: CalendarScope, rowsInView: Int, rowPx: () 
     return list
 }
 
-/** A month's fling: as far as it was flung, ending with a week at the top. */
+/**
+ * A month's fling: as far as it was flung, ending with a week at the top.
+ *
+ * **A finger's, and not a wheel's.** Compose hands the end of a mouse wheel's
+ * scroll to a list's fling behaviour too, at about no speed, and a snapping one
+ * takes that as a week to settle on: each notch's scroll, measured, went 13px on
+ * and slid straight back, and three notches went on to a week of their own. So
+ * the snap runs only after a drag, and a wheel's or a trackpad's scroll is left
+ * where it stops. Which one ended is told by [tellsWheelFromFinger] on the list.
+ */
 @Composable
-internal fun rememberWeekSnap(list: LazyListState): FlingBehavior {
+internal fun rememberWeekSnap(list: LazyListState): WeekSnap {
     val motion = Theme.motion
     val spring = motion.springOrTween<Float>(motion.springSnappy)
     return remember(list, spring) {
-        snapFlingBehavior(SnapLayoutInfoProvider(list, SnapPosition.Start), exponentialDecay(), spring)
+        WeekSnap(snapFlingBehavior(SnapLayoutInfoProvider(list, SnapPosition.Start), exponentialDecay(), spring))
+    }
+}
+
+/** [snap] after a drag; nothing at all after a wheel. See [rememberWeekSnap]. */
+internal class WeekSnap(private val snap: FlingBehavior) : FlingBehavior {
+    /** Whether the last thing to scroll the list was a wheel or a trackpad, not a press. */
+    var byWheel: Boolean = false
+
+    // After a wheel, nothing is left over to hand on: the speed returned here goes to the page round the month.
+    override suspend fun ScrollScope.performFling(initialVelocity: Float): Float =
+        if (byWheel) 0f else with(snap) { performFling(initialVelocity) }
+}
+
+/**
+ * Keeps [snap] told whether the list is being scrolled by a wheel or by a press,
+ * before the list itself sees the event. A trackpad's pan counts as a wheel: it
+ * arrives as neither a press nor a move of one.
+ */
+internal fun Modifier.tellsWheelFromFinger(snap: WeekSnap): Modifier = pointerInput(snap) {
+    awaitPointerEventScope {
+        while (true) {
+            val event = awaitPointerEvent(PointerEventPass.Initial)
+            when (event.type) {
+                PointerEventType.Press -> snap.byWheel = false
+                PointerEventType.Release, PointerEventType.Move, PointerEventType.Enter,
+                PointerEventType.Exit, PointerEventType.Unknown -> Unit
+                else -> snap.byWheel = true
+            }
+        }
     }
 }
 
 /** How many rows a scroll to another month is animated over, at most: further, it is a cut. */
 private const val FarRows = 26
 
-/** How long after a wheel's last turn the month settles on a week. */
-private const val WheelSettleMillis = 150L
+/** How long after a carry's scroll has stopped the month settles on a week. */
+private const val CarrySettleMillis = 150L
 
 /** The whole rows of [rowPx] that fit in [viewportPx]. */
 internal fun wholeRows(viewportPx: Float, rowPx: Float): Int = if (rowPx <= 0f) 1 else floor(viewportPx / rowPx + 0.001f).toInt().coerceAtLeast(1)

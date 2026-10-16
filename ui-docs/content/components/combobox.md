@@ -24,6 +24,20 @@ alone. For free text with suggestions, use a [`SearchField`](search-field.md) an
 render results yourself — conflating the two gives a control where it is unclear
 whether what you typed counts as an answer.
 
+**Open, the field is a text box like any other.** A click or a tap in what has
+been typed moves the caret, a double-click or a double-tap selects a word, a
+drag selects a run, and the right-click menu offers to copy and cut it — all
+without closing the list. A press on the field around the text puts the caret
+in it; the chevron, a pick or a press anywhere else closes the list. A drag on
+the field scrolls the page, as a drag on any field does, and the list goes with
+it; a drag on the list scrolls the list, and nothing under it.
+
+**Options drawn rather than named.** `optionContent` and `valueContent` draw
+the options and the value as a [`Select`](select.md)'s do.
+What is typed is matched against `optionLabel` whatever they draw, and open, the
+field shows the value as words — the field keeps the height it had closed, so it
+does not drop to one line as it opens.
+
 A command palette — a search field over *actions* rather than values — is
 [not yet built](../components.md#not-yet-built), and is deliberately not this.
 
@@ -32,6 +46,13 @@ A command palette — a search field over *actions* rather than values — is
 ## Accessibility
 
 Everything on [`Select`](select.md), plus a field the user types into.
+
+**Typing is the field's.** Opened from the keyboard, the field keeps the focus,
+and the Down arrow moves into the list: to the value, where the list holds it,
+and to the first option otherwise. In the list the arrows, Home, End and the page
+keys move as in a select's, but a letter typed there goes back to the field and
+narrows the list, rather than jumping to an option. Escape closes the list and
+gives the focus back to the field.
 
 `matches` decides what filtering does, and what it does is change the list under
 the user's fingers. Keep it predictable: a fuzzy match that reorders results as

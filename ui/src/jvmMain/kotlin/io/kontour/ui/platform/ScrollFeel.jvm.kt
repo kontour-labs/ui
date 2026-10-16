@@ -12,3 +12,6 @@ internal actual val platformLosesRestedFlicks: Boolean = false
 internal actual val platformScrollDeltaInPixels: Boolean = false
 
 internal actual val platformGuardsHomeIndicator: Boolean = false
+
+/** No overscroll at all. */
+internal actual val platformOverscrollMovesContent: Boolean = false

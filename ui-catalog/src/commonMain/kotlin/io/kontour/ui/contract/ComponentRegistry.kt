@@ -14,6 +14,7 @@ import io.kontour.icons.tabler.outline.Bell
 import io.kontour.icons.tabler.outline.Mail
 import io.kontour.ui.components.display.Avatar
 import io.kontour.ui.components.display.AvatarGroup
+import io.kontour.ui.components.display.AvatarSize
 import io.kontour.ui.components.display.Badge
 import io.kontour.ui.components.display.BadgedBox
 import io.kontour.ui.components.display.Card
@@ -140,6 +141,8 @@ import io.kontour.ui.components.display.StepProgress
 import io.kontour.ui.components.display.CircularStepProgress
 import io.kontour.ui.components.display.rememberCarouselState
 import io.kontour.ui.components.list.DisclosureListItem
+import io.kontour.ui.components.list.ListItemSplit
+import io.kontour.ui.components.list.SplitListItem
 import io.kontour.ui.components.list.ExpandingListItem
 import io.kontour.ui.components.list.IndexAlphabet
 import io.kontour.ui.components.list.IndexScroller
@@ -1459,6 +1462,23 @@ val componentRegistry: List<ComponentSpec> = buildList {
             expectsMinimumTarget = false,
             control = ControlLocator.Clickable,
             accessibleName = "When",
+            states = listOf(
+                // The value drawn by the caller rather than set as a label: a
+                // face beside a name, the face the size of a line of text, so
+                // the field stands as tall as one of words.
+                RenderState("option content") { modifier ->
+                    Select(
+                        value = "Ana Lima",
+                        options = listOf("Ana Lima", "Sam Okafor"),
+                        onValueChange = {},
+                        modifier = modifier,
+                        label = "Booked for",
+                    ) { name ->
+                        Avatar(name = name, size = AvatarSize.XSmall)
+                        +name
+                    }
+                },
+            ),
         ) { modifier, enabled, onClick ->
             Select(
                 value = "Now",
@@ -1634,6 +1654,35 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 enabled = enabled,
             ) {
                 Text("Trains give way to freight between Midland and Bellevue.")
+            }
+        }
+    )
+
+    add(
+        // Two rows as one. The specimen's start half is the control and its end
+        // half a value, so there is one clickable to find; the square state
+        // photographs the tile beside a row, as wide as the row is tall.
+        ComponentSpec(
+            name = "SplitListItem",
+            role = Role.Button,
+            control = ControlLocator.Clickable,
+            states = listOf(
+                RenderState("square", height = 100) { modifier ->
+                    SplitListItem(modifier = modifier.width(SpecimenProseWidth), split = ListItemSplit.AutoSquare) {
+                        start(onClick = {}) {
+                            +"Perth Underground"
+                            supporting { +"Platform 2" }
+                        }
+                        end(onClick = {}, contentDescription = "Save") { leading { +Tabler.Outline.Star } }
+                    }
+                },
+            ),
+        ) { modifier, enabled, onClick ->
+            // Two to one, not halves: the boundary walk goes down the middle,
+            // and between halves the middle is the seam, page all the way.
+            SplitListItem(modifier = modifier.width(SpecimenProseWidth), split = ListItemSplit.TwoToOne) {
+                start(onClick = onClick, enabled = enabled) { +"Perth Underground" }
+                end(enabled = enabled) { +"4 min" }
             }
         }
     )
@@ -1931,7 +1980,31 @@ val componentRegistry: List<ComponentSpec> = buildList {
             expectsMinimumTarget = false,
             activatedByClick = false,
             underContract = false,
-            renderHeight = 240,
+            // 250 for the section without rows, whose paragraph and control
+            // stand taller than two rows do.
+            renderHeight = 250,
+            states = listOf(
+                // A paragraph and a control rather than rows, which is how a
+                // good many sections are used: the title and the footer start
+                // at the edge with them, not 16dp in over rows that are not
+                // there. Rows-only, the resting render, is unchanged.
+                RenderState("without rows") { modifier ->
+                    ListSection(
+                        modifier = modifier.widthIn(max = SpecimenProseWidth),
+                        title = { +"Planning" },
+                        footer = { +"Used to work out how long the walks between stops take." },
+                        spacing = Theme.spacing.md,
+                    ) {
+                        Text("Distances are shown in the units you read them in.")
+                        SegmentedControl(
+                            options = listOf("Kilometres", "Miles"),
+                            selectedIndex = 0,
+                            onSelectedIndexChange = {},
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                },
+            ),
         ) { modifier, enabled, onClick ->
             ListSection(
                 // Measured, like every other specimen whose content is prose: a
@@ -2263,8 +2336,9 @@ val componentRegistry: List<ComponentSpec> = buildList {
             name = "DateTimePicker",
             role = null,
             underContract = false,
-            // A date picker's 380 and a time picker's 280, and the gap between.
-            renderHeight = 680,
+            // Too narrow at this width for the two side by side: the calendar,
+            // and the row under it that says the time, about 330dp.
+            renderHeight = 400,
             // The date picker's floor: seven columns of day numbers.
             minWidth = 200,
         ) { modifier, _, _ ->
@@ -2529,7 +2603,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
             // nothing else, so a card of it would be a card of a list row — and
             // with nothing underneath, the indicator floats in space rather than
             // sitting above the thing it is refreshing.
-            PullToRefresh(refreshing = true, onRefresh = {}, modifier = modifier) {
+            PullToRefresh(refreshing = true, onRefresh = {}, scrollState = null, modifier = modifier) {
                 // Taller than the 80dp threshold on purpose. With shorter
                 // content the indicator lands *below* the list, which is what it
                 // honestly does when it wraps something short — and is not what

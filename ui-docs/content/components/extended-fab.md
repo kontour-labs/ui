@@ -2,10 +2,13 @@
 
 <!--sample:ExtendedFloatingActionButtonCollapsing-->
 ```kotlin
+// Derived: the screen recomposes when the answer changes, not on every row
+// the list scrolls past.
+val atTop by remember { derivedStateOf { listState.firstVisibleItemIndex == 0 } }
 ExtendedFloatingActionButton(
     icon = Tabler.Outline.Navigation,
     contentDescription = "Start trip to Perth Station",
-    expanded = listState.firstVisibleItemIndex == 0,
+    expanded = atTop,
     onClick = { start() },
 ) {
     +"Start"

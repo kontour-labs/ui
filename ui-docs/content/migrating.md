@@ -15,33 +15,98 @@ from the version the app is on.
 
 ---
 
-## GitHub Packages to Maven Central
+## 0.4.4 to 0.4.5
 
-From 0.4.4, every `io.kontour` artifact is on Maven Central, the icons too, and
-needs no token. An app that read them from GitHub Packages drops that
-repository and its credentials:
+The repository moves, and two things to rewrite — `PullToRefresh` takes its
+list's scroll state, and `NavBarMarkerDrag` is `NavMarkerDrag` — which the
+compiler finds. `Select`, `MultiSelect`, `Combobox`, `ListSection` and `Strings`
+have new parameters, defaulted and last. A few things look or behave differently
+enough to check.
+
+### Before you start
+
+- **Swap the repository.** 0.4.5 and the icons it is drawn with are on
+  `https://maven.kontour.io`, Kontour's own Maven repository, which needs no
+  token; they are not on GitHub Packages.
+
+  ```diff
+   // settings.gradle.kts
+   dependencyResolutionManagement {
+       repositories {
+           google()
+           mavenCentral()
+  -        maven("https://maven.pkg.github.com/kontour-labs/ui") {
+  -            credentials {
+  -                username = providers.gradleProperty("gpr.user").orNull
+  -                password = providers.gradleProperty("gpr.key").orNull
+  -            }
+  -            content { includeGroup("io.kontour") }
+  -        }
+  +        exclusiveContent {
+  +            forRepository { maven("https://maven.kontour.io") }
+  +            filter { includeGroup("io.kontour") }
+  +        }
+       }
+   }
+  ```
+
+  Then the token can go: `gpr.user` and `gpr.key` from `~/.gradle/gradle.properties`,
+  and the `KONTOUR_PACKAGES_*` secrets, or whatever CI passed the token as, from
+  the workflows that resolve the app's dependencies.
+- **Move all three modules at once**: `kontour = "0.4.5"`, and rebuild anything
+  compiled against 0.4.4.
+
+### `PullToRefresh` takes the list's scroll state
+
+Hand it the state of the list it holds, which says whether the list is at its
+top. `null` for content that does not scroll, or whose state cannot be had.
 
 ```diff
- // settings.gradle.kts
- dependencyResolutionManagement {
-     repositories {
-         google()
-         mavenCentral()
--        maven("https://maven.pkg.github.com/kontour-labs/ui") {
--            credentials {
--                username = providers.gradleProperty("gpr.user").orNull
--                password = providers.gradleProperty("gpr.key").orNull
--            }
--            content { includeGroup("io.kontour") }
--        }
-     }
- }
+- PullToRefresh(refreshing, onRefresh, Modifier.weight(1f)) {
+-     LazyColumn { … }
++ val rows = rememberLazyListState()
++ PullToRefresh(refreshing, onRefresh, rows, Modifier.weight(1f)) {
++     LazyColumn(state = rows) { … }
+  }
 ```
 
-Then `gpr.user`/`gpr.key` in `~/.gradle/gradle.properties`, and the
-`KONTOUR_PACKAGES_*` secrets in CI, can go, and the token with them. The
-coordinates are unchanged. Versions before 0.4.4 are only on GitHub Packages:
-move to 0.4.4 or later first, or keep the repository until you do.
+### `NavBarMarkerDrag` is `NavMarkerDrag`
+
+The rail, the modal rail and the tab bar take it too, and the navigation
+suite's parameter is `markerDrag`, for the rail as well as the bar.
+
+```diff
+- NavBar(markerDrag = NavBarMarkerDrag.SelectWhileDragging) { … }
++ NavBar(markerDrag = NavMarkerDrag.SelectWhileDragging) { … }
+- NavigationSuiteScaffold(…, barMarkerDrag = NavBarMarkerDrag.Off)
++ NavigationSuiteScaffold(…, markerDrag = NavMarkerDrag.Off)
+```
+
+### Check
+
+- **A floating bottom sheet's foot.** It now stands the sides' margin off the
+  window's edge under a home indicator or a gesture handle, and its content is
+  handed the rest of that strip as bottom padding. Content that takes the
+  padding it is given — a list's `contentPadding` — keeps clear of the handle as
+  before; content that ignored it, and relied on the old, higher margin, now
+  reaches into the strip. Over three buttons or the keyboard the sheet stands a
+  margin above them, where it sat on them.
+- **List sections over something other than rows.** Their titles and footers
+  now start at the content's edge. Pass `textInset = ListItemDefaults.ContentInset`
+  to keep the old indent.
+- **A date-time picker narrower than its wheels and calendar side by side**
+  shows the calendar with a time row under it, whose pill opens the wheels in a
+  popover, where it showed one half at a time under a segmented control. The
+  popover needs an `OverlayHost` round the app, as a menu does; without one the
+  pill shows the time and does nothing.
+- **A rail, a modal rail or a tab bar whose destinations fit** now drags its
+  marker, as a nav bar did. `markerDrag = NavMarkerDrag.Off` keeps it to taps.
+- **A hero top bar that follows its list**, on iOS: put
+  `Modifier.topBarCollapse(collapse)` on the list, ahead of its
+  `verticalScroll`, for the bar to take the push past the list's end.
+- **Content that reads a `Scaffold`'s padding in composition**, as
+  `padding.calculateTopPadding()` in a composable's body rather than as a
+  modifier or a `contentPadding`, sees a change a frame later than it did.
 
 ---
 

@@ -8,3 +8,5 @@ import androidx.compose.ui.input.pointer.PointerIcon
  * the right shape for that platform in any case.
  */
 internal actual fun platformPointerIcon(cursor: Cursor): PointerIcon? = null
+
+internal actual val platformHasCursor: Boolean = false

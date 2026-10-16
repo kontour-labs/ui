@@ -252,9 +252,13 @@ internal fun TextFieldImpl(
     val routed = textTouchesGoToTheBrowser && enabled && !readOnly && (outputTransformation == null || masked)
     val scroll = rememberScrollState()
     val browser = remember { BrowserText() }
-    val outfit = outfitFontFamily()
-    val jetBrainsMono = jetBrainsMonoFontFamily()
     if (routed) {
+        // Asked for only here, where they are compared against: seven font
+        // resources resolved on every composition of every field, on platforms
+        // that never route a field to the browser, for an answer only this
+        // branch reads.
+        val outfit = outfitFontFamily()
+        val jetBrainsMono = jetBrainsMonoFontFamily()
         browser.state = state
         browser.inputTransformation = inputTransformation
         browser.focused = focused
@@ -335,6 +339,10 @@ internal fun TextFieldImpl(
                 state = state,
                 editable = enabled && !readOnly,
                 enabled = enabled,
+                // The menu's paste and cut go through the field's filter, as a
+                // keystroke does, and a masked field offers neither Cut nor Copy.
+                filter = inputTransformation,
+                copyable = !masked,
             ),
         // A press anywhere on the frame puts the caret in the field.
         //

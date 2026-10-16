@@ -176,6 +176,10 @@ internal fun StopPage(stop: StopInfo, onLine: (String) -> Unit, onTicket: () -> 
         Column(
             Modifier
                 .fillMaxSize()
+                // Ahead of the scroll: a push past the page's foot — it is
+                // often only just long enough to scroll — takes the bar with
+                // it, rather than sliding the page up under the picture.
+                .topBarCollapse(collapse)
                 .pageScroll(scroll)
                 .padding(top = collapse.openHeight)
                 .padding(transitPagePadding()),

@@ -4,6 +4,11 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import io.kontour.icons.tabler.outline.HelpCircle
 import io.kontour.ui.components.list.DisclosureListItem
+import androidx.compose.ui.semantics.Role
+import io.kontour.icons.tabler.outline.Star
+import io.kontour.icons.tabler.outline.Train
+import io.kontour.ui.components.list.ListItemSplit
+import io.kontour.ui.components.list.SplitListItem
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.lazy.LazyColumn
@@ -53,6 +58,7 @@ import io.kontour.ui.components.list.LoadMore
 import io.kontour.ui.components.list.LoadMoreStatus
 import io.kontour.ui.components.list.Scrollbar
 import io.kontour.ui.components.selection.SelectionRow
+import io.kontour.ui.components.selection.SegmentedControl
 import io.kontour.ui.components.list.fadingEdges
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.components.table.TableSort
@@ -142,8 +148,9 @@ fun ReorderableList(initial: List<Stop>) {
 
 @Composable
 fun PullToRefreshBasics(refreshing: Boolean, stops: List<Stop>) {
-    PullToRefresh(refreshing = refreshing, onRefresh = { refresh() }) {
-        LazyColumn {
+    val rows = rememberLazyListState()
+    PullToRefresh(refreshing = refreshing, onRefresh = { refresh() }, scrollState = rows) {
+        LazyColumn(state = rows) {
             listSection(stops) { stop, position ->
                 ListItem(position = position) { +stop.name }
             }
@@ -199,6 +206,29 @@ fun DisclosureListItemBasics() {
 }
 
 @Composable
+fun SplitListItemBasics() {
+    var saved by remember { mutableStateOf(false) }
+
+    // A stop, and beside it the one thing to do with it: two rows joined into
+    // one, each its own control, the square as wide as the row is tall.
+    SplitListItem(split = ListItemSplit.AutoSquare) {
+        start(onClick = { /* open the stop */ }) {
+            leading { +Tabler.Outline.Train }
+            +"Perth Underground"
+            supporting { +"Platform 2 · Joondalup line" }
+        }
+        end(
+            onClick = { saved = !saved },
+            selected = saved,
+            role = Role.Checkbox,
+            contentDescription = "Save Perth Underground",
+        ) {
+            leading { +Tabler.Outline.Star }
+        }
+    }
+}
+
+@Composable
 fun ListSectionBasics() {
     // The section owns the rounding: `position` tells each row whether it is the
     // first, the last, both or neither, so a group reads as one card rather than
@@ -217,6 +247,28 @@ fun ListSectionBasics() {
             +"Text size"
             supporting { +"Default" }
         }
+    }
+}
+
+@Composable
+fun ListSectionOtherContent() {
+    var units by remember { mutableStateOf(0) }
+
+    // Not rows: a paragraph and a control. The title and footer start where
+    // they do, at the edge, rather than in where a row's words would be.
+    ListSection(
+        title = { +"Planning" },
+        footer = { +"Used to work out how long the walks between stops take." },
+        // Separate things rather than one card, so the room a form has.
+        spacing = Theme.spacing.md,
+    ) {
+        Text("Trips are planned at the speed you walk, in the units you read distances in.")
+        SegmentedControl(
+            options = listOf("Kilometres", "Miles"),
+            selectedIndex = units,
+            onSelectedIndexChange = { units = it },
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
 }
 

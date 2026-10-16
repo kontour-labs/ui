@@ -21,16 +21,17 @@ The path in a Markdown URL is the path in the site's own address, so
 `#/components/nav-bar` on the site is `md/components/nav-bar.md` here. Links
 between pages are relative and resolve the same way.
 
-## Fetching it
+## No sign-in
 
-The site and the Markdown are public: any fetch reads them, Claude Code's
-`WebFetch` included, with no headers or credentials.
+The site and the Markdown are public: any fetch tool reads them, Claude Code's
+`WebFetch` included, with no token and no headers. An environment with
+restricted network access has to allow `docs.kontour.io`.
 
-```sh
-curl -fsS https://docs.kontour.io/ui/llms.txt
-```
+The source is public too, at `https://github.com/kontour-labs/ui`: the KDoc on
+every declaration is the most detailed account of what it does, and an agent
+that has the library's sources jar in its Gradle cache can read the same there.
 
-An agent working in this repository can read `ui-docs/content` instead: it is
+An agent working in this repository needs none of this: `ui-docs/content` is
 the same Markdown, and reading it there is faster.
 
 ## Upgrading
@@ -52,13 +53,14 @@ The compiler finds the rest.
 Paste this into the app's `CLAUDE.md`:
 
 > **Kontour UI.** This app's components come from `io.kontour:ui`. Its
-> documentation is at `https://docs.kontour.io/ui/`, but the site is a canvas an
-> agent cannot read: read the Markdown instead.
+> documentation is at `https://docs.kontour.io/ui/`, and the site itself cannot
+> be read by an agent: read the Markdown instead.
 > `https://docs.kontour.io/ui/llms.txt` lists every page, and
 > `https://docs.kontour.io/ui/md/<path>.md` returns one.
 > Before writing a screen, find the component for it in the index and read its
-> page: prefer the library's component to a hand-built one, and its tokens
-> (`Theme.spacing`, `Theme.colours`, `Theme.typography`) to literal values.
+> page, and read `md/patterns.md` once: prefer the library's component to a
+> hand-built one, and its tokens (`Theme.spacing`, `Theme.colours`,
+> `Theme.typography`) to literal values.
 > When the app moves to a newer `io.kontour` version, read `…/ui/md/changelog.md`
 > for every release in between, and make each **Breaking** change it lists, as
 > `…/ui/md/migrating.md` writes it.

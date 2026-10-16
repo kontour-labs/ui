@@ -7,6 +7,7 @@ Rows, and the things that happen to them.
 | [`ListItem`](list-item.md) | One row of anything | — |
 | [`ExpandingListItem`](expanding-list-item.md) | A row that unfolds more rows | `Accordion`, when what opens is *content* |
 | [`DisclosureListItem`](disclosure-list-item.md) | A row that opens onto more of itself | `ExpandingListItem`, when what opens is more rows |
+| [`SplitListItem`](split-list-item.md) | Two rows side by side, as one row of a list | `ListItem` with a `trailing` control, when the second half is not a place to go of its own |
 | [`ListSection`](list-section.md) | A titled group of rows | — |
 | [`SwipeActions`](swipe-actions.md) | Actions behind a sideways drag | A menu, which you owe anyway |
 | [`SwipeToDismiss`](swipe-actions.md) | Removing a row by dragging it away | — |

@@ -12,6 +12,7 @@ import io.kontour.ui.platform.reportedAppearances
 import io.kontour.ui.platform.systemDarkOverride
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 
 /**
  * `KontourTheme` tells the host which appearance it is drawing, and tells it again.
@@ -41,8 +42,7 @@ import kotlin.test.assertEquals
 class AppearanceReportTest {
 
     @Test
-    fun theThemeReportsItsAppearanceAndReportsItAgainWhenItChanges() {
-        reportedAppearances.clear()
+    fun theThemeReportsItsAppearanceAndReportsItAgainWhenItChanges() = recording { reported ->
         var dark by mutableStateOf(false)
         val scene = ImageComposeScene(width = 200, height = 200, density = Density(1f)) {
             KontourTheme(darkTheme = dark) { Box(Modifier.fillMaxSize()) }
@@ -51,7 +51,7 @@ class AppearanceReportTest {
             repeat(4) { scene.render(16_000_000L * it).close() }
             assertEquals(
                 listOf(false),
-                reportedAppearances.toList(),
+                reported.toList(),
                 "the theme did not tell the host what it was drawing at all",
             )
 
@@ -59,7 +59,7 @@ class AppearanceReportTest {
             repeat(20) { scene.render(16_000_000L * (it + 5)).close() }
             assertEquals(
                 listOf(false, true),
-                reportedAppearances.toList(),
+                reported.toList(),
                 "the theme went dark and the host was not told. A host that is " +
                     "told once, at startup, has learnt nothing it could not read " +
                     "from the system itself — the report exists for the change " +
@@ -99,8 +99,7 @@ class AppearanceReportTest {
      * device already disagree.
      */
     @Test
-    fun reportingAnAppearanceDoesNotChangeWhatTheDeviceIs() {
-        reportedAppearances.clear()
+    fun reportingAnAppearanceDoesNotChangeWhatTheDeviceIs() = recording { reported ->
         systemDarkOverride = false
         try {
             var dark by mutableStateOf(false)
@@ -124,7 +123,7 @@ class AppearanceReportTest {
                 repeat(20) { scene.render(16_000_000L * (it + 5)).close() }
                 assertEquals(
                     listOf(false, true),
-                    reportedAppearances.toList(),
+                    reported.toList(),
                     "the app did not report going dark, so this measured nothing",
                 )
                 assertEquals(
@@ -141,6 +140,46 @@ class AppearanceReportTest {
             }
         } finally {
             systemDarkOverride = null
+        }
+    }
+
+    /**
+     * And outside a test it keeps nothing.
+     *
+     * The record was a list that was always there, so a desktop application held
+     * every appearance it had ever reported for as long as it ran — one more each
+     * time a window was opened or the dark switch was moved — in a list no lock
+     * guarded. It is kept now only while a test has handed it one.
+     */
+    @Test
+    fun nothingIsKeptUnlessATestAsks() {
+        assertNull(reportedAppearances, "a test before this one left its record switched on")
+        var dark by mutableStateOf(false)
+        val scene = ImageComposeScene(width = 200, height = 200, density = Density(1f)) {
+            KontourTheme(darkTheme = dark) { Box(Modifier.fillMaxSize()) }
+        }
+        try {
+            repeat(4) { scene.render(16_000_000L * it).close() }
+            dark = true
+            repeat(20) { scene.render(16_000_000L * (it + 5)).close() }
+            assertNull(
+                reportedAppearances,
+                "the theme's reports were kept with nobody asking for them, which in a " +
+                    "desktop application is a list that grows for as long as it runs",
+            )
+        } finally {
+            scene.close()
+        }
+    }
+
+    /** Runs [block] with the record switched on, and switches it off again. */
+    private fun recording(block: (MutableList<Boolean>) -> Unit) {
+        val reported = mutableListOf<Boolean>()
+        reportedAppearances = reported
+        try {
+            block(reported)
+        } finally {
+            reportedAppearances = null
         }
     }
 }

@@ -124,7 +124,13 @@ internal fun nearestStep(time: LocalTime, step: Int): Pair<LocalTime, Boolean> {
 
 /**
  * [TimePicker], and [onNow] for a [DateTimePicker], told when Now is pressed
- * whether the time it turns to is tomorrow's, so the date can go with it.
+ * whether the time it turns to is tomorrow's, so the date can go with it. It
+ * answers whether the date went: where tomorrow could not be taken, Now is the
+ * last step of today rather than midnight at its start.
+ *
+ * [narrow] wheels are as wide as their widest number or word and the room
+ * either side of it the day period's has, rather than 72dp and 64: the date
+ * and time picker's, so they fit beside a calendar on a phone.
  */
 @Composable
 internal fun TimeWheels(
@@ -136,7 +142,8 @@ internal fun TimeWheels(
     now: (() -> LocalTime)?,
     formats: LocaleFormats,
     onValueChangeFinished: (() -> Unit)?,
-    onNow: ((tomorrow: Boolean) -> Unit)?,
+    onNow: ((tomorrow: Boolean) -> Boolean)?,
+    narrow: Boolean = false,
 ) {
     require(minuteStep in 1..30) { "minuteStep must divide an hour sensibly" }
 
@@ -161,7 +168,12 @@ internal fun TimeWheels(
     }
     val displayHour = displayHourOf(value.hour)
     val hourIndex = hours.indexOf(displayHour).coerceAtLeast(0)
-    val minuteIndex = minutes.indexOfFirst { it >= value.minute }.coerceAtLeast(0)
+    // A minute between two steps shows the step after it — except past the
+    // last step, where the one after is the next hour's :00, which this wheel
+    // cannot show without the hour. It showed this hour's :00 instead, and the
+    // drum, reporting the row it opened on, turned 9:58 into 9:00. The last
+    // step is the nearest this hour has.
+    val minuteIndex = minutes.indexOfFirst { it >= value.minute }.let { if (it < 0) minutes.lastIndex else it }
     val isPm = value.hour >= 12
 
     // The value as last reported, not as last composed: two wheels turning in
@@ -202,6 +214,21 @@ internal fun TimeWheels(
     val minuteLabel: (Int) -> String = remember(formats) { { minute -> formats.integer(minute).padStart(2, zero) } }
     val muted = if (enabled) Theme.colours.contentMuted else Theme.colours.contentDisabled
 
+    // Measured, at the reader's type size, where the wheels are narrow: the
+    // widest of the numbers either wheel can show. One width for both, so the
+    // separator sits in the middle of the pair.
+    val measurer = rememberTextMeasurer()
+    val rowStyle = Theme.typography.titleLarge
+    val density = LocalDensity.current
+    val clockWheelWidth = if (!narrow) {
+        ClockWheelWidth
+    } else {
+        remember(hours, minutes, hourLabel, minuteLabel, rowStyle, density) {
+            val widest = (hours.map(hourLabel) + minutes.map(minuteLabel)).maxOf { measurer.measure(it, rowStyle).size.width }
+            with(density) { widest.toDp() + PeriodWheelPadding }
+        }
+    }
+
     // The hour and minute read left to right in every language — a clock's
     // numbers are a number, not words — so they are laid out as one
     // left-to-right group, and only the day period takes the line's direction.
@@ -213,7 +240,7 @@ internal fun TimeWheels(
                     selectedIndex = hourIndex,
                     onSelectedIndexChange = { emit(hourValue = hours[it]) },
                     itemLabel = hourLabel,
-                    modifier = Modifier.width(72.dp),
+                    modifier = Modifier.width(clockWheelWidth),
                     enabled = enabled,
                     contentDescription = strings.hour,
                     onSettled = onValueChangeFinished,
@@ -227,7 +254,7 @@ internal fun TimeWheels(
                     selectedIndex = minuteIndex,
                     onSelectedIndexChange = { emit(minute = minutes[it]) },
                     itemLabel = minuteLabel,
-                    modifier = Modifier.width(72.dp),
+                    modifier = Modifier.width(clockWheelWidth),
                     enabled = enabled,
                     contentDescription = strings.minute,
                     onSettled = onValueChangeFinished,
@@ -238,13 +265,11 @@ internal fun TimeWheels(
     }
 
     // Wide enough for the longer of the two words, and never narrower than it
-    // was for `AM`: `முற்பகல்` is not going to fit in 64dp.
-    val measurer = rememberTextMeasurer()
-    val periodStyle = Theme.typography.titleLarge
-    val density = LocalDensity.current
-    val periodWidth = remember(periods, periodStyle, density) {
-        val widest = periods.maxOf { measurer.measure(it, periodStyle).size.width }
-        with(density) { maxOf(PeriodWheelWidth, widest.toDp() + PeriodWheelPadding) }
+    // was for `AM`: `முற்பகல்` is not going to fit in 64dp. Narrow, the word
+    // and its room are all of it.
+    val periodWidth = remember(periods, rowStyle, density, narrow) {
+        val widest = with(density) { periods.maxOf { measurer.measure(it, rowStyle).size.width }.toDp() + PeriodWheelPadding }
+        if (narrow) widest else maxOf(PeriodWheelWidth, widest)
     }
 
     // A third wheel, not a segmented control below.
@@ -296,8 +321,13 @@ internal fun TimeWheels(
             // this is a shortcut to a place on them.
             Button(
                 onClick = {
-                    val (target, tomorrow) = nearestStep(now(), minuteStep)
-                    onNow?.invoke(tomorrow)
+                    val (rounded, tomorrow) = nearestStep(now(), minuteStep)
+                    // 23:58 by fives rounds to midnight, which is tomorrow's.
+                    // Where the date could not go with it, the wheels stop at
+                    // the last step of today: 00:00 on today's date is a day
+                    // before now, the furthest from it the wheels can show.
+                    val tookTomorrow = onNow?.invoke(tomorrow) ?: true
+                    val target = if (tomorrow && !tookTomorrow) LocalTime(23, minutes.last()) else rounded
                     val asked = listOf(
                         WheelTurn(hours.indexOf(displayHourOf(target.hour)).coerceAtLeast(0)),
                         WheelTurn(minutes.indexOf(target.minute).coerceAtLeast(0)),
@@ -491,6 +521,9 @@ internal fun PickerField(
         }
     }
 }
+
+/** The hour and minute wheels' width, but where they are narrow. */
+private val ClockWheelWidth = 72.dp
 
 /** The day-period wheel's width when its words are short. */
 private val PeriodWheelWidth = 64.dp

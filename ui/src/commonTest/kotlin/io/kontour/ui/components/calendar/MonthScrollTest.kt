@@ -1,5 +1,7 @@
 package io.kontour.ui.components.calendar
 
+import androidx.compose.foundation.gestures.FlingBehavior
+import androidx.compose.foundation.gestures.ScrollScope
 import androidx.compose.foundation.layout.size
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
@@ -15,6 +17,7 @@ import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performCustomAccessibilityActionWithLabel
+import androidx.compose.ui.test.performMouseInput
 import androidx.compose.ui.test.performMultiModalInput
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeUp
@@ -30,6 +33,7 @@ import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
@@ -41,7 +45,9 @@ import kotlinx.datetime.plus
  * asked for as *"switch to up/down swiping between months, but snap to the
  * week rather than to the month"*, and *"line the days up vertically so weeks
  * sit under each other properly"* — a month's rows were its height shared by
- * its own four to six weeks, so the next month's were another height.
+ * its own four to six weeks, so the next month's were another height. A
+ * finger's fling ends on a week; a wheel's turn leaves the weeks where it
+ * stops.
  */
 @OptIn(ExperimentalTestApi::class)
 class MonthScrollTest {
@@ -49,6 +55,19 @@ class MonthScrollTest {
     private val periods = CalendarPeriods(DayOfWeek.MONDAY)
 
     // --- The rows and the months they show ---
+
+    /** A wheel's turn ends where it stops, and hands nothing on to the page round the month. */
+    @Test
+    fun aWheelsFlingIsNotHandedOn() {
+        val snap = object : FlingBehavior {
+            override suspend fun ScrollScope.performFling(initialVelocity: Float): Float = error("a wheel's turn was snapped to a week")
+        }
+        val weeks = WeekSnap(snap).apply { byWheel = true }
+        val still = object : ScrollScope {
+            override fun scrollBy(pixels: Float): Float = 0f
+        }
+        assertEquals(0f, runBlocking { with(weeks) { still.performFling(1_000f) } })
+    }
 
     @Test
     fun aRowIsAWeekBothWaysRoundAcrossYearsAndBefore1970() {
@@ -148,6 +167,42 @@ class MonthScrollTest {
         // A row's top on the box's: settled on a week, not between two.
         val after = days(probe).values.map { it.top }
         assertTrue(after.any { abs(it - top) < 1f }, "after the swipe no row starts at the top: $after, the top at $top")
+    }
+
+    /**
+     * *"scrolling the month event calendar on desktop (i.e. with mouse) is a
+     * bit janky"*: a turn of the wheel, and a moment's pause, slid the weeks
+     * on to the nearest one — back where they were, for a turn under half a
+     * week, so turning the wheel slowly went nowhere. Each turn now moves the
+     * weeks on, and they stay where it leaves them.
+     */
+    @Test
+    fun aWheelScrollsTheWeeksFreelyAndLeavesThemWhereItStops() = runComposeUiTest {
+        val probe = month()
+        val day = LocalDate(2026, 10, 14)
+        val before = days(probe)
+        val top = before.values.minOf { it.top }
+        var last = before.getValue(day).top
+        var way = 0f
+        repeat(3) { turn ->
+            onRoot().performMouseInput {
+                moveTo(center)
+                scroll(0.5f)
+            }
+            // Longer than any wheel's slide, and than the settle there was.
+            mainClock.advanceTimeBy(500)
+            waitForIdle()
+            val now = days(probe).getValue(day).top
+            if (turn == 0) way = if (now < last) -1f else 1f
+            assertTrue((now - last) * way > 1f, "turn ${turn + 1} of the wheel took the 14th from $last to $now: back, or nowhere")
+            last = now
+        }
+        // The week at the top is cut off by the box, so its bounds start at the
+        // box's top whatever: what says it is between weeks is the next one,
+        // less than a row below it.
+        val tops = days(probe).values.map { it.top }.distinct().sorted()
+        val row = tops[2] - tops[1]
+        assertTrue(abs(tops[1] - top - row) > 1f, "three half turns of the wheel ended with a week at the top: $tops")
     }
 
     @Test

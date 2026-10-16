@@ -13,23 +13,31 @@ import androidx.compose.runtime.SideEffect
  * dark title bar because the app inside it drew dark, and should not. There is
  * no equivalent of a status bar to get wrong.
  *
- * It records what it was told all the same. See [reportedAppearances].
+ * It records what it was told all the same, when a test asks. See
+ * [reportedAppearances].
  */
+@Composable
+internal actual fun platformReportAppearance(dark: Boolean) {
+    SideEffect { reportedAppearances?.add(dark) }
+}
+
 /**
- * What was reported, in order, for the one platform whose wiring can be tested.
+ * What was reported, in order, for the one platform whose wiring can be tested —
+ * or `null`, and nothing is kept, which is what it is outside a test.
  *
  * The JVM has nothing to tell a window, so this actual would otherwise be `Unit`
  * — and an `expect` whose only testable `actual` does nothing is a piece of
  * plumbing that can be cut without any check noticing. `AppearanceReportTest`
- * flips a theme and reads this, which is the only place in the repository that
- * can see whether `KontourTheme` reports a change at all.
+ * hands it a list, flips a theme and reads the list, which is the only place in
+ * the repository that can see whether `KontourTheme` reports a change at all.
+ *
+ * **Off unless a test turns it on.** It was a list that was always there, so a
+ * desktop application kept every appearance it had ever reported for as long as
+ * it ran, from whichever thread its windows composed on. A test owns the list it
+ * passes, and takes it away again when it is done.
  */
-internal val reportedAppearances = mutableListOf<Boolean>()
-
-@Composable
-internal actual fun platformReportAppearance(dark: Boolean) {
-    SideEffect { reportedAppearances += dark }
-}
+@Volatile
+internal var reportedAppearances: MutableList<Boolean>? = null
 
 /**
  * What the "device" is set to, which on the JVM is whatever a test says.

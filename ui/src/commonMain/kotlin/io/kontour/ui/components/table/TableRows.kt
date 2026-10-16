@@ -1,5 +1,7 @@
 package io.kontour.ui.components.table
 
+import io.kontour.ui.foundation.snappedLineWidth
+import io.kontour.ui.foundation.snappedLineCentre
 import io.kontour.ui.platform.webRole
 import io.kontour.ui.platform.WebRole
 import androidx.compose.foundation.background
@@ -509,12 +511,17 @@ private class CellGroupPolicy(
  */
 private fun Modifier.tableRules(env: TableEnv<*>, top: Color?, bottom: Color?): Modifier = drawWithContent {
     drawContent()
-    val hair = env.hairline.toPx()
+    val hair = snappedLineWidth(env.hairline.toPx())
     val layout = env.layout
     val shift = env.scroll.value
     val rtl = layoutDirection == LayoutDirection.Rtl
     fun x(at: Float) = if (rtl) size.width - at else at
-    fun vertical(at: Float) = drawLine(env.colours.lines, Offset(x(at), 0f), Offset(x(at), size.height), hair)
+    // Inside the column it ends, on whole pixels: centred on the column's
+    // edge, a rule was two pale pixels.
+    fun vertical(at: Float) {
+        val centre = snappedLineCentre(x(at), hair, after = rtl)
+        drawLine(env.colours.lines, Offset(centre, 0f), Offset(centre, size.height), hair)
+    }
     if (top != null) drawLine(top, Offset(0f, hair / 2f), Offset(size.width, hair / 2f), hair)
     if (bottom != null) {
         drawLine(bottom, Offset(0f, size.height - hair / 2f), Offset(size.width, size.height - hair / 2f), hair)

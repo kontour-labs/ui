@@ -2,8 +2,8 @@
 
 A Compose Multiplatform design system, built on **Foundation** — no Material.
 
-Android, iOS, desktop and web from one source set.
-<!--counts-->168 public components across 130 pages<!--/counts-->, every one with
+Android, iOS, desktop and the web from one source set.
+<!--counts-->169 public components across 131 pages<!--/counts-->, every one with
 a demo you can operate, a compiled example and a generated parameter table.
 
 ```kotlin
@@ -19,153 +19,120 @@ KontourTheme {
 
 ### **[docs.kontour.io/ui](https://docs.kontour.io/ui/)**
 
-The documentation site: every component running, not pictured. An agent reads
-the same pages as Markdown, starting from
-[`llms.txt`](https://docs.kontour.io/ui/llms.txt), as
-[`agents.md`](ui-docs/content/agents.md) describes. Its source is
-[`ui-docs/content/`](ui-docs/content), which reads on GitHub too —
-[components](ui-docs/content/components.md) ·
-[installing](ui-docs/content/installing.md) ·
-[tokens](ui-docs/content/tokens.md) ·
-[theming](ui-docs/content/theming.md) ·
-[accessibility](ui-docs/content/accessibility.md) ·
-[the `+` vocabulary](ui-docs/content/dsls.md) ·
-[changelog](ui-docs/content/changelog.md) ·
-[migrating](ui-docs/content/migrating.md)
-
-Adding to the library instead? [`docs/`](docs/README.md) is the other half:
-[contributing](docs/building/contributing.md) ·
-[testing](docs/building/testing.md)
+Every component running, not pictured, with its parameters, its accessibility
+and its demo. The same pages are in [`ui-docs/content/`](ui-docs/content), and
+as Markdown for agents at
+[`docs.kontour.io/ui/llms.txt`](https://docs.kontour.io/ui/llms.txt).
 
 ---
 
 ## Installing
 
-On Maven Central, from 0.4.4: `mavenCentral()` in the repositories is all it
-needs, with no token.
+From Kontour's Maven repository, which needs no token:
 
 ```kotlin
-// build.gradle.kts
-implementation("io.kontour:ui:0.4.4")
-// Optional: Navigation 3 scene strategies over the pane scaffolds
-implementation("io.kontour:ui-nav3:0.4.4")
+// settings.gradle.kts
+dependencyResolutionManagement {
+    repositories {
+        google()
+        mavenCentral()
+        exclusiveContent {
+            forRepository { maven("https://maven.kontour.io") }
+            filter { includeGroup("io.kontour") }
+        }
+    }
+}
 ```
 
-`io.kontour:haptics` comes with `:ui` — it plays the library's haptics — and can
-be used on its own, with no Compose in it: see
-[`haptics.md`](ui-docs/content/haptics.md).
+```toml
+# gradle/libs.versions.toml
+[versions]
+kontour = "0.4.5"
 
-[`installing.md`](ui-docs/content/installing.md) has the whole of it: the three
-modules, the setup each needs on each platform, and what each failure mode looks
-like.
+[libraries]
+kontour-ui = { module = "io.kontour:ui", version.ref = "kontour" }
+# Navigation 3 scene strategies over the pane scaffolds, if the app uses it
+kontour-ui-nav3 = { module = "io.kontour:ui-nav3", version.ref = "kontour" }
+```
 
-**One thing worth knowing before you start.** This publishes against Compose
-Multiplatform **1.12.1**. 1.12 is the floor, deliberately:
-`ImageComposeScene.calculateContentSize()` lands there and the screenshot
-harness the whole test suite rests on uses it. A consumer on 1.11 will hit
-binary incompatibility — move to 1.12.1, or stay on a version published before
-the bump.
+```kotlin
+// build.gradle.kts, in the shared module
+kotlin {
+    sourceSets {
+        commonMain.dependencies {
+            implementation(libs.kontour.ui)
+        }
+    }
+}
+```
+
+Releases up to 0.4.4 were on GitHub Packages and needed a token; from 0.4.5
+nothing does — [migrating](ui-docs/content/migrating.md#044-to-045) has the
+change.
+
+| Artifact | What it is |
+|---|---|
+| `io.kontour:ui` | The theme, the tokens and every component |
+| `io.kontour:ui-nav3` | [Navigation 3](ui-docs/content/navigation3.md) scene strategies, and page transitions that follow the back gesture |
+| `io.kontour:haptics` | [Platform haptics](ui-docs/content/haptics.md) with no Compose in it. `:ui` brings it; on its own for an app that wants only the effects |
+
+Keep all three on the same version. Each is published for Android (minSdk 29),
+iOS (`iosArm64`, `iosSimulatorArm64`), the desktop JVM, and the web as JS and
+Wasm, built with **Kotlin 2.4.10** against **Compose Multiplatform 1.12.1**,
+which is the floor: an app on 1.11 hits binary incompatibility.
+
+## The first screen
+
+Two wrappers at the root, once:
+
+```kotlin
+KontourTheme {
+    OverlayHost {
+        App()
+    }
+}
+```
+
+`KontourTheme` provides the tokens and follows the system's dark mode, contrast
+and reduced-motion settings. `OverlayHost` is where dialogs, sheets, menus and
+toasts draw. Both throw when missing, rather than drawing in the wrong palette
+or nowhere. [Installing](ui-docs/content/installing.md) has the per-platform
+setup: the Android manifest flag the back gesture needs, what the web does with
+the keyboard, and the rest.
+
+Then, in this order:
+
+- [**Components**](ui-docs/content/components.md) — the map of all of them, by
+  what they are for.
+- [**Patterns**](ui-docs/content/patterns.md) — how the pieces are meant to go
+  together, and the mistakes that are easy to make: a scrollbar inside its list,
+  a sheet without a host, a hand-counted group of rows.
+- [**Tokens**](ui-docs/content/tokens.md) and [**theming**](ui-docs/content/theming.md)
+  — spacing, colour, type and motion, and reskinning them.
+- [**The `+` vocabulary**](ui-docs/content/dsls.md) — how a component's content
+  is written.
+- [**Accessibility**](ui-docs/content/accessibility.md),
+  [**localisation**](ui-docs/content/localisation.md),
+  [**overlays**](ui-docs/content/overlays.md),
+  [**drag and drop**](ui-docs/content/drag-and-drop.md).
+- [**Changelog**](ui-docs/content/changelog.md) and
+  [**migrating**](ui-docs/content/migrating.md) when you upgrade.
 
 ## Why no Material
 
 Material is a design language with opinions about colour, shape, motion and
 typography. Adopting it and then overriding it produces two type scales and two
-elevation models fighting each other, and 400 KB of a component set you use a
-tenth of.
+elevation models fighting each other, and a component set you use a tenth of.
 
 Foundation gives the primitives — layout, gestures, semantics, indication — with
-no opinions attached. `:ui:checkNoMaterial` walks the resolved dependency graph
-and fails the build if Material arrives, transitively or otherwise, because the
-risk was never someone typing the import.
+no opinions attached. The build fails if Material arrives in the dependency
+graph, transitively or otherwise, so it never ships with the library.
 
-## Running the gallery
+## Contributing
 
-Every component in every state, on whichever platform you want to poke at it:
-
-```sh
-./gradlew :showcase:desktop:run          # a JVM window
-./gradlew :showcase:android:installDebug # a device or emulator
-./gradlew :ui-catalog:jsBrowserRun       # a browser
-open showcase/ios/KontourUI.xcodeproj    # an iPhone or a simulator, from a Mac
-```
-
-The iOS one is an Xcode project rather than a Gradle task, because linking a
-framework needs Xcode. It builds `:ui-catalog`'s `Catalog.framework` from a Run
-Script phase, so there is nothing to run first — and its Run action is set to
-**Release**, because `embedAndSignAppleFrameworkForXcode` picks the Kotlin
-framework from the configuration and a Debug one is built without optimisation.
-
-The first build is slow for the same reason, and on a cold machine it also pulls
-a Kotlin/Native toolchain. If you would rather watch that somewhere it is
-visible than inside Xcode's log, build the framework from a terminal first:
-
-```sh
-./gradlew :ui-catalog:linkReleaseFrameworkIosSimulatorArm64
-```
-
-The gallery is also where most of the tests live: the contract suite, the
-screenshot goldens, and the specimen registry that drives the per-component
-images in the docs.
-
-## Building
-
-```sh
-./gradlew :ui:jvmTest :ui:checkNoMaterial :ui:checkApiConventions \
-          :ui:checkKdocSamples :ui-catalog:jvmTest :ui-docs:jvmTest \
-          :ui-samples:compileKotlinJvm :ui-samples:checkDocSamples \
-          :ui-nav3:jvmTest :ui-nav3:checkNoMaterial \
-          :haptics:jvmTest :haptics:checkNoCompose \
-          :ui:compileIosMainKotlinMetadata \
-          :ui-catalog:compileIosMainKotlinMetadata \
-          :ui-nav3:compileIosMainKotlinMetadata \
-          :haptics:compileIosMainKotlinMetadata \
-          :ui:dokkaGenerateHtml :ui-nav3:dokkaGenerateHtml :haptics:dokkaGenerateHtml
-python3 docs/check-links.py
-python3 docs/check-components.py
-```
-
-No emulator and no simulator. Everything runs on the JVM except the
-`compileIosMainKotlinMetadata` tasks, which type-check the iOS source sets — UIKit
-cinterop included — from a Linux host, which is as far as this repository can
-follow a platform actual. They are here because an iOS-only defect shipped:
-`platformReportAppearance` fed its own reader, and nothing compiled the file it
-was in. Each gate exists because something drifted past a review — what each
-asks and what each has caught is in
-[`docs/building/testing.md`](docs/building/testing.md).
-
-## Releasing
-
-First, in [the changelog](ui-docs/content/changelog.md), turn **Unreleased**
-into the version and its date, and start a new, empty Unreleased above it. If
-the release breaks anything, [the migrating guide](ui-docs/content/migrating.md)
-gets a section for it, with each break as code before and after. Then a release
-is a tag, and nothing else:
-
-```sh
-git tag v0.2.0 && git push origin v0.2.0
-```
-
-CI runs the checks, then publishes `io.kontour:ui:0.2.0`, signed, to Maven
-Central, where it can be resolved within about half an hour. The version comes
-from the tag, so the artifact cannot disagree with it, and Central never deletes
-a version, so a release cannot be taken back.
-[`docs/building/releasing.md`](docs/building/releasing.md) has the one-time
-setup: the namespace, the token and the signing key.
-
-To cut one without tagging — from a branch, or to re-publish — run the **CI**
-workflow manually and give it a version. That is the only other way to get a
-publishable version out of the build: on a branch with no version supplied, the
-version is `0.5.0-SNAPSHOT` and the publish job does not run.
-
-```sh
-./gradlew :ui:coordinate    # what this checkout would publish as
-```
-
-It publishes from Linux. Kotlin cross-compiles the Apple **klibs**, which is
-what a consumer resolves; what needs Xcode is linking a *framework*, and that
-happens in the consuming app.
-
----
+[`CONTRIBUTING.md`](CONTRIBUTING.md): running the gallery, the checks, and how a
+release is cut. The conventions every component follows are in
+[`docs/building/contributing.md`](docs/building/contributing.md).
 
 ## Licence
 

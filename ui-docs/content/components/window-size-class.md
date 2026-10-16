@@ -40,10 +40,14 @@ measures with `BoxWithConstraints`, so nesting one inside a 360dp box reports
 `Compact` on a desktop — which is how the catalog's adaptive demos sit in a frame
 whose edge you drag, and change shape at the breakpoints as you do.
 
-**The dp values are outside `equals`.** `widthDp` and `heightDp` are there to
-read, but two classes in the same buckets are equal whatever their exact size, so
-a window resized within one class does not recompose everything under it. Read
-the buckets to decide a layout; measure the box yourself if you need its pixels.
+**The dp values are outside `equals`, so they are the size at the last change of
+shape.** Two classes in the same buckets are equal whatever their exact size, so
+a window resized within one class does not recompose everything under it — and
+the class you read is the one handed out when the window last crossed a
+boundary. Its `widthDp` and `heightDp` are what the window measured then: grown
+from 700dp to 880dp tall, still `Medium`, it says 700. Read the buckets to decide
+a layout; measure the box yourself, with `BoxWithConstraints` or a layout's
+constraints, when you need the room there is now.
 
 **`windowAdaptiveInfo` adds the input to the size**, because the decisions are
 rarely about one alone. `isPrecise` is true where there is a pointer to aim with,

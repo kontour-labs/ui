@@ -70,10 +70,21 @@ STYLES = {
 
 
 def tabler_version() -> str:
+    """The `@tabler/icons` release the pinned icons are drawn from.
+
+    The catalogue pins `io.kontour:tabler-icons-*`, whose version is Tabler's —
+    `3.49.0` — or Tabler's with a fourth part, `3.49.0.1`, for a re-release of
+    the same icons by `kontour-labs/tabler`. npm knows only the first three.
+    """
     match = re.search(r'^tabler-icons\s*=\s*"([^"]+)"', CATALOGUE.read_text(), re.M)
     if not match:
         raise SystemExit(f"no `tabler-icons` version in {CATALOGUE}")
-    return match.group(1)
+    return npm_version(match.group(1))
+
+
+def npm_version(version: str) -> str:
+    """`3.49.0.1` → `3.49.0`: the Tabler release a `tabler-icons` version is of."""
+    return ".".join(version.split(".")[:3])
 
 
 def tarball_bytes(version: str, tarball: pathlib.Path | None) -> bytes:

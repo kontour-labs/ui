@@ -11,9 +11,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.PathOperation
+import androidx.compose.ui.graphics.addOutline
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -472,6 +477,11 @@ internal data class ArrowSpec(
     val height: Dp = 7.dp,
     /** An outline round the arrow, where the panel it belongs to has one. */
     val edge: BorderStroke? = null,
+    /**
+     * The shape of the panel the arrow comes out of, so the arrow meets the
+     * panel's own edge rather than its bounding box. See [arrowPath].
+     */
+    val panelShape: Shape? = null,
 )
 
 /** Carries the arrow geometry from the measure pass to the draw pass. */
@@ -594,11 +604,19 @@ internal fun AnchoredOverlayLayout(
     // Origin is the anchor, so the panel and its arrow grow out of the control
     // they belong to rather than out of their own middle. Written during measure
     // and read at draw, which is the right order within a frame.
-    var origin by remember { mutableStateOf(TransformOrigin.Center) }
+    //
+    // **Read by the layer, not by composition.** It was handed to
+    // `overlayAppearance` as a value, which read it here: every measure that
+    // moved it — every frame an open overlay's anchor scrolled — recomposed this
+    // layout, and the layer it built carried the origin from the frame before.
+    // As a lambda it is read in the layer block, which is redrawn rather than
+    // recomposed and reads the origin this frame's measure wrote.
+    val origin = remember { mutableStateOf(TransformOrigin.Center) }
+    val originNow = remember { { origin.value } }
 
     Layout(
         modifier = modifier
-            .overlayAppearance(LocalOverlayProgress.current, fromScale, origin)
+            .overlayAppearance(LocalOverlayProgress.current, fromScale, originNow)
             .drawWithContent {
                 drawContent()
                 val path = geometry.path
@@ -719,20 +737,40 @@ internal fun AnchoredOverlayLayout(
 
         val width = container.width.orContent(contentSize.width).coerceAtLeast(1)
         val height = container.height.orContent(contentSize.height).coerceAtLeast(1)
-        origin = TransformOrigin(
+        origin.value = TransformOrigin(
             pivotFractionX = (anchorInHost.center.x / width).coerceIn(0f, 1f),
             pivotFractionY = (anchorInHost.center.y / height).coerceIn(0f, 1f),
         )
 
         geometry.path = arrow?.let {
-            arrowPath(
-                placement = placement,
-                contentSize = contentSize,
-                anchor = anchorInHost,
-                width = arrowWidthPx,
-                height = arrowHeightPx,
-                overlap = arrowOverlapPx,
-            )
+            val shape = it.panelShape
+            if (shape == null) {
+                arrowPath(
+                    placement = placement,
+                    contentSize = contentSize,
+                    anchor = anchorInHost,
+                    width = arrowWidthPx,
+                    height = arrowHeightPx,
+                    overlap = arrowOverlapPx,
+                )
+            } else {
+                arrowMeetingPanel(
+                    placement = placement,
+                    contentSize = contentSize,
+                    anchor = anchorInHost,
+                    width = arrowWidthPx,
+                    height = arrowHeightPx,
+                    overlap = arrowOverlapPx,
+                    panel = shape.createOutline(
+                        Size(
+                            (contentSize.width - 2 * arrowOverlapPx).coerceAtLeast(0f),
+                            (contentSize.height - 2 * arrowOverlapPx).coerceAtLeast(0f),
+                        ),
+                        layoutDirection,
+                        this,
+                    ),
+                )
+            }
         }
 
         // Fill the container, except on an axis that has no size to fill —
@@ -778,8 +816,11 @@ private fun arrowPath(
     width: Float,
     height: Float,
     overlap: Float,
+    bury: Float = overlap,
 ): Path {
-    val half = width / 2f
+    // The flanks run from the tip through the base's corners as [overlap] puts
+    // them; buried further, they carry on at the same slope.
+    val half = width / 2f * (height + bury) / (height + overlap)
     val inset = width
 
     fun centre(target: Float, lo: Float, hi: Float): Float =
@@ -794,13 +835,13 @@ private fun arrowPath(
                     hi = placement.x + contentSize.width - inset,
                 )
                 if (placement.side == ResolvedSide.Below) {
-                    val base = placement.y.toFloat() + overlap
+                    val base = placement.y.toFloat() + bury
                     moveTo(cx, placement.y.toFloat() - height)
                     lineTo(cx + half, base)
                     lineTo(cx - half, base)
                 } else {
                     val edge = (placement.y + contentSize.height).toFloat()
-                    val base = edge - overlap
+                    val base = edge - bury
                     moveTo(cx, edge + height)
                     lineTo(cx - half, base)
                     lineTo(cx + half, base)
@@ -814,13 +855,13 @@ private fun arrowPath(
                     hi = placement.y + contentSize.height - inset,
                 )
                 if (placement.side == ResolvedSide.Right) {
-                    val base = placement.x.toFloat() + overlap
+                    val base = placement.x.toFloat() + bury
                     moveTo(placement.x.toFloat() - height, cy)
                     lineTo(base, cy - half)
                     lineTo(base, cy + half)
                 } else {
                     val edge = (placement.x + contentSize.width).toFloat()
-                    val base = edge - overlap
+                    val base = edge - bury
                     moveTo(edge + height, cy)
                     lineTo(base, cy + half)
                     lineTo(base, cy - half)
@@ -830,6 +871,65 @@ private fun arrowPath(
         close()
     }
 }
+
+/**
+ * [arrowPath], meeting the panel's [panel] outline rather than its bounding box.
+ *
+ * A panel's side is only straight between its corners, and a small one has
+ * little or nothing between them: the index scroller's bubble, one letter in a
+ * squircle, is very nearly round. The arrow's base sat on the bounding box, a
+ * pixel inside it, and where the side had already curved away its corners
+ * stood out past the curve — a ledge either side of the arrow, which read as
+ * the arrow not quite meeting its bubble.
+ *
+ * So the flanks are carried on into the panel at their own slope, as far again
+ * as the arrow is high, and everything inside the outline — taken in by
+ * [overlap], for the same seam [arrowPath] buries its base against — is cut
+ * away. What is left meets the panel wherever its edge is: on a straight side
+ * exactly where the base was, so a popover's arrow is drawn as it always was;
+ * on a curve, along the curve.
+ *
+ * Kept to a band a little wider than the arrow, so flanks carried towards a
+ * corner, where the side runs away from them faster than they go in, cannot
+ * leave a sliver along the corner's curve.
+ */
+private fun arrowMeetingPanel(
+    placement: AnchoredPlacement,
+    contentSize: IntSize,
+    anchor: Rect,
+    width: Float,
+    height: Float,
+    overlap: Float,
+    panel: Outline,
+): Path {
+    val arrow = arrowPath(placement, contentSize, anchor, width, height, overlap, bury = height)
+    val inside = Path().apply {
+        addOutline(panel)
+        translate(Offset(placement.x + overlap, placement.y + overlap))
+    }
+    val reach = width / 2f * ArrowBand
+    val bounds = arrow.getBounds()
+    val band = Path().apply {
+        val centre = bounds.center
+        addRect(
+            when (placement.side) {
+                ResolvedSide.Below, ResolvedSide.Above ->
+                    Rect(centre.x - reach, bounds.top, centre.x + reach, bounds.bottom)
+                ResolvedSide.Right, ResolvedSide.Left ->
+                    Rect(bounds.left, centre.y - reach, bounds.right, centre.y + reach)
+            },
+        )
+    }
+    val banded = Path.combine(PathOperation.Intersect, arrow, band)
+    return Path.combine(PathOperation.Difference, banded, inside)
+}
+
+/**
+ * How far either side of its centre an arrow meeting a curved panel may reach,
+ * as a multiple of half its width. The arrow's own half-width at the panel's
+ * bounding box is one; meeting the side of a one-letter bubble takes about 1.15.
+ */
+private const val ArrowBand = 1.3f
 
 /**
  * The raised panel that menus, popovers and pickers share.

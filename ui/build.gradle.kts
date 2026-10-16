@@ -9,15 +9,15 @@ plugins {
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.dokka)
-    alias(libs.plugins.mavenPublish)
+    `maven-publish`
 }
 
 // ---------------------------------------------------------------------------
 // Publishing
 // ---------------------------------------------------------------------------
 //
-// The version rule, the `coordinate` task, the repository and the POM, shared
-// with `:ui-nav3` so the two published modules can never disagree about which
+// The version rule, the `coordinate` task and the POM, shared with `:ui-nav3`
+// and `:haptics` so the published modules can never disagree about which
 // release they are. The reasoning, and the history behind each rule, is with the
 // code: `buildSrc/src/main/kotlin/KontourPublishing.kt`.
 kontourPublishing(
@@ -26,14 +26,6 @@ kontourPublishing(
     licenceNote = "Bundles the Outfit and JetBrains Mono fonts, under the SIL Open Font License 1.1; " +
         "see ui/licenses/ and NOTICE.",
 )
-
-// Maven Central: see `kontourPublishing` in buildSrc for the rest. Signed
-// wherever there is a key, which CI always has and Central insists on; without
-// one, as for a `publishToMavenLocal` on a laptop, unsigned.
-mavenPublishing {
-    publishToMavenCentral(automaticRelease = true)
-    if (providers.gradleProperty("signingInMemoryKey").isPresent) signAllPublications()
-}
 
 // ---------------------------------------------------------------------------
 // The API reference

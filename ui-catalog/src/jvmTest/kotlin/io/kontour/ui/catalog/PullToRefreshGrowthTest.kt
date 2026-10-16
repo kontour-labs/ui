@@ -121,6 +121,7 @@ class PullToRefreshGrowthTest {
             PullToRefresh(
                 refreshing = false,
                 onRefresh = {},
+                scrollState = rows,
                 state = pull,
                 modifier = Modifier.fillMaxSize(),
             ) {

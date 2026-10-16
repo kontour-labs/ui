@@ -1,5 +1,6 @@
 package io.kontour.ui.nav
 
+import io.kontour.ui.theme.clipProxy
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -25,8 +26,10 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -45,6 +48,7 @@ import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.heading
@@ -151,6 +155,11 @@ object NavRailDefaults {
  * @param itemAlignment Where the destinations sit when they are fewer than the
  *   rail is tall. `Top` by default; `CenterVertically` for a few icons on a tall
  *   window.
+ * @param markerDrag Whether the marker can be dragged up and down the rail from
+ *   one destination to another, and when a drag chooses one; see
+ *   [NavMarkerDrag]. Only while the rail has nothing to scroll: a rail whose
+ *   destinations run past its foot scrolls instead, and which it is is asked as
+ *   each drag begins, so a window that grows or shrinks changes it.
  * @param header Above the destinations, at their leading edge: a logo, an
  *   account. A column, laid out as one.
  * @param footer Below them: settings, a sign-out.
@@ -165,6 +174,7 @@ fun NavRail(
     onExpandedChange: ((Boolean) -> Unit)? = null,
     revealSelected: Boolean = true,
     itemAlignment: Alignment.Vertical = Alignment.Top,
+    markerDrag: NavMarkerDrag = NavMarkerDrag.SelectOnRelease,
     collapsedWidth: Dp = NavRailDefaults.CollapsedWidth,
     expandedWidth: Dp = NavRailDefaults.ExpandedWidth,
     colours: NavColours = NavDefaults.colours(),
@@ -271,6 +281,7 @@ fun NavRail(
                     reveal = reveal,
                     revealSelected = revealSelected,
                     itemAlignment = itemAlignment,
+                    markerDrag = markerDrag,
                     afterClick = null,
                     content = content,
                 )
@@ -300,7 +311,11 @@ fun NavRail(
  * @param dismissOnItemClick Whether choosing a destination closes the rail. It
  *   calls the destination's `onClick` first and closes a frame later, so the new
  *   page is composed behind a panel that has not started moving: the expensive
- *   frame lands where nothing is animating, rather than inside the exit.
+ *   frame lands where nothing is animating, rather than inside the exit. A
+ *   drag of the marker closes it once the drag has chosen, not as it passes
+ *   each destination.
+ * @param markerDrag Whether the marker can be dragged up and down the rail; see
+ *   [NavRail]'s. Across it is still the sheet's, which closes.
  */
 @Composable
 fun ModalNavRail(
@@ -312,6 +327,7 @@ fun ModalNavRail(
     colours: NavColours = NavDefaults.colours(container = Theme.colours.surfaceRaised),
     revealSelected: Boolean = true,
     dismissOnItemClick: Boolean = true,
+    markerDrag: NavMarkerDrag = NavMarkerDrag.SelectOnRelease,
     dismissLabel: String = Theme.strings.closeNavigation,
     paneTitle: String = Theme.strings.navigation,
     windowInsets: WindowInsets = WindowInsets.leadingEdges,
@@ -355,6 +371,7 @@ fun ModalNavRail(
                     reveal = RailReveal.Full,
                     revealSelected = revealSelected,
                     itemAlignment = Alignment.Top,
+                    markerDrag = markerDrag,
                     afterClick = if (dismissOnItemClick) ({ closing = true }) else null,
                     content = content,
                 )
@@ -367,6 +384,11 @@ fun ModalNavRail(
 /**
  * A rail's scrolling destinations, with one travelling marker inside the scroll
  * container, so the marker and the rows scroll together.
+ *
+ * The marker is dragged along the rail as a bar's is along the bar, but only
+ * while the rail has nothing to scroll: see [MarkerDragState]. It was the bar's
+ * alone, because a rail scrolls — which a rail of a few destinations on a tall
+ * window does not.
  */
 @Composable
 private fun RailItems(
@@ -375,16 +397,20 @@ private fun RailItems(
     reveal: RailReveal,
     revealSelected: Boolean,
     itemAlignment: Alignment.Vertical,
+    markerDrag: NavMarkerDrag,
     afterClick: (() -> Unit)?,
     content: @Composable NavScope.() -> Unit,
 ) {
     val indicator = rememberSelectionIndicatorState()
     val scroll = rememberScrollState()
+    val (drag, dragging) = rememberMarkerDrag(vertical = true, mode = markerDrag, indicator = indicator, scroll = scroll)
+    // A modal rail closes once a drag has chosen, as it does on a tap.
+    drag.afterChoice = afterClick
     val keys = remember { NavKeys() }
     val glyph = NavRailDefaults.GlyphSize
     val indent = NavRailDefaults.NestIndent
-    val scope = remember(keys, colours, reveal, glyph, indent, afterClick) {
-        RailScope(keys, colours, reveal, glyph, indent, nest = 0, afterClick = afterClick)
+    val scope = remember(keys, colours, reveal, glyph, indent, afterClick, dragging) {
+        RailScope(keys, colours, reveal, glyph, indent, nest = 0, afterClick = afterClick, drag = drag, dragging = dragging)
     }
 
     // A rail opens on the page you are on, and a list of twenty opens showing the
@@ -428,14 +454,17 @@ private fun RailItems(
                     Box(
                         Modifier
                             .fillMaxSize()
-                            .clip(Theme.shapes.capsule)
+                            .clip(Theme.shapes.capsule.clipProxy())
                             .background(colours.indicator)
                             .optionalBorder(selectionEdge(), Theme.shapes.capsule)
                     )
                 },
             ) {
                 Column(
-                    modifier = Modifier.fillMaxWidth().selectableGroup(),
+                    // The rows' own coordinates, which the drag measures the
+                    // finger and the destinations in: inside the scroll, so a
+                    // scrolled rail measures them the same.
+                    modifier = Modifier.fillMaxWidth().selectableGroup().onPlaced { drag.row = it },
                     // `xxs`, a drawer's gap: rows are already 48dp targets, and
                     // `xs` between them spread a sidebar of twenty pages over a
                     // screen and a half.
@@ -457,6 +486,9 @@ private class RailScope(
     private val indent: Dp,
     private val nest: Int,
     private val afterClick: (() -> Unit)?,
+    private val drag: MarkerDragState,
+    /** Null when the marker cannot be dragged. */
+    private val dragging: DragWiring?,
 ) : NavScope {
 
     /** Whether the rail is wide enough for labels to be the names. */
@@ -487,10 +519,25 @@ private class RailScope(
         val text = navLabel(label)
         ClaimNavKey(keys, key)
         val after = afterClick
+        // Somewhere the marker can be dragged to. Its `onClick` is the page's
+        // alone: the drag closes a modal rail itself, once, when it has chosen.
+        val target = remember(drag) { DragTarget() }
+        SideEffect {
+            target.onClick = onClick
+            target.enabled = enabled
+            target.selected = selected
+        }
+        DisposableEffect(drag, key) {
+            drag.targets[key] = target
+            onDispose { drag.targets.remove(key) }
+        }
         NavDestination(
             label = text,
             icon = icon,
             selected = selected,
+            // While the marker is dragged, the destination under the finger
+            // wears it, and the chosen one waits for the lift.
+            marked = drag.marks(key, selected),
             onClick = {
                 // The page first, the close second: see `ModalNavRail`.
                 onClick()
@@ -502,7 +549,11 @@ private class RailScope(
             showLabel = room,
             indicatorSize = glyph,
             // Full width, so the marker sits at the same x for every row.
-            modifier = modifier.fillMaxWidth().nested(),
+            modifier = modifier
+                .fillMaxWidth()
+                .nested()
+                .onPlaced { target.coordinates = it }
+                .then(if (dragging != null) Modifier.markerDrag(dragging, target, enabled) else Modifier),
             enabled = enabled,
             selectedIcon = selectedIcon,
             contentDescription = contentDescription,
@@ -590,8 +641,33 @@ private class RailScope(
         val tap = rememberTapFeedback()
         LaunchedEffect(disclose) { if (disclose) menuOpen = false }
 
+        // A menu beside a narrow rail is somewhere to drag the marker, as a
+        // bar's group is: let go over it and the menu opens, and the group
+        // keeps the marker while it is open. A disclosure is not: it goes
+        // nowhere, and its destinations are each somewhere of their own once
+        // it is open.
+        val target = remember(drag) { DragTarget() }
+        SideEffect {
+            target.onClick = { menuOpen = true }
+            target.opensMenu = true
+            target.enabled = enabled
+            target.selected = selection.any
+        }
+        DisposableEffect(drag, key, disclose) {
+            if (!disclose) drag.targets[key] = target
+            onDispose { if (drag.targets[key] === target) drag.targets.remove(key) }
+        }
+        // The marker the drag left here goes back once the menu has closed, a
+        // frame later, so a pick in it has become the rail's selection by then.
+        if (!menuOpen && drag.holding == key) {
+            LaunchedEffect(Unit) {
+                withFrameNanos { }
+                drag.letGo(key)
+            }
+        }
+
         val motion = Theme.motion
-        val deeper = RailScope(keys, colours, reveal, glyph, indent, nest + 1, afterClick)
+        val deeper = RailScope(keys, colours, reveal, glyph, indent, nest + 1, afterClick, drag, dragging)
         // One child of the rail's spaced column, not two. As two, the header and
         // its children were separated by the column's gap whatever their height,
         // so a collapsing group held an extra gap until it was removed —
@@ -604,12 +680,14 @@ private class RailScope(
         val size = glyph
         val rowReveal = reveal
         val start = Modifier.nested()
+        val marked = drag.marks(key, hidden && selection.any)
+        val dragsFromHere = dragging?.takeIf { !disclose }?.let { Modifier.markerDrag(it, target, enabled) } ?: Modifier
         Column {
             NavDestination(
                 label = text,
                 icon = icon,
                 selected = false,
-                marked = hidden && selection.any,
+                marked = marked,
                 onClick = {
                     if (disclose) {
                         tap()
@@ -623,7 +701,12 @@ private class RailScope(
                 layout = NavLayout.Inline,
                 showLabel = wide,
                 indicatorSize = size,
-                modifier = modifier.fillMaxWidth().then(start).anchorBounds { bounds = it },
+                modifier = modifier
+                    .fillMaxWidth()
+                    .then(start)
+                    .anchorBounds { bounds = it }
+                    .onPlaced { target.coordinates = it }
+                    .then(dragsFromHere),
                 action = if (disclose) NavAction.Disclosure(expanded) else NavAction.Menu,
                 enabled = enabled,
                 badge = badge,

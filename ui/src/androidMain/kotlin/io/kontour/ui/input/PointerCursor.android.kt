@@ -21,3 +21,5 @@ internal actual fun platformPointerIcon(cursor: Cursor): PointerIcon? = when (cu
     // Compose's own, the same on every platform.
     Cursor.Default, Cursor.Pointer, Cursor.Text, Cursor.Crosshair -> null
 }
+
+internal actual val platformHasCursor: Boolean = true

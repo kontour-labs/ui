@@ -151,7 +151,7 @@ internal fun CalendarScope.timeKey(key: Key, rtl: Boolean, defaultMinute: () -> 
                 create != null -> {
                     val end = date.atMidnight.plusMinutes(minOf(minute + NewEventMinutes, MinutesPerDay).toLong())
                     create(start, end)
-                    announce(strings.newEvent, start, end)
+                    announce(strings.newEvent, start, end, allDay = false)
                 }
                 else -> return false
             }

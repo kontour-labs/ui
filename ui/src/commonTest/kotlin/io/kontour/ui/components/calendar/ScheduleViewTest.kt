@@ -64,6 +64,112 @@ class ScheduleViewTest {
         assertEquals(listOf("Holiday", "Stand-up", "Design review"), day.events.map { it.title })
     }
 
+    /**
+     * A timed event that runs into a later day reads as flights and shifts
+     * write one: its own times on the day it starts, the end raised by how many
+     * days on it is — "09:00 – 17:00⁺²" — all day between, and "Until 17:00"
+     * on the last. Asked for as *"with the label, could we incorporate the
+     * fairly standard superscript '+1' notation?"*: its first day read
+     * "09:00 – 00:00", and a night flight "22:30 – 06:15" on both its days.
+     */
+    @Test
+    fun aTimedEventIntoALaterDayHasItsEndRaisedByTheDaysOn() {
+        val formats = LocaleFormats.english()
+        val strings = Strings()
+        fun time(hour: Int, minute: Int = 0) = formats.time(LocalTime(hour, minute))
+        fun on(event: CalendarEvent, month: Int, day: Int) = scheduleTime(event, LocalDate(2026, month, day), formats, strings)
+
+        val conference = CalendarEvent(6, "Conference", at(10, 12, 9), at(10, 14, 17))
+        val first = on(conference, 10, 12)
+        assertEquals(strings.timeRange(time(9), time(17)) + "+2", first.text)
+        assertRaised(first, "+2")
+        assertEquals(strings.allDay, on(conference, 10, 13).text)
+        assertEquals("Until ${time(17)}", on(conference, 10, 14).text)
+
+        // Shorter than a day, but into the next: the "+1" is what says so.
+        val flight = CalendarEvent(7, "Flight", LocalDateTime(2026, 10, 12, 22, 30), LocalDateTime(2026, 10, 13, 6, 15))
+        val night = on(flight, 10, 12)
+        assertEquals(strings.timeRange(time(22, 30), time(6, 15)) + "+1", night.text)
+        assertRaised(night, "+1")
+        assertEquals("Until ${time(6, 15)}", on(flight, 10, 13).text)
+
+        // Those inside a day, and all-day ones, are as they were, with nothing raised.
+        assertEquals(strings.allDay, on(trip, 10, 21).text)
+        assertEquals(strings.timeRange(time(10), time(11)), on(review, 10, 16).text)
+        assertTrue(on(review, 10, 16).spanStyles.isEmpty())
+    }
+
+    /**
+     * An end at midnight is the end of the day before it: an evening until
+     * midnight is "18:00 – 00:00", on its one day, with no "+1" pointing at a
+     * day it has no part of. A later midnight is its own day's, so the number
+     * is still the end's date.
+     */
+    @Test
+    fun anEndAtMidnightClosesTheDayBefore() {
+        val formats = LocaleFormats.english()
+        val strings = Strings()
+        fun time(hour: Int) = formats.time(LocalTime(hour, 0))
+        val evening = CalendarEvent(8, "Party", at(10, 12, 18), at(10, 13, 0))
+        val party = scheduleTime(evening, LocalDate(2026, 10, 12), formats, strings)
+        assertEquals(strings.timeRange(time(18), time(0)), party.text)
+        assertTrue(party.spanStyles.isEmpty(), "an evening until midnight has something raised: ${party.spanStyles}")
+        val days = scheduleItems(listOf(evening), LocalDate(2026, 10, 1), LocalDate(2026, 10, 31), null).filterIsInstance<ScheduleDay>()
+        assertEquals(listOf(LocalDate(2026, 10, 12)), days.map { it.date })
+
+        val hackathon = CalendarEvent(9, "Hackathon", at(10, 12, 9), at(10, 14, 0))
+        assertEquals(strings.timeRange(time(9), time(0)) + "+2", scheduleTime(hackathon, LocalDate(2026, 10, 12), formats, strings).text)
+        assertEquals(strings.allDay, scheduleTime(hackathon, LocalDate(2026, 10, 13), formats, strings).text)
+    }
+
+    /**
+     * The "+2" is the reader's: its number in their digits and its sign in
+     * their words, through `Strings`, as every other count is.
+     */
+    @Test
+    fun theRaisedDaysAreTheReadersOwnWords() {
+        val formats = LocaleFormats.english()
+        val strings = Strings(endDayOffset = { days -> "(+${days.formatted} d)" })
+        val conference = CalendarEvent(6, "Conference", at(10, 12, 9), at(10, 14, 17))
+        val first = scheduleTime(conference, LocalDate(2026, 10, 12), formats, strings)
+        assertTrue(first.text.endsWith("(+2 d)"), first.text)
+        assertRaised(first, "(+2 d)")
+    }
+
+    /**
+     * A screen reader is not told "plus two": the event's times say the later
+     * day in words — "09:00 – 17:00, 2 days later", "06:15 the next day" —
+     * where they said "09:00 – 17:00" as though it were nine to five each day.
+     */
+    @Test
+    fun aScreenReaderIsToldTheLaterDayInWords() {
+        val formats = LocaleFormats.english()
+        val strings = Strings()
+        fun time(hour: Int, minute: Int = 0) = formats.time(LocalTime(hour, minute))
+        val conference = CalendarEvent(6, "Conference", at(10, 12, 9), at(10, 14, 17))
+        val described = eventDescription(conference, formats, strings)
+        assertTrue("${time(9)} – ${time(17)}, 2 days later" in described, described)
+        assertTrue("+" !in described, described)
+        val flight = CalendarEvent(7, "Flight", LocalDateTime(2026, 10, 12, 22, 30), LocalDateTime(2026, 10, 13, 6, 15))
+        val flown = eventDescription(flight, formats, strings)
+        assertTrue("${time(22, 30)} – ${time(6, 15)} the next day" in flown, flown)
+        val evening = CalendarEvent(8, "Party", at(10, 12, 18), at(10, 13, 0))
+        val party = eventDescription(evening, formats, strings)
+        assertTrue("${time(18)} – ${time(0)}" in party && "later" !in party && "next day" !in party, party)
+    }
+
+    /** [text] ends in [raised], set smaller and above the line. */
+    private fun assertRaised(text: androidx.compose.ui.text.AnnotatedString, raised: String) {
+        val from = text.text.lastIndexOf(raised)
+        assertTrue(from >= 0, "\"$raised\" is not in \"${text.text}\"")
+        val span = text.spanStyles.singleOrNull { it.start == from && it.end == from + raised.length }
+        assertTrue(span != null, "\"$raised\" is not set apart in \"${text.text}\": ${text.spanStyles}")
+        val shift = span.item.baselineShift
+        assertTrue(shift != null && shift.multiplier > 0f, "\"$raised\" is not raised: $shift")
+        val size = span.item.fontSize
+        assertTrue(size.isEm && size.value < 1f, "\"$raised\" is not smaller than its line: $size")
+    }
+
     @Test
     fun aDayIsFoundAsItsRowOrTheNextBusyOne() {
         val items = scheduleItems(events, LocalDate(2026, 10, 1), LocalDate(2026, 11, 30), today)

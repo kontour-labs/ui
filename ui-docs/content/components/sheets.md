@@ -178,9 +178,12 @@ The whole sheet is already draggable. A handle that is the *only* draggable part
 makes a 4dp-tall target the user has to hit.
 
 It does carry the sheet's accessibility actions, though, since a drag is not a
-gesture a screen reader can perform: expand and collapse appear as actions on the
-handle, which is why it is not marked decorative. It widens slightly on hover —
-the one hint a pointer user gets that a sheet is draggable at all.
+gesture a screen reader can perform, which is why it is not marked decorative. It
+offers only what would do something: expand while there is a taller detent to go
+to, collapse while there is a shorter one, and dismiss while the sheet may be
+hidden and the user may hide it. The default modal sheet, open at its one size,
+offers dismiss and nothing else. It widens slightly on hover — the one hint a
+pointer user gets that a sheet is draggable at all.
 
 ---
 

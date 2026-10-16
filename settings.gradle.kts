@@ -24,27 +24,12 @@ dependencyResolutionManagement {
             }
         }
         mavenCentral()
-        // The icons, `io.kontour:tabler-icons-*`, and nothing else, from GitHub
-        // Packages, where they were published before Maven Central. Central,
-        // above, is asked first; this is only for a version that is not there.
-        // When the pinned `tabler-icons` version is on Central, this block can
-        // go, and with it every token CI and a contributor need. GitHub
-        // Packages needs credentials even to read, so this is asked for them
-        // and for no other module. A token with `read:packages`, from
-        // `gpr.user`/`gpr.key` in the Gradle properties, or from the
-        // environment — `KONTOUR_PACKAGES_ACTOR`/`KONTOUR_PACKAGES_TOKEN`, or
-        // the `GITHUB_ACTOR`/`GITHUB_TOKEN` a GitHub Actions job has.
-        maven("https://maven.pkg.github.com/kontour-labs/tabler") {
-            name = "KontourTabler"
-            credentials {
-                username = providers.gradleProperty("gpr.user")
-                    .orElse(providers.environmentVariable("KONTOUR_PACKAGES_ACTOR"))
-                    .orElse(providers.environmentVariable("GITHUB_ACTOR")).orNull
-                password = providers.gradleProperty("gpr.key")
-                    .orElse(providers.environmentVariable("KONTOUR_PACKAGES_TOKEN"))
-                    .orElse(providers.environmentVariable("GITHUB_TOKEN")).orNull
-            }
-            content { includeModuleByRegex("io\\.kontour", "tabler-icons-.*") }
+        // The icons, `io.kontour:tabler-icons-*`: Kontour's own repository,
+        // public, and the only place `io.kontour` is looked for — as an app on
+        // the library is told to set it up (`installing.md`).
+        exclusiveContent {
+            forRepository { maven("https://maven.kontour.io") }
+            filter { includeGroup("io.kontour") }
         }
     }
 }

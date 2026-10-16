@@ -1,9 +1,10 @@
 package io.kontour.ui.components.list
 
+import kotlinx.coroutines.flow.collectLatest
+import androidx.compose.animation.core.Animatable
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.layout.onVisibilityChanged
 import io.kontour.ui.motion.scrollSpec
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.gestures.ScrollableState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -179,8 +180,9 @@ fun rememberPullToRefreshState(
  * Pull down at the top of a list to reload it.
  *
  * ```kotlin
- * PullToRefresh(refreshing = uiState.refreshing, onRefresh = viewModel::refresh) {
- *     LazyColumn { … }
+ * val rows = rememberLazyListState()
+ * PullToRefresh(refreshing = uiState.refreshing, onRefresh = viewModel::refresh, scrollState = rows) {
+ *     LazyColumn(state = rows) { … }
  * }
  * ```
  *
@@ -196,8 +198,8 @@ fun rememberPullToRefreshState(
  * ```kotlin
  * Column {
  *     TopBar(style = TopBarStyle.Large, collapseState = collapse) { +"Departures" }
- *     PullToRefresh(refreshing, onRefresh, Modifier.weight(1f)) {
- *         LazyColumn(Modifier.topBarCollapse(collapse)) { … }
+ *     PullToRefresh(refreshing, onRefresh, rows, Modifier.weight(1f)) {
+ *         LazyColumn(Modifier.topBarCollapse(collapse), state = rows) { … }
  *     }
  * }
  * ```
@@ -222,6 +224,14 @@ fun rememberPullToRefreshState(
  * Announces its state as a polite live region while refreshing, because a
  * spinner sliding in is not something a screen reader user can see.
  *
+ * @param scrollState The scroll state of the content's list — a
+ *   `LazyListState`, a `LazyGridState`, a `ScrollState` — which says whether it
+ *   is at its top. A mouse pulls only there. `null` for content that does not
+ *   scroll, or whose state cannot be had, which is then judged from the scrolls
+ *   seen going past: a list moved any other way — its scrollbar, a key,
+ *   `animateScrollToItem`, a position restored partway down — is not seen to
+ *   move, and a mouse drag halfway down it pulls. Required rather than
+ *   defaulted to `null`, so that is a choice and not an omission.
  * @param indicatorPadding Where the indicator's space starts, for content
  *   that starts below something drawn over it.
  */
@@ -229,6 +239,7 @@ fun rememberPullToRefreshState(
 fun PullToRefresh(
     refreshing: Boolean,
     onRefresh: () -> Unit,
+    scrollState: ScrollableState?,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     state: PullToRefreshState = rememberPullToRefreshState(),
@@ -271,17 +282,43 @@ fun PullToRefresh(
     val busy by rememberUpdatedState(refreshing)
 
     /**
-     * Whether the content still has its top edge showing.
+     * Whether the content still has its top edge showing, as far as the scrolls
+     * going past say: for content whose [scrollState] was not given.
      *
      * Only a gesture that starts at the top of the list is a pull, and the
      * nested-scroll path never has to ask: a scroll only reaches [connection]
      * unconsumed *because* the list had nowhere left to go. The drag path has no
      * such luck — `PullToRefresh` holds its content as an opaque composable and
-     * cannot see how far down it is — so the answer is kept from what the scrolls
-     * say as they go past. The child taking a forward scroll means it is not at
-     * the top; the child declining a backward one means it is.
+     * cannot see how far down it is — so without the list's state the answer is
+     * kept from what the scrolls say as they go past. The child taking a forward
+     * scroll means it is not at the top; the child declining a backward one
+     * means it is.
+     *
+     * Which is only as good as what goes past. A scrollbar's thumb, a key, an
+     * `animateScrollToItem` and a restored position all move a list without a
+     * nested scroll, so after any of them this still said the top, and a mouse
+     * drag halfway down a list pulled.
+     *
+     * **Nothing reachable says where the content is without its state.** The
+     * position is in the list's semantics, its scroll axis range, but a node can
+     * read only its own semantics: the tree below it is `SemanticsInfo`, internal
+     * to Compose UI, as is the layout node that leads to it. The traversable
+     * nodes a parent can walk down to are not the scrollables, whose nodes are
+     * internal and keep their state to themselves. And nested scroll runs only
+     * child to parent, so asking the list costs scrolling it.
      */
-    var atTop by remember { mutableStateOf(true) }
+    var scrolledToTop by remember { mutableStateOf(true) }
+
+    /**
+     * Whether the content is at its top, from its own state when there is one.
+     *
+     * Derived, so a `ScrollState`, whose `canScrollBackward` reads its position,
+     * recomposes this only when the answer flips rather than every frame of a
+     * scroll.
+     */
+    val atTop by remember(scrollState) {
+        derivedStateOf { scrollState?.let { !it.canScrollBackward } ?: scrolledToTop }
+    }
 
     /**
      * Whether a finger or a button is currently down.
@@ -328,8 +365,8 @@ fun PullToRefresh(
                 available: Offset,
                 source: NestedScrollSource,
             ): Offset {
-                if (consumed.y < 0f) atTop = false
-                if (available.y > 0f) atTop = true
+                if (consumed.y < 0f) scrolledToTop = false
+                if (available.y > 0f) scrolledToTop = true
                 if (!pullable || busy) return Offset.Zero
                 // A held pointer, not a source — see `holding` above for why
                 // the obvious `source == Wheel` test does not work.
@@ -366,16 +403,29 @@ fun PullToRefresh(
     // indicator's placement and its layer — rather than in composition, where
     // every frame of the spring home after a release recomposed the whole
     // container, list and all, to move it.
-    val indicatorOffset = animateFloatAsState(
-        targetValue = when {
-            refreshing -> with(density) { PullToRefreshDefaults.Threshold.toPx() }
-            else -> state.offset
-        },
-        // The list's way home once the refresh is done is content travelling
-        // with no finger on it, so under reduced motion it is there at once.
-        animationSpec = motion.scrollSpec(),
-        label = "pullToRefresh",
-    )
+    //
+    // **With the finger, not after it.** This was an `animateFloatAsState`
+    // aimed at the pull, so every move restarted a spring towards where the
+    // finger now was: the list trailed it by 27px on a steady pull and caught up
+    // only when it stopped, and reading the pull to set the target recomposed
+    // the container on every pointer event. While a finger is down it snaps to
+    // the pull; the spring is for the way home once it lets go.
+    val thresholdPx = with(density) { PullToRefreshDefaults.Threshold.toPx() }
+    val indicatorOffset = remember { Animatable(0f) }
+    val currentMotion by rememberUpdatedState(motion)
+    LaunchedEffect(indicatorOffset, state) {
+        snapshotFlow { Triple(if (busy) thresholdPx else state.offset, holding, busy) }
+            .collectLatest { (target, held, _) ->
+                if (held && !busy) {
+                    indicatorOffset.snapTo(target)
+                } else {
+                    // The list's way home once the refresh is done is content
+                    // travelling with no finger on it, so under reduced motion
+                    // it is there at once.
+                    indicatorOffset.animateTo(target, currentMotion.scrollSpec())
+                }
+            }
+    }
     val indicatorShown by remember(indicatorOffset) { derivedStateOf { indicatorOffset.value > 0.5f } }
     // Read in composition, not in the semantics block below, so the label
     // changes when the latch does: the block is only re-run when it is rebuilt.

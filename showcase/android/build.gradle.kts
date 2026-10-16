@@ -19,16 +19,25 @@ android {
     buildTypes {
         // Signed with the debug key so `installRelease` works without a keystore.
         //
-        // Judging performance from a debug build is judging the wrong thing. A
-        // debug build has no baseline profile, so the first run through any code
-        // path is interpreted — and opening a sheet for the first time runs a
-        // great deal of code for the first time. That reads exactly like "the
-        // app drops to a low frame rate when a sheet opens", and it is not what
-        // a user would see. Anything measured with the frame readout should be
-        // measured here.
+        // Judging performance from a debug build is judging the wrong thing,
+        // and a release build without R8 is most of the way to one. Compose
+        // leaves a `sourceInformation` and a pair of trace calls in every
+        // composable for R8 to strip, relies on it to inline and to merge the
+        // small classes every lambda and modifier compiles to, and its Android
+        // performance guidance assumes it. This was `isMinifyEnabled = false`
+        // until 0.4.5, so "use the release build" measured a build Compose
+        // does not expect anyone to ship.
+        //
+        // It still has no baseline profile of its own, so code the platform's
+        // profiles do not cover runs interpreted until the next background
+        // compile. To judge it as it will settle, after installing:
+        //
+        //     adb shell cmd package compile -m speed -f io.kontour.ui.catalog
         release {
             signingConfig = signingConfigs.getByName("debug")
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
 

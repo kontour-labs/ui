@@ -39,6 +39,7 @@ import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeMark
 import kotlin.time.TimeSource
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 /**
@@ -140,6 +141,19 @@ internal class SwipeBackInput(
     private var at = Offset.Zero
     private var progress = 0f
 
+    /**
+     * The newest frame seen while the gesture was held, on the frame clock, or
+     * [Long.MIN_VALUE] where none has been: see [sawFrame].
+     */
+    private var lastFrame = Long.MIN_VALUE
+
+    /**
+     * How long a frame is on this screen, measured between two frames seen one
+     * after the other while the finger moved, or 0 where it has not been: what
+     * a release is timed from. See [release].
+     */
+    private var framePeriod = 0L
+
     override fun onAdded(dispatcher: NavigationEventDispatcher) {
         added = true
     }
@@ -160,7 +174,62 @@ internal class SwipeBackInput(
         this.edge = edge
         this.at = at
         progress = 0f
+        lastFrame = Long.MIN_VALUE
+        framePeriod = 0L
         dispatchOnBackStarted(NavigationEvent(edge, 0f, at.x, at.y))
+    }
+
+    /**
+     * The time of the next frame, asked for on a move of the finger, which draws
+     * that frame anyway: one frame for each move, and none while the finger
+     * rests. A loop following every frame for as long as the gesture was held
+     * kept the frame clock running under a resting finger, and a screen with
+     * one never went idle.
+     *
+     * Asked for by both of the gestures this is fed: the pan the library tracks
+     * itself, and Android's predictive back through `SystemBackRelay`.
+     */
+    suspend fun nextFrame() {
+        withFrameNanos { sawFrame(it) }
+    }
+
+    /** The coroutine following the next frame for the pan: see [followFrame]. */
+    private var following: Job? = null
+
+    /**
+     * [nextFrame], in [scope], unless one is already waiting for it.
+     *
+     * **Held here, and not in the pan's pointer block.** The pan kept the job in
+     * a local of its `awaitPointerEventScope` block, and on iOS the first move
+     * of a back swipe or of a side sheet's drag killed the app:
+     * `Unexpected receiver type: StandaloneCoroutine`, from the block's own
+     * state machine, with the pointer handler's coroutine — a `StandaloneCoroutine`,
+     * as a launched job is — where a receiver of another type was expected.
+     * Moving the `launch` out of the block alone did not stop it; the local was
+     * still there. The JVM erases the receiver Kotlin/Native checks, so every
+     * test here passed throughout. The block now keeps nothing but what it
+     * had before 0.4.5.
+     */
+    fun followFrame(scope: CoroutineScope) {
+        if (following?.isActive == true) return
+        following = scope.launch { nextFrame() }
+    }
+
+    /** Stops [followFrame]'s coroutine, at a release. */
+    fun stopFollowing() {
+        following?.cancel()
+        following = null
+    }
+
+    /**
+     * That a frame was drawn at [frameTimeNanos] while the gesture was held. Two
+     * close together are this screen's frame: a frame apart, rather than the
+     * finger stopping between two moves.
+     */
+    fun sawFrame(frameTimeNanos: Long) {
+        val since = frameTimeNanos - lastFrame
+        if (lastFrame != Long.MIN_VALUE && since in 1..MaxFrameNanos) framePeriod = since
+        lastFrame = frameTimeNanos
     }
 
     fun move(progress: Float, at: Offset) {
@@ -182,17 +251,26 @@ internal class SwipeBackInput(
         releasing = true
         try {
             val target = if (commit) 1f else 0f
-            val at = releaseCurve(progress, target, velocity)
-            // Timed from the moment the finger lifted, taken as a frame before
-            // the first one this sees, rather than from that first frame: an
-            // animation timed from its first frame spends it at where it
-            // started, and that frame of stillness is the pause this is here
-            // to remove.
+            // Timed from the last frame the gesture was drawn on, rather than
+            // from the first one this sees: an animation timed from its first
+            // frame spends it at where it started, and that frame of stillness
+            // is the pause this is here to remove.
+            //
+            // **One of this screen's frames, not one at sixty a second.** It was
+            // taken as one 60Hz frame before the first frame here, which is
+            // right at 60Hz and twice the real interval at 120: the page jumped
+            // two frames' worth on letting go and then went on at one. Where no
+            // frame was measured — let go on its first move, before a second
+            // frame was drawn — the 60Hz frame is still the guess. Not the last
+            // frame seen itself: a finger that rested before it lifted saw that
+            // one a long while ago.
+            val frame = frameNanos()
+            val at = releaseCurve(progress, target, velocity, frame)
             var start = Long.MIN_VALUE
             var done = false
             while (!done) {
                 done = withFrameNanos { now ->
-                    if (start == Long.MIN_VALUE) start = now - FrameNanos
+                    if (start == Long.MIN_VALUE) start = now - frame
                     val (value, finished) = at(now - start)
                     move(if (finished) target else value, this.at)
                     finished
@@ -210,10 +288,17 @@ internal class SwipeBackInput(
     }
 
     /**
-     * Where a release from [from] to [target], let go at [velocity], is after a
-     * time in nanoseconds, and whether it has arrived.
+     * How long a frame is on this screen: the one measured while the gesture was
+     * held, or one at sixty a second where none could be.
      */
-    private fun releaseCurve(from: Float, target: Float, velocity: Float): (Long) -> Pair<Float, Boolean> {
+    fun frameNanos(): Long = if (framePeriod > 0L) framePeriod else FrameNanos
+
+    /**
+     * Where a release from [from] to [target], let go at [velocity], is after a
+     * time in nanoseconds, and whether it has arrived. [frame] is how long a
+     * frame is here, which a paced release takes at the least.
+     */
+    private fun releaseCurve(from: Float, target: Float, velocity: Float, frame: Long): (Long) -> Pair<Float, Boolean> {
         val least = pacedAtLeast
         if (least == null) {
             // Aimed a little past the end and stopped where it crosses it, so it
@@ -252,7 +337,10 @@ internal class SwipeBackInput(
         if (remaining < 1e-4f) return { target to true }
         val along = if (distance > 0f) velocity else -velocity
         val pace = maxOf(along, least)
-        val seconds = (remaining / pace).coerceIn(MinReleaseSeconds, MaxReleaseSeconds)
+        // At least a frame, so that the last of the way is one frame's step and
+        // not a fraction of one with a second frame to follow. A 60Hz frame
+        // here was two frames at 120Hz for a release with less than one left.
+        val seconds = (remaining / pace).coerceIn(frame / 1e9f, MaxReleaseSeconds)
         val leaving = (along.coerceAtLeast(0f) * seconds / remaining).coerceIn(LeastLeaving, 2f)
         val arriving = 0.5f
         return { played ->
@@ -454,6 +542,11 @@ private suspend fun androidx.compose.ui.input.pointer.PointerInputScope.trackBac
             val tracker = VelocityTracker()
             tracker.addPosition(first.uptimeMillis, start)
             var claimed = false
+            // The frames the page is drawn on under the finger, for the release
+            // to be timed from: see [SwipeBackInput.nextFrame].
+            // The frame followed under the finger is the input's to hold: see
+            // [SwipeBackInput.followFrame] for what this block did on iOS when
+            // it held it itself.
             while (true) {
                 val event = awaitPointerEvent(pass)
                 val change = event.changes.firstOrNull { it.id == id }
@@ -480,6 +573,7 @@ private suspend fun androidx.compose.ui.input.pointer.PointerInputScope.trackBac
                         if (along > claimAt && sideways) {
                             claimed = true
                             input.start(pan.edge, at)
+
                         } else {
                             break
                         }
@@ -495,17 +589,28 @@ private suspend fun androidx.compose.ui.input.pointer.PointerInputScope.trackBac
                 val progress = (along / span).coerceIn(0f, 1f)
                 if (change.pressed) {
                     input.move(progress, at)
+                    input.followFrame(scope)
                     continue
                 }
                 // Let go: decided by where it would come to rest. See
                 // [releaseCommits].
                 val velocity = tracker.calculateVelocity().x * sign
-                scope.launch { input.release(releaseCommits(progress, velocity / span), velocity / span) }
+                input.stopFollowing()
+                input.releaseIn(scope, releaseCommits(progress, velocity / span), velocity / span)
                 break
             }
         }
     }
 }
+
+/**
+ * The release, run in [scope], from an ordinary function rather than as a
+ * suspend lambda made inside the pan's restricted pointer block. Not the cause
+ * of the iOS crash [SwipeBackInput.followFrame] describes, which this was moved
+ * out for first, but the block is simpler without it.
+ */
+private fun SwipeBackInput.releaseIn(scope: CoroutineScope, commit: Boolean, velocity: Float): Job =
+    scope.launch { release(commit, velocity) }
 
 /** The node's coordinates, live: read at each event, so they carry wherever it has moved to. */
 private class Placed {
@@ -550,8 +655,17 @@ private const val CommitFraction = 0.5f
 /** How far a release coasts, in seconds of its own speed. See [releaseCommits]. */
 private const val CoastSeconds = 0.998f / (1f - 0.998f) / 1000f
 
-/** One frame at sixty a second: how long before its first frame a release began. */
+/**
+ * One frame at sixty a second: how long a frame is taken to be where no frame of
+ * the gesture was seen to measure one from. See [SwipeBackInput.frameNanos].
+ */
 private const val FrameNanos = 16_666_667L
+
+/**
+ * The longest two frames seen in a row can be apart and still be a frame of the
+ * screen's, rather than the finger stopping between two moves: a 30Hz frame.
+ */
+private const val MaxFrameNanos = 34_000_000L
 
 /**
  * The spring a released gesture finishes on: critically damped, so it never
@@ -560,12 +674,11 @@ private const val FrameNanos = 16_666_667L
  */
 private const val ReleaseStiffness = Spring.StiffnessLow
 
-/** The longest and shortest a paced release takes, in seconds. */
-private const val MinReleaseSeconds = 0.016f
+/** The longest a paced release takes, in seconds. The shortest is a frame. */
+private const val MaxReleaseSeconds = 0.3f
 
 /** The least a paced release leaves at, against its pace: half, so it never sets off from rest. */
 private const val LeastLeaving = 0.5f
-private const val MaxReleaseSeconds = 0.3f
 
 /** How far past the end the release aims, as a fraction of the travel. */
 private const val Overshoot = 0.05f

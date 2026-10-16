@@ -14,18 +14,17 @@ request, never on `main`.
     python3 docs/bump-tabler-icons.py --is-newer 3.49.0
     python3 docs/bump-tabler-icons.py --write 3.49.0 [--integrity sha512-…]
 
-`--latest` reads both packages' `maven-metadata.xml` from Maven Central, which
-needs no credentials, and prints the newest stable version both styles have.
-Central and nowhere else: the library is installed from Central, so a version of
-the icons that is not there is one its users could not resolve. Before the
-icons' first release there, it answers with the version already pinned.
+`--latest` reads both packages' `maven-metadata.xml` from Kontour's repository,
+`https://maven.kontour.io`, which needs no credentials, and prints the newest
+stable version both styles have.
 
 `--write` moves the three places a version lives:
 
 * `gradle/libs.versions.toml`, `tabler-icons`;
 * `docs/icondata.py`'s `INTEGRITY`, the docs' icon browser's pin on the
   `@tabler/icons` tarball of that version — from npm's own `dist.integrity`
-  unless given, and named in the pull request so a person looks at it;
+  unless given, and named in the pull request so a person looks at it. A
+  re-release of the same icons, `3.49.0.1`, is pinned as npm's `3.49.0`;
 * the changelog, a line under `## Unreleased` → `### Changed`.
 """
 
@@ -43,7 +42,7 @@ CATALOGUE = ROOT / "gradle/libs.versions.toml"
 ICONDATA = ROOT / "docs/icondata.py"
 CHANGELOG = ROOT / "ui-docs/content/changelog.md"
 
-REPOSITORY = "https://repo1.maven.org/maven2"
+REPOSITORY = "https://maven.kontour.io"
 ARTIFACTS = ("tabler-icons-outline", "tabler-icons-filled")
 
 VERSION_LINE = re.compile(r'^(tabler-icons\s*=\s*")([^"]+)(")', re.M)
@@ -61,16 +60,32 @@ def key(version: str) -> tuple[int, ...]:
     return tuple(int(part) for part in version.split("."))
 
 
+# Named, because `maven.kontour.io` is behind Cloudflare, whose bot protection
+# answers Python's own `Python-urllib/3.x` with a 403 while it serves curl,
+# Gradle and anything else that says what it is. Found when the icon workflow
+# first read the bucket rather than Maven Central.
+USER_AGENT = "kontour-bump-tabler-icons (+https://github.com/kontour-labs/ui)"
+
+
+def fetch(url: str, timeout: int = 60):
+    return urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": USER_AGENT}), timeout=timeout)
+
+
 def metadata(artifact: str) -> str | None:
-    """The artifact's `maven-metadata.xml` on Central, or None if it is not there yet."""
+    """The artifact's `maven-metadata.xml`, or None while it has never been published there."""
     url = f"{REPOSITORY}/io/kontour/{artifact}/maven-metadata.xml"
     try:
-        with urllib.request.urlopen(url, timeout=60) as response:
+        with fetch(url) as response:
             return response.read().decode()
     except urllib.error.HTTPError as error:
         if error.code == 404:
             return None
         raise
+
+
+def npm_version(version: str) -> str:
+    """`3.49.0.1` → `3.49.0`: a re-release of the same icons is of the same Tabler release."""
+    return ".".join(version.split(".")[:3])
 
 
 def versions(xml: str) -> set[str]:
@@ -88,7 +103,7 @@ def latest(sources: list[str]) -> str:
 
 def npm_integrity(version: str) -> str:
     url = f"https://registry.npmjs.org/@tabler/icons/{version}"
-    with urllib.request.urlopen(url, timeout=60) as response:
+    with fetch(url) as response:
         integrity = json.load(response)["dist"]["integrity"]
     if not integrity.startswith("sha512-"):
         raise SystemExit(f"@tabler/icons {version} has no sha512 integrity on npm: {integrity}")
@@ -149,7 +164,7 @@ def main() -> None:
     group.add_argument("--is-newer", metavar="VERSION", help="exit 0 if VERSION is newer than the pinned one")
     group.add_argument("--write", metavar="VERSION", help="move every pin to VERSION")
     parser.add_argument("--metadata", nargs=2, metavar=("OUTLINE", "FILLED"), type=pathlib.Path,
-                        help="read maven-metadata.xml from these files rather than Maven Central")
+                        help="read maven-metadata.xml from these files rather than maven.kontour.io")
     parser.add_argument("--integrity", help="the @tabler/icons tarball's integrity, rather than npm's")
     args = parser.parse_args()
 
@@ -158,7 +173,7 @@ def main() -> None:
     elif args.latest:
         sources = [p.read_text() for p in args.metadata] if args.metadata else [metadata(a) for a in ARTIFACTS]
         if any(source is None for source in sources):
-            print(f"The icons are not on Maven Central yet; staying on {current()}.", file=sys.stderr)
+            print(f"The icons are not on maven.kontour.io yet; staying on {current()}.", file=sys.stderr)
             print(current())
         else:
             print(latest(sources))
@@ -173,9 +188,10 @@ def main() -> None:
         old = current()
         if key(new) <= key(old):
             raise SystemExit(f"{new} is not newer than the pinned {old}")
-        integrity = args.integrity or npm_integrity(new)
+        release = npm_version(new)
+        integrity = args.integrity or npm_integrity(release)
         write_catalogue(new)
-        write_integrity(new, integrity)
+        write_integrity(release, integrity)
         write_changelog(old, new)
         print(f"tabler-icons {old} → {new}; @tabler/icons integrity {integrity}")
 

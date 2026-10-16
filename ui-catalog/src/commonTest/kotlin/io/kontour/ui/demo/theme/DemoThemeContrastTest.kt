@@ -1,6 +1,7 @@
 package io.kontour.ui.demo.theme
 
 import io.kontour.ui.a11y.contrastFailures
+import io.kontour.ui.a11y.contrastRatio
 import io.kontour.ui.theme.ContrastLevel
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -85,6 +86,58 @@ class DemoThemeContrastTest {
                     "every progress form. `accent` is the brand as a tone. A theme " +
                     "whose call to action is its brand colour wants " +
                     "`ButtonVariant.Accent`, not `primary`.",
+            )
+        }
+    }
+
+    /**
+     * The selected tint can be read on, and at the standard tier it can be seen.
+     *
+     * `contrastFailures` walks the tint only for its own `onContainer`, and for
+     * the edge `outlineStrong` can give it. What else lands on it — a selected
+     * row's supporting line, a focused field's placeholder, a hovered
+     * `TextButton`'s label in the accent — was checked by nothing, and neither
+     * was how far the tint stands off the page. GTurbo's stood 1.11:1 off it,
+     * with a selected chip told apart by its red alone.
+     *
+     * `SelectedTintTest` in `:ui` holds the built-in schemes to the same, with
+     * the reasoning. The separation is asked of the standard tier only: the
+     * enhanced tier rings every selected tint in the accent.
+     */
+    @Test
+    fun everyThemesSelectedTintIsReadableAndSeen() {
+        val weak = buildList {
+            for (theme in demoThemes) {
+                for (mode in theme.modes) {
+                    for (tier in theme.tiers) {
+                        val s = theme.colours(mode == ThemeMode.Dark, tier)
+                        val tint = s.accent.container
+                        val where = "${theme.name} $mode/$tier"
+                        for ((name, colour) in listOf(
+                            "content" to s.content,
+                            "contentMuted" to s.contentMuted,
+                            "contentSubtle" to s.contentSubtle,
+                            "accent.solid" to s.accent.solid,
+                            "accent.onContainer" to s.accent.onContainer,
+                        )) {
+                            val ratio = contrastRatio(colour, tint)
+                            if (ratio < 4.5f) add("[$where] $name on accent.container: $ratio:1, needs 4.5")
+                        }
+                        if (tier == ContrastLevel.Standard) {
+                            val ratio = contrastRatio(tint, s.background)
+                            if (ratio < 1.3f) add("[$where] accent.container on background: $ratio:1, needs 1.3")
+                        }
+                    }
+                }
+            }
+        }
+
+        if (weak.isNotEmpty()) {
+            fail(
+                "${weak.size} pairing(s) with the selected tint fall short:\n\n" +
+                    weak.joinToString("\n") { "  $it" } +
+                    "\n\nA tint is held from both ends: far enough off the page to be " +
+                    "seen, near enough that what is drawn on it can be read.",
             )
         }
     }

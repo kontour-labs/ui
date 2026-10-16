@@ -20,6 +20,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.mutableStateOf
+import io.kontour.ui.components.datetime.TodayFlash
 import io.kontour.ui.components.datetime.rememberTodayFlash
 import io.kontour.ui.components.datetime.LocalTodayFlash
 import io.kontour.ui.interaction.rememberLongPressFeedback
@@ -45,6 +46,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import kotlin.time.Duration.Companion.milliseconds
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.SideEffect
@@ -68,6 +70,7 @@ import androidx.compose.ui.layout.Placeable
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.constrainHeight
 import androidx.compose.ui.unit.constrainWidth
+import kotlin.math.abs
 import kotlin.math.floor
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
@@ -267,34 +270,57 @@ fun EventCalendar(
     val cursorShown = rememberFocusRingVisible(cursorInteractions)
     // The one place events are filtered: everything below finds them here.
     val shown = if (showTimedEvents) events else remember(events) { events.filterNot { it.isTimed() } }
-    val scope = CalendarScope(
-        state = state,
-        events = shown,
-        enabled = enabled,
-        now = now,
-        onEventClick = onEventClick,
-        onDateClick = onDateClick,
-        onTimeClick = onTimeClick,
-        hourHeight = hourHeight,
-        formats = formats,
-        eventContent = eventContent,
-        pager = pager,
-        edit = edit,
-        onCreateRequest = onCreateRequest,
-        onEventMove = onEventMove,
-        onEventResize = onEventResize,
-        onEventDelete = onEventDelete,
-        announcer = announcer,
-        touch = modality.needsLargeTargets,
-        strings = Theme.strings,
-        cursorInteractions = cursorInteractions,
-        cursorShown = cursorShown,
-        menus = LocalOverlayHostOrNull.current != null,
-        eventMenu = eventMenu,
-        emptyMenu = emptyMenu,
-        daysStyle = if (showTimedEvents) daysStyle else CalendarDaysStyle.Condensed,
-        showsTimed = showTimedEvents,
-    )
+    // **The time now is read where it is used, not given to the scope.** It
+    // changes every minute, and the scope was built afresh on every
+    // composition with it inside, so every day, column and event of the view
+    // composed again each minute — and on anything else the caller composed
+    // for. The scope is kept while what it holds is, and the time now reaches
+    // the line across the hours, which reads it as it draws, and today, which
+    // changes once a day.
+    val currentNow = rememberUpdatedState(now)
+    val touch = modality.needsLargeTargets
+    val strings = Theme.strings
+    val menus = LocalOverlayHostOrNull.current != null
+    val style = if (showTimedEvents) daysStyle else CalendarDaysStyle.Condensed
+    // Today pointed at whenever it is gone back to: the header's button, or the app's own call.
+    val todayFlash = rememberTodayFlash()
+    val scope = remember(
+        state, shown, enabled, onEventClick, onDateClick, onTimeClick, hourHeight, formats, eventContent, pager, edit,
+        onCreateRequest, onEventMove, onEventResize, onEventDelete, announcer, touch, strings, cursorInteractions,
+        cursorShown, menus, eventMenu, emptyMenu, style, showTimedEvents, todayFlash,
+        // Not the scope's, but read through it: `edit.stepMinutes` is set above.
+        snapMinutes,
+    ) {
+        CalendarScope(
+            state = state,
+            events = shown,
+            enabled = enabled,
+            now = { currentNow.value },
+            onEventClick = onEventClick,
+            onDateClick = onDateClick,
+            onTimeClick = onTimeClick,
+            hourHeight = hourHeight,
+            formats = formats,
+            eventContent = eventContent,
+            pager = pager,
+            edit = edit,
+            onCreateRequest = onCreateRequest,
+            onEventMove = onEventMove,
+            onEventResize = onEventResize,
+            onEventDelete = onEventDelete,
+            announcer = announcer,
+            touch = touch,
+            strings = strings,
+            cursorInteractions = cursorInteractions,
+            cursorShown = cursorShown,
+            menus = menus,
+            eventMenu = eventMenu,
+            emptyMenu = emptyMenu,
+            daysStyle = style,
+            showsTimed = showTimedEvents,
+            todayFlash = todayFlash,
+        )
+    }
     // The days a pointer's day can be: the ones on show, not a page sliding away.
     SideEffect { edit.shown = { state.visibleDates } }
     // Turned off — disabled — mid-edit, the edit is put back.
@@ -310,18 +336,23 @@ fun EventCalendar(
             if (menuGone || !enabled) edit.menu = null
         }
     }
-    // Today pointed at whenever it is gone back to: the header's button, or the app's own call.
-    val todayFlash = rememberTodayFlash()
     val motion = Theme.motion
     LaunchedEffect(state) {
         var seen = state.todayRequest?.serial
         snapshotFlow { state.todayRequest }.collect { request ->
             if (request == null || request.serial == seen) return@collect
             seen = request.serial
+            // The year flashes today itself, once its scroll has brought
+            // today's month in: it can be a year's scroll away, or scrolled
+            // off within its own year with nothing else to bring it back.
+            if (state.view == CalendarView.Year) return@collect
             todayFlash.flash(after = if (request.paged) motion.default.milliseconds else Duration.ZERO)
         }
     }
-    CompositionLocalProvider(LocalTodayFlash provides { todayFlash.value() }) {
+    // The same reader every time: the local is static, and a new one would
+    // compose everything under it again, as often as the calendar composes.
+    val flashed = remember(todayFlash) { { todayFlash.value() } }
+    CompositionLocalProvider(LocalTodayFlash provides flashed) {
         BoxWithConstraints(modifier.carriesEdits(scope)) {
             // Given no width — in a row that scrolls sideways, say — a phone's.
             // Clipped, so a calendar squeezed narrower than its header's buttons
@@ -355,7 +386,12 @@ internal class CalendarScope(
     val state: EventCalendarState,
     val events: List<CalendarEvent>,
     val enabled: Boolean,
-    val now: LocalDateTime?,
+    /**
+     * The time now, read where it is used: by the line across the hours as it
+     * draws. It changes every minute, and a part that read it as it composed
+     * would compose again every minute.
+     */
+    val now: () -> LocalDateTime?,
     val onEventClick: ((CalendarEvent) -> Unit)?,
     val onDateClick: ((LocalDate) -> Unit)?,
     val onTimeClick: ((LocalDateTime) -> Unit)?,
@@ -383,6 +419,8 @@ internal class CalendarScope(
     val daysStyle: CalendarDaysStyle = CalendarDaysStyle.Hours,
     /** Whether timed events are shown at all: without them, a day on its own is stacked too. */
     val showsTimed: Boolean = true,
+    /** Today's flash, for a view that has to bring today in before it is pointed at: the year's. */
+    val todayFlash: TodayFlash? = null,
 ) {
     /** Whether [event] can be carried. */
     fun movable(event: CalendarEvent): Boolean = enabled && onEventMove != null && event.editable
@@ -436,7 +474,7 @@ internal class CalendarScope(
         val end = menu.end ?: return
         if (edit.kind == EditKind.Create) edit.cancel()
         onCreateRequest?.invoke(start, end)
-        announce(strings.newEvent, start, end)
+        announce(strings.newEvent, start, end, allDay = spansWholeDays(start, end))
     }
 
     /**
@@ -480,17 +518,27 @@ internal class CalendarScope(
             done.kind == EditKind.Move -> onEventMove?.invoke(event, done.start, done.end)
             else -> onEventResize?.invoke(event, done.start, done.end)
         }
-        announce(event?.title ?: strings.newEvent, done.start, done.end)
+        announce(event?.title ?: strings.newEvent, done.start, done.end, allDay = event?.allDay ?: spansWholeDays(done.start, done.end))
     }
 
-    /** Reads out where [title] now is. */
-    fun announce(title: String, start: LocalDateTime, end: LocalDateTime) {
-        val days = formats.date(start.date, DateStyle.Full)
-        val time = strings.timeRange(formats.time(start.time), formats.time(end.time))
-        announcer.say(strings.eventMoved(title, formats.list(listOf(days, time), ListStyle.Unit)))
+    /**
+     * Reads out where [title] now is, as the event is described: its day or
+     * its days, and its times or that it is [allDay]. It was the first day and
+     * the times, always, so a holiday made a day longer was read out as
+     * "00:00 – 00:00" on the day it already started on, and never its new end.
+     */
+    fun announce(title: String, start: LocalDateTime, end: LocalDateTime, allDay: Boolean) {
+        announcer.say(strings.eventMoved(title, formats.list(eventWhen(start, end, allDay, formats, strings), ListStyle.Unit)))
     }
 
-    val today: LocalDate? get() = now?.date
+    /** Whether a new event from [start] to [end] is whole days, drawn out across them: midnight to midnight. */
+    private fun spansWholeDays(start: LocalDateTime, end: LocalDateTime): Boolean =
+        end > start && start.hour == 0 && start.minute == 0 && end.hour == 0 && end.minute == 0
+
+    /** Today's date, which changes at midnight rather than with every minute of [now]. */
+    private val todayNow = derivedStateOf { now()?.date }
+
+    val today: LocalDate? get() = todayNow.value
 
     /** The events with any part between [from] and [to], both included. */
     fun eventsBetween(from: LocalDate, to: LocalDate): List<CalendarEvent> = events.filter { it.overlaps(from, to) }
@@ -647,12 +695,14 @@ internal fun viewName(view: CalendarView): String {
 
 /** The title of the period [state] shows: a day's date, a week's months, a month, a year. */
 internal fun periodTitle(state: EventCalendarState, formats: LocaleFormats, timeRange: (String, String) -> String): String {
-    val dates = state.visibleDates
     return when (state.view) {
         // Long rather than full: the weekday is under it, over the day's hours,
         // and the full date did not fit a phone's header beside its arrows.
         CalendarView.Day -> formats.date(state.date, DateStyle.Long)
         CalendarView.Week, CalendarView.ThreeDays -> {
+            // Read here and not for every view: a scrolling month's dates
+            // change with each week scrolled past, and its title does not.
+            val dates = state.visibleDates
             val first = formats.monthAndYear(dates.start)
             val last = formats.monthAndYear(dates.endInclusive)
             if (first == last) first else timeRange(first, last)
@@ -854,7 +904,7 @@ private fun DefaultEventContent(event: CalendarEvent, presentation: EventPresent
                         Text(event.title, style = type.labelMedium, maxLines = titleLines, overflow = TextOverflow.Ellipsis)
                     }
                 }
-                FadingText(strings.timeRange(formats.time(event.start.time), formats.time(event.end.time)), type.labelSmall)
+                FadingText(eventTimes(event.start, event.end, formats, strings), type.labelSmall)
                 event.location?.let { FadingText(it, type.labelSmall) }
             }
         }
@@ -1028,9 +1078,17 @@ internal fun rememberCalendarPager(state: EventCalendarState): CalendarPager {
  * while it moves. Each keyed by its period, so the one coming in is the same
  * composition moving to the middle. Under reduced motion, only the current
  * one: the pager cuts.
+ *
+ * As tall as the tallest page, or with [blendHeights], for pages of their own
+ * heights — the all-day strip's — as tall as each is by its share of the
+ * screen: the page at rest's own height, and mid-swipe going from the one to
+ * the other as far as the swipe has gone, the taller page's foot cut until it
+ * is all in. As tall as the taller of the two, the hours jumped by a row as a
+ * finger set off and again as the page came to rest. Measured from the
+ * pager's position, so a swipe's frames lay out again and compose nothing.
  */
 @Composable
-internal fun PeriodStrip(pager: CalendarPager, modifier: Modifier = Modifier, content: @Composable (period: Int) -> Unit) {
+internal fun PeriodStrip(pager: CalendarPager, modifier: Modifier = Modifier, blendHeights: Boolean = false, content: @Composable (period: Int) -> Unit) {
     val reduce = Theme.motion.reduceMotion
     val shown = if (reduce) listOf(pager.current) else pager.periods.inView
     Layout(
@@ -1039,7 +1097,18 @@ internal fun PeriodStrip(pager: CalendarPager, modifier: Modifier = Modifier, co
     ) { measurables, constraints ->
         val placeables = measurables.map { it.measure(constraints) }
         val width = placeables.firstOrNull()?.width ?: constraints.minWidth
-        val height = placeables.maxOfOrNull { it.height } ?: constraints.minHeight
+        val tallest = placeables.maxOfOrNull { it.height } ?: constraints.minHeight
+        var shares = 0f
+        var blended = 0f
+        if (blendHeights && placeables.size > 1) {
+            placeables.forEachIndexed { i, page ->
+                val at = pager.periods.placeOf(shown[i])
+                val share = if (at.isNaN()) 0f else (1f - abs(at)).coerceIn(0f, 1f)
+                shares += share
+                blended += page.height * share
+            }
+        }
+        val height = if (shares > 0f) constraints.constrainHeight((blended / shares).roundToInt()) else tallest
         layout(width, height) {
             placeables.forEachIndexed { i, page ->
                 val at = if (reduce) 0f else pager.periods.placeOf(shown[i])

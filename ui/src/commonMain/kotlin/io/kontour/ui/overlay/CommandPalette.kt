@@ -231,7 +231,11 @@ fun CommandPalette(
                             )
                         }
                     },
-                )
+                ).also { entry ->
+                    // The two flags above are as it opened; this is as it is
+                    // now. See `OverlayEntry.dismissibleNow`.
+                    entry.dismissibleNow = { latestDismissible }
+                }
             )
         } else {
             host.hide(key)

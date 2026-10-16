@@ -88,14 +88,14 @@ class SwipeBackTest {
         }
     }
 
-    /** Frames of 16ms, counted. */
-    private class Frames : MonotonicFrameClock {
+    /** Frames of 16ms, or of [period], counted, the first one [period] after [from]. */
+    private class Frames(private val period: Long = 16_000_000L, from: Long = 0L) : MonotonicFrameClock {
         var count = 0
-        private var time = 0L
+        private var time = from
 
         override suspend fun <R> withFrameNanos(onFrame: (frameTimeNanos: Long) -> R): R {
             count++
-            time += 16_000_000L
+            time += period
             return onFrame(time)
         }
     }
@@ -146,6 +146,76 @@ class SwipeBackTest {
             assertTrue(seen.last() > 0.99f, "completed at ${seen.last()}, short of where the pop leaves the page")
             assertEquals(1, recorder.completed)
         }
+    }
+
+    /**
+     * At 120Hz the first frame after letting go moves as far as the frames after
+     * it, and not twice as far.
+     *
+     * A release is timed from the moment the finger lifted, so that its first
+     * frame is not spent standing where it started. That moment was taken as one
+     * frame at sixty a second before the first frame the release saw — right at
+     * 60Hz, and on a ProMotion iPhone or a 120Hz Android twice the real interval,
+     * so the page jumped two frames' worth on the first and then went on at one.
+     * The frames the gesture was drawn on are watched now, and the release is
+     * timed from the last of them.
+     */
+    @Test
+    fun theFirstFrameAfterLettingGoAt120HzIsOneFramesWorth() {
+        val period = 8_333_333L
+        val dispatcher = NavigationEventDispatcher()
+        val recorder = Recorder().also { dispatcher.addHandler(it) }
+        val input = SwipeBackInput().also { dispatcher.addInput(it) }
+        input.start(NavigationEvent.EDGE_LEFT, Offset.Zero)
+        // The gesture, drawn at 120Hz: its frames are what the release follows on from.
+        var lastFrame = 0L
+        repeat(10) {
+            lastFrame += period
+            input.sawFrame(lastFrame)
+            input.move(0.3f + it * 0.01f, Offset.Zero)
+        }
+        recorder.progress.clear()
+
+        runBlocking(Frames(period, from = lastFrame)) { input.release(commit = true, velocity = 4f) }
+
+        val seen = recorder.progress
+        val first = seen[0] - 0.39f
+        val second = seen[1] - seen[0]
+        assertTrue(
+            first < second * 1.25f,
+            "the first frame after letting go at 120Hz moved $first and the next $second: " +
+                "the first was timed as if a 60Hz frame had passed since the last one drawn",
+        )
+        assertTrue(first > second * 0.75f, "the first frame after letting go moved $first against $second after it")
+        assertEquals(1, recorder.completed)
+    }
+
+    /**
+     * A paced release with less than a frame's travel left finishes on the next
+     * frame at 120Hz, as it does at 60.
+     *
+     * The shortest a paced release took was 16ms, a 60Hz frame. Timed from the
+     * last frame of the gesture, the first frame after letting go at 120Hz was
+     * half way through that, and the last hundredth of the way took a second
+     * frame of its own.
+     */
+    @Test
+    fun aPacedReleaseWithAFrameLeftFinishesOnTheNextFrameAt120Hz() {
+        val period = 8_333_333L
+        val dispatcher = NavigationEventDispatcher()
+        val recorder = Recorder().also { dispatcher.addHandler(it) }
+        val input = SwipeBackInput(pacedAtLeast = 3.5f).also { dispatcher.addInput(it) }
+        input.start(NavigationEvent.EDGE_LEFT, Offset.Zero)
+        var lastFrame = 0L
+        repeat(10) {
+            lastFrame += period
+            input.sawFrame(lastFrame)
+            input.move(0.9f + it * 0.01f, Offset.Zero)
+        }
+        val frames = Frames(period, from = lastFrame)
+        runBlocking(frames) { input.release(commit = true, velocity = 1.2f) }
+        assertEquals(1, recorder.completed)
+        assertEquals(1, frames.count, "the last hundredth of the way took ${frames.count} frames at 120Hz")
     }
 
     @Test

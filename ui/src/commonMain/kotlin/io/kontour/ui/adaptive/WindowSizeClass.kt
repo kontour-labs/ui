@@ -110,6 +110,21 @@ enum class WindowHeightClass {
  * What is left in `equals` is what a layout can actually act on — the two
  * buckets and [isLandscape]. Those change when the window genuinely becomes a
  * different shape, which is exactly when a layout should be reconsidered.
+ *
+ * ### So the dp are the size at the last change of shape
+ *
+ * The class read from [LocalWindowSizeClass] is the one provided when the
+ * window last crossed a boundary: a new class equal to it is not news, and the
+ * one already handed out is kept. Its [widthDp] and [heightDp] are what the
+ * window measured *then*. A window grown from 700dp to 880dp tall, still
+ * [WindowHeightClass.Medium], has a class that says 700. They are the right
+ * numbers for a readout of what the class was made from and the wrong ones for
+ * a decision about the room there is now: measure the box itself for that —
+ * `BoxWithConstraints`, or a layout's own constraints.
+ *
+ * @property widthDp The width this class was made from: the window's at the
+ *   last change of shape, not as it is now.
+ * @property heightDp The height this class was made from, likewise.
  */
 @Immutable
 class WindowSizeClass(

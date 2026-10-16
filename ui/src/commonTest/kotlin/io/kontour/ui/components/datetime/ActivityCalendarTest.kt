@@ -4,8 +4,16 @@ import io.kontour.ui.locale.LocaleFormats
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.width
 import androidx.compose.ui.Modifier
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
+import io.kontour.ui.input.InputModality
+import io.kontour.ui.input.LocalInputModality
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.semantics.SemanticsActions
@@ -119,6 +127,52 @@ class ActivityCalendarTest {
             pressKey(Key.Enter)
         }
         assertEquals(listOf(start.plusDays(7 - 1)), picked)
+    }
+
+    /**
+     * Right to left, the keyboard's cursor is brought into view, not away from
+     * it. The scroll counts from the right there, and a cell's place was
+     * measured from the left, so focusing the newest week scrolled to the oldest.
+     */
+    @Test
+    fun rightToLeftTheKeyboardsCursorStaysInView() = runComposeUiTest {
+        var area = Rect.Zero
+        setContent {
+            KontourTheme {
+                CompositionLocalProvider(
+                    LocalLayoutDirection provides LayoutDirection.Rtl,
+                    LocalInputModality provides InputModality.Keyboard,
+                ) {
+                    // 53 weeks at 15dp is 795dp, in 200dp: most of it scrolled away.
+                    OverlayHost {
+                        Box(Modifier.width(200.dp).onGloballyPositioned { area = it.boundsInRoot() }) {
+                            ActivityCalendar(
+                                activity = activity,
+                                end = end,
+                                weeks = 53,
+                                selected = end,
+                                onDayClick = {},
+                                cellSize = 12.dp,
+                                showMonthLabels = false,
+                                showWeekdayLabels = false,
+                                legend = ActivityLegend.None,
+                                formats = LocaleFormats.english(),
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        onNode(isFocusable()).requestFocus()
+        // Right is back a week, right to left.
+        onNode(isFocusable()).performKeyInput { pressKey(Key.DirectionRight) }
+        waitForIdle()
+        val week = onNode(hasContentDescription("Week of 25 May 2026", substring = true)).fetchSemanticsNode()
+        val bounds = week.boundsInRoot
+        assertTrue(
+            bounds.left >= area.left - 1 && bounds.right <= area.right + 1 && bounds.width >= 12 * density.density - 1,
+            "the cursor's week should be in view in a calendar at $area; it is at $bounds",
+        )
     }
 
     /** The theme's words reach the week nodes: a translated app says its own "Week of". */

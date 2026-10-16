@@ -55,6 +55,21 @@ carry the rows twice as far as the finger. Scrolling back, the list returns to
 its top first and the bar opens after it, and a collapse the finger leaves
 part-way finishes to whichever end is nearer.
 
+**Past the content's end, the bar goes with the content.** On iOS the system's
+overscroll is a rubber band that slides the whole content, so on a page only
+just long enough to scroll, a push past its end carried the page up under a bar
+that had not finished collapsing — reported as *"scrolling under large or hero
+top bars on iOS does weird things when there's not enough content on the screen
+for it to be properly scrollable"*. There `topBarCollapse` hands the push to the
+bar instead, through a rubber band as stiff as the system's, and the page goes
+no further up than the bar's foot: the push carries the collapse on, and the
+collapse finishes as any does. A page that cannot scroll at all gets no
+overscroll from the system, and its bar could be left collapsed over nothing;
+there too, once the page has shown it cannot move, the rest of the push folds
+the bar on through the band, and it opens again when the finger lifts, as a
+large title over a page that does not scroll does. Android's stretch and the
+desktop, which never move the content's top, are left as they are.
+
 **A mouse wheel opens it all the way too.** A list at its top declines a wheel's
 notch before it becomes a scroll, so nothing listening to the scroll hears it.
 `topBarCollapse` hears the notches the content declined, and finishes the bar
@@ -62,9 +77,12 @@ the way the wheel turned. The state's `nestedScrollConnection` is still there
 for wiring the scroll yourself with `Modifier.nestedScroll`, without that.
 
 To drive it from anything else, pass `collapseProgress` directly: 0 open, 1
-collapsed. `collapseProgress(listState)` computes one from a `LazyListState`,
-for a bar drawn over its list rather than above it, and
-`collapseProgress(scrolled, distance)` from any two numbers.
+collapsed. `collapseProgress(scrolled, distance)` works one out from any two
+numbers. For a bar drawn over its list rather than above it, hand the bar
+`rememberTopBarCollapseState(list)` — the Hero example below — rather than
+`collapseProgress(listState)`: the state follows the list where the bar lays
+out, and the function reads the scroll in composition, so the screen that calls
+it recomposes on every frame of the scroll.
 
 ### `Hero`: a large bar over a picture
 
@@ -75,8 +93,13 @@ val collapse = rememberTopBarCollapseState(list)
 
 Box {
     // Under the bar, starting where the open bar ends: the list is the
-    // only thing that scrolls, and the bar follows it.
-    LazyColumn(state = list, contentPadding = PaddingValues(top = collapse.openHeight)) {
+    // only thing that scrolls, and the bar follows it. The collapse on
+    // the list is for a push past its end, which takes the bar with it.
+    LazyColumn(
+        state = list,
+        modifier = Modifier.topBarCollapse(collapse),
+        contentPadding = PaddingValues(top = collapse.openHeight),
+    ) {
         stopRows()
     }
     // The picture runs under the status bar and fades into the bar's colour
@@ -124,6 +147,19 @@ the list, and on an iPhone the system's stretch, still relaxing from a pull,
 sometimes took the start of the next drag before the bar was asked for it —
 reported as *"sometimes when i start scrolling up, it doesn't and just does the
 overscroll animation"*. That wiring still works, and a `Large` bar keeps it.
+
+**`topBarCollapse` goes on the list**, never round the bar, for what the
+scroll cannot say: a push past the list's end. On iOS, on a list that scrolls
+less far than the bar collapses, that went to the system's rubber band, which
+slid the rows up under the picture while the bar stayed where the scroll had
+stopped. With it on the list the bar takes the push — the rows go up and the
+bar's foot with them, through a band as stiff as the system's — and both come
+back down to where the scroll left them when the finger lifts. On a
+`verticalScroll` it goes ahead of the scroll. Without it the bar still follows
+the list, and on iOS a short page can still slide under it. Put round a box
+that holds the bar as well — where it once went — it moves that box, and a bar
+inside its own collapse puts itself back, so the list still goes up and the bar
+stays where it is; on the list is still the place for it.
 
 Collapsed it is a `Small` bar to the pixel: the title travels into the first
 line, the picture rises behind the bar at half the speed and fades out over the
@@ -242,4 +278,4 @@ buttons well down it.
 Reduced motion leaves the large title's collapse as it is: it is driven by the
 scroll position rather than by a clock, so the title moves only as the content
 under it does. A collapse left part-way lands at once rather than travelling the
-rest of the way. The back button keeps its press wash and loses its shrink.
+rest of the way, and a push past the content's end is let go of at once. The back button keeps its press wash and loses its shrink.

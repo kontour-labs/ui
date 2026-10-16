@@ -1,5 +1,6 @@
 package io.kontour.ui.components.display
 
+import io.kontour.ui.theme.clipProxy
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -38,6 +39,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.layoutId
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.Role
@@ -138,11 +140,15 @@ fun ThumbnailStrip(
     // The pages near enough the middle to be drawn: as few as fill the strip.
     var stripWidth by remember { mutableIntStateOf(0) }
     val narrowPx = with(LocalDensity.current) { (narrow + gap).toPx() }
+    // The count is read here, not closed over: this is remembered across
+    // recompositions, so a count taken from the first one stayed as it was. A
+    // carousel that lost pages went on composing thumbnails for them, and one
+    // whose pages loaded in from none showed none.
     val shown by remember(state, narrowPx) {
         derivedStateOf {
             val reach = if (narrowPx <= 0f) 0 else ceil(stripWidth / narrowPx / 2f).toInt() + 2
             val at = position().roundToInt()
-            (at - reach).coerceAtLeast(0)..(at + reach).coerceAtMost(count - 1)
+            (at - reach).coerceAtLeast(0)..(at + reach).coerceAtMost(state.pageCount - 1)
         }
     }
 
@@ -166,7 +172,8 @@ fun ThumbnailStrip(
                 key(page) {
                     Box(
                         Modifier
-                            .clip(shape)
+                            .layoutId(page)
+                            .clip(shape.clipProxy())
                             .semantics {
                                 contentDescription = describe(page, count)
                                 role = Role.RadioButton
@@ -275,7 +282,14 @@ fun ThumbnailStrip(
         val gapPx = gap.toPx()
         val narrowW = narrow.toPx()
         val at = position()
-        val first = shown.first
+        // **The pages that were composed**, not the ones `shown` names now. The
+        // two differ for a frame whenever what `shown` reads moves between
+        // composition and this measure — the strip's own width, written just
+        // above, or the carousel's position where its list measures first — and
+        // reading `shown` here sized and placed each thumbnail as the page a
+        // slot or more along from its own. The children are consecutive, so the
+        // first one's page is enough.
+        val first = (measurables.firstOrNull()?.layoutId as? Int) ?: shown.first
         val placeables = measurables.mapIndexed { i, measurable ->
             val w = thumbWidth(first + i, at, narrowW, wideOf(first + i))
             measurable.measure(Constraints.fixed(w.roundToInt().coerceAtLeast(0), stripHeight))

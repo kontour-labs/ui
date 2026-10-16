@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.snapshotFlow
 import kotlinx.coroutines.flow.collectLatest
 import androidx.compose.ui.input.pointer.pointerInput
@@ -23,6 +24,11 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Rect
@@ -178,7 +184,14 @@ fun <T> WheelSelect(
     val key = remember { Any() }
     val closeLabel = Theme.strings.closeMenu
 
+    // Written every frame the field scrolls, and read only where that costs
+    // nothing: by the panel's layout, through a lambda, and here as whether
+    // there is one at all. It was read in this body — by the effect's key and
+    // by `rememberUpdatedState` — so every wheel select on a scrolling page
+    // recomposed on every frame of the scroll, open or not. `Select` keeps its
+    // anchor out of its body for the same reason; see `WithAnchor`.
     var anchor by remember { mutableStateOf<Rect?>(null) }
+    val anchored by remember { derivedStateOf { anchor != null } }
 
     /**
      * Opened by a drag rather than a tap, so it folds away again by itself once
@@ -274,6 +287,35 @@ fun <T> WheelSelect(
                     drive.release(0f)
                 },
             )
+            // The keys turn the value from the field, as a select's do on a
+            // desktop, open or not: the drum in the panel follows. It takes no
+            // focus of its own from here, so a reader's Tab goes on to the next
+            // field rather than into a panel that folds itself away.
+            .onKeyEvent { event ->
+                if (!usable || event.type != KeyEventType.KeyDown || options.isEmpty()) return@onKeyEvent false
+                val last = options.lastIndex
+                fun step(by: Int) = if (infinite) (index + by).mod(options.size) else (index + by).coerceIn(0, last)
+                val target = when (event.key) {
+                    Key.DirectionDown -> step(1)
+                    Key.DirectionUp -> step(-1)
+                    Key.PageDown -> step(visibleItems)
+                    Key.PageUp -> step(-visibleItems)
+                    Key.MoveHome -> 0
+                    Key.MoveEnd -> last
+                    Key.Escape -> if (state.expanded) {
+                        close()
+                        return@onKeyEvent true
+                    } else {
+                        return@onKeyEvent false
+                    }
+                    else -> return@onKeyEvent false
+                }
+                if (target != index) {
+                    onValueChange(options[target])
+                    onValueChangeFinished?.invoke()
+                }
+                true
+            }
             .clickable(
                 interactionSource = interactions,
                 indication = kontourIndication(Theme.shapes.field, pressScale = 1f),
@@ -295,7 +337,6 @@ fun <T> WheelSelect(
         )
     }
 
-    val latestAnchor by rememberUpdatedState(anchor)
     val panel by rememberUpdatedState<@Composable () -> Unit> {
         // The drum has as many rows each side of its middle as the wheel shows
         // in all but one, so it can open to either side; the panel shows the
@@ -331,19 +372,22 @@ fun <T> WheelSelect(
                 infinite = infinite,
                 onSettled = onValueChangeFinished,
                 drive = drive,
+                // The field takes the keys; a drum that folds away with its
+                // panel would take the focus with it.
+                takesFocus = false,
                 onCentreTap = { close() },
             )
         }
         WheelPanel(
-            anchor = { latestAnchor },
+            anchor = { anchor },
             reach = visibleItems / 2,
             content = drum,
         )
     }
 
     DisposableEffect(Unit) { onDispose { host.hide(key) } }
-    LaunchedEffect(expanded, anchor != null) {
-        if (!expanded || anchor == null) {
+    LaunchedEffect(expanded, anchored) {
+        if (!expanded || !anchored) {
             host.hide(key)
             return@LaunchedEffect
         }
@@ -421,7 +465,20 @@ private fun WheelPanel(
                         // so the row cut there reads as more of the wheel rather
                         // than as a row cut off. Not at high contrast, where
                         // nothing fades.
-                        .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+                        //
+                        // Offscreen only while there is that sliver to fade.
+                        // The layer is a buffer the whole drum renders into
+                        // and is composited back from, every frame it scrolls,
+                        // and opened about its field or at high contrast
+                        // nothing fades. The same mistake `fadingEdges` made.
+                        .graphicsLayer {
+                            val opening = geometry.opening
+                            compositingStrategy = if (solid || opening == null || opening == Opening.About) {
+                                CompositingStrategy.Auto
+                            } else {
+                                CompositingStrategy.Offscreen
+                            }
+                        }
                         .drawWithContent {
                             drawContent()
                             val opening = geometry.opening
@@ -520,7 +577,12 @@ private enum class Opening {
 
 /** Which way a [WheelPanel] opened, and where it put its drum, from its measure to its drawing. */
 private class PanelGeometry {
-    var opening: Opening? = null
+    /**
+     * State, because the drum's layer reads it as well as its drawing: the
+     * layer is offscreen only when there is a sliver to fade, and the two have
+     * to agree, or the fade's `DstOut` erases through the panel to the page.
+     */
+    var opening: Opening? by mutableStateOf(null)
     var drumTop: Int = 0
 }
 

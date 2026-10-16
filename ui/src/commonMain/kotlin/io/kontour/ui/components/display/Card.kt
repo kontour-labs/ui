@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -22,7 +23,7 @@ import io.kontour.ui.theme.Shadow
 import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.theme.ProvideConcentric
 import io.kontour.ui.theme.Theme
-import io.kontour.ui.a11y.NamedByContent
+import io.kontour.ui.a11y.LocalNamedByContent
 
 /** How a card separates itself from the page behind it. */
 enum class CardVariant {
@@ -105,10 +106,17 @@ fun Card(
             // less `spacing.md`'s 16dp floors at 6dp, and a control asking for
             // it gets that — but it tracks a caller who overrides either.
             val column = this
+            // A clickable card is one node named by what it says; see
+            // `LocalNamedByContent`. One that is not leaves whatever was said
+            // around it, as it did by not providing anything.
+            //
+            // Provided either way, from one call: the content was called inside
+            // `NamedByContent` for a clickable card and outside it for a plain
+            // one, two places in the composition, so a card whose `onClick` came
+            // and went threw its content away each time.
+            val named = onClick != null || LocalNamedByContent.current
             ProvideConcentric(shape, contentPadding) {
-                // A clickable card is one node named by what it says; see
-                // `LocalNamedByContent`.
-                if (onClick != null) NamedByContent { column.content() } else column.content()
+                CompositionLocalProvider(LocalNamedByContent provides named) { column.content() }
             }
         }
     }

@@ -72,6 +72,16 @@ import org.junit.experimental.categories.Category
  * the case — `KontourTheme(backdropBlur = false)` turns it off for the same
  * picture minus the texture.
  *
+ * ### Drawn smaller now, for a dialog
+ *
+ * A dialog's blur is done at a quarter of the size and scaled back up — see
+ * `overlayBackdrop` and `BackdropReducedBlurTest`, which holds the picture to
+ * the full-size blur's. Settled, **3.7× an unblurred frame against 8.5×**, and
+ * here most of what is left is the scaling back up: a bilinear pass over three
+ * million pixels, which a CPU pays for in full and a GPU's texture units do
+ * not. [BackdropStyle.BlurAndScale] keeps the full-size blur, for the reason
+ * `overlayBackdrop` gives, and its figure is unchanged.
+ *
  * ### What this cannot see, and it is not a small set
  *
  * A software rasteriser. Every number below is a CPU drawing pixels, so a cost
@@ -122,6 +132,15 @@ class BackdropCostDiagnostic {
                     .format(style, ratio),
             )
         }
+        val blur = measured.first { it.first == BackdropStyle.Blur }.second
+        assertTrue(
+            blur < 6.0,
+            ("a settled dialog's blur took %.2f× as long to render as no blur. It is drawn at a " +
+                "quarter of its size and scaled back up, which measured 3.7× here against 8.5× " +
+                "for the full-size blur it replaced — so this is the full-size blur back, or the " +
+                "reduction gone.")
+                .format(blur),
+        )
     }
 
     /**

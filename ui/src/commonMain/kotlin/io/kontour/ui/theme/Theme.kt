@@ -9,6 +9,7 @@ import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.intl.Locale
 import io.kontour.ui.adaptive.LocalWindowSizeClass
@@ -18,6 +19,7 @@ import io.kontour.ui.foundation.LocalContentColour
 import io.kontour.ui.foundation.LocalTextStyle
 import io.kontour.ui.foundation.textSelectionColours
 import io.kontour.ui.input.LocalInputModality
+import io.kontour.ui.input.LocalInputModalityState
 import io.kontour.ui.input.rememberInputModalityState
 import io.kontour.ui.input.trackInputModality
 import io.kontour.ui.interaction.FeedbackDispatcher
@@ -355,14 +357,13 @@ fun KontourTheme(
     // static locals below are provided from.
     faded?.targetColours = colours
     faded?.targetElevation = elevation
-    val resolvedColours = faded?.fade?.colours ?: colours
 
     // The host's chrome — Android's status and navigation bars, iOS's status
     // bar, a browser's scrollbars and address bar — takes its colours from a
     // flag nothing here had ever set, so a dark app under a light system got
     // dark icons on a dark bar. Reported from a phone.
     //
-    // `colours.isDark`, not `resolvedColours.isDark`: the target rather than the
+    // `colours.isDark`, not the fade's frame's: the target rather than the
     // cross-fading scheme. A status bar is light or dark with nothing in
     // between, so it flips once at the start of the fade instead of being
     // rewritten on every frame of it.
@@ -403,7 +404,6 @@ fun KontourTheme(
         LocalLocaleFormats provides formats,
         LocalContrastLevel provides contrast,
         LocalBackdropBlur provides backdropBlur,
-        LocalContentColour provides resolvedColours.content,
         LocalTextStyle provides localisedTypography.bodyMedium,
         // The target's, like the scheme itself: a selection is not something to
         // repaint on every frame of a fade. `TextField` draws the same pair.
@@ -418,15 +418,44 @@ fun KontourTheme(
         // Only where the app has chosen a locale written the other way from the
         // device's: the platform already lays its own locale out, and an app
         // that set the direction itself — a right-to-left preview, say — keeps it.
-        val direction = locale.layoutDirection
-        if (direction != platformLocale().layoutDirection && direction != LocalLayoutDirection.current) {
-            CompositionLocalProvider(LocalLayoutDirection provides direction) {
+        //
+        // **Always provided, from one call site.** The content used to be called
+        // from inside a direction provider where the locale needed one and from
+        // outside it where it did not, and those are two places in the
+        // composition: moving an in-app language between English and Arabic
+        // disposed the whole application and built it again. Providing the
+        // direction that is already in effect changes nothing, so it is provided
+        // either way.
+        val localeDirection = locale.layoutDirection
+        val direction = if (localeDirection != platformLocale().layoutDirection) {
+            localeDirection
+        } else {
+            LocalLayoutDirection.current
+        }
+        CompositionLocalProvider(LocalLayoutDirection provides direction) {
+            FadingContentColour(faded, colours.content) {
                 ThemeContent(alreadyTracking, content)
             }
-        } else {
-            ThemeContent(alreadyTracking, content)
         }
     }
+}
+
+/**
+ * The content colour, from the frame of a fade where there is one and from
+ * [target] otherwise.
+ *
+ * **A scope of its own, so that the theme's is not the one that reads the fade.**
+ * It was read in `KontourTheme`'s body, and a state read there recomposes all of
+ * it: on every frame of a fade the theme worked out every default parameter
+ * again — the type scale's fonts among them — asked the platform for its settings
+ * again and compared every `remember` it holds, for one colour. Here a frame
+ * recomposes this and the composables that read the colour, which are the ones
+ * that are changing.
+ */
+@Composable
+private fun FadingContentColour(fade: ThemeFadeState?, target: Color, content: @Composable () -> Unit) {
+    val colour = fade?.fade?.colours?.content ?: target
+    CompositionLocalProvider(LocalContentColour provides colour, content = content)
 }
 
 @Composable
@@ -438,6 +467,7 @@ private fun ThemeContent(alreadyTracking: Boolean, content: @Composable () -> Un
         CompositionLocalProvider(
             LocalInputModality provides modality.current,
             LocalInputModalityInstalled provides true,
+            LocalInputModalityState provides modality,
         ) {
             // Once, at the outermost theme: see `catchRestedFlicks`.
             val trail = remember { FingerTrail() }

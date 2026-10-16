@@ -15,7 +15,7 @@ python3 docs/check-settings.py
 
 ### The everyday run, and the full one
 
-`:ui-catalog:jvmTest` leaves out 26 slow classes unless it is asked for them:
+`:ui-catalog:jvmTest` leaves out 27 slow classes unless it is asked for them:
 
 ```sh
 ./gradlew :ui-catalog:jvmTest -Pkontour.tests.full=true
@@ -75,9 +75,9 @@ cannot reach another workflow's artifacts. Dokka lives in the `site` job now —
 the one that publishes it under `/api/`.
 
 **It runs on pushes to `main`, on `v*` tags, and by hand — never on a pull
-request or a push to another branch.** The runners are GitHub's own, free for
-a public repository, but a pull request's run was 17 minutes of `test` alone,
-which is a long wait for an answer nobody asked for yet. A branch that wants the checks
+request or a push to another branch.** The repository is public, so GitHub's
+runners cost nothing; the restraint is so that a pull request is not held up by
+17 minutes of `test` nobody asked for. A branch that wants the checks
 before it lands asks for them: Actions → CI → Run workflow, on that branch.
 That run is the whole suite and never deploys. Branch protection must not
 require status checks, or every merge waits for one that never starts.
@@ -89,11 +89,11 @@ require status checks, or every merge waits for one that never starts.
 | `targets` | inputs that have not compiled | Every target compiled, the ABI check, the Android host tests |
 | `site` | a change to anything the site is made from, and every tag | The Wasm bundle (unless these inputs built one), the API reference and the text mirror — the slowest thing here |
 | `deploy` | `main` and `v*` tags | Cloudflare Pages, `docs.kontour.io/ui` |
-| `publish` | a `v*` tag, or a manual version | Maven Central, signed: [`releasing.md`](releasing.md) |
+| `publish` | a `v*` tag, or a manual version | `maven.kontour.io`: see [`releasing.md`](releasing.md) |
 | `renders` | a manual run that asks | Contact sheets of every page |
 
 Every job has a `timeout-minutes` of about twice its ordinary length. The
-default is six hours, and a runner that has stopped answering bills all of them.
+default is six hours, and a runner that has stopped answering holds all of them.
 
 `deploy` needs only `site`, deliberately: a library regression should not take
 the documentation offline, and a broken page should not block a release.
@@ -159,14 +159,15 @@ alone. A tag always deploys, for the version.
 #### Publishing compiles nothing
 
 `publish` restores `targets`' Gradle home and every compile in it comes
-`FROM-CACHE`, so its time is the upload to the Central Portal and Central's
-validation of it. Releases to GitHub Packages took twelve minutes at v0.4.0, all
-of it uploading, one publication at a time.
+`FROM-CACHE`. It publishes into a folder and uploads that to the R2 bucket
+behind `maven.kontour.io`, refusing a version already there. Up to 0.4.4 it went to GitHub Packages, where twenty-two
+publications went up one after another at almost exactly thirty seconds each.
 
 #### Memory
 
-A GitHub-hosted runner for a private repository had two cores and 7 GB, which is
-what this was measured on. `test` compiles, then
+A private repository's runner had two cores and 7 GB, which is what this was
+measured on; the public one has four and 16 GB, and the split is kept because it
+is still faster. `test` compiles, then
 stops the Kotlin daemon, then tests, in two Gradle invocations, because run as
 one the Kotlin daemon (2.8 GB once it has compiled `:ui`), Gradle (2.3 GB with
 Kotlin/Native running inside it, for the ABI check) and the test forks with
@@ -405,7 +406,7 @@ real regression more than once.
 
 The icons, `io.kontour:tabler-icons-*`, follow Tabler's releases, and
 `.github/workflows/icons.yml` keeps the library on the newest: on every push to
-`main`, once a day and by hand it asks Maven Central for the newest release
+`main`, once a day and by hand it asks `maven.kontour.io` for the newest release
 both styles have, and when that is newer than the pin in
 `gradle/libs.versions.toml` it moves every pin with
 `python3 docs/bump-tabler-icons.py --write <version>` — the catalogue,
@@ -421,8 +422,9 @@ for that version; the pull request names it, to be checked against the one
 `kontour-labs/tabler` pins.
 
 The same by hand: `python3 docs/bump-tabler-icons.py --latest`, then `--write`
-it. Central only: a version of the icons that is not there is one the library's
-users could not resolve.
+it. A version with a fourth part, `3.49.0.1`, is `kontour-labs/tabler`
+re-releasing Tabler's `3.49.0`, and the docs' icon browser pins that npm
+release's tarball.
 
 ## Two clocks, and which one a test is on
 
@@ -1066,9 +1068,17 @@ repository can run it: it needs a phone.
 
 ```sh
 ./gradlew :showcase:android:installRelease   # release, not debug
+# and compiled as it will be once the phone has had an idle night with it:
+adb shell cmd package compile -m speed -f io.kontour.ui.catalog
 ```
 
-Judging performance from a debug build is judging the wrong thing.
+Judging performance from a debug build is judging the wrong thing, and a
+release build without R8 is most of the way to one: until 0.4.5 the gallery's
+had `isMinifyEnabled = false`, so every composable kept the source information
+and trace calls Compose leaves for R8 to strip. Neither the gallery nor the
+library ships a baseline profile yet, so a fresh install runs the library's
+code interpreted until the phone compiles it; the `compile` line does that now,
+and is the build to judge.
 
 There is an iOS host now — `showcase/ios/`, an Xcode project over the `Catalog`
 framework `:ui-catalog` already produced — so the readout is reachable on that
@@ -1264,6 +1274,28 @@ Until one of those numbers exists, no fix should land. A warm-up pass that draws
 every shadow and blur offscreen at launch is the obvious remedy for pipeline
 compilation, pure cost for the other two, and exactly the "fix aimed at a story"
 this file has a section about.
+
+#### A warm-up was tried, and changed nothing
+
+In 0.4.5 the warm-up was built as an experiment rather than a fix, which is the
+form this section asked for: a Frames-page switch, stored on iOS for the next
+launch, that opened a sheet once behind the gallery at launch — **composed
+only**, to answer for code run the first time, or **composed and drawn**, to
+answer for the GPU's pipelines. Each would have taken the first real sheet's
+cost if its candidate were the cause.
+
+On an iPhone 14 Pro, opened from the home screen, **neither changed the first
+sheet**, and the reader judged the first sheet acceptable as it was. The switch
+was removed rather than shipped. What it rules out is the two cheap remedies:
+whatever is left of the first open is not paid by composing a sheet, nor by
+drawing one, earlier in the same launch. The third candidate, and the
+`EntryHost` timing above, are untested.
+
+What did change the feel of the app that round was elsewhere: running it from
+the home screen rather than under Xcode's or Android Studio's debugger, a
+release build with R8 on Android, a scrollbar list state that no longer
+composed every row of a busy page while it arrived, and an iOS fling that no
+longer ran on for two seconds after it looked still. See the changelog for 0.4.5.
 
 #### The readout's thresholds are a 60Hz assumption
 

@@ -2,6 +2,9 @@ package io.kontour.ui.components.calendar
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.hasClickAction
@@ -76,6 +79,46 @@ class EventCalendarTest {
         }
         waitForIdle()
         return probe
+    }
+
+    /**
+     * The time now moving on a minute composes no event again: the calendar
+     * built what its views draw with afresh on every composition, the time now
+     * inside it, so each minute every day and every event of the view composed
+     * again.
+     *
+     * Counted by the event's box, not by the app's `eventContent`: a box
+     * composed again calls the content with the same event and presentation,
+     * and the content skips, so a count of it saw nothing of the box's work.
+     * And a content lambda written in a composition that reads `now`, holding
+     * anything, would be a new lambda each minute — which Compose answers by
+     * running every place it was called again, the test's doing rather than
+     * the calendar's.
+     */
+    @Test
+    fun aMinutePassingComposesNoEventAgain() {
+        for (view in listOf(CalendarView.Month, CalendarView.Week)) runComposeUiTest {
+            var now by mutableStateOf(LocalDateTime(2026, 10, 14, 11, 20))
+            val events = listOf(standUp, trip)
+            lateinit var state: EventCalendarState
+            setContent {
+                KontourTheme(reduceMotion = true) {
+                    state = rememberEventCalendarState(initialDate = today, initialView = view, firstDayOfWeek = DayOfWeek.MONDAY)
+                    EventCalendar(
+                        state = state,
+                        events = events,
+                        now = now,
+                        modifier = Modifier.size(900.dp, 800.dp),
+                    )
+                }
+            }
+            waitForIdle()
+            val before = state.eventCompositions
+            assertTrue(before > 0, "no event was drawn in the $view, so this measured nothing")
+            now = LocalDateTime(2026, 10, 14, 11, 21)
+            waitForIdle()
+            assertEquals(before, state.eventCompositions, "a minute passing composed the $view's events again")
+        }
     }
 
     @Test

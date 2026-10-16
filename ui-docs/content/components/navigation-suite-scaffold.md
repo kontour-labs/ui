@@ -49,7 +49,15 @@ your content the padding to inset by — and to anything inside it, a page a
 navigation host shows, through `navigationSuitePadding()`. With Navigation 3,
 [`rememberNavigationSuiteSceneStrategy`](../navigation3.md#pages-inside-the-nav-bar-and-pages-over-it)
 puts the scaffold round one back stack, with pages over it as well. A rail sits beside the content and hands it
-none.
+none. The bar is measured before the content is laid out, so the padding is the
+bar's real height from the first frame — margins, labels, type size and the inset
+under it — and not a guess that the content then jumps clear of.
+
+**The content is the same composable whichever surface it is beside.** A phone
+turned on its side, a foldable opened or a window dragged past 600dp swaps the
+bar for a rail, and the screen inside carries on: what it remembers, its saved
+state and its scroll position are all still there. Only the navigation is
+rebuilt.
 
 ### The modal rail
 
@@ -77,7 +85,11 @@ whose destinations are too many or too nested for a bar: no navigation on screen
 until a menu button calls `state.showModal()`. `NavigationSuiteState` also holds
 whether the rail is expanded, so it persists while the window stays a rail.
 
-`barStyle` reaches the bar; `search` goes in the bar
+`markerDrag` is the bar's and the rail's alike — see
+[dragging the marker](nav-bar.md#dragging-the-marker): whether choosing while
+dragging suits depends on how cheap the app's pages are to show, and they are
+the same pages whichever surface the window has. `barStyle` reaches the bar;
+`search` goes in the bar
 after `searchIndex` destinations, counted — `null`, or a number at or past the
 count, puts it at the end; `action` goes beside a floating bar, after everything
 in a docked one, and at the foot of a rail — see

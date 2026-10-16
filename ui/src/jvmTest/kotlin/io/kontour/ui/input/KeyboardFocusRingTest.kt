@@ -1,7 +1,12 @@
 package io.kontour.ui.input
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
@@ -24,6 +29,9 @@ import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.compose.ui.unit.dp
 import kotlin.test.assertEquals
 import io.kontour.ui.components.selection.RangeSlider
+import io.kontour.ui.components.selection.Rating
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.runtime.remember
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.runtime.setValue
@@ -133,6 +141,88 @@ class KeyboardFocusRingTest {
         }
     }
 
+    /**
+     * A rating given an interaction source rings the star that has focus, not
+     * all five.
+     *
+     * Every mark used to take the caller's source, and a ring reads focus from
+     * its source, so focusing one star drew the ring round every star in the
+     * row. Measured against the same rating without a source, where each mark
+     * always had its own: the two have to draw the same one ring.
+     */
+    @Test
+    fun aRatingWithAnInteractionSourceRingsOnlyTheFocusedStar() {
+        val alone = ringDrawn({ onNodeWithContentDescription("3 out of 5") }) {
+            Rating(value = 2f, onValueChange = {}, contentDescription = "Your rating")
+        }
+        val shared = ringDrawn({ onNodeWithContentDescription("3 out of 5") }) {
+            Rating(
+                value = 2f,
+                onValueChange = {},
+                contentDescription = "Your rating",
+                interactionSource = remember { MutableInteractionSource() },
+            )
+        }
+        assertTrue(alone >= MinimumRingPixels, "the focused star drew no ring of its own ($alone pixels)")
+        assertTrue(
+            shared < alone * 2,
+            "given an interaction source, the rating drew $shared pixels of ring against $alone for " +
+                "one star — the ring is round every mark that shares the source",
+        )
+    }
+
+    /**
+     * A control without focus does not recompose when the input modality
+     * changes, and one with focus still shows and hides its ring as it does.
+     *
+     * `focusRing` read the modality whatever the focus, so every control that
+     * draws a ring — most of them on a screen — recomposed each time the hand
+     * went from the mouse to the keyboard and back, to arrive at "no ring"
+     * again. Read only once the control has focus, it is a read nothing
+     * unfocused depends on.
+     */
+    @Test
+    fun anUnfocusedRingIgnoresTheModalityAndAFocusedOneFollowsIt() = runComposeUiTest {
+        var modality by mutableStateOf(InputModality.Mouse)
+        val source = MutableInteractionSource()
+        var ring = Color.Unspecified
+        RingedCompositions.count = 0
+        setContent {
+            KontourTheme {
+                ring = Theme.colours.focusRing
+                CompositionLocalProvider(LocalInputModality provides modality) {
+                    Box(Modifier.background(Theme.colours.background).padding(12.dp)) { Ringed(source) }
+                }
+            }
+        }
+        waitForIdle()
+        val settled = RingedCompositions.count
+
+        modality = InputModality.Keyboard
+        waitForIdle()
+        modality = InputModality.Mouse
+        waitForIdle()
+        assertEquals(
+            settled, RingedCompositions.count,
+            "a control without focus recomposed when the input modality changed",
+        )
+
+        // Focused with the mouse as the input: no ring, until the keyboard is.
+        onNodeWithTag("ringed").requestFocus()
+        waitForIdle()
+        val mouse = ringPixels(ring)
+        modality = InputModality.Keyboard
+        waitForIdle()
+        val keyboard = ringPixels(ring)
+        assertTrue(
+            keyboard - mouse >= MinimumRingPixels,
+            "a focused control drew $keyboard pixels of ring under the keyboard against $mouse under the mouse",
+        )
+        modality = InputModality.Mouse
+        waitForIdle()
+        assertTrue(ringPixels(ring) < keyboard, "the ring stayed up after the mouse took over again")
+    }
+
     @Composable
     private fun range() {
         RangeSlider(value = 0.2f..0.8f, onValueChange = {}, contentDescription = "Fare zone")
@@ -172,6 +262,31 @@ class KeyboardFocusRingTest {
         )
     }
 
+    /** How many pixels of the ring's colour focusing [find] from the keyboard adds. */
+    private fun ringDrawn(
+        find: ComposeUiTest.() -> SemanticsNodeInteraction,
+        content: @Composable () -> Unit,
+    ): Int {
+        var drawn = 0
+        runComposeUiTest {
+            var ring = Color.Unspecified
+            setContent {
+                KontourTheme {
+                    ring = Theme.colours.focusRing
+                    CompositionLocalProvider(LocalInputModality provides InputModality.Keyboard) {
+                        Box(Modifier.background(Theme.colours.background).padding(12.dp).width(360.dp)) { content() }
+                    }
+                }
+            }
+            waitForIdle()
+            val before = ringPixels(ring)
+            find().requestFocus()
+            waitForIdle()
+            drawn = ringPixels(ring) - before
+        }
+        return drawn
+    }
+
     private fun ComposeUiTest.ringPixels(ring: Color): Int {
         val pixels = onRoot().captureToImage().toPixelMap()
         var count = 0
@@ -194,4 +309,16 @@ class KeyboardFocusRingTest {
         const val MinimumRingPixels = 40
         const val Tolerance = 0.04f
     }
+}
+
+/** How many times [Ringed] has composed. An object, so nothing passed to it is a new lambda. */
+private object RingedCompositions {
+    var count = 0
+}
+
+/** A focusable box with a ring, which composes again only when something it reads changes. */
+@Composable
+private fun Ringed(source: MutableInteractionSource) {
+    SideEffect { RingedCompositions.count++ }
+    Box(Modifier.size(40.dp).focusRing(source).focusable(interactionSource = source).testTag("ringed"))
 }

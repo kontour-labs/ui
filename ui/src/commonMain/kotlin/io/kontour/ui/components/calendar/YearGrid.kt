@@ -42,6 +42,8 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.components.datetime.CalendarMonthDefaults
+import io.kontour.ui.components.datetime.LocalTodayFlash
+import io.kontour.ui.components.datetime.TodayFlashAlpha
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.interaction.pressable
 import io.kontour.ui.locale.LocaleFormats
@@ -83,8 +85,17 @@ internal fun YearView(scope: CalendarScope) {
         val busyByYear = remember(scope.events) { HashMap<Int, Map<LocalDate, Tone>>() }
         val busy = { year: Int -> busyByYear.getOrPut(year) { busyDays(scope, year) } }
         if (!constraints.hasBoundedHeight) {
-            // Given no height, nothing scrolls: the year, in a column.
+            // Given no height, nothing scrolls: the year, in a column, and
+            // today in it as soon as it is gone back to.
             val year = scope.state.date.year
+            LaunchedEffect(scope.state) {
+                var seen = scope.state.todayRequest?.serial
+                snapshotFlow { scope.state.todayRequest }.collect { request ->
+                    if (request == null || request.serial == seen) return@collect
+                    seen = request.serial
+                    scope.todayFlash?.flash()
+                }
+            }
             Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Theme.spacing.md)) {
                 for (months in Month.entries.chunked(columns)) YearRow(scope, year, months, columns, busy(year), tones, digits)
             }
@@ -144,6 +155,13 @@ internal fun yearItemOf(date: LocalDate, columns: Int, perYear: Int): Int =
  * The year list, and what ties it to the state, as the month's weeks are:
  * scrolled to show a year, the state is about it; the state moved to another
  * year — the header, today, the app — the list goes to its month.
+ *
+ * Today gone back to is brought in even where the state was about it
+ * already, scrolled away from within its own year, and flashed once it is
+ * there, as every other view flashes it: *"in the event calendar's year view,
+ * clicking the 'today' button doesn't flash today like every other calendar
+ * view does"*. Flashed at the press, as the other views are, it would play on
+ * a month still off screen or still sliding in.
  */
 @Composable
 private fun rememberYearList(scope: CalendarScope, columns: Int, perYear: Int): LazyListState {
@@ -171,17 +189,32 @@ private fun rememberYearList(scope: CalendarScope, columns: Int, perYear: Int): 
         }
     }
     LaunchedEffect(list, perYear) {
-        snapshotFlow { state.date }.collectLatest { date ->
-            if (state.view != CalendarView.Year || date == state.scrolledDate) return@collectLatest
+        var seen = state.todayRequest?.serial
+        // The date and today's requests together: a press of today sets both,
+        // and one scroll answers it.
+        snapshotFlow { state.date to state.todayRequest }.collectLatest { (date, request) ->
+            if (state.view != CalendarView.Year) return@collectLatest
+            val pointed = request != null && request.serial != seen
+            if (!pointed && date == state.scrolledDate) return@collectLatest
             val target = yearItemOf(date, columns, perYear)
-            // Already on screen, whole: nothing to do.
+            // Already on screen, whole, it stays where it is.
             val item = list.layoutInfo.visibleItemsInfo.firstOrNull { it.index == target }
-            if (item != null && item.offset >= 0 && item.offset + item.size <= list.layoutInfo.viewportEndOffset) return@collectLatest
-            going[0] = true
-            try {
-                if (motion.reduceMotion || abs(target - list.firstVisibleItemIndex) > perYear * 2) list.scrollToItem(target) else list.animateScrollToItem(target)
-            } finally {
-                going[0] = false
+            val whole = item != null && item.offset >= 0 && item.offset + item.size <= list.layoutInfo.viewportEndOffset
+            if (!whole) {
+                going[0] = true
+                try {
+                    // At once under reduced motion, as the month's arrows go.
+                    if (motion.reduceMotion || abs(target - list.firstVisibleItemIndex) > perYear * 2) list.scrollToItem(target) else list.animateScrollToItem(target)
+                } finally {
+                    going[0] = false
+                }
+            }
+            if (pointed) {
+                seen = request.serial
+                // Now that it is there: a flash is a fade rather than a
+                // movement, so it plays under reduced motion too, as in the
+                // other views.
+                scope.todayFlash?.flash()
             }
         }
     }
@@ -264,6 +297,10 @@ private fun MiniMonth(scope: CalendarScope, month: LocalDate, busy: Map<LocalDat
     val muted = colours.contentMuted
     val ring = colours.outlineStrong
     val ringWidth = Theme.sizing.borderWidth
+    // Today pointed at: the date picker's pulse inside its ring, read as the
+    // days are drawn, so a pulse redraws this month and composes nothing.
+    val flash = LocalTodayFlash.current
+    val flashColour = colours.accent.solid
     val density = LocalDensity.current
     val maxRow = with(density) { MaxRowHeight.toPx() }
     val markerGap = with(density) { MarkerGap.toPx() }
@@ -317,7 +354,11 @@ private fun MiniMonth(scope: CalendarScope, month: LocalDate, busy: Map<LocalDat
                         val date = LocalDate(month.year, month.month, day)
                         val isToday = date == today
                         val text = if (isToday) digits.todayNumbers[day - 1] else digits.numbers[day - 1]
-                        if (isToday) drawCircle(ring, radius = row * TodayRingShare, center = centre, style = Stroke(ringWidth.toPx()))
+                        if (isToday) {
+                            val amount = flash?.invoke() ?: 0f
+                            if (amount > 0f) drawCircle(flashColour, radius = row * TodayRingShare, center = centre, alpha = amount * TodayFlashAlpha)
+                            drawCircle(ring, radius = row * TodayRingShare, center = centre, style = Stroke(ringWidth.toPx()))
+                        }
                         drawText(text, ink, topLeft = Offset(centre.x - text.size.width / 2f, centre.y - text.size.height / 2f))
                         val tone = busy[date] ?: continue
                         drawCircle(

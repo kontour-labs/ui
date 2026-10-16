@@ -107,6 +107,35 @@ class ComposableBuilderTest {
     }
 
     /**
+     * The same for an `ExpandingListItem`'s rows, whose builder is not composable.
+     *
+     * Its rows were remembered on the builder, which is the same lambda when a
+     * state it reads changes, so a row added by a state never appeared.
+     */
+    @Test
+    fun aStateReadInAnExpandingListItemsBuilderAddsTheRow() = runComposeUiTest {
+        var signedIn by mutableStateOf(false)
+        setContent {
+            KontourTheme(reduceMotion = true) {
+                ExpandingListItem(
+                    expanded = true,
+                    onExpandedChange = {},
+                    header = { +"Account" },
+                ) {
+                    item("Help")
+                    if (signedIn) item("Sign out")
+                }
+            }
+        }
+        waitForIdle()
+        onNodeWithText("Help").fetchSemanticsNode()
+        assertEquals(0, onAllNodesWithText("Sign out").fetchSemanticsNodes().size)
+        signedIn = true
+        waitForIdle()
+        onNodeWithText("Sign out").fetchSemanticsNode()
+    }
+
+    /**
      * A stat's figure and a dial's readout, formatted where they are written.
      *
      * Reported from an app: *"The Stat and KeyValueList builders aren't

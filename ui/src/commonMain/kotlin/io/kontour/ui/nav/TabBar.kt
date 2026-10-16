@@ -1,5 +1,6 @@
 package io.kontour.ui.nav
 
+import io.kontour.ui.theme.clipProxy
 import io.kontour.ui.platform.webRole
 import io.kontour.ui.platform.WebRole
 import io.kontour.ui.a11y.optionalBorder
@@ -28,7 +29,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -43,6 +46,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.Role
@@ -121,6 +125,12 @@ object TabBarDefaults {
  * @param scrollable For more tabs than fit. Off by default: a scrolling tab row
  *   hides options past the edge, and the user has no way to know how many there
  *   are.
+ * @param markerDrag Whether the marker can be dragged from one tab to another,
+ *   as a segmented control's thumb can, and when a drag chooses one; see
+ *   [NavMarkerDrag]. Only while the row has nothing to scroll: always for a
+ *   fixed bar, and for a [scrollable] one while its tabs fit. Tabs that run past
+ *   the edge scroll instead, and which it is is asked as each drag begins, so a
+ *   window that narrows, or a tab added, changes it.
  */
 @Composable
 fun TabBar(
@@ -146,6 +156,7 @@ fun TabBar(
      * Callers who need the bar separated from what is under it can still ask.
      */
     showDivider: Boolean = false,
+    markerDrag: NavMarkerDrag = NavMarkerDrag.SelectOnRelease,
     /**
      * Controls at the trailing edge — an overflow menu, a filter.
      *
@@ -158,6 +169,13 @@ fun TabBar(
     content: @Composable TabBarScope.() -> Unit,
 ) {
     val indicator = rememberSelectionIndicatorState()
+    // A fixed bar never scrolls; a scrollable one only when its tabs overflow.
+    val (drag, dragging) = rememberMarkerDrag(
+        vertical = false,
+        mode = markerDrag,
+        indicator = indicator,
+        scroll = if (scrollable) scrollState else null,
+    )
 
     // The marker's own corner, built once rather than per frame.
     //
@@ -235,7 +253,7 @@ fun TabBar(
                                 .fillMaxSize()
                                 // See `indicatorShape`, which is where this is
                                 // built and why it is not built here.
-                                .clip(indicatorShape)
+                                .clip(indicatorShape.clipProxy())
                                 .background(indicatorColour)
                                 .optionalBorder(selectionEdge(), indicatorShape)
                         )
@@ -245,7 +263,10 @@ fun TabBar(
                         modifier = Modifier
                             .then(if (scrollable) Modifier else Modifier.fillMaxWidth())
                             .height(TabBarDefaults.Height)
-                            .selectableGroup(),
+                            .selectableGroup()
+                            // Inside the scroll, so a scrolled row measures
+                            // the finger and the tabs the same.
+                            .onPlaced { drag.row = it },
                         horizontalArrangement = if (scrollable) {
                             Arrangement.Start
                         } else {
@@ -253,7 +274,7 @@ fun TabBar(
                         },
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        TabBarScope(row = this, fixed = !scrollable).content()
+                        TabBarScope(row = this, fixed = !scrollable, drag = drag, dragging = dragging).content()
                     }
                 }
             }
@@ -324,6 +345,10 @@ class TabBarScope internal constructor(
      * A scrolling bar keeps intrinsic widths: there is no width to divide.
      */
     internal val fixed: Boolean,
+    /** The marker's drag, which every tab is somewhere to drag it to. */
+    internal val drag: MarkerDragState,
+    /** Null when the marker cannot be dragged. */
+    internal val dragging: DragWiring?,
 )
 
 /**
@@ -351,12 +376,26 @@ fun TabBarScope.Tab(
     // `TabBarScope`'s is no longer reachable implicitly from inside them.
     val dividesTheBar = fixed
 
+    // Somewhere the marker can be dragged to. While it is, the tab under the
+    // finger wears it, colours and all, and the chosen one waits for the lift.
+    val target = remember(drag) { DragTarget() }
+    SideEffect {
+        target.onClick = onClick
+        target.enabled = enabled
+        target.selected = selected
+    }
+    DisposableEffect(drag, key) {
+        drag.targets[key] = target
+        onDispose { drag.targets.remove(key) }
+    }
+    val marked = drag.marks(key, selected)
+
     val contentColour by animateColorAsState(
         targetValue = when {
             !enabled -> colours.contentDisabled
             // On the indicator pill rather than over a bare bar, so the tone's
             // own on-container colour rather than its solid one.
-            selected -> colours.accent.onContainer
+            marked -> colours.accent.onContainer
             else -> colours.contentMuted
         },
         animationSpec = motion.tweenFast(),
@@ -373,13 +412,15 @@ fun TabBarScope.Tab(
             // makes the whole 48dp band tappable on desktop rather than the
             // 36dp the label occupied.
             .fillMaxHeight()
-            .selectionIndicatorItem(key, selected)
-            .anticipatesSelection(key, selected, interactions)
+            .selectionIndicatorItem(key, marked)
+            .anticipatesSelection(key, marked, interactions)
+            .onPlaced { target.coordinates = it }
+            .then(dragging?.let { Modifier.markerDrag(it, target, enabled) } ?: Modifier)
             // Kept for a tab measured outside the bar's fixed-height row, where
             // the fill above has no bounded height to take.
             .minimumTouchTarget()
             .focusRing(interactions, Theme.shapes.control)
-            .clip(Theme.shapes.control)
+            .clip(Theme.shapes.control.clipProxy())
             .pointerCursor(enabled = enabled)
             .webRole(WebRole.Tab, selected)
             .selectable(

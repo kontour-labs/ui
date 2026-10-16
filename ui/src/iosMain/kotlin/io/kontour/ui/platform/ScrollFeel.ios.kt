@@ -20,3 +20,6 @@ internal actual val platformLosesRestedFlicks: Boolean = true
 internal actual val platformScrollDeltaInPixels: Boolean = false
 
 internal actual val platformGuardsHomeIndicator: Boolean = true
+
+/** UIKit's rubber band, which Compose's `CupertinoOverscrollEffect` slides the content by. */
+internal actual val platformOverscrollMovesContent: Boolean = true

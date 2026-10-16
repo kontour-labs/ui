@@ -171,6 +171,7 @@ class CatalogSettings {
 
     /** The frame-time readout. Gallery-only until the site has somewhere to put it. */
     var frameTimes by mutableStateOf(false)
+
 }
 
 @Composable

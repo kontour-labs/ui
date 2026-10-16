@@ -167,8 +167,8 @@ data class ColourScheme(
      * — `surface`, `surfaceSunken`, `surfaceRaised` and `accent.container`. Both
      * halves are walked by [io.kontour.ui.a11y.contrastFailures]. The second
      * half is there because a tint cannot separate itself: a selected chip is
-     * `accent.container` at 1.29:1 against the page, so what says it is selected
-     * is the border around it, and that border is this.
+     * `accent.container`, 1.35:1 against the page in light and 1.52:1 in dark,
+     * so the edge that can say it is selected is this.
      *
      * It is **not** what identifies a segmented control's selected segment, and
      * used to be. That thumb is [surfaceIndicator] on a [surfaceSunken] ground

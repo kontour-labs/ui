@@ -1,5 +1,6 @@
 package io.kontour.ui.components.selection
 
+import io.kontour.ui.theme.clipProxy
 import io.kontour.ui.platform.webRole
 import io.kontour.ui.platform.WebRole
 import androidx.compose.animation.animateColorAsState
@@ -440,7 +441,7 @@ fun SegmentedControl(
             // promise the type could not keep; a *minimum* is a different fault,
             // because the track inside fills whatever it is given.
             .height(outerHeight)
-            .clip(outerShape)
+            .clip(outerShape.clipProxy())
             .background(colours.surfaceSunken, outerShape)
             .then(
                 contrastEdge()?.let { Modifier.border(it, outerShape) } ?: Modifier
@@ -909,7 +910,7 @@ private fun SegmentedOption(
             // selection moves. A drag leans it from the track's own gesture.
             .anticipatesSelection(option, selected, interactions)
             .focusRing(interactions, shape)
-            .clip(shape)
+            .clip(shape.clipProxy())
             .pointerCursor(enabled = enabled)
             .webRole(WebRole.Radio, selected)
             .selectable(

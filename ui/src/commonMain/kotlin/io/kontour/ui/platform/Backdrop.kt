@@ -1,6 +1,7 @@
 package io.kontour.ui.platform
 
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.RenderEffect
 import androidx.compose.ui.unit.Dp
 
 /**
@@ -22,6 +23,37 @@ import androidx.compose.ui.unit.Dp
  * Android 10 and 11 are inside the library's range and outside the blur's.
  */
 internal expect val platformSupportsBackdropBlur: Boolean
+
+/**
+ * Whether a backdrop blur is drawn smaller and scaled back up here, rather than
+ * blurred at full size.
+ *
+ * True where the platform blurs a layer afresh on every frame that draws, as
+ * Skia does, and false where it keeps the blurred layer until what is in it
+ * changes, where blurring fewer pixels would buy little for the approximation.
+ */
+internal expect val platformBlursReduced: Boolean
+
+/**
+ * A blur for content drawn smaller than it is: blurred by [sigma] inside the
+ * whole pixels from the origin to [cropWidth] by [cropHeight], with the edge
+ * clamped there, and scaled up by [scaleX] and [scaleY] from half a pixel in.
+ *
+ * Null where [platformBlursReduced] is false, and never asked for there. See
+ * `overlayBackdrop` for why this exists.
+ *
+ * | | |
+ * |---|---|
+ * | Android | null. A `RenderEffect` makes the node a hardware layer, and the filtered layer is reused until the node is damaged |
+ * | Desktop, iOS, web | Skia's image filters, through `asComposeRenderEffect` |
+ */
+internal expect fun platformReducedBlur(
+    sigma: Float,
+    cropWidth: Int,
+    cropHeight: Int,
+    scaleX: Float,
+    scaleY: Float,
+): RenderEffect?
 
 /**
  * How much of the window's bottom edge carries something **opaque**, in `Dp`.
