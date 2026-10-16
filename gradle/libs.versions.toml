@@ -2,6 +2,7 @@
 # Core build and tooling
 agp = "9.3.1"
 kotlin = "2.4.10"
+mavenPublish = "0.37.0"
 # 1.12 at least: `ImageComposeScene.calculateContentSize()`, which the screenshot
 # harness this library's tests are built on uses, lands there. See the README for
 # what that means for a consumer.
@@ -73,3 +74,4 @@ composeCompiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "k
 androidApplication = { id = "com.android.application", version.ref = "agp" }
 androidMultiplatformLibrary = { id = "com.android.kotlin.multiplatform.library", version.ref = "agp" }
 dokka = { id = "org.jetbrains.dokka", version.ref = "dokka" }
+mavenPublish = { id = "com.vanniktech.maven.publish", version.ref = "mavenPublish" }

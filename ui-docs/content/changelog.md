@@ -24,7 +24,19 @@ The version an app is on is the `kontour` entry in its version catalog. See
 
 ## Unreleased
 
-On `main`, and in the next release. Nothing yet.
+On `main`, and in the next release.
+
+### Changed
+
+- **On Maven Central, with no token.** Every `io.kontour` artifact is published
+  to Maven Central from 0.4.4, signed, the icons included: `mavenCentral()` is
+  the only repository an app needs. [Migrating](migrating.md#github-packages-to-maven-central)
+  has the repository and the credentials to remove. Earlier versions stay on
+  GitHub Packages.
+- **The documentation is public.** [docs.kontour.io/ui](https://docs.kontour.io/ui/)
+  needs no sign-in, and an agent fetches `llms.txt` and the Markdown with no
+  headers: [Agents](agents.md) has the new `CLAUDE.md` snippet, without the
+  service token.
 
 ---
 

@@ -88,8 +88,8 @@ from doctree import (  # noqa: E402
 SITE_URL = "https://docs.kontour.io/ui/"
 
 # Where a link that leaves the published pages goes. The same constant as
-# `Route.kt`'s `Repository`, for the same reason: every reader is signed in to
-# the organisation, for whom the private repository resolves.
+# `Route.kt`'s `Repository`: the public repository, where the source of every
+# page and sample can be read.
 REPOSITORY = "https://github.com/kontour-labs/ui"
 
 FONT_SUFFIXES = {".ttf", ".otf", ".woff2"}
@@ -307,12 +307,11 @@ def llms_index(sections, base_url: str) -> str:
         "> A Compose Multiplatform design system: components, tokens and theming for",
         "> Android, iOS, desktop and the web. Every page of its documentation, as Markdown.",
         "",
-        "This site is private. Fetch it with the Cloudflare Access service token in two",
-        "headers — `CF-Access-Client-Id` and `CF-Access-Client-Secret` — conventionally",
-        "from the environment variables `KONTOUR_DOCS_CLIENT_ID` and",
-        "`KONTOUR_DOCS_CLIENT_SECRET`. Each link below is the page's Markdown; the same",
-        f"page on the site is `{base_url}#/<path>`, and the API reference is at",
-        f"{base_url}api/. Everything in one file: {base_url}llms-full.txt",
+        "Each link below is the page's Markdown, which any fetch reads as it is; the",
+        f"site itself is a Compose canvas with no text in its HTML. The same page on the",
+        f"site is `{base_url}#/<path>`, and the API reference is at {base_url}api/.",
+        f"Everything in one file: {base_url}llms-full.txt. The library is open source,",
+        f"under the Apache License 2.0: {REPOSITORY}",
         "",
         "If you are an agent working in an app built on this library, the Agents guide",
         "below says what to read in what order. What changed in each release, and",
@@ -385,15 +384,16 @@ def check_mirror(site: pathlib.Path, base_url: str) -> list[str]:
 def headers_file(site: pathlib.Path, prefix: str) -> str:
     """Cloudflare Pages' `_headers`, for the whole host.
 
-    No search engine indexes a private site, and nothing here tries to be found.
+    The site is public, and indexed: the Markdown mirror and `llms.txt` are what a
+    search engine or an agent can read, since the site itself is a canvas.
 
     The long cache is only for the two Wasm binaries, and only by exact path. They
     are the only files the build names by their content — `ui-docs.js`, the fonts
     and `index.html` keep their names from build to build, and a year's cache on
     any of those would serve last month's site. So the rule is generated from
     what the build produced, as the preloads are, and a `.wasm` that stops
-    carrying a hash stops getting one. `private`, because the content is behind
-    Access and no cache between the edge and the reader should keep a copy.
+    carrying a hash stops getting one. `public`: the content is open, so any cache
+    between the edge and the reader may keep a copy.
 
     No `Cross-Origin-Opener-Policy`/`Cross-Origin-Embedder-Policy`: they exist to
     unlock `SharedArrayBuffer`, which a single-threaded Wasm app never touches,
@@ -401,19 +401,17 @@ def headers_file(site: pathlib.Path, prefix: str) -> str:
     """
     lines = [
         "# Written by docs/lay-out-site.py. Cloudflare Pages reads it for the whole host.",
-        "/*",
-        "  X-Robots-Tag: noindex",
     ]
     for wasm in sorted(site.glob("*.wasm")):
         if re.fullmatch(r"[0-9a-f]{8,}", wasm.stem):
-            lines += [f"/{prefix}/{wasm.name}", "  Cache-Control: private, max-age=31536000, immutable"]
+            lines += [f"/{prefix}/{wasm.name}", "  Cache-Control: public, max-age=31536000, immutable"]
         else:
             print(f"  {wasm.name} carries no content hash, so it is not cached long")
     # The icon data's directory is named for what is in it, as the binaries
     # are; `manifest.txt` beside it, which names it, is not cached long.
     manifest = site / "icons/manifest.txt"
     if manifest.is_file():
-        lines += [f"/{prefix}/icons/{manifest.read_text().strip()}/*", "  Cache-Control: private, max-age=31536000, immutable"]
+        lines += [f"/{prefix}/icons/{manifest.read_text().strip()}/*", "  Cache-Control: public, max-age=31536000, immutable"]
     # Plain text, not `text/markdown`: a browser shows the one and offers to
     # download the other, and "Open as text" is for reading and find-in-page.
     for text in ("md/*", "llms.txt", "llms-full.txt"):
@@ -440,8 +438,6 @@ def write_deploy(site: pathlib.Path, deploy: pathlib.Path, prefix: str, base_url
     (deploy / "llms.txt").write_text(
         "# Kontour documentation\n\n"
         "> The documentation for Kontour's libraries. Each has its own index.\n\n"
-        "Private: send the Cloudflare Access service token's `CF-Access-Client-Id` and\n"
-        "`CF-Access-Client-Secret` headers with every request.\n\n"
         "## Libraries\n\n"
         f"- [Kontour UI]({base_url}llms.txt): the Compose Multiplatform design system.\n"
     )

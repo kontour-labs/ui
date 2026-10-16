@@ -102,14 +102,13 @@ private fun Install() {
         KeyValueList {
             item("Group", "io.kontour")
             item("Artifact", "ui")
-            item("Repository", "maven.pkg.github.com/kontour-labs/ui")
+            item("Repository", "Maven Central")
         }
         Text(
-            "It is published privately through GitHub Packages, so the repository " +
-                "needs a classic personal access token with read:packages — in CI " +
-                "too, because a workflow's own token cannot read another " +
-                "repository's Maven packages. Versions are tags: v0.2.0 publishes " +
-                "0.2.0, and anything untagged is a snapshot.",
+            "Open source, under the Apache License 2.0, and on Maven Central: " +
+                "mavenCentral() is the only repository it needs, with no token. " +
+                "Versions are tags: v0.4.4 publishes 0.4.4, and anything untagged " +
+                "is a snapshot.",
             style = Theme.typography.bodyMedium,
             colour = Theme.colours.contentMuted,
         )

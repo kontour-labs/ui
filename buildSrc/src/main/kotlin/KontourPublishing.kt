@@ -5,8 +5,16 @@ import org.gradle.kotlin.dsl.configure
 import org.gradle.kotlin.dsl.withType
 
 /**
- * Publishing, for every module that ships: the version, the coordinate task, the
- * repository and the POM.
+ * Publishing, for every module that ships: the version, the coordinate task and
+ * the POM.
+ *
+ * Where it goes is Maven Central, through the `com.vanniktech.maven.publish`
+ * plugin each module applies beside this, with a `mavenPublishing` block that
+ * turns on the upload and the signing. The plugin also makes the sources and
+ * javadoc jars Central requires of every artifact. It runs in CI from a tag:
+ * `publishAndReleaseToMavenCentral`, with the Central Portal user token and the
+ * signing key from the environment (`ORG_GRADLE_PROJECT_mavenCentralUsername`,
+ * `…Password`, `…signingInMemoryKey`, `…signingInMemoryKeyPassword`).
  *
  * Here rather than in `ui/build.gradle.kts` because there are two published
  * modules now, `:ui` and `:ui-nav3`, and they must never disagree about which
@@ -92,17 +100,6 @@ fun Project.kontourPublishing(
     }
 
     extensions.configure<PublishingExtension> {
-        repositories {
-            maven {
-                name = "GitHubPackages"
-                url = uri("https://maven.pkg.github.com/kontour-labs/ui")
-                credentials {
-                    username = providers.environmentVariable("GITHUB_ACTOR").orNull
-                    password = providers.environmentVariable("GITHUB_TOKEN").orNull
-                }
-            }
-        }
-
         publications.withType<MavenPublication>().configureEach {
             pom {
                 name.set(displayName)
@@ -116,9 +113,18 @@ fun Project.kontourPublishing(
                         if (licenceNote != null) comments.set(licenceNote)
                     }
                 }
+                // Central refuses a POM without a developer.
+                developers {
+                    developer {
+                        id.set("kontour-labs")
+                        name.set("Kontour Labs")
+                        url.set("https://github.com/kontour-labs")
+                    }
+                }
                 scm {
                     url.set("https://github.com/kontour-labs/ui")
                     connection.set("scm:git:https://github.com/kontour-labs/ui.git")
+                    developerConnection.set("scm:git:ssh://git@github.com/kontour-labs/ui.git")
                 }
             }
         }

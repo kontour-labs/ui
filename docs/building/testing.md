@@ -75,9 +75,9 @@ cannot reach another workflow's artifacts. Dokka lives in the `site` job now —
 the one that publishes it under `/api/`.
 
 **It runs on pushes to `main`, on `v*` tags, and by hand — never on a pull
-request or a push to another branch.** The repository is private, so every
-minute is billed, and a pull request's run was 17 minutes of `test` alone on
-the 4-core runner public repositories get. A branch that wants the checks
+request or a push to another branch.** The runners are GitHub's own, free for
+a public repository, but a pull request's run was 17 minutes of `test` alone,
+which is a long wait for an answer nobody asked for yet. A branch that wants the checks
 before it lands asks for them: Actions → CI → Run workflow, on that branch.
 That run is the whole suite and never deploys. Branch protection must not
 require status checks, or every merge waits for one that never starts.
@@ -89,7 +89,7 @@ require status checks, or every merge waits for one that never starts.
 | `targets` | inputs that have not compiled | Every target compiled, the ABI check, the Android host tests |
 | `site` | a change to anything the site is made from, and every tag | The Wasm bundle (unless these inputs built one), the API reference and the text mirror — the slowest thing here |
 | `deploy` | `main` and `v*` tags | Cloudflare Pages, `docs.kontour.io/ui` |
-| `publish` | a `v*` tag, or a manual version | GitHub Packages |
+| `publish` | a `v*` tag, or a manual version | Maven Central, signed: [`releasing.md`](releasing.md) |
 | `renders` | a manual run that asks | Contact sheets of every page |
 
 Every job has a `timeout-minutes` of about twice its ordinary length. The
@@ -159,15 +159,14 @@ alone. A tag always deploys, for the version.
 #### Publishing compiles nothing
 
 `publish` restores `targets`' Gradle home and every compile in it comes
-`FROM-CACHE`. What took v0.4.0's twelve minutes was the upload: twenty-two
-publications one after another, each almost exactly thirty seconds whatever its
-size. They now go up `--parallel`, three libraries at a time, without the
-SHA-256 and SHA-512 files Gradle adds beside every upload; GitHub Packages serves
-the SHA-1 and MD5 a Maven client checks. Neither change has met a release yet.
+`FROM-CACHE`, so its time is the upload to the Central Portal and Central's
+validation of it. Releases to GitHub Packages took twelve minutes at v0.4.0, all
+of it uploading, one publication at a time.
 
 #### Memory
 
-A private repository's runner has two cores and 7 GB. `test` compiles, then
+A GitHub-hosted runner for a private repository had two cores and 7 GB, which is
+what this was measured on. `test` compiles, then
 stops the Kotlin daemon, then tests, in two Gradle invocations, because run as
 one the Kotlin daemon (2.8 GB once it has compiled `:ui`), Gradle (2.3 GB with
 Kotlin/Native running inside it, for the ABI check) and the test forks with
@@ -406,7 +405,7 @@ real regression more than once.
 
 The icons, `io.kontour:tabler-icons-*`, follow Tabler's releases, and
 `.github/workflows/icons.yml` keeps the library on the newest: on every push to
-`main`, once a day and by hand it asks GitHub Packages for the newest release
+`main`, once a day and by hand it asks Maven Central for the newest release
 both styles have, and when that is newer than the pin in
 `gradle/libs.versions.toml` it moves every pin with
 `python3 docs/bump-tabler-icons.py --write <version>` — the catalogue,
@@ -421,8 +420,9 @@ a change the library's users see. The integrity is npm's own `dist.integrity`
 for that version; the pull request names it, to be checked against the one
 `kontour-labs/tabler` pins.
 
-The same by hand: `python3 docs/bump-tabler-icons.py --latest` (with
-`KONTOUR_PACKAGES_ACTOR`/`KONTOUR_PACKAGES_TOKEN` set), then `--write` it.
+The same by hand: `python3 docs/bump-tabler-icons.py --latest`, then `--write`
+it. Central only: a version of the icons that is not there is one the library's
+users could not resolve.
 
 ## Two clocks, and which one a test is on
 
