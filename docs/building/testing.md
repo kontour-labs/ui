@@ -1275,6 +1275,28 @@ every shadow and blur offscreen at launch is the obvious remedy for pipeline
 compilation, pure cost for the other two, and exactly the "fix aimed at a story"
 this file has a section about.
 
+#### A warm-up was tried, and changed nothing
+
+In 0.4.5 the warm-up was built as an experiment rather than a fix, which is the
+form this section asked for: a Frames-page switch, stored on iOS for the next
+launch, that opened a sheet once behind the gallery at launch — **composed
+only**, to answer for code run the first time, or **composed and drawn**, to
+answer for the GPU's pipelines. Each would have taken the first real sheet's
+cost if its candidate were the cause.
+
+On an iPhone 14 Pro, opened from the home screen, **neither changed the first
+sheet**, and the reader judged the first sheet acceptable as it was. The switch
+was removed rather than shipped. What it rules out is the two cheap remedies:
+whatever is left of the first open is not paid by composing a sheet, nor by
+drawing one, earlier in the same launch. The third candidate, and the
+`EntryHost` timing above, are untested.
+
+What did change the feel of the app that round was elsewhere: running it from
+the home screen rather than under Xcode's or Android Studio's debugger, a
+release build with R8 on Android, a scrollbar list state that no longer
+composed every row of a busy page while it arrived, and an iOS fling that no
+longer ran on for two seconds after it looked still. See the changelog for 0.4.5.
+
 #### The readout's thresholds are a 60Hz assumption
 
 `FrameReadout` colours the worst frame green below 16.7ms, amber below 33.3ms

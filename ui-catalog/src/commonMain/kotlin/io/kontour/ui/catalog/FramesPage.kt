@@ -1,6 +1,5 @@
 package io.kontour.ui.catalog
 
-import io.kontour.ui.components.selection.SegmentedControl
 import androidx.compose.foundation.gestures.ScrollableDefaults
 import androidx.compose.foundation.gestures.FlingBehavior
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -168,41 +167,7 @@ internal fun FramesPage(modifier: Modifier = Modifier) {
 
         ScrollFeelCard()
 
-        if (warmUpStored) WarmUpCard()
-
         platformCornerReadout()?.let { lines -> Corners(lines) }
-    }
-}
-
-/**
- * Which [WarmUp] the next launch runs. Stored, not applied: the experiment is
- * the first sheet of a launch, so it can only be read on the launch after.
- */
-@Composable
-private fun WarmUpCard() {
-    var mode by remember { mutableStateOf(storedWarmUp()) }
-    Card(Modifier.fillMaxWidth()) {
-        Column(
-            Modifier.padding(Theme.spacing.md),
-            verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
-        ) {
-            Text("First-use warm-up", style = Theme.typography.titleSmall)
-            SegmentedControl(
-                options = listOf("Off", "Compose", "Draw"),
-                selectedIndex = mode.ordinal,
-                onSelectedIndexChange = { index ->
-                    mode = WarmUp.entries[index]
-                    storeWarmUp(mode)
-                },
-            )
-            Text(
-                "At the next launch, a sheet is opened once behind the gallery: " +
-                    "composed only, or composed and drawn. Quit the app, open it, " +
-                    "come here, press Record and open the sheet, and read the peak.",
-                style = Theme.typography.bodySmall,
-                colour = Theme.colours.contentMuted,
-            )
-        }
     }
 }
 
