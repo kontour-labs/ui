@@ -14,8 +14,8 @@ the answers:
 | `empty` | Compose's `BasicText`, no Kontour | | The floor: Compose itself |
 | `theme` | `KontourTheme { Text }` | `empty` | What the theme costs before a single component is used |
 | `button` | The theme and one `Button` | `theme` | One component. If this were most of the library, nothing would be stripping the rest |
-| `icon` | The theme and one Tabler icon | `theme` | `Icon` and one vector. If this were thousands, the icons would not be stripped |
-| `icons` | The theme and fifty Tabler icons | `icon` | Forty-nine vectors, so a fiftieth of it is what each further icon costs |
+| `icon` | `theme`'s text and one Tabler icon | `theme` | `Icon` and one vector. If this were thousands, the icons would not be stripped |
+| `icons` | `theme`'s text and fifty Tabler icons | `icon` | Forty-nine vectors, so a forty-ninth of it is what each further icon costs |
 
 Only the application's own `.wasm` is weighed: the probe's code and every
 declaration of `:ui` and Compose it can reach. Skia's renderer and the fonts are

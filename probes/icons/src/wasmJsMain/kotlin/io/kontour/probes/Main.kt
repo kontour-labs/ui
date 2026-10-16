@@ -55,6 +55,7 @@ import io.kontour.icons.tabler.outline.Wifi
 import io.kontour.icons.tabler.outline.Windmill
 import io.kontour.icons.tabler.outline.X
 import io.kontour.ui.foundation.Icon
+import io.kontour.ui.foundation.Text
 import io.kontour.ui.theme.KontourTheme
 
 // The fifty the gallery draws most, so that they are a fair sample of an
@@ -114,5 +115,12 @@ private val icons = listOf(
 
 @OptIn(ExperimentalComposeUiApi::class)
 fun main() {
-    ComposeViewport { KontourTheme { Row { icons.forEach { Icon(it, contentDescription = null) } } } }
+    ComposeViewport {
+        KontourTheme {
+            Row {
+                Text("Departures")
+                icons.forEach { Icon(it, contentDescription = null) }
+            }
+        }
+    }
 }

@@ -229,7 +229,28 @@ MAX_FILES = 14
 # A probe with no ceiling fails: the first run prints the figures, and a
 # ceiling is set from them by `--probes --update` with a note here saying where
 # they came from.
+#
+# Set 2026-10-16 for 0.5.0 from CI's first measurement, on
+# `claude/trusting-dijkstra-w1a6rz` (a7500415): `empty` 570,451; `theme`
+# 728,179, +157,728 on it, which is what `KontourTheme` costs every app;
+# `button` 803,990, +75,811 on `theme`, which is one component and everything
+# it uses. `icon` and `icons` were 684,759 and 692,540, about 159 gzip bytes an
+# icon, measured without a `Text`, so `icon` came out *under* `theme` by the
+# text stack it left out. Both now draw the same `Text` as `theme`, and their
+# ceilings here are `theme`'s plus the icons, estimated, until a run measures
+# them. Each through `--update`'s rule, to the thousand.
+#
+# What `theme` is made of, from `probe-attribution.py` on the same run, before
+# Binaryen: Compose's runtime, node and collection code first, then
+# `io.kontour.ui.theme` at 100,713, `kotlin.text.regex` at 74,655 and
+# `kotlinx.datetime.format` at 46,396. The last two are reached from the theme's
+# defaults rather than from anything drawn, and are where to look first.
 PROBE_CEILINGS: dict[str, int] = {
+    "empty": 588_000,
+    "theme": 751_000,
+    "button": 829_000,
+    "icon": 753_000,
+    "icons": 761_000,
 }
 
 PROBE_BASELINES = {
