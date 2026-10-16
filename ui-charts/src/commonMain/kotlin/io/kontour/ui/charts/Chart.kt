@@ -128,7 +128,7 @@ fun <X : Any, Y : Any> Chart(
     showPatterns: Boolean = ChartDefaults.showPatterns(),
     showSelectionTooltip: Boolean = true,
     animateData: Boolean = true,
-    strings: ChartStrings = LocalChartStrings.current,
+    strings: ChartStrings = ChartDefaults.strings(),
     interactionSource: MutableInteractionSource? = null,
     tooltip: (@Composable ContentScope.(ChartSelection<X>) -> Unit)? = null,
     content: ChartScope<X, Y>.() -> Unit,

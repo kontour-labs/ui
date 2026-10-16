@@ -126,7 +126,7 @@ fun SectorChart(
     showPatterns: Boolean = ChartDefaults.showPatterns(),
     showSelectionTooltip: Boolean = true,
     animateData: Boolean = true,
-    strings: ChartStrings = LocalChartStrings.current,
+    strings: ChartStrings = ChartDefaults.strings(),
     interactionSource: MutableInteractionSource? = null,
     tooltip: (@Composable ContentScope.(ChartSelection<ChartSeries>) -> Unit)? = null,
     centre: (@Composable () -> Unit)? = null,

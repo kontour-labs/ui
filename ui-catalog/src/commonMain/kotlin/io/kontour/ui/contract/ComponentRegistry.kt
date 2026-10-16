@@ -28,6 +28,11 @@ import io.kontour.ui.components.selection.Knob
 import io.kontour.ui.components.datetime.ActivityCalendar
 import io.kontour.ui.components.datetime.ActivityMark
 import io.kontour.ui.components.display.BranchTimeline
+import io.kontour.ui.charts.Chart
+import io.kontour.ui.charts.ChartAxis
+import io.kontour.ui.charts.ChartSeries
+import io.kontour.ui.charts.SectorChart
+import io.kontour.ui.charts.Sparkline
 import io.kontour.ui.components.table.Table
 import io.kontour.ui.components.table.TableSort
 import io.kontour.ui.components.display.BubbleSide
@@ -52,6 +57,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
@@ -1171,6 +1177,71 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 column("Route", width = 72.dp) { +it.first }
                 column("Destination", weight = 1f) { +it.second }
             }
+        }
+    )
+
+    // Charts: pictures with descriptions, here for their renders at every tier
+    // and the width, reduced-motion and pseudo-locale sweeps. Their selection is
+    // under test in the charts module's own tests.
+    add(
+        ComponentSpec(
+            "Chart",
+            role = null,
+            activatedByClick = false,
+            expectsMinimumTarget = false,
+            underContract = false,
+            renderHeight = 240,
+        ) { modifier, _, _ ->
+            val months = listOf("Jul", "Aug", "Sep", "Oct")
+            val riders = listOf(620, 710, 680, 790)
+            Chart(
+                xAxis = ChartAxis.category(months),
+                yAxis = ChartAxis.number(title = "Riders"),
+                modifier = modifier.fillMaxWidth().height(220.dp),
+                contentDescription = "Riders by month",
+                animateData = false,
+            ) {
+                bar(months.indices.toList(), x = { months[it] }, y = { riders[it] }, series = { ChartSeries("Route 950") })
+                line(months.indices.toList(), x = { months[it] }, y = { riders[it] - 240 }, series = { ChartSeries("Route 951") })
+            }
+        }
+    )
+
+    add(
+        ComponentSpec(
+            "SectorChart",
+            role = null,
+            activatedByClick = false,
+            expectsMinimumTarget = false,
+            underContract = false,
+            renderHeight = 200,
+        ) { modifier, _, _ ->
+            val parts = listOf("Rent" to 45, "Food" to 30, "Travel" to 25)
+            SectorChart(
+                modifier = modifier.fillMaxWidth().height(180.dp),
+                innerRadius = 0.6f,
+                contentDescription = "Spending in September",
+                animateData = false,
+            ) {
+                sectors(parts, value = { it.second }, series = { ChartSeries(it.first) })
+            }
+        }
+    )
+
+    add(
+        ComponentSpec(
+            "Sparkline",
+            role = null,
+            activatedByClick = false,
+            expectsMinimumTarget = false,
+            underContract = false,
+        ) { modifier, _, _ ->
+            Sparkline(
+                values = listOf(640, 720, 690, 810, 905),
+                modifier = modifier.size(width = 96.dp, height = 28.dp),
+                contentDescription = "Route 950 this week",
+                animateData = false,
+            )
         }
     )
 

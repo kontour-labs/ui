@@ -7,6 +7,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.differentiateWithoutColour
 import io.kontour.ui.a11y.highContrast
+import io.kontour.ui.locale.LocalPseudoLocale
 import io.kontour.ui.theme.Theme
 
 /** What [Chart], [SectorChart] and [Sparkline] are drawn with unless told otherwise. */
@@ -54,6 +55,17 @@ object ChartDefaults {
      */
     @Composable
     fun showPatterns(): Boolean = highContrast() || differentiateWithoutColour()
+
+    /**
+     * The words a chart says on its own: [LocalChartStrings]', in the
+     * pseudo-locale the gallery is drawing in, if it is drawing in one.
+     */
+    @Composable
+    @ReadOnlyComposable
+    fun strings(): ChartStrings {
+        val strings = LocalChartStrings.current
+        return LocalPseudoLocale.current?.let { strings.pseudoLocalised(it) } ?: strings
+    }
 
     /** The size of a point's symbol. */
     val PointSize: Dp = 7.dp

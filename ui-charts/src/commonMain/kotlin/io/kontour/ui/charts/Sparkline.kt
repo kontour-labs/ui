@@ -56,7 +56,7 @@ fun Sparkline(
     colour: Color = ChartDefaults.seriesColours().first(),
     showArea: Boolean = false,
     animateData: Boolean = true,
-    strings: ChartStrings = LocalChartStrings.current,
+    strings: ChartStrings = ChartDefaults.strings(),
 ) {
     val formats = Theme.formats
     val motion = Theme.motion

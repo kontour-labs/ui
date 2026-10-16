@@ -3,6 +3,7 @@ package io.kontour.ui.locale
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
 import io.kontour.ui.theme.ProvideTokens
@@ -47,13 +48,21 @@ fun PseudoLocalised(mode: PseudoLocale, content: @Composable () -> Unit) {
         strings = remember(strings, mode) { strings.pseudoLocalised(mode) },
         formats = remember(formats, mode) { formats.pseudoLocalised(mode) },
     ) {
-        if (mode == PseudoLocale.Bidi) {
-            CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl, content = content)
-        } else {
-            content()
-        }
+        CompositionLocalProvider(
+            LocalPseudoLocale provides mode,
+            LocalLayoutDirection provides if (mode == PseudoLocale.Bidi) LayoutDirection.Rtl else LocalLayoutDirection.current,
+            content = content,
+        )
     }
 }
+
+/**
+ * The pseudo-locale [PseudoLocalised] is drawing in, or `null` outside one: for
+ * words of a module's own, beside `Theme.strings`, to follow it. The charts'
+ * `ChartStrings` read it, so the gallery's sweeps catch an English word in a
+ * chart as they catch one anywhere else.
+ */
+val LocalPseudoLocale = staticCompositionLocalOf<PseudoLocale?> { null }
 
 /** Every word in these strings in [mode]. */
 fun Strings.pseudoLocalised(mode: PseudoLocale): Strings = mapped { pseudoLocalise(it, mode) }

@@ -43,7 +43,7 @@ fun <X : Any, Y : Any> ChartDataTable(
     yAxis: ChartAxis<Y>,
     modifier: Modifier = Modifier,
     striped: Boolean = false,
-    strings: ChartStrings = LocalChartStrings.current,
+    strings: ChartStrings = ChartDefaults.strings(),
     content: ChartScope<X, Y>.() -> Unit,
 ) {
     val formats = Theme.formats
