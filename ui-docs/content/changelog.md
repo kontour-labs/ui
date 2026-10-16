@@ -24,7 +24,11 @@ The version an app is on is the `kontour` entry in its version catalog. See
 
 ## Unreleased
 
-On `main`, and in the next release.
+On `main`, and in the next release. Nothing yet.
+
+---
+
+## 0.4.5 — 16 October 2026
 
 Smoother on iOS: clips and shadows on Skia's fast path, a scaffold that does
 not recompose its screen as the keyboard or a top bar moves, and a floating
@@ -61,7 +65,12 @@ row's full-swipe action growing as the others give way; a dropped card landing
 as it settles; and smoother curved edges and crisper grid lines on the web, the
 desktop and iOS.
 
-**It is the first release on Kontour's own Maven repository,**It is the first release on Kontour's own Maven repository,
+Last, from measuring the gallery on two phones: a busy page is no longer
+composed whole while it arrives, a pull to refresh comes down with the finger,
+an iOS fling stops where it stops being seen and a slow release does not
+fling, and the patterns guide says what makes an app feel slow.
+
+**It is the first release on Kontour's own Maven repository,
 `https://maven.kontour.io`, which needs no token** — the library was on GitHub
 Packages, which needed one even to read — and the documentation is public, with
 a new [patterns](patterns.md) guide to the mistakes apps on the library tend to
@@ -70,7 +79,9 @@ make.
 The repository moves, `PullToRefresh` takes its list's scroll state,
 `NavBarMarkerDrag` is `NavMarkerDrag`, and `Select`, `MultiSelect`, `Combobox`,
 `ListSection` and `Strings` have new parameters — see **Breaking** and
-[Migrating](migrating.md).
+[Migrating](migrating.md). A scrollbar's list state measures its rows only
+once the list is still, and on iOS a fling ends sooner and a slow release does
+not fling — see **Changed**.
 
 ### Breaking
 
