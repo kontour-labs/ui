@@ -26,6 +26,7 @@ import androidx.compose.ui.test.click
 import androidx.compose.ui.test.isFocusable
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.performMouseInput
 import androidx.compose.ui.test.performTouchInput
@@ -127,6 +128,25 @@ class ActivityCalendarTest {
             pressKey(Key.Enter)
         }
         assertEquals(listOf(start.plusDays(7 - 1)), picked)
+    }
+
+    /**
+     * The grid is one focus stop, and the arrows move a cursor inside it that
+     * was drawn and never said: the day it reaches is the grid's state.
+     */
+    @Test
+    fun theDayTheArrowsReachIsSaid() = runComposeUiTest {
+        val start = end.minus(DatePeriod(days = 14))
+        setContent {
+            KontourTheme {
+                OverlayHost { Calendar(selected = start, onDayClick = {}) }
+            }
+        }
+        onNode(isFocusable()).requestFocus()
+        onNode(isFocusable()).performKeyInput { pressKey(Key.DirectionRight) }
+        onNode(isFocusable()).assert(
+            SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "2 activities on Friday, 29 May 2026"),
+        )
     }
 
     /**

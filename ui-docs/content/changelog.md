@@ -95,6 +95,9 @@ On `main`, and in the next release.
 - **A drop zone turning a drag away says so with more than colour.** Taking it
   and refusing it were the same solid edge on a tinted ground, accent or
   danger; refusing now shows `Theme.icons.danger` in place of the zone's icon.
+- **An activity calendar says the day its arrows reach.** The grid is one stop
+  for the keyboard, and the cursor moving inside it was drawn and never said;
+  the day it is on, with its count and its mark, is now the grid's state.
 - **A command palette says where its arrows are.** The highlighted command was
   published as selected, so every arrow told a screen reader a choice had been
   made, and nothing said which command the arrows had reached. It is drawn as
