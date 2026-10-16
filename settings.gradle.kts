@@ -49,6 +49,11 @@ include(":haptics")
 // beside it, and separate so that `:ui` takes no navigation dependency at all.
 include(":ui-nav3")
 
+// Charts over the library's theme: lines, areas, bars, points and sectors.
+// Published beside it, and separate so that an app without a chart carries none
+// of it. Held to `:ui`'s gates, which read its sources too.
+include(":ui-charts")
+
 // The gallery, and the living documentation. Every component in every state it
 // has, and the source of the screenshot goldens — so it is also where most of
 // the library's tests live.

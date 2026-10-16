@@ -1,0 +1,119 @@
+package io.kontour.ui.charts
+
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import io.kontour.ui.a11y.differentiateWithoutColour
+import io.kontour.ui.a11y.highContrast
+import io.kontour.ui.theme.Theme
+
+/** What [Chart], [SectorChart] and [Sparkline] are drawn with unless told otherwise. */
+object ChartDefaults {
+
+    /**
+     * Every colour from the theme: the series from the palette for its scheme
+     * and contrast tier (or [LocalSeriesColours]), the gridlines in the faintest
+     * rule the scheme has, labels in its muted ink, and patterns in a wash of the
+     * page's own ground.
+     */
+    @Composable
+    @ReadOnlyComposable
+    fun colours(
+        series: List<Color> = seriesColours(),
+        grid: Color = Theme.colours.outlineSubtle,
+        axis: Color = Theme.colours.outline,
+        label: Color = Theme.colours.contentMuted,
+        selection: Color = Theme.colours.contentMuted,
+        patternInk: Color = Theme.colours.background.copy(alpha = PatternInkAlpha),
+        ground: Color = Theme.colours.surface,
+    ): ChartColours = ChartColours(series, grid, axis, label, selection, patternInk, ground)
+
+    /**
+     * The series palette for the scheme and contrast tier in use, or the app's
+     * own from [LocalSeriesColours].
+     */
+    @Composable
+    @ReadOnlyComposable
+    fun seriesColours(): List<Color> {
+        LocalSeriesColours.current?.let { return it }
+        val dark = Theme.colours.isDark
+        return when {
+            highContrast() && dark -> SeriesPalettes.HighContrastDark
+            highContrast() -> SeriesPalettes.HighContrastLight
+            dark -> SeriesPalettes.Dark
+            else -> SeriesPalettes.Light
+        }
+    }
+
+    /**
+     * Whether a chart draws its patterns — dashes, symbols and hatching — as
+     * well as its colours: at the high contrast tier, and wherever the reader
+     * has asked for things not to be told apart by colour alone.
+     */
+    @Composable
+    fun showPatterns(): Boolean = highContrast() || differentiateWithoutColour()
+
+    /** A line's stroke, and a rule's. */
+    val LineWidth: Dp = 2.dp
+
+    /** The size of a point's symbol. */
+    val PointSize: Dp = 7.dp
+
+    /** The rounding of a bar's end, and of a rectangle's corners. */
+    val BarCornerRadius: Dp = 3.dp
+
+    /** How much of a band a bar fills, the rest being the gap between bars. */
+    const val BarFraction: Float = 0.7f
+
+    /** The gap between a sector chart's sectors. */
+    val SectorGap: Dp = 2.dp
+
+    /**
+     * The most places a screen reader moves through along a chart. A chart of a
+     * year of days is 365 places, which nobody swipes through one at a time, so
+     * past this they are said in ranges — "1 March to 7 March" — each with the
+     * least and the most of every series in it.
+     */
+    const val MaxAccessiblePlaces: Int = 60
+
+    /** The height a chart takes when nothing gives it one. */
+    val Height: Dp = 200.dp
+
+    /** How strongly a pattern is drawn over a series' colour. */
+    const val PatternInkAlpha: Float = 0.6f
+}
+
+/** A series' look, resolved from its slot and whatever overrides it. */
+internal class SeriesLook(
+    val colour: Color,
+    val line: LinePattern,
+    val symbol: PointSymbol,
+    val fill: FillPattern,
+)
+
+/**
+ * What series [slot] is drawn with: its colour from [palette], and with
+ * [patterns] on, a dash, a symbol and a fill of its own, each in the order its
+ * enum lists them so that slot 0 is always solid. Past the end of the palette,
+ * colours go round again with patterns on, so the second time round is told
+ * apart from the first.
+ */
+internal fun lookOf(
+    slot: Int,
+    palette: List<Color>,
+    patterns: Boolean,
+    vararg overrides: SeriesStyle?,
+): SeriesLook {
+    val patterned = patterns || slot >= palette.size
+    fun <T> pick(entries: List<T>, plain: T): T = if (patterned) entries[slot % entries.size] else plain
+    val override = overrides.filterNotNull()
+    return SeriesLook(
+        colour = override.firstNotNullOfOrNull { it.colour.takeIf { colour -> colour != Color.Unspecified } }
+            ?: palette[slot % palette.size],
+        line = override.firstNotNullOfOrNull { it.line } ?: pick(LinePattern.entries, LinePattern.Solid),
+        symbol = override.firstNotNullOfOrNull { it.symbol } ?: pick(PointSymbol.entries, PointSymbol.Circle),
+        fill = override.firstNotNullOfOrNull { it.fill } ?: pick(FillPattern.entries, FillPattern.Solid),
+    )
+}

@@ -765,8 +765,9 @@ val checkApiConventions = tasks.register("checkApiConventions") {
                     // carries no `@Composable` — it collects composable content
                     // rather than being it — but it is the trailing lambda a
                     // caller writes their content in, so it belongs in the same
-                    // place and under the same name.
-                    val builderType = Regex("[A-Za-z]+Scope\\.\\(\\)\\s*->")
+                    // place and under the same name. A generic scope is one too:
+                    // `ChartScope<X, Y>.() -> Unit` is a chart's marks.
+                    val builderType = Regex("[A-Za-z]+Scope(<[^>]*>)?\\.\\(\\)\\s*->")
                     val interactionIndex = names.indexOfFirst {
                         it == "interactionSource"
                     }.takeIf { it >= 0 && params[it].optional } ?: -1

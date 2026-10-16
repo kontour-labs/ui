@@ -1,0 +1,177 @@
+package io.kontour.ui.charts
+
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.staticCompositionLocalOf
+import io.kontour.ui.locale.PseudoLocale
+import io.kontour.ui.locale.Quantity
+import io.kontour.ui.locale.pseudoLocalise
+import io.kontour.ui.theme.StringLookup
+import io.kontour.ui.theme.phrase
+
+/**
+ * The words a chart says on its own: what a screen reader hears of it, and the
+ * few labels it draws itself.
+ *
+ * The charts' counterpart to `Strings`, and kept apart from it for the reason
+ * the module is: an app without a chart carries none of these. English by
+ * default. An app in another language builds its own with [from], over the same
+ * `StringLookup` it gives `Strings.from`, and provides it with
+ * [LocalChartStrings]:
+ *
+ * ```kotlin
+ * CompositionLocalProvider(LocalChartStrings provides ChartStrings.from(appStrings)) {
+ *     App()
+ * }
+ * ```
+ *
+ * A phrase with a number in it takes a `Quantity`, which carries the number as
+ * the reader writes it and its plural form in their language, so a translation
+ * can choose "1 series" or "2 series" the way its own grammar does. Every
+ * number and date put into a phrase has already been written by
+ * `Theme.formats`.
+ *
+ * @property lineChart What a chart of lines is, said first of it.
+ * @property areaChart What a chart of areas is.
+ * @property barChart What a chart of bars is.
+ * @property scatterChart What a chart of points alone is.
+ * @property chart What a chart of more than one kind of mark is.
+ * @property pieChart What a [SectorChart] with no hole is.
+ * @property donutChart What a [SectorChart] with a hole is.
+ * @property trend What a [Sparkline] is, said before what it shows.
+ * @property seriesCount How many series a chart has: "3 series".
+ * @property horizontalAxis The axis across, where it has no title.
+ * @property verticalAxis The axis up, where it has no title.
+ * @property axisRange What an axis spans: "Riders, 0 to 1,200".
+ * @property seriesSummary One series in a sentence: its name, the least and the
+ *   most of it, and which way it goes from start to end.
+ * @property valuesSummary The same, for the series of a chart that has only
+ *   one, which has no name.
+ * @property trendRising The way a series goes when it ends higher than it starts.
+ * @property trendFalling When it ends lower.
+ * @property trendSteady When it ends where it started.
+ * @property seriesValue One series' value at one place: "Bus, 42".
+ * @property atPosition Everything at one place along the chart: "March: Bus, 42
+ *   and Train, 17".
+ * @property valueRange A span of the axis, where one place stands for several:
+ *   "1 March to 7 March".
+ * @property sectorShare One sector's part of the whole: "Rent, 45%".
+ * @property noData What a chart with nothing to show says it shows.
+ * @property otherSectors The sector that gathers what is too small to draw.
+ */
+@Immutable
+data class ChartStrings(
+    val lineChart: String = "Line chart",
+    val areaChart: String = "Area chart",
+    val barChart: String = "Bar chart",
+    val scatterChart: String = "Scatter chart",
+    val chart: String = "Chart",
+    val pieChart: String = "Pie chart",
+    val donutChart: String = "Donut chart",
+    val trend: String = "Trend",
+    val seriesCount: (count: Quantity) -> String =
+        { count -> count.select(one = "${count.formatted} series", other = "${count.formatted} series") },
+    val horizontalAxis: String = "Horizontal axis",
+    val verticalAxis: String = "Vertical axis",
+    val axisRange: (axis: String, from: String, to: String) -> String =
+        { axis, from, to -> "$axis, $from to $to" },
+    val seriesSummary: (name: String, least: String, most: String, direction: String) -> String =
+        { name, least, most, direction -> "$name, $least to $most, $direction" },
+    val valuesSummary: (least: String, most: String, direction: String) -> String =
+        { least, most, direction -> "$least to $most, $direction" },
+    val trendRising: String = "rising",
+    val trendFalling: String = "falling",
+    val trendSteady: String = "steady",
+    val seriesValue: (series: String, amount: String) -> String = { series, amount -> "$series, $amount" },
+    val atPosition: (position: String, values: String) -> String = { position, values -> "$position: $values" },
+    val valueRange: (from: String, to: String) -> String = { from, to -> "$from to $to" },
+    val sectorShare: (name: String, percent: String) -> String = { name, percent -> "$name, $percent" },
+    val noData: String = "No data",
+    val otherSectors: String = "Other",
+) {
+    companion object {
+        /**
+         * These strings from an app's own resources, by field name, the way
+         * `Strings.from` reads the library's: whatever [lookup] has no
+         * translation for keeps [fallback]'s English.
+         */
+        fun from(lookup: StringLookup, fallback: ChartStrings = ChartStrings()): ChartStrings = ChartStrings(
+            lineChart = lookup.text("lineChart") ?: fallback.lineChart,
+            areaChart = lookup.text("areaChart") ?: fallback.areaChart,
+            barChart = lookup.text("barChart") ?: fallback.barChart,
+            scatterChart = lookup.text("scatterChart") ?: fallback.scatterChart,
+            chart = lookup.text("chart") ?: fallback.chart,
+            pieChart = lookup.text("pieChart") ?: fallback.pieChart,
+            donutChart = lookup.text("donutChart") ?: fallback.donutChart,
+            trend = lookup.text("trend") ?: fallback.trend,
+            seriesCount = { count ->
+                lookup.phrase("seriesCount", count, count.formatted) ?: fallback.seriesCount(count)
+            },
+            horizontalAxis = lookup.text("horizontalAxis") ?: fallback.horizontalAxis,
+            verticalAxis = lookup.text("verticalAxis") ?: fallback.verticalAxis,
+            axisRange = { axis, from, to ->
+                lookup.phrase("axisRange", null, axis, from, to) ?: fallback.axisRange(axis, from, to)
+            },
+            seriesSummary = { name, least, most, direction ->
+                lookup.phrase("seriesSummary", null, name, least, most, direction)
+                    ?: fallback.seriesSummary(name, least, most, direction)
+            },
+            valuesSummary = { least, most, direction ->
+                lookup.phrase("valuesSummary", null, least, most, direction)
+                    ?: fallback.valuesSummary(least, most, direction)
+            },
+            trendRising = lookup.text("trendRising") ?: fallback.trendRising,
+            trendFalling = lookup.text("trendFalling") ?: fallback.trendFalling,
+            trendSteady = lookup.text("trendSteady") ?: fallback.trendSteady,
+            seriesValue = { series, amount ->
+                lookup.phrase("seriesValue", null, series, amount) ?: fallback.seriesValue(series, amount)
+            },
+            atPosition = { position, values ->
+                lookup.phrase("atPosition", null, position, values) ?: fallback.atPosition(position, values)
+            },
+            valueRange = { from, to ->
+                lookup.phrase("valueRange", null, from, to) ?: fallback.valueRange(from, to)
+            },
+            sectorShare = { name, percent ->
+                lookup.phrase("sectorShare", null, name, percent) ?: fallback.sectorShare(name, percent)
+            },
+            noData = lookup.text("noData") ?: fallback.noData,
+            otherSectors = lookup.text("otherSectors") ?: fallback.otherSectors,
+        )
+    }
+}
+
+/**
+ * The [ChartStrings] every chart below reads, English unless an app provides its
+ * own.
+ */
+val LocalChartStrings = staticCompositionLocalOf { ChartStrings() }
+
+/** Every word in these strings in [mode], for the gallery's pseudo-locales, as `Strings.pseudoLocalised` is. */
+fun ChartStrings.pseudoLocalised(mode: PseudoLocale): ChartStrings = mapped { pseudoLocalise(it, mode) }
+
+/** These strings with every word passed through [transform], the phrases' after they are filled in. */
+internal fun ChartStrings.mapped(transform: (String) -> String): ChartStrings = ChartStrings(
+    lineChart = transform(lineChart),
+    areaChart = transform(areaChart),
+    barChart = transform(barChart),
+    scatterChart = transform(scatterChart),
+    chart = transform(chart),
+    pieChart = transform(pieChart),
+    donutChart = transform(donutChart),
+    trend = transform(trend),
+    seriesCount = { a0 -> transform(seriesCount(a0)) },
+    horizontalAxis = transform(horizontalAxis),
+    verticalAxis = transform(verticalAxis),
+    axisRange = { a0, a1, a2 -> transform(axisRange(a0, a1, a2)) },
+    seriesSummary = { a0, a1, a2, a3 -> transform(seriesSummary(a0, a1, a2, a3)) },
+    valuesSummary = { a0, a1, a2 -> transform(valuesSummary(a0, a1, a2)) },
+    trendRising = transform(trendRising),
+    trendFalling = transform(trendFalling),
+    trendSteady = transform(trendSteady),
+    seriesValue = { a0, a1 -> transform(seriesValue(a0, a1)) },
+    atPosition = { a0, a1 -> transform(atPosition(a0, a1)) },
+    valueRange = { a0, a1 -> transform(valueRange(a0, a1)) },
+    sectorShare = { a0, a1 -> transform(sectorShare(a0, a1)) },
+    noData = transform(noData),
+    otherSectors = transform(otherSectors),
+)
