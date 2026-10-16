@@ -6,8 +6,16 @@ import androidx.compose.foundation.text.selection.TextSelectionColors
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.Clipboard
 import androidx.compose.ui.platform.LocalClipboard
@@ -30,6 +38,7 @@ import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.darkColourScheme
 import java.awt.datatransfer.DataFlavor
 import java.awt.datatransfer.Transferable
+import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -164,6 +173,68 @@ class SelectableTextTest {
         waitForIdle()
         assertEquals(outerExpected, outer)
         assertEquals(innerExpected, inner, "a subtree with another scheme kept the outer scheme's selection")
+    }
+
+    /**
+     * Code's sunken ground is under the highlight, not over it.
+     *
+     * It was over it: the paragraph paints a span's background as it draws the
+     * glyphs, after `BasicText` has drawn the selection, so a drag across "Run
+     * `xxxx` now" lit up the words either side and left the code looking
+     * unselected — while copying it all the same. Read from the pixels, because
+     * that is the only place it ever went wrong: inside the code's ground, above
+     * the glyphs (an `x` has no ascender), before and after the drag.
+     */
+    @Test
+    fun aSelectionIsDrawnOverCodeAsOverTheWordsAroundIt() = runComposeUiTest {
+        var layout: TextLayoutResult? = null
+        var sunken = Color.Unspecified
+        var highlight = Color.Unspecified
+        setContent {
+            KontourTheme(reduceMotion = true) {
+                sunken = Theme.colours.surfaceSunken
+                highlight = LocalTextSelectionColors.current.backgroundColor
+                SelectableText {
+                    Text(
+                        richText { +"Run "; code("xxxx"); +" now" },
+                        modifier = Modifier.testTag("line"),
+                        onTextLayout = { layout = it },
+                    )
+                }
+            }
+        }
+        waitForIdle()
+
+        val result = assertNotNull(layout)
+        val ground = result.getPathForRange(4, 8).getBounds()
+        val origin = onNodeWithTag("line").fetchSemanticsNode().positionInRoot
+        val x = (origin.x + ground.center.x).toInt()
+        val y = (origin.y + ground.top + ground.height * 0.15f).toInt()
+
+        val before = onRoot().captureToImage().toPixelMap()[x, y]
+        assertClose(sunken, before, "the code's ground was not drawn where the code is")
+
+        val line = onNodeWithTag("line").fetchSemanticsNode().boundsInRoot
+        onRoot().performMouseInput {
+            moveTo(Offset(line.left + 1f, line.center.y))
+            press()
+            moveTo(line.center)
+            moveTo(Offset(line.right - 1f, line.center.y))
+            release()
+        }
+        waitForIdle()
+
+        val after = onRoot().captureToImage().toPixelMap()[x, y]
+        assertClose(highlight.compositeOver(sunken), after, "the selection was not drawn over the code")
+    }
+
+    private fun assertClose(expected: Color, actual: Color, message: String) {
+        val off = maxOf(
+            abs(expected.red - actual.red),
+            abs(expected.green - actual.green),
+            abs(expected.blue - actual.blue),
+        )
+        assertTrue(off <= 3f / 255f, "$message: expected $expected, drew $actual")
     }
 
     private fun expected(colours: ColourScheme) = TextSelectionColors(

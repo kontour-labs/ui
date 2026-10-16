@@ -11,6 +11,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.RoundRect
@@ -180,6 +181,15 @@ fun Text(
         inlineContent
     }
 
+    // Grounds behind spans, painted under the selection rather than over it —
+    // see `SpanGrounds`. One pass over the span styles for a string without one.
+    val grounds = if (!redaction.redacted && SpanGrounds.any(text)) {
+        remember(text) { SpanGrounds.find(text) }
+    } else {
+        emptyList()
+    }
+    val ungrounded = if (grounds.isEmpty()) text else remember(text, grounds) { SpanGrounds.shown(text, grounds) }
+
     // Gradients laid across their own words — see `SpanGradients`. The same one
     // scan as the icons, and nothing more, for a string without one.
     val gradients = if (!redaction.redacted && text.hasStringAnnotations(SpanGradients.Tag, 0, text.length)) {
@@ -187,19 +197,48 @@ fun Text(
     } else {
         emptyList()
     }
-    val shown = if (gradients.isEmpty()) text else remember(text, gradients) { SpanGradients.shown(text, gradients) }
+    val shown = if (gradients.isEmpty()) {
+        ungrounded
+    } else {
+        remember(ungrounded, gradients) { SpanGradients.shown(ungrounded, gradients) }
+    }
     val painted = if (gradients.isEmpty()) {
         Modifier
     } else {
         Modifier.spanGradients(text, gradients, resolved, overflow, softWrap, maxLines, content)
     }
 
+    // The grounds' shapes come from the text's own layout, so the callback that
+    // reports it records them; with no grounds the callback is the one there
+    // would have been anyway, and `BasicText` sees no change.
+    val reported = redaction.layoutCallback(onTextLayout)
+    val groundPaths = remember { SpanGrounds.Painted() }
+    val layoutCallback = if (grounds.isEmpty()) {
+        reported
+    } else {
+        remember(grounds, reported) {
+            { result: TextLayoutResult ->
+                groundPaths.paths = SpanGrounds.paths(result, grounds)
+                reported?.invoke(result)
+            }
+        }
+    }
+    // Last in the chain, directly before the text's own node: behind is behind
+    // the selection, which that node draws first.
+    val grounded = if (grounds.isEmpty()) {
+        Modifier
+    } else {
+        remember(groundPaths) {
+            Modifier.drawBehind { groundPaths.paths.forEach { (path, colour) -> drawPath(path, colour) } }
+        }
+    }
+
     ExcludeFromSelection(redaction.redacted) {
         BasicText(
             text = shown,
-            modifier = modifier.then(redaction.modifier).then(painted),
+            modifier = modifier.then(redaction.modifier).then(painted).then(grounded),
             style = resolved,
-            onTextLayout = redaction.layoutCallback(onTextLayout),
+            onTextLayout = layoutCallback,
             overflow = overflow,
             softWrap = softWrap,
             maxLines = maxLines,
