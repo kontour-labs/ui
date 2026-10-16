@@ -209,9 +209,9 @@ jobs:
 
           # Everything at the top that is not one gate's own: the build, and
           # anything added there later, which counts for every gate until it
-          # is placed. The README, CONTRIBUTING, the changelog and the IDE's run
-          # configurations are read by nothing Gradle runs.
-          own='ui|ui-nav3|haptics|ui-catalog|ui-samples|ui-docs|showcase|docs|README\.md|CONTRIBUTING\.md|CHANGELOG\.md|\.run|\.gitignore'
+          # is placed. The README, CONTRIBUTING, CLAUDE.md, the changelog and
+          # the IDE's run configurations are read by nothing Gradle runs.
+          own='ui|ui-nav3|haptics|ui-catalog|ui-samples|ui-docs|showcase|docs|README\.md|CONTRIBUTING\.md|CLAUDE\.md|CHANGELOG\.md|\.run|\.gitignore'
           shared=$(git ls-tree --name-only HEAD | grep -vxE "$own")
           fingerprint() {
             for path in $shared "$@"; do
@@ -335,7 +335,7 @@ jobs:
 
           # A rename counts at both ends.
           changed=$(jq -r '.files[] | .filename, (.previous_filename // empty)' <<<"$compare")
-          grep -qvE '^(showcase/|README\.md$|CONTRIBUTING\.md$|CHANGELOG\.md$|\.run/|\.gitignore$)' <<<"$changed" ||
+          grep -qvE '^(showcase/|README\.md$|CONTRIBUTING\.md$|CLAUDE\.md$|CHANGELOG\.md$|\.run/|\.gitignore$)' <<<"$changed" ||
             { echo "deploy=false" >> "$GITHUB_OUTPUT"; say "Nothing the site is made from changed since ${BEFORE:0:7}: not deploying."; exit 0; }
           yes "The site's inputs changed since ${BEFORE:0:7}."
 

@@ -10,6 +10,7 @@ How the library is built, checked and released. Using it is the
 | [`docs/building/releasing.md`](docs/building/releasing.md) | Tagging a release, `maven.kontour.io`, and the secrets it needs |
 | [`docs/building/hosting.md`](docs/building/hosting.md) | The documentation site on Cloudflare Pages |
 | [`docs/README.md`](docs/README.md) | The library's layers and the rules that follow from them |
+| [`CLAUDE.md`](CLAUDE.md) | The working summary for a coding agent: the traps CI catches, and checking the bundle size before it does |
 
 ## Running the gallery
 
