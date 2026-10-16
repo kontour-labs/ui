@@ -189,7 +189,7 @@ the list is at its top.
 ```kotlin
 // Not this
 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-    Text("Departures", fontSize = 20.sp, color = Color(0xFF1B1B1F))
+    Text("Departures", fontSize = 20.sp, colour = Color(0xFF1B1B1F))
 }
 
 // This

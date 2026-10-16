@@ -1,6 +1,5 @@
 package io.kontour.ui.catalog
 
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -59,22 +58,25 @@ import org.junit.experimental.categories.Category
  * re-render-per-suspect; the value here is the execution, because these paths
  * are otherwise never executed at all.
  *
- * ### The whole surface, and how small it is
+ * ### The surface, and what it costs
  *
- * The library declares an action beyond `onClick` in exactly six places:
+ * When this was written the library declared an action beyond `onClick` in six
+ * places — `Slider`, `RangeSlider` and `PaneScaffold`'s `setProgress`, and
+ * `Carousel`'s, `SwipeActions`' and `Reorderable`'s custom actions — and most
+ * pages swept nothing. It has grown since: the pickers' wheels, the event
+ * calendar's chips, menus, sheets and dialogs all publish them now. The
+ * per-page floors are set from what is actually there, not from that list.
  *
- * | where | action |
- * |---|---|
- * | `Slider`, `RangeSlider` | `setProgress` |
- * | `PaneScaffold` | `setProgress` |
- * | `Carousel` | `customActions` — previous, next |
- * | `SwipeActions` | `customActions` — one per action |
- * | `Reorderable` | `customActions` — move up, move down |
- *
- * So six of the eleven showcases below sweep nothing, and that is the right
- * answer rather than a hole in the walk: it was checked against the source
- * after the first run reported zero on most pages. The per-page floors are set
- * from what is actually there.
+ * **Each demo is swept on a composition of its own**, rather than its whole
+ * family in one `Column`. An action is followed by thirty frames, and a frame
+ * draws whatever is composed, so a family swept together costs every action
+ * times every demo's frame. That stayed cheap while each page had a handful of
+ * actions, and stopped in 0.4.5: `ActivityCalendar` gives each week a custom
+ * action per day, so a screen reader can pick a day out of the week it is on,
+ * which is 369 of them in its demo, and settling the whole date-and-time page
+ * after each one took about sixteen minutes against a five-minute cap. Alone,
+ * the same 369 settle in a minute and a half. Every action is still performed;
+ * none of them could reach another demo anyway.
  *
  * Text editing is deliberately out. `TextField` publishes `setText`,
  * `setSelection` and the clipboard actions, but it publishes them through
@@ -122,19 +124,18 @@ class SemanticsActionSweepTest {
 
     private fun sweepFamily(name: String, expected: Int) {
         val family = demoFamilies.single { it.name == name }
-        sweep(name, expected) {
-            Column { family.demos.forEach { DemoContentForTest(it, emptyMap()) } }
-        }
+        // One composition per demo: see "The surface, and what it costs".
+        sweep(name, expected, family.demos.map { demo -> @Composable { DemoContentForTest(demo, emptyMap()) } })
     }
 
     /** One action to perform, and enough about it to name it in a failure. */
     private class Reachable(val nodeId: Int, val what: String, val perform: (SemanticsNode) -> Unit)
 
-    private fun sweep(showcase: String, expected: Int, content: @Composable () -> Unit) {
+    private fun sweep(showcase: String, expected: Int, contents: List<@Composable () -> Unit>) {
         val failures = mutableListOf<String>()
         var performed = 0
 
-        runDesktopComposeUiTest(width = Canvas, height = Canvas) {
+        for (content in contents) runDesktopComposeUiTest(width = Canvas, height = Canvas) {
             // Hand-driven for the same reason `EverythingRespondsTest` is: the
             // overlays page never stops asking for frames, and an auto-advancing
             // clock chases it forever.
