@@ -78,7 +78,9 @@ import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.unit.dp
 import io.kontour.icons.tabler.Tabler
 import io.kontour.icons.tabler.outline.AlertTriangle
+import io.kontour.icons.tabler.outline.Bookmark
 import io.kontour.icons.tabler.outline.Bus
+import io.kontour.icons.tabler.outline.DotsVertical
 import io.kontour.icons.tabler.outline.FileUpload
 import io.kontour.icons.tabler.outline.ChevronDown
 import io.kontour.icons.tabler.outline.CurrentLocation
