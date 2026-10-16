@@ -25,6 +25,9 @@ import androidx.compose.runtime.setValue
  * Selection is by place, not by point: everything at the selected value across
  * is selected together, every series' value there, which is what a reader
  * asking "what was it in March?" wants and what the tooltip shows.
+ *
+ * A [SectorChart]'s is by part, a `ChartSelectionState<ChartSeries>`: the
+ * series of the sector that is chosen.
  */
 @Stable
 class ChartSelectionState<X : Any> internal constructor(initialX: X?) {

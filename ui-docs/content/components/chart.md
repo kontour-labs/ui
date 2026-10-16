@@ -125,7 +125,11 @@ SectorChart(
 ```
 
 The parts of a whole, as a pie or, with an `innerRadius`, a donut with its
-`centre` free for the total. Sectors start at the top and go clockwise, and
+`centre` free for the total. Give it a `rememberChartSelectionState<ChartSeries>()`
+and a sector is chosen as a chart's place is: a tap, a pointer, the arrow keys
+round the circle the way it is drawn, or a screen reader on the sector's own
+node. The chosen one stands out from the centre and is outlined, so it is told
+apart by its shape as well as its ink. Sectors start at the top and go clockwise, and
 anticlockwise in a right-to-left language. Use one for up to five or six parts
 of one whole. For more parts, or to compare parts across wholes, use a `Chart`
 of bars.
