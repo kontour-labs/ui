@@ -1,10 +1,10 @@
 # Hosting the documentation
 
 The site is served at **`https://docs.kontour.io/ui/`** from Cloudflare Pages,
-behind Cloudflare Access. People sign in with GitHub and must be members of the
-kontour-labs organisation. Agents send a service token in two headers.
-`docs.kontour.io` is meant to hold Kontour's documentation in general; this
-library's is the part under `/ui/`.
+in public: no sign-in, and no token for an agent. `docs.kontour.io` is meant to
+hold Kontour's documentation in general; this library's is the part under
+`/ui/`. Until 0.4.5 it was behind Cloudflare Access, open to members of the
+kontour-labs organisation and to a service token.
 
 ## What is uploaded
 
@@ -20,7 +20,7 @@ the site is built from:
 | `/ui/llms.txt`, `/ui/llms-full.txt` | The index of those, one line a page; and all of them in one file |
 | `/ui/icons/manifest.txt`, `/ui/icons/<hash>/` | The Icons page's data: every Tabler icon's name, category and tags, and their paths in chunks of 128, fetched as rows scroll into view. Laid out by `docs/icondata.py` from the `@tabler/icons` release the library is built from, the directory named for its content |
 | `/llms.txt` | The root index, pointing at each library's own |
-| `/_headers` | `noindex` everywhere; a year's cache for the two content-hashed `.wasm` files and the content-named icon data, and no other; plain text for the mirror |
+| `/_headers` | A year's cache for the two content-hashed `.wasm` files and the content-named icon data, and no other; plain text for the mirror |
 | `/_redirects` | `/` goes to `/ui/`, with a 302 so no browser remembers it after the root gains a second library |
 
 The `deploy` job uploads it with `wrangler pages deploy`. **A Direct Upload
@@ -36,8 +36,8 @@ later.
 ## When CI runs
 
 Pushes to `main`, `v*` tags and manual runs. Not on pull requests or other
-branches: the repository is private, and its minutes are billed. The `changes`
-job decides what a push has to run. [`testing.md`](testing.md#what-ci-actually-runs-and-what-it-does-not-run-twice)
+branches, so that a pull request is not held up by a run nobody asked for. The
+`changes` job decides what a push has to run. [`testing.md`](testing.md#what-ci-actually-runs-and-what-it-does-not-run-twice)
 has the table.
 
 ## Setting it up
@@ -59,47 +59,24 @@ settings.
 4. **Custom domain.** In the Pages project, Custom domains → `docs.kontour.io`.
    If `kontour.io` is a Cloudflare zone the record is made for you; otherwise
    add a `CNAME` from `docs` to `kontour-docs.pages.dev`.
-5. **GitHub as an identity provider.** Create an OAuth app under the
-   kontour-labs organisation (Settings → Developer settings → OAuth Apps) with
-   homepage `https://<team>.cloudflareaccess.com` and callback
-   `https://<team>.cloudflareaccess.com/cdn-cgi/access/callback`, where
-   `<team>` is the Zero Trust team name. Add it in Zero Trust → Settings →
-   Authentication → Login methods → GitHub. If the organisation restricts
-   third-party applications, approve this one, or Access cannot see
-   membership.
-6. **Service token.** Zero Trust → Access → Service auth → Service Tokens →
-   Create, named `docs-agents`. Keep the client ID and secret: they are shown
-   once.
-7. **The Access application.** Zero Trust → Access → Applications → Add →
-   Self-hosted, with three public hostnames: `docs.kontour.io`,
-   `kontour-docs.pages.dev` and `*.kontour-docs.pages.dev`. The last two matter:
-   without them the site is public at its `pages.dev` address, whatever the
-   custom domain asks. Two policies:
-   - *Allow*: include *GitHub organization* `kontour-labs`.
-   - *Service Auth*: include *Service Token* `docs-agents`.
-8. **Deploy.** Merge to `main`; the first run deploys. Then check, in a private
-   window, that `https://docs.kontour.io/ui/` asks for GitHub sign-in, and that
-   an agent's request gets the index:
+5. **Deploy.** Merge to `main`; the first run deploys. Then check, in a private
+   window, that `https://docs.kontour.io/ui/` loads, and that an agent's request
+   gets the index:
 
    ```sh
-   curl -fsS \
-     -H "CF-Access-Client-Id: $KONTOUR_DOCS_CLIENT_ID" \
-     -H "CF-Access-Client-Secret: $KONTOUR_DOCS_CLIENT_SECRET" \
-     https://docs.kontour.io/ui/llms.txt | head
+   curl -fsS https://docs.kontour.io/ui/llms.txt | head
    ```
-9. **Make the repository private,** once the site is up: Settings → General →
-   Change visibility. Then Settings → Pages → unpublish the old GitHub Pages site,
-   and check branch protection requires no status checks, which pull requests
-   no longer produce.
+
+If a Cloudflare Access application is still set up for these hostnames from
+when the site was private, delete it — Zero Trust → Access → Applications — or
+the site keeps asking for a sign-in whatever the headers say.
 
 ## Agents
 
 [`ui-docs/content/agents.md`](../../ui-docs/content/agents.md) is the page an
-agent reads. It covers what to fetch, the two headers and a `CLAUDE.md` snippet
-for an app. For Claude Code on the web, the two values go in the cloud
-environment's settings as environment variables, `KONTOUR_DOCS_CLIENT_ID` and
-`KONTOUR_DOCS_CLIENT_SECRET`, and `docs.kontour.io` has to be allowed by the
-environment's network access.
+agent reads. It covers what to fetch and a `CLAUDE.md` snippet for an app. For
+Claude Code on the web, `docs.kontour.io` has to be allowed by the environment's
+network access.
 
 Building the site in such an environment also needs `codeload.github.com`
 allowed. The Kotlin/JS toolchain fetches a package from there, and without it

@@ -1,5 +1,8 @@
 package io.kontour.ui.samples
 
+import io.kontour.ui.components.list.ListItem
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
@@ -216,10 +219,10 @@ fun ScaffoldBasics() {
             )
         },
     ) { padding ->
-        // Handed over rather than applied, so content can scroll *under* the
-        // bar instead of starting below it.
-        Column(Modifier.fillMaxSize().padding(padding)) {
-            Screen()
+        // The list's content padding, not the list's own: its rows start below
+        // the bar and scroll *under* it, and its last row clears the button.
+        LazyColumn(Modifier.fillMaxSize(), contentPadding = padding) {
+            items(stops) { stop -> ListItem { +stop.name } }
         }
     }
 }
