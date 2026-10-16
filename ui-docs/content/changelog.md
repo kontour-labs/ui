@@ -350,7 +350,8 @@ The repository moves, `PullToRefresh` takes its list's scroll state,
   wrapped in a card; a swipe row's shape in a group; pull to refresh and its
   list's state; literal colours and sizes; icons with no name; dialogs composed
   rather than shown; and what makes an app feel slow — the build being judged,
-  and a moving value read in composition. Each with an example that compiles. The `Scaffold` page's
+  and a moving value read in composition — and a coroutine kept in a gesture's
+  pointer block, which crashes on iOS alone. Each with an example. The `Scaffold` page's
   own example applied the padding it said it handed over, and is a list's
   `contentPadding` now.
 - **The documentation is public.** `docs.kontour.io/ui` and its Markdown for

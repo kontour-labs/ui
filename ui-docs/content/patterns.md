@@ -367,6 +367,56 @@ The library's own components take their moving values this way — a top bar's
 collapse, a sheet's offset, a pull's distance — so this is about your code
 around them.
 
+### A gesture's pointer block holds no coroutine of its own
+
+Kotlin/Native compiles a gesture's `awaitPointerEventScope` block differently
+from the JVM, and the difference has crashed this library on iOS: a launched
+coroutine's `Job` kept in a local of the block, across its suspensions, killed
+the app on the next move of the finger — `Unexpected receiver type:
+StandaloneCoroutine`, on iOS only. Android and the desktop ran it, and every
+test on the JVM passed, because the JVM does not check what Kotlin/Native did.
+
+```kotlin
+// Not this: the job is a local of the restricted block, alive across
+// `awaitPointerEvent`. Fine on the JVM; on iOS, a crash on a later move.
+Modifier.pointerInput(Unit) {
+    awaitPointerEventScope {
+        var following: Job? = null
+        while (true) {
+            awaitPointerEvent()
+            if (following?.isActive != true) following = scope.launch { withFrameNanos { } }
+        }
+    }
+}
+```
+
+Keep anything launched from a gesture on an object made outside the block —
+the gesture's state, a `remember`ed holder — and have the block call it:
+
+```kotlin
+class FrameFollower(private val scope: CoroutineScope) {
+    private var job: Job? = null
+
+    fun follow() {
+        if (job?.isActive == true) return
+        job = scope.launch { withFrameNanos { } }
+    }
+}
+
+val frames = remember { FrameFollower(scope) }
+Modifier.pointerInput(Unit) {
+    awaitPointerEventScope {
+        while (true) {
+            awaitPointerEvent()
+            frames.follow()
+        }
+    }
+}
+```
+
+And test a gesture on an iPhone, not only on the JVM: this is the class of
+fault no JVM test can see.
+
 ### A lazy list knows its rows
 
 Give `items` a `key`, so a row that moves keeps its state and its animations
