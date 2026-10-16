@@ -35,6 +35,8 @@ kotlin {
             // The Navigation 3 guide's examples, compiled against the module the
             // way an app would take it.
             implementation(project(":ui-nav3"))
+            // And the charts' pages', against their own module.
+            implementation(project(":ui-charts"))
 
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)

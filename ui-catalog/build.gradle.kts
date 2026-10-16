@@ -54,6 +54,8 @@ kotlin {
             // The Back page drives real Navigation 3 stacks, and a simulated
             // gesture through the same dispatcher a real one arrives by.
             implementation(project(":ui-nav3"))
+            // The Charts family, which is its own module.
+            implementation(project(":ui-charts"))
             implementation(libs.navigationevent.compose)
 
             implementation(libs.compose.runtime)

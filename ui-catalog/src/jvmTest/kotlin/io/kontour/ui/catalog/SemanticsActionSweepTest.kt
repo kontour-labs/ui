@@ -110,6 +110,10 @@ class SemanticsActionSweepTest {
 
     @Test fun displaySurvivesItsActions() = sweepFamily("Display", expected = 2)
 
+    // A chart publishes no custom actions — a place is a node with a click, and
+    // a click is not what this sweeps — so its floor is nothing at all.
+    @Test fun chartsSurviveTheirActions() = sweepFamily("Charts", expected = 0)
+
     @Test fun collectionsSurviveTheirActions() = sweepFamily("Collections", expected = 9)
 
     @Test fun overlaysSurviveTheirActions() = sweepFamily("Overlays", expected = 0)

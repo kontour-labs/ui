@@ -35,7 +35,7 @@ COMPONENTS = CONTENT / "components"
 # The order here is the order `components.md` presents the families in, so the
 # tie is broken by the same thing a reader would use.
 INDEXES = (
-    "actions", "selection", "text-editing", "date-time", "display",
+    "actions", "selection", "text-editing", "date-time", "display", "charts",
     "collections", "overlays", "sheets", "navigation", "adaptive", "foundation",
 )
 
@@ -45,6 +45,7 @@ FAMILY = {
     "text-editing": "Text editing",
     "date-time": "Date and time",
     "display": "Display",
+    "charts": "Charts",
     "collections": "Collections",
     "overlays": "Overlays",
     "sheets": "Sheets",
