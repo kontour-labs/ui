@@ -78,16 +78,30 @@ whose release workflow uses the same bucket and secrets. Organisation secrets on
    Connect Domain → `maven.kontour.io`. `kontour.io` is a Cloudflare zone, so the
    record is made for you. Leave the `r2.dev` address disabled: the custom domain
    is the one that is cached at the edge.
-3. **A token.** R2 → Manage R2 API Tokens → Create API token, with *Object Read &
+3. **Its cache.** `kontour.io` → Caching → Cache Rules → Create rule. Name it
+   `maven.kontour.io`. Under *If incoming requests match*, choose *Custom filter
+   expression* and set *Hostname* *equals* `maven.kontour.io`. Under *Then*,
+   set *Cache eligibility* to *Eligible for cache*, and *Edge TTL* to *Use
+   cache-control header if present*. Without it Cloudflare caches only the file
+   types on its own list, which has `.jar` and not `.klib` or `.module`. Every
+   iOS and web build would then fetch its klibs from R2 itself, at tens of KB/s,
+   which is slow enough for Gradle to time out: a 5.7 MB icon klib did in CI.
+   The upload sets the headers the rule reads, a year for released files and
+   five minutes for the version lists. *Caching → Tiered Cache → Smart Tiered
+   Caching* also helps, because it means a file comes from R2 once rather than
+   once for each edge location.
+4. **A token.** R2 → Manage R2 API Tokens → Create API token, with *Object Read &
    Write*, applied to `kontour-maven` only. Keep the access key ID and the secret
    access key: they are shown once. The account ID is on the R2 overview page.
-4. **The secrets.** `kontour-labs` → Settings → Secrets and variables → Actions:
+5. **The secrets.** `kontour-labs` → Settings → Secrets and variables → Actions:
    `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID` and `R2_SECRET_ACCESS_KEY`, available to
    `ui` and `tabler`.
-5. **Check.** After the first release, in a private window:
+6. **Check.** After the first release, in a private window:
 
    ```sh
    curl -fsS https://maven.kontour.io/io/kontour/ui/maven-metadata.xml
+   # A klib, twice: the second says `cf-cache-status: HIT`
+   curl -sSI https://maven.kontour.io/io/kontour/tabler-icons-outline-iosarm64/3.49.0.1/tabler-icons-outline-iosarm64-3.49.0.1.klib | grep -i cf-cache
    ```
 
 The upload is the AWS CLI that GitHub's Ubuntu runners have, pointed at R2's

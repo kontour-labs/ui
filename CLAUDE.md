@@ -204,6 +204,11 @@ resource), and the job is to find it.
   whose inputs already passed.
 - A failed *Test* writes *Say what failed* to the run summary, and uploads
   `screenshot-diffs` when a golden moved.
+- **`Read timed out` fetching from `maven.kontour.io`** is the bucket's
+  Cloudflare cache, not the code. A `.klib` that isn't cached at the edge comes
+  from R2 at tens of KB/s. `curl -sSI` the file and look at `cf-cache-status`:
+  it should be `HIT`. `releasing.md`'s *Its cache* step has the rule that fixes
+  it.
 - **A new file at the top of the repository counts for every gate** until it
   is placed in the `own` list in `ci.yml`'s `changes` job. A file Gradle never
   reads, like this one, also goes in the deploy step's list of paths that don't
