@@ -644,8 +644,16 @@ fun interface StringLookup {
     fun plural(key: String, quantity: Quantity): String? = null
 }
 
-/** [key]'s translation, in [quantity]'s plural form where it has one, filled with [arguments]. */
-private fun StringLookup.phrase(key: String, quantity: Quantity?, vararg arguments: String): String? =
+/**
+ * [key]'s translation, in [quantity]'s plural form where it has one, filled with
+ * [arguments] — `%1$s` and the rest, never through a platform formatter that
+ * would write the numbers in its own locale's digits.
+ *
+ * What [Strings.from] reads every phrase with, and public so that a module with
+ * words of its own — the charts' `ChartStrings` — reads its phrases the same
+ * way from the same lookup.
+ */
+fun StringLookup.phrase(key: String, quantity: Quantity?, vararg arguments: String): String? =
     (quantity?.let { plural(key, it) } ?: text(key))?.let { fillArguments(it, arguments) }
 
 /**

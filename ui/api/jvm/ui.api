@@ -36,6 +36,11 @@ public final class io/kontour/ui/a11y/ContrastThreshold {
 	public static final field NonText F
 }
 
+public final class io/kontour/ui/a11y/DifferentiationKt {
+	public static final fun differentiateWithoutColour (Landroidx/compose/runtime/Composer;I)Z
+	public static final fun getLocalDifferentiateWithoutColour ()Landroidx/compose/runtime/ProvidableCompositionLocal;
+}
+
 public final class io/kontour/ui/a11y/SchemeContrastKt {
 	public static final fun contrastFailures (Lio/kontour/ui/theme/ColourScheme;Lio/kontour/ui/theme/ContrastLevel;)Ljava/util/List;
 }
@@ -3908,6 +3913,7 @@ public final class io/kontour/ui/overlay/TooltipKt {
 }
 
 public final class io/kontour/ui/platform/Accessibility_jvmKt {
+	public static final fun platformPrefersDifferentiateWithoutColour (Landroidx/compose/runtime/Composer;I)Z
 	public static final fun platformPrefersHighContrast (Landroidx/compose/runtime/Composer;I)Z
 	public static final fun platformPrefersReducedMotion (Landroidx/compose/runtime/Composer;I)Z
 }
@@ -5100,6 +5106,10 @@ public final class io/kontour/ui/theme/Strings {
 public final class io/kontour/ui/theme/Strings$Companion {
 	public final fun from (Lio/kontour/ui/theme/StringLookup;Lio/kontour/ui/theme/Strings;)Lio/kontour/ui/theme/Strings;
 	public static synthetic fun from$default (Lio/kontour/ui/theme/Strings$Companion;Lio/kontour/ui/theme/StringLookup;Lio/kontour/ui/theme/Strings;ILjava/lang/Object;)Lio/kontour/ui/theme/Strings;
+}
+
+public final class io/kontour/ui/theme/StringsKt {
+	public static final fun phrase (Lio/kontour/ui/theme/StringLookup;Ljava/lang/String;Lio/kontour/ui/locale/Quantity;[Ljava/lang/String;)Ljava/lang/String;
 }
 
 public final class io/kontour/ui/theme/Theme {

@@ -31,6 +31,7 @@ internal expect val platformMinTouchTarget: Dp
  * | dark mode | yes | yes | yes | yes |
  * | reduced motion | yes | yes | **no** | yes |
  * | high contrast | yes, API 34+ | yes | **no** | yes |
+ * | differentiate without colour | colour correction | yes | **no** | **no** |
  * | type size | yes | yes | yes | yes |
  *
  * Dark mode goes through [io.kontour.ui.theme.deviceInDarkTheme] rather than
@@ -60,3 +61,18 @@ expect fun platformPrefersReducedMotion(): Boolean
  */
 @Composable
 expect fun platformPrefersHighContrast(): Boolean
+
+/**
+ * Whether the user has asked the operating system not to rely on colour alone.
+ *
+ * iOS's *Differentiate Without Colour*, and on Android, colour correction:
+ * there is no setting by this name there, and the reader who turns on a
+ * correction for how they see colour is the reader this is for. Nothing on the
+ * web or the desktop says it, and both answer `false`.
+ *
+ * Read through [io.kontour.ui.a11y.differentiateWithoutColour], which an app's
+ * own setting can override. **Public** for the reason [platformPrefersHighContrast]
+ * is: an app that keeps its own setting needs the platform's to start from.
+ */
+@Composable
+expect fun platformPrefersDifferentiateWithoutColour(): Boolean

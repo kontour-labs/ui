@@ -27,6 +27,13 @@ actual fun platformPrefersHighContrast(): Boolean =
     observeMediaQuery("(prefers-contrast: more)")
 
 /**
+ * No media query says it. `prefers-contrast` is about contrast, and a reader
+ * who sees two colours as one can see each of them perfectly well.
+ */
+@Composable
+actual fun platformPrefersDifferentiateWithoutColour(): Boolean = false
+
+/**
  * Tracks a CSS media query, recomposing when it flips.
  *
  * Uses `addEventListener("change", …)` rather than the older `addListener`,

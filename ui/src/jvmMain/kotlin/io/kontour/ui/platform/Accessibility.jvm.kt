@@ -25,3 +25,7 @@ actual fun platformPrefersReducedMotion(): Boolean = false
 /** Not readable from the JVM either — see [platformPrefersReducedMotion]. */
 @Composable
 actual fun platformPrefersHighContrast(): Boolean = false
+
+/** No desktop has this setting — see [platformPrefersReducedMotion]. */
+@Composable
+actual fun platformPrefersDifferentiateWithoutColour(): Boolean = false

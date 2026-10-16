@@ -14,6 +14,8 @@ import platform.UIKit.UIAccessibilityDarkerSystemColorsEnabled
 import platform.UIKit.UIAccessibilityDarkerSystemColorsStatusDidChangeNotification
 import platform.UIKit.UIAccessibilityIsReduceMotionEnabled
 import platform.UIKit.UIAccessibilityReduceMotionStatusDidChangeNotification
+import platform.UIKit.UIAccessibilityShouldDifferentiateWithoutColor
+import platform.UIKit.UIAccessibilityShouldDifferentiateWithoutColorDidChangeNotification
 
 /** Apple's Human Interface Guidelines minimum. */
 internal actual val platformMinTouchTarget: Dp = 44.dp
@@ -34,6 +36,14 @@ actual fun platformPrefersHighContrast(): Boolean =
     observeAccessibilityFlag(
         notificationName = UIAccessibilityDarkerSystemColorsStatusDidChangeNotification,
         read = { UIAccessibilityDarkerSystemColorsEnabled() },
+    )
+
+/** *Differentiate Without Colour*, in Settings › Accessibility › Display & Text Size. */
+@Composable
+actual fun platformPrefersDifferentiateWithoutColour(): Boolean =
+    observeAccessibilityFlag(
+        notificationName = UIAccessibilityShouldDifferentiateWithoutColorDidChangeNotification,
+        read = { UIAccessibilityShouldDifferentiateWithoutColor() },
     )
 
 /**
