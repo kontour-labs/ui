@@ -81,8 +81,10 @@ whose release workflow uses the same bucket and secrets. Organisation secrets on
 3. **Its cache.** `kontour.io` → Caching → Cache Rules → Create rule. Name it
    `maven.kontour.io`. Under *If incoming requests match*, choose *Custom filter
    expression* and set *Hostname* *equals* `maven.kontour.io`. Under *Then*,
-   set *Cache eligibility* to *Eligible for cache*, and *Edge TTL* to *Use
-   cache-control header if present*. Without it Cloudflare caches only the file
+   set *Cache eligibility* to *Eligible for cache*, *Edge TTL* to *Use
+   cache-control header if present*, and *Browser TTL* to *Respect origin TTL*:
+   otherwise the zone's default of four hours replaces the version lists' five
+   minutes on the way out. Without it Cloudflare caches only the file
    types on its own list, which has `.jar` and not `.klib` or `.module`. Every
    iOS and web build would then fetch its klibs from R2 itself, at tens of KB/s,
    which is slow enough for Gradle to time out: a 5.7 MB icon klib did in CI.
