@@ -197,22 +197,30 @@ private fun <T> HeaderCell(env: TableEnv<T>, index: Int) {
             .semantics(mergeDescendants = true) {
                 heading()
                 collectionItemInfo = CollectionItemInfo(0, 1, index, 1)
-                if (sorted != null) {
-                    stateDescription = if (sorted.direction == SortDirection.Ascending) {
-                        strings.sortedAscending
-                    } else {
-                        strings.sortedDescending
-                    }
+                when {
+                    sorted?.direction == SortDirection.Ascending -> stateDescription = strings.sortedAscending
+                    sorted != null -> stateDescription = strings.sortedDescending
+                    // A sortable header that is not the sort said nothing, and
+                    // a reader could not tell it from one that sorts nothing.
+                    sortable -> stateDescription = strings.notSorted
                 }
             }
             .then(
                 if (onSortChange != null && sortable) {
+                    // Said as what the tap will do, which is not what the
+                    // header is: a column sorted ascending sorts descending.
+                    val next = env.sort?.toggled(column.key) ?: TableSort(column.key)
                     Modifier.pointerCursor(enabled = env.enabled).clickable(
                         interactionSource = interactions,
                         indication = kontourIndication(RectangleShape, pressScale = 1f),
                         enabled = env.enabled,
+                        onClickLabel = if (next.direction == SortDirection.Ascending) {
+                            strings.sortAscending
+                        } else {
+                            strings.sortDescending
+                        },
                         role = Role.Button,
-                    ) { onSortChange(env.sort?.toggled(column.key) ?: TableSort(column.key)) }
+                    ) { onSortChange(next) }
                 } else {
                     Modifier
                 },

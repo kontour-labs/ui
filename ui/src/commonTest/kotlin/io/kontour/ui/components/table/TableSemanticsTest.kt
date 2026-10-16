@@ -3,9 +3,11 @@ package io.kontour.ui.components.table
 import androidx.compose.foundation.layout.height
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasText
@@ -45,7 +47,12 @@ class TableSemanticsTest {
         }
         onNode(hasText("Route") and isHeading())
             .assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Sorted ascending"))
-        onNode(hasText("Fare") and isHeading()).assertExists()
+        // A header that can be sorted says so before it is, and each says what
+        // a tap on it will do.
+        onNode(hasText("Fare") and isHeading())
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Not sorted"))
+        assertEquals("Sort descending", clickLabel(onNode(hasText("Route") and isHeading())))
+        assertEquals("Sort ascending", clickLabel(onNode(hasText("Fare") and isHeading())))
         onNodeWithText("Route").performClick()
         onNodeWithText("Fare").performClick()
         assertEquals(listOf(TableSort("Route", SortDirection.Descending), TableSort("Fare")), asked)
@@ -110,4 +117,7 @@ class TableSemanticsTest {
         }
         onNodeWithText("950").assertIsNotEnabled()
     }
+
+    private fun clickLabel(node: SemanticsNodeInteraction): String? =
+        node.fetchSemanticsNode().config[SemanticsActions.OnClick].label
 }

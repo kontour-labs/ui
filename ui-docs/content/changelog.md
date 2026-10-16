@@ -68,7 +68,8 @@ On `main`, and in the next release.
   `Accordion`'s and `ExpandingListItem`'s chevron default to `Theme.icons`
   rather than to `null`, so each has its control without being given a glyph.
   A side sheet's back is the chevron a top bar's is.
-- **`Strings` has new fields**, `labelledValue` and `selectAllRows`, at the end,
+- **`Strings` has new fields**, `labelledValue`, `selectAllRows`,
+  `sortAscending`, `sortDescending` and `notSorted`, at the end,
   so an app that builds its own with named arguments needs nothing; one that
   passes them by position, or overrides `Strings.from`'s keys, recompiles. See
   [Migrating](migrating.md#045-to-050).
@@ -87,6 +88,13 @@ On `main`, and in the next release.
   written in Arabic-Indic digits or with a thousands separator, so it fell back
   to fading the whole sentence. `AnimatedCounter`'s cells were measured from
   Western digits and clipped wider ones.
+- **A sortable column says so.** Its header said nothing until it was the sort,
+  so a reader could not tell it from one that sorts nothing, and its tap had no
+  label. It is "Not sorted" until it is, and the tap is said as what it will do:
+  "sort ascending", or "sort descending" on a column already sorted the other way.
+- **A drop zone turning a drag away says so with more than colour.** Taking it
+  and refusing it were the same solid edge on a tinted ground, accent or
+  danger; refusing now shows `Theme.icons.danger` in place of the zone's icon.
 - **A command palette says where its arrows are.** The highlighted command was
   published as selected, so every arrow told a screen reader a choice had been
   made, and nothing said which command the arrows had reached. It is drawn as

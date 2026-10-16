@@ -446,6 +446,18 @@ data class Strings(
      * text editor's: some languages word the two differently.
      */
     val selectAllRows: String = "Select all rows",
+    /**
+     * What a tap on a sortable column's header does, as a screen reader says
+     * it: "Double-tap to sort ascending". [sortedAscending] is what it is.
+     */
+    val sortAscending: String = "Sort ascending",
+    /** The same, for a column a tap sorts largest first. */
+    val sortDescending: String = "Sort descending",
+    /**
+     * A sortable column's header while the table is sorted by another, so that
+     * a header that can be sorted says so before it is tapped.
+     */
+    val notSorted: String = "Not sorted",
 ) {
     companion object {
         /**
@@ -638,6 +650,9 @@ data class Strings(
         eventDeleted = { event -> lookup.phrase("eventDeleted", null, event) ?: fallback.eventDeleted(event) },
         labelledValue = { label, value -> lookup.phrase("labelledValue", null, label, value) ?: fallback.labelledValue(label, value) },
         selectAllRows = lookup.text("selectAllRows") ?: fallback.selectAllRows,
+        sortAscending = lookup.text("sortAscending") ?: fallback.sortAscending,
+        sortDescending = lookup.text("sortDescending") ?: fallback.sortDescending,
+        notSorted = lookup.text("notSorted") ?: fallback.notSorted,
         )
     }
 }
@@ -881,4 +896,7 @@ internal fun Strings.mapped(transform: (String) -> String): Strings = Strings(
     eventDeleted = { a0 -> transform(eventDeleted(a0)) },
     labelledValue = { a0, a1 -> transform(labelledValue(a0, a1)) },
     selectAllRows = transform(selectAllRows),
+    sortAscending = transform(sortAscending),
+    sortDescending = transform(sortDescending),
+    notSorted = transform(notSorted),
 )

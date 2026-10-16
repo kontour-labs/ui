@@ -18,7 +18,7 @@ from the version the app is on.
 ## 0.4.5 to 0.5.0
 
 Unreleased, and growing. `SystemIcons` is the theme's now, so code that named
-one of its glyphs changes; `Strings` has two new fields, defaulted and last.
+one of its glyphs changes; `Strings` has new fields, defaulted and last.
 Charts are a new module, which an app takes only if it wants them.
 
 ### `SystemIcons.Close` is `Theme.icons.close`
@@ -46,11 +46,12 @@ To use another icon set's glyphs throughout, give the theme a set:
 
 ### Check
 
-- **`Strings` built by position.** `labelledValue` and `selectAllRows` are new
-  and come last, so a `Strings(...)` with named arguments, or `copy(...)`, is
-  untouched. An app that bridges its own resources with `Strings.from` gets
-  their English until it adds `kontour_labelledValue` (`%1$s, %2$s`) and
-  `kontour_selectAllRows`.
+- **`Strings` built by position.** `labelledValue`, `selectAllRows`,
+  `sortAscending`, `sortDescending` and `notSorted` are new and come last, so a
+  `Strings(...)` with named arguments, or `copy(...)`, is untouched. An app that
+  bridges its own resources with `Strings.from` gets their English until it adds
+  `kontour_labelledValue` (`%1$s, %2$s`), `kontour_selectAllRows`,
+  `kontour_sortAscending`, `kontour_sortDescending` and `kontour_notSorted`.
 - **What a stat says.** Its supporting line and trend are joined with
   `Strings.sentences` rather than an English full stop. In English that is the
   same sentence; an app with its own `sentences` hears its own separator.
