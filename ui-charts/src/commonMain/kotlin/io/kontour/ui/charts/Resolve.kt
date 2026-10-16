@@ -184,19 +184,29 @@ private fun layersOf(markIndex: Int, mark: Mark, model: ChartModel, horizontal: 
 
     return runs.mapIndexed { runIndex, run ->
         val n = run.size
-        val values = DoubleArray(n) { if (lying) run.xs[it] else run.ys[it] }
+        val raw = DoubleArray(n) { if (lying) run.xs[it] else run.ys[it] }
+        // What is written and said: a normalised stack's axis reads in shares
+        // of each place's whole, so its values are those shares too. They were
+        // the raw values, written by the percent writer the axis uses, and a
+        // value of 42 was said as "4,200%".
+        val values = if (mark.stacking == ChartStacking.Normalised && stacks) {
+            DoubleArray(n) { i ->
+                val place = if (lying) run.ys[i] else run.xs[i]
+                val total = whole[place] ?: 0.0
+                if (raw[i].isNaN()) Double.NaN else if (total > 0) raw[i] / total else 0.0
+            }
+        } else {
+            raw
+        }
         val measuredFrom = mark.kind == MarkKind.Bar || mark.kind == MarkKind.Area
         val base = if (measuredFrom) DoubleArray(n) else null
         val tops = values.copyOf()
         if (stacks) {
             for (i in 0 until n) {
                 val place = if (lying) run.ys[i] else run.xs[i]
-                var value = values[i]
+                // Already a share, for a normalised stack: see `values`.
+                val value = values[i]
                 if (value.isNaN()) continue
-                if (mark.stacking == ChartStacking.Normalised) {
-                    val total = whole[place] ?: 0.0
-                    value = if (total > 0) value / total else 0.0
-                }
                 val totals = if (value >= 0) above else below
                 val start = totals[place] ?: 0.0
                 base!![i] = start

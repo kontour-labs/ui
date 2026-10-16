@@ -57,6 +57,22 @@ class ResolveTest {
         assertTrue(resolved.y.tickLabels.any { it.endsWith("%") }, "a share axis is in percent: ${resolved.y.tickLabels}")
     }
 
+    /**
+     * A normalised stack's values are shares, as its axis is. They were the
+     * raw values, written by the axis's percent writer: Monday's 40 riders of
+     * 50 was said as "4,000%".
+     */
+    @Test
+    fun aNormalisedStackIsWrittenAsTheShareOfEachPlace() {
+        val positive = trips.map { Trip(it.day, it.route, abs(it.riders)) }
+        val resolved = chart(ChartAxis.category<String>(), ChartAxis.number()) {
+            bar(positive, x = { it.day }, y = { it.riders }, series = { ChartSeries(it.route) }, stacking = ChartStacking.Normalised)
+        }
+        val first = resolved.layers.first { it.series.name == "950" }
+        assertEquals(0.8, first.values[0], 1e-9)
+        assertEquals("80%", resolved.valueAxis.write(first.values[0]))
+    }
+
     @Test
     fun aCategoryAxisUpLaysTheBarsDown() {
         val resolved = chart(ChartAxis.number(), ChartAxis.category<String>()) {

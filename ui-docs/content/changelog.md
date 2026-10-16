@@ -88,6 +88,9 @@ On `main`, and in the next release.
   written in Arabic-Indic digits or with a thousands separator, so it fell back
   to fading the whole sentence. `AnimatedCounter`'s cells were measured from
   Western digits and clipped wider ones.
+- **A normalised chart says shares, not raw values as percents.** A bar of 40
+  in a place whose whole was 50 was said and shown in its tooltip as "4,000%";
+  it is "80%", as the axis it is read against is.
 - **A sortable column says so.** Its header said nothing until it was the sort,
   so a reader could not tell it from one that sorts nothing, and its tap had no
   label. It is "Not sorted" until it is, and the tap is said as what it will do:
