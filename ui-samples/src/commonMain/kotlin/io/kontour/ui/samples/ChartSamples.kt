@@ -10,6 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.charts.Chart
 import io.kontour.ui.charts.ChartAxis
+import io.kontour.ui.charts.ChartDataTable
 import io.kontour.ui.charts.ChartInterpolation
 import io.kontour.ui.charts.ChartSeries
 import io.kontour.ui.charts.ChartStacking
@@ -50,6 +51,18 @@ fun ChartBasics() {
             showPoints = true,
         )
         rule(y = 800, label = "Capacity")
+    }
+}
+
+@Composable
+fun ChartDataTableBasics() {
+    // The same week as a table: a row a day, a column a route.
+    ChartDataTable(
+        xAxis = ChartAxis.date(),
+        yAxis = ChartAxis.number(title = "Riders"),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        line(week, x = { it.day }, y = { it.riders }, series = { ChartSeries("Route ${it.route}") })
     }
 }
 

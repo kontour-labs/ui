@@ -1,6 +1,6 @@
 # `Chart`
 
-*Also on this page: `SectorChart`, `Sparkline`, `ChartAxis`, `ChartSeries`, `SeriesStyle`, `ChartColours`, `ChartStrings`, `rememberChartSelectionState`.*
+*Also on this page: `SectorChart`, `Sparkline`, `ChartDataTable`, `ChartAxis`, `ChartSeries`, `SeriesStyle`, `ChartColours`, `ChartStrings`, `rememberChartSelectionState`.*
 
 <!--sample:ChartBasics-->
 ```kotlin
@@ -152,6 +152,28 @@ Row(verticalAlignment = Alignment.CenterVertically) {
 A trend at the size of a word, with no axes: for a table cell, a `Stat`, the
 end of a sentence. It shows the shape and nothing else. To read values off it,
 use a `Chart`.
+
+## `ChartDataTable`
+
+<!--sample:ChartDataTableBasics-->
+```kotlin
+// The same week as a table: a row a day, a column a route.
+ChartDataTable(
+    xAxis = ChartAxis.date(),
+    yAxis = ChartAxis.number(title = "Riders"),
+    modifier = Modifier.fillMaxWidth(),
+) {
+    line(week, x = { it.day }, y = { it.riders }, series = { ChartSeries("Route ${it.route}") })
+}
+```
+
+The same axes and the same content as a chart, as a table: a row for each
+place along it and a column for each series, every value written as the chart
+writes it. A chart shows the shape and a table shows the numbers, and some
+readers need the second: someone comparing two values exactly, a screen reader
+that is better at tables than at pictures, a page being printed. Offer one
+beside the chart, behind a "Show as table", from the same content, so the two
+cannot drift apart.
 
 ## Accessibility
 

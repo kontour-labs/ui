@@ -39,6 +39,10 @@ On `main`, and in the next release.
   summary and then each place along the chart, and a selection moves by touch,
   pointer, keys or screen reader. `SectorChart` draws a pie or a donut, and
   `Sparkline` a trend the size of a word.
+- **`ChartDataTable`**: a chart's numbers as a table, from the same axes and
+  content, a row for each place and a column for each series, for the readers
+  a picture does not serve. **`SectorChart` takes a selection**, chosen by tap,
+  pointer, arrow keys or a screen reader on each sector's own node.
 - **`Theme.icons`**: every glyph the library draws on its own behalf, Tabler's
   unless `KontourTheme(icons = SystemIcons(…))` replaces some. A select's
   chevron, a toast's close, a stepper's minus and plus, a sorted column's arrow

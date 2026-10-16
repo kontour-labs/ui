@@ -57,6 +57,11 @@ import io.kontour.ui.theme.phrase
  * @property sectorShare One sector's part of the whole: "Rent, 45%".
  * @property noData What a chart with nothing to show says it shows.
  * @property otherSectors The sector that gathers what is too small to draw.
+ * @property dateColumn The heading of a [ChartDataTable]'s first column, over
+ *   dates, where the axis has no title.
+ * @property categoryColumn The same, over categories.
+ * @property valueColumn The heading of a column of values that has no name of
+ *   its own: a chart of one unnamed series, or numbers along the place axis.
  */
 @Immutable
 data class ChartStrings(
@@ -87,6 +92,9 @@ data class ChartStrings(
     val sectorShare: (name: String, percent: String) -> String = { name, percent -> "$name, $percent" },
     val noData: String = "No data",
     val otherSectors: String = "Other",
+    val dateColumn: String = "Date",
+    val categoryColumn: String = "Category",
+    val valueColumn: String = "Value",
 ) {
     companion object {
         /**
@@ -136,6 +144,9 @@ data class ChartStrings(
             },
             noData = lookup.text("noData") ?: fallback.noData,
             otherSectors = lookup.text("otherSectors") ?: fallback.otherSectors,
+            dateColumn = lookup.text("dateColumn") ?: fallback.dateColumn,
+            categoryColumn = lookup.text("categoryColumn") ?: fallback.categoryColumn,
+            valueColumn = lookup.text("valueColumn") ?: fallback.valueColumn,
         )
     }
 }
@@ -174,4 +185,7 @@ internal fun ChartStrings.mapped(transform: (String) -> String): ChartStrings = 
     sectorShare = { a0, a1 -> transform(sectorShare(a0, a1)) },
     noData = transform(noData),
     otherSectors = transform(otherSectors),
+    dateColumn = transform(dateColumn),
+    categoryColumn = transform(categoryColumn),
+    valueColumn = transform(valueColumn),
 )
