@@ -74,7 +74,7 @@ On `main`, and in the next release.
   rather than to `null`, so each has its control without being given a glyph.
   A side sheet's back is the chevron a top bar's is.
 - **`Strings` has new fields**, `labelledValue`, `selectAllRows`,
-  `sortAscending`, `sortDescending` and `notSorted`, at the end,
+  `sortAscending`, `sortDescending`, `notSorted` and `showDay`, at the end,
   so an app that builds its own with named arguments needs nothing; one that
   passes them by position, or overrides `Strings.from`'s keys, recompiles. See
   [Migrating](migrating.md#045-to-050).
@@ -96,6 +96,10 @@ On `main`, and in the next release.
 - **A normalised chart says shares, not raw values as percents.** A bar of 40
   in a place whose whole was 50 was said and shown in its tooltip as "4,000%";
   it is "80%", as the axis it is read against is.
+- **A schedule's day is named by its date.** Its button had no name, and said
+  the date as what pressing it does; it is the date now, and pressing it is
+  `Strings.showDay`. Its column and today's ring grow with the type, where at
+  200% the number was cut.
 - **A sortable column says so.** Its header said nothing until it was the sort,
   so a reader could not tell it from one that sorts nothing, and its tap had no
   label. It is "Not sorted" until it is, and the tap is said as what it will do:

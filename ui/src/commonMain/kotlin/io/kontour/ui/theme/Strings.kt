@@ -458,6 +458,11 @@ data class Strings(
      * a header that can be sorted says so before it is tapped.
      */
     val notSorted: String = "Not sorted",
+    /**
+     * What pressing a day in a calendar's schedule does, as a screen reader
+     * says it: "Double-tap to show day". The day is the button's name.
+     */
+    val showDay: String = "Show day",
 ) {
     companion object {
         /**
@@ -653,6 +658,7 @@ data class Strings(
         sortAscending = lookup.text("sortAscending") ?: fallback.sortAscending,
         sortDescending = lookup.text("sortDescending") ?: fallback.sortDescending,
         notSorted = lookup.text("notSorted") ?: fallback.notSorted,
+        showDay = lookup.text("showDay") ?: fallback.showDay,
         )
     }
 }
@@ -899,4 +905,5 @@ internal fun Strings.mapped(transform: (String) -> String): Strings = Strings(
     sortAscending = transform(sortAscending),
     sortDescending = transform(sortDescending),
     notSorted = transform(notSorted),
+    showDay = transform(showDay),
 )

@@ -2,6 +2,12 @@ package io.kontour.ui.components.calendar
 
 import androidx.compose.foundation.layout.size
 import androidx.compose.ui.Modifier
+import io.kontour.ui.locale.DateStyle
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.hasContentDescription
@@ -187,10 +193,12 @@ class ScheduleViewTest {
         val clicked = mutableListOf<CalendarEvent>()
     }
 
-    private fun ComposeUiTest.schedule(list: List<CalendarEvent> = events): Probe {
+    private fun ComposeUiTest.schedule(list: List<CalendarEvent> = events, fontScale: Float = 1f): Probe {
         val probe = Probe()
         setContent {
+            val density = LocalDensity.current
             KontourTheme(reduceMotion = true) {
+                CompositionLocalProvider(LocalDensity provides Density(density.density, fontScale)) {
                 OverlayHost(Modifier.size(400.dp, 700.dp)) {
                     probe.formats = Theme.formats
                     probe.strings = Theme.strings
@@ -203,10 +211,34 @@ class ScheduleViewTest {
                         modifier = Modifier.size(400.dp, 700.dp),
                     )
                 }
+                }
             }
         }
         waitForIdle()
         return probe
+    }
+
+    /**
+     * A day is a button named by its date, whose action is showing it. The date
+     * was the action's label, so the button had no name and said a date as
+     * what pressing it does.
+     */
+    @Test
+    fun aDayIsNamedByItsDateAndShowsTheDay() = runComposeUiTest {
+        val probe = schedule()
+        val day = onNode(hasContentDescription(probe.formats.date(today, DateStyle.Full)))
+        day.assertExists()
+        assertEquals(probe.strings.showDay, day.fetchSemanticsNode().config[SemanticsActions.OnClick].label)
+    }
+
+    /** At 200% type a day's number has the room its line needs, where its 32dp ring cut it. */
+    @Test
+    fun aDaysNumberFitsAtLargeType() = runComposeUiTest {
+        schedule(fontScale = 2f)
+        val number = onNode(hasText("14"), useUnmergedTree = true)
+        val layouts = mutableListOf<TextLayoutResult>()
+        number.fetchSemanticsNode().config[SemanticsActions.GetTextLayoutResult].action?.invoke(layouts)
+        assertTrue(layouts.isNotEmpty() && !layouts[0].didOverflowHeight, "today's number is cut at 200% type")
     }
 
     @Test

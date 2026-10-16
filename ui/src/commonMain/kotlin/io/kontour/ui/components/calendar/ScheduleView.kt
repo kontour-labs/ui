@@ -12,7 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
@@ -24,6 +24,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -204,16 +205,28 @@ private fun ScheduleDayRow(scope: CalendarScope, day: ScheduleDay) {
     ) {
         // The day: its weekday over its number, ringed for today. Pressed, it
         // opens the day, as a month's number does.
+        //
+        // Named by its date and labelled by what pressing it does. The date
+        // was the click label, so the button had no name and said a date as
+        // its action. And no narrower than it was, rather than exactly that
+        // wide: at 200% type a weekday and its number outgrew 48dp and 32dp,
+        // and were cut.
+        val circle = maxOf(
+            ScheduleDayCircle,
+            with(LocalDensity.current) { Theme.typography.titleMedium.lineHeight.toDp() } + Theme.spacing.xs,
+        )
+        val said = formats.date(day.date, io.kontour.ui.locale.DateStyle.Full)
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier
-                .width(ScheduleGutter)
+                .widthIn(min = ScheduleGutter)
                 .pressable(
                     onClick = { scope.openDay(day.date) },
                     enabled = scope.enabled,
                     shape = Theme.shapes.control,
-                    onClickLabel = formats.date(day.date, io.kontour.ui.locale.DateStyle.Full),
+                    onClickLabel = scope.strings.showDay,
                 )
+                .semantics { contentDescription = said }
                 .padding(vertical = Theme.spacing.xxs),
         ) {
             Text(
@@ -222,7 +235,7 @@ private fun ScheduleDayRow(scope: CalendarScope, day: ScheduleDay) {
                 colour = quietInk(),
                 modifier = Modifier.clearAndSetSemantics { },
             )
-            Box(Modifier.size(ScheduleDayCircle).todayRing(isToday), contentAlignment = Alignment.Center) {
+            Box(Modifier.size(circle).todayRing(isToday), contentAlignment = Alignment.Center) {
                 Text(
                     formats.digits(day.date.day.toLong()),
                     style = Theme.typography.titleMedium,
@@ -343,8 +356,8 @@ private const val ScheduleMonthsOn = 12
 /** Further than this many rows, a scroll to a day is a cut rather than a slide. */
 private const val FarScheduleRows = 30
 
-/** The day's column at the start of each row. */
+/** The least the day's column at the start of each row is wide. */
 private val ScheduleGutter = 48.dp
 
-/** Today's ring round a day's number. */
+/** The least today's ring round a day's number is across: more, as the number grows with the type. */
 private val ScheduleDayCircle = 32.dp
