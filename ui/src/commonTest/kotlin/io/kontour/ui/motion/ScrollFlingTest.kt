@@ -94,6 +94,48 @@ class ScrollFlingTest {
         assertEquals(alone, flung(fling, 3000f), 1f)
     }
 
+    /**
+     * A release slower than a flick is handed straight back, as Compose's own iOS
+     * fling hands back one under the same 500px/s: the overscroll the list is
+     * stretched by waits for the fling to return, and a crawl of a fling, driving
+     * the page round an inner list, held its stretch for seconds.
+     */
+    @Test
+    fun aReleaseTooSlowToBeAFlingIsHandedBack() = runTest {
+        val fling = AccumulatingFling(ScrollFeel(), 1f, TestTimeSource())
+        var moved = 0
+        val scope = object : ScrollScope {
+            override fun scrollBy(pixels: Float): Float {
+                moved++
+                return pixels
+            }
+        }
+        val left = withContext(Frames()) { with(fling) { scope.performFling(300f) } }
+        assertEquals(0, moved, "a 300px/s release moved the list on $moved frames")
+        assertEquals(300f, left, 0.01f, "the release's speed should be handed back whole")
+    }
+
+    /**
+     * And a fling stops where it stops being seen, not two seconds of creep later:
+     * the last frame of one still moves the list a visible fraction of a pixel.
+     */
+    @Test
+    fun aFlingEndsWhereItStopsBeingSeen() = runTest {
+        val fling = AccumulatingFling(ScrollFeel(), 1f, TestTimeSource())
+        val steps = mutableListOf<Float>()
+        val scope = object : ScrollScope {
+            override fun scrollBy(pixels: Float): Float {
+                steps += pixels
+                return pixels
+            }
+        }
+        withContext(Frames()) { with(fling) { scope.performFling(3000f) } }
+        val last = abs(steps.last())
+        // 16ms frames here: 30px/s is half a pixel a frame.
+        assertTrue(last > 0.3f, "the fling's last frame moved ${last}px: it was still going long after it looked still")
+        assertTrue(steps.size < 200, "a 3000px/s fling ran ${steps.size} frames")
+    }
+
     /** At the end of the list what is left over is handed on, as the platform's fling does. */
     @Test
     fun atAnEndTheRestIsHandedOn() = runTest {

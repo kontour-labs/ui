@@ -114,6 +114,15 @@ The repository moves, `PullToRefresh` takes its list's scroll state,
   has been still for 300ms, stops while it scrolls, and takes a row a frame.
   The thumb is exact a moment after the list comes to rest rather than within
   its first frames; until then it is estimated, as on a plain list.
+- **On iOS, a slow release is not a fling, and a fling ends where it stops
+  being seen.** The library's iOS fling flung every release however slow, and
+  ran until 1px/s, two seconds of sub-pixel creep after a list looked still. A
+  list's overscroll relaxes only when its fling returns, and a fling on an
+  inner list at its top goes on moving the page round it, so a list pulled at
+  its top and let go stayed stretched — for 4.2s on the gallery's Frames page,
+  and for good if a touch cancelled the fling first. A release under 500px/s
+  is handed back at once, as Compose's own iOS fling does, and a fling ends at
+  30px/s, which gives up 15px of a throw.
 - **The icons are Tabler 3.49.0.1**, from 3.49.0: the same icons,
   `io.kontour:tabler-icons-outline` and `-filled`, re-released by
   `kontour-labs/tabler` to `maven.kontour.io`.

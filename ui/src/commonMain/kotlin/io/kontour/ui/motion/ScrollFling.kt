@@ -116,7 +116,9 @@ internal class AccumulatingFling(
         ) {
             velocity += left
         }
-        if (abs(velocity) < StopBelow) return velocity
+        // Too slow to be a throw: handed straight back, as Compose's own iOS
+        // fling does below the same speed. See [FlingFloor].
+        if (abs(velocity) < FlingFloor) return velocity
 
         var last = 0f
         var remaining = velocity
@@ -143,8 +145,36 @@ internal class AccumulatingFling(
         /** Compose's exponential decay, `exp(-4.2 × multiplier × t)`. */
         const val ExponentialDecayFriction = 4.2f
 
-        /** Pixels a second under which a fling has stopped. */
-        const val StopBelow = 1f
+        /**
+         * Pixels a second under which a fling has stopped: a quarter of a pixel
+         * a frame at 120Hz, where nothing is seen to move.
+         *
+         * It was 1, which is where UIKit's own deceleration is reckoned to end —
+         * half a pixel short of where it would rest — and which at this rate is
+         * two seconds of sub-pixel creep after a list looks still. That cost
+         * more here than in UIKit, because a fling holds more here. The list's
+         * overscroll can relax only once its fling returns, and a fling on a
+         * list at its end goes on moving the page round it through nested
+         * scrolling: an inner list pulled at its top, on the gallery's Frames
+         * page, stayed stretched for 4.2s while the page coasted to a stop,
+         * against 1.3s on Compose's fling, and a touch in that time cancelled
+         * the fling before the stretch could go back at all. What stopping here
+         * gives up is 15px of a throw's travel.
+         */
+        const val StopBelow = 30f
+
+        /**
+         * Pixels a second under which a release is not a fling at all: Compose's
+         * `CupertinoFlingBehavior`'s own threshold, which this replaces on iOS.
+         *
+         * Without it every release flung, however slow. A finger that pulled an
+         * inner list at its top and drifted off it before letting go flung it at
+         * a crawl, and the fling, driving the page round it by nested scrolling,
+         * held the list's stretch for as long as it ran — reported as the
+         * stretch left pulled. Compose's fling returned at once and the stretch
+         * went back.
+         */
+        const val FlingFloor = 500f
 
         /** How long after a finger stops a fling a flick may still add to it. */
         const val AccumulateWithinMillis = 600L
