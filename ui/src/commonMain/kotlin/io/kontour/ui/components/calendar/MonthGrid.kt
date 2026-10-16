@@ -302,8 +302,9 @@ private fun Modifier.eventRow(top: Dp, row: Int, gap: Dp, itemPx: () -> Float): 
 private fun WeekdayRow(scope: CalendarScope) {
     val periods = scope.state.periods
     val weekStart = periods.weekStart(scope.state.date)
+    val widest = widestWeekdayName(scope.formats, Theme.typography.labelSmall) + Theme.spacing.xxs
     BoxWithConstraints(Modifier.fillMaxWidth()) {
-        val narrow = maxWidth / DaysPerWeek < WeekdayAbbreviatedWidth
+        val narrow = !abbreviatesWeekdays(maxWidth / DaysPerWeek, widest, WeekdayAbbreviatedWidth)
         Row(Modifier.fillMaxWidth().padding(vertical = Theme.spacing.xxs).clearAndSetSemantics { }) {
             for (column in 0 until DaysPerWeek) {
                 val day = dayInWeek(weekStart, column).dayOfWeek
@@ -320,7 +321,10 @@ private fun WeekdayRow(scope: CalendarScope) {
     }
 }
 
-/** Below this a column has room for a weekday's letter, not its abbreviation. */
+/**
+ * Below this a column has room for a weekday's letter, not its abbreviation —
+ * or below the widest abbreviation, where that is wider: see `widestWeekdayName`.
+ */
 private val WeekdayAbbreviatedWidth = 40.dp
 
 /** A week row's height in a calendar given no height of its own: its date and three events. */

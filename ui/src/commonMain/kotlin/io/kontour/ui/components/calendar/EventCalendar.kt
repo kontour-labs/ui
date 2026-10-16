@@ -550,9 +550,14 @@ object EventCalendarDefaults {
     /** Where the day and week views' hours open: the start of a working day. */
     val ScrollTime: LocalTime get() = DefaultScrollTime
 
-    /** How tall an hour is in the day and week views. */
+    /**
+     * How tall an hour is in the day and week views: the theme's, and taller
+     * in proportion as the type is larger than 100%, so that a quarter-hour
+     * still has the room for a line of an event's title.
+     */
     val HourHeight: Dp
-        @Composable @ReadOnlyComposable get() = Theme.componentDefaults.eventCalendarHourHeight
+        @Composable @ReadOnlyComposable get() =
+            Theme.componentDefaults.eventCalendarHourHeight * LocalDensity.current.fontScale.coerceAtLeast(1f)
 
     /** The step every edit moves in: a quarter-hour. */
     val Snap: Duration get() = DefaultSnap

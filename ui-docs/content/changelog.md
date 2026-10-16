@@ -96,6 +96,11 @@ On `main`, and in the next release.
 - **A normalised chart says shares, not raw values as percents.** A bar of 40
   in a place whose whole was 50 was said and shown in its tooltip as "4,000%";
   it is "80%", as the axis it is read against is.
+- **A calendar's weekdays are whole at large type and in long-name languages.**
+  A month and a week went to a weekday's letter only below a fixed column
+  width, which held English at 100% and nothing else, so a longer name was cut
+  at its column's edge; they measure the widest name now. A year's rows and the
+  hours of a day grow with the type too. At 100% in English nothing moves.
 - **A schedule's day is named by its date.** Its button had no name, and said
   the date as what pressing it does; it is the date now, and pressing it is
   `Strings.showDay`. Its column and today's ring grow with the type, where at

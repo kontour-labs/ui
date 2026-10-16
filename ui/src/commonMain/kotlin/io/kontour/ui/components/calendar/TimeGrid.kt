@@ -468,8 +468,9 @@ private fun DayHeadings(scope: CalendarScope, period: Int, days: Int) {
     val colours = Theme.colours
     // A circle round the number, as tall as the number and a little more.
     val dayNumber = with(LocalDensity.current) { Theme.typography.titleSmall.lineHeight.toDp() } + Theme.spacing.xs
+    val widest = widestWeekdayName(scope.formats, Theme.typography.labelSmall) + Theme.spacing.xxs
     BoxWithConstraints(Modifier.fillMaxWidth()) {
-        val narrow = maxWidth / days < WeekdayHeadingWidth
+        val narrow = !abbreviatesWeekdays(maxWidth / days, widest, WeekdayHeadingWidth)
         Row(Modifier.fillMaxWidth()) {
             for (column in 0 until days) {
                 val date = start.plus(column, DateTimeUnit.DAY)
@@ -518,7 +519,10 @@ private fun DayHeadings(scope: CalendarScope, period: Int, days: Int) {
     }
 }
 
-/** Below this a day's heading has room for its weekday's letter, not its abbreviation. */
+/**
+ * Below this a day's heading has room for its weekday's letter, not its
+ * abbreviation — or below the widest abbreviation, where that is wider.
+ */
 private val WeekdayHeadingWidth = 48.dp
 
 /** What takes the whole day, above the hours: as bars across their days. */

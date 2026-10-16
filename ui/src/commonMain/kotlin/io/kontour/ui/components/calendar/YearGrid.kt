@@ -302,9 +302,12 @@ private fun MiniMonth(scope: CalendarScope, month: LocalDate, busy: Map<LocalDat
     val flash = LocalTodayFlash.current
     val flashColour = colours.accent.solid
     val density = LocalDensity.current
-    val maxRow = with(density) { MaxRowHeight.toPx() }
     val markerGap = with(density) { MarkerGap.toPx() }
     val markerRadius = with(density) { MarkerSize.toPx() } / 2f
+    // At least as tall as a number and its busy dot, where 40dp cut both at
+    // large type.
+    val numberHeight = digits.numbers.maxOfOrNull { it.size.height }?.toFloat() ?: 0f
+    val maxRow = maxOf(with(density) { MaxRowHeight.toPx() }, numberHeight + markerGap + markerRadius * 2)
     val lead = digits.columnOf(month.dayOfWeek)
     val length = month.plus(1, DateTimeUnit.MONTH).minus(1, DateTimeUnit.DAY).day
     val rows = (lead + length + DaysPerWeek - 1) / DaysPerWeek
@@ -372,7 +375,7 @@ private fun MiniMonth(scope: CalendarScope, month: LocalDate, busy: Map<LocalDat
     )
 }
 
-/** The tallest a week's row is, however wide its days. */
+/** The tallest a week's row is, however wide its days, unless its numbers need more. */
 private val MaxRowHeight = 40.dp
 
 /** The busy dot's width, and its gap below the number. */
