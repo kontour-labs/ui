@@ -872,7 +872,7 @@ jobs:
       # the arrangement a reader is actually served could not be produced,
       # inspected or measured anywhere else.
       - name: Lay the site out
-        run: python3 docs/lay-out-site.py --out site --api ui/build/dokka/html --deploy dist
+        run: python3 docs/lay-out-site.py --out site --api ui/build/dokka/html --api-module ui-charts/build/dokka/html --deploy dist
 
       # Into the runners' cache, which `deploy` reads minutes later, and so
       # does a tag on the same commit, which deploys this rather than building

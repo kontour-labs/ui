@@ -485,6 +485,12 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--dist", default="ui-docs/build/dist/wasmJs/productionExecutable")
     parser.add_argument("--api", default=None, help="Dokka HTML, mounted at /api")
+    parser.add_argument(
+        "--api-module",
+        action="append",
+        default=[],
+        help="another module's Dokka HTML, whose module directory is mounted beside --api's",
+    )
     parser.add_argument("--out", default="site")
     parser.add_argument("--deploy", default=None, help="also assemble the upload here, the site under its prefix")
     parser.add_argument("--base-url", default=SITE_URL, help="where the site is read; its path is the prefix")
@@ -541,6 +547,18 @@ def main() -> int:
         shutil.copytree(api, site / "api")
         if not (site / "api/index.html").is_file():
             raise SystemExit("the API reference has no index.html")
+        # The charts are a module of their own, with a reference of their own,
+        # and a chart page links into it. Only the module's directory is
+        # mounted: its pages find their styles and scripts one level up, which
+        # are `:ui`'s, from the same Dokka.
+        for extra in options.api_module:
+            extra = pathlib.Path(extra)
+            modules = [child for child in extra.iterdir() if child.is_dir() and child.name.startswith("kontour-")] \
+                if extra.is_dir() else []
+            if not modules:
+                raise SystemExit(f"no module reference in {extra} — run its dokkaGenerateHtml")
+            for module in modules:
+                shutil.copytree(module, site / "api" / module.name)
 
     index_path = site / "index.html"
     if not index_path.is_file():

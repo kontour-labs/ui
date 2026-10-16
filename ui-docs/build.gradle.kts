@@ -91,18 +91,27 @@ val generatedApi = layout.buildDirectory.dir("generated/apiTables")
 
 val generateApiTables = tasks.register("generateApiTables") {
     group = "documentation"
-    description = "Turns :ui's public declarations into ApiTables.kt"
+    description = "Turns :ui's and :ui-charts' public declarations into ApiTables.kt"
 
     // Captured here rather than read inside `doLast`: reaching for another
     // project during execution is invisible to the configuration cache, which
     // is on for this build.
+    //
+    // Each with the directory its module's reference is published under, which
+    // starts every path below: the charts are a module of their own, with a
+    // reference of their own that the site mounts beside the library's.
     val sources = project(":ui").layout.projectDirectory.dir("src/commonMain/kotlin")
+    val chartSources = project(":ui-charts").layout.projectDirectory.dir("src/commonMain/kotlin")
     val out = generatedApi
     inputs.dir(sources).withPropertyName("uiSources")
+    inputs.dir(chartSources).withPropertyName("chartSources")
     outputs.dir(out).withPropertyName("generated")
 
     doLast {
-        val files = sources.asFile.walkTopDown().filter { it.extension == "kt" }.sortedBy { it.path }.toList()
+        val modules = listOf(sources to "kontour-ui", chartSources to "kontour-ui-charts")
+        val files = modules.flatMap { (root, module) ->
+            root.asFile.walkTopDown().filter { it.extension == "kt" }.sortedBy { it.path }.map { it to module }.toList()
+        }
 
         // Dokka's own file naming: every capital becomes a dash and a lower
         // case letter, so `ButtonGroup` is `-button-group` and `shape` stays
@@ -131,7 +140,7 @@ val generateApiTables = tasks.register("generateApiTables") {
         // reported — see `KotlinSignatures.parameterDocs`.
         val described = mutableMapOf<KotlinSignatures.Declaration, Map<String, String>>()
 
-        for (file in files) {
+        for ((file, module) in files) {
             val text = file.readText()
             val declared = KotlinSignatures.declarations(text)
             declarations += declared
@@ -172,12 +181,12 @@ val generateApiTables = tasks.register("generateApiTables") {
                     declaration.indent == 0 &&
                     declaration.kind == KotlinSignatures.Kind.Function
                 ) {
-                    claim(declaration.name, "$pkg/${dokkaSlug(declaration.name)}.html")
+                    claim(declaration.name, "$module/$pkg/${dokkaSlug(declaration.name)}.html")
                 }
             }
             for (type in KotlinSignatures.types(text)) {
                 if (type.isPublic && type.isTopLevel) {
-                    claim(type.name, "$pkg/${dokkaSlug(type.name)}/index.html")
+                    claim(type.name, "$module/$pkg/${dokkaSlug(type.name)}/index.html")
                 }
             }
             // Builder-scope members get one too, keyed `MenuScope.item`,
@@ -203,7 +212,7 @@ val generateApiTables = tasks.register("generateApiTables") {
                 if (declaration.isPublic && owner in scopes) {
                     claim(
                         "$owner.${declaration.name}",
-                        "$pkg/${dokkaSlug(owner)}/${dokkaSlug(declaration.name)}.html",
+                        "$module/$pkg/${dokkaSlug(owner)}/${dokkaSlug(declaration.name)}.html",
                     )
                 }
             }
@@ -325,7 +334,8 @@ val generateApiTables = tasks.register("generateApiTables") {
         body.append(")\n\n")
 
         body.append("/**\n")
-        body.append(" * Where the API reference puts each symbol, relative to `api/kontour-ui/`.\n")
+        body.append(" * Where the API reference puts each symbol, relative to `api/`: under\n")
+        body.append(" * `kontour-ui/` for the library and `kontour-ui-charts/` for the charts.\n")
         body.append(" *\n")
         body.append(" * Derived rather than read out of Dokka's own `pages.json`, and the reason\n")
         body.append(" * is build order: CI builds this site *before* it builds the reference, so a\n")

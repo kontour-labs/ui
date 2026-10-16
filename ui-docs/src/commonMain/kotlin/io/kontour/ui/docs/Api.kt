@@ -91,7 +91,7 @@ class ApiEntry(
      */
     val reference: String?
         get() = (owner?.let { apiReferencePaths["$it.$name"] } ?: apiReferencePaths[name])
-            ?.let { "api/kontour-ui/$it" }
+            ?.let { "api/$it" }
 }
 
 /** An enum and its entries, for the values note under a table. */
