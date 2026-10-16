@@ -80,7 +80,7 @@ class SeriesPaletteTest {
         }
     }
 
-    private fun linear(colour: Color): DoubleArray = doubleArrayOf(colour.red, colour.green, colour.blue).map { c ->
+    private fun linear(colour: Color): DoubleArray = listOf(colour.red, colour.green, colour.blue).map { c ->
         val v = c.toDouble()
         if (v <= 0.04045) v / 12.92 else ((v + 0.055) / 1.055).pow(2.4)
     }.toDoubleArray()
