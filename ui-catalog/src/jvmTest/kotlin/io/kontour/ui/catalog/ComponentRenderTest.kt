@@ -339,6 +339,11 @@ class ComponentRenderTest {
             "Chart" to "marks and labels on the page, no container",
             "SectorChart" to "sectors on the page, no container; a gap of the page's ground between them",
             "Sparkline" to "a line on the page, no container",
+            // A modal's scrim is the first thing a walk meets, and a scrim is a
+            // dimming, not an edge: its job is to be quieter than what it covers.
+            // The panel inside it carries the overlay's own edge.
+            "AlertDialog" to "a scrim's dimming at the walk's first step; the dialog inside it carries its own edge",
+            "CommandPalette" to "a scrim's dimming at the walk's first step; the palette inside it carries its own edge",
             "DatePicker" to "a grid of dates on the page, no container; its buttons carry their own edges",
             "DateRangePicker" to "a grid of dates on the page, no container; its buttons carry their own edges",
             "DateTimePicker" to "a grid of dates and wheels on the page, no container; its buttons carry their own edges",

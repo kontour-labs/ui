@@ -197,6 +197,19 @@ import io.kontour.ui.nav.NavScope
 import io.kontour.ui.nav.Tab
 import io.kontour.ui.nav.TabBar
 import io.kontour.ui.overlay.OverlayHost
+import androidx.compose.ui.unit.Dp
+import androidx.compose.foundation.layout.BoxScope
+import io.kontour.ui.sheet.SideSheet
+import io.kontour.ui.sheet.SheetHeader
+import io.kontour.ui.overlay.rememberOverlayQueue
+import io.kontour.ui.overlay.coachmark
+import io.kontour.ui.overlay.Tooltip
+import io.kontour.ui.overlay.Popover
+import io.kontour.ui.overlay.LocalOverlayQueue
+import io.kontour.ui.overlay.DropdownMenu
+import io.kontour.ui.overlay.CommandPalette
+import io.kontour.ui.overlay.Command
+import io.kontour.ui.overlay.AlertDialog
 import io.kontour.ui.overlay.ToastHost
 import io.kontour.ui.overlay.rememberToastHostState
 import io.kontour.ui.sheet.DragHandle
@@ -2323,6 +2336,134 @@ val componentRegistry: List<ComponentSpec> = buildList {
         }
     )
 
+    // --- The overlays, open ------------------------------------------------
+    //
+    // Toast was the only overlay with a picture. A menu, a dialog, a palette, a
+    // coach mark, a tooltip, a popover and a side sheet were each documented,
+    // demoed and tested for behaviour, and none had ever been drawn by the
+    // render sweep, the width sweep or the pseudo-locale sweep, because a
+    // specimen that raises an overlay into the harness's ambient host is drawn
+    // wherever that host is rather than in the box it was handed. So each of
+    // these brings its own host, as `Toast` does, and is open at rest: the
+    // picture of a closed menu is a button.
+    //
+    // `visible` is fixed rather than hoisted, and every callback is empty. A
+    // sweep that taps one is tapping something that cannot change, which is
+    // what a specimen is.
+
+    add(
+        ComponentSpec(name = "DropdownMenu", role = null, underContract = false, renderHeight = 212) { modifier, _, _ ->
+            OverlaySpecimen(modifier, height = 180.dp) {
+                Box(Modifier.align(Alignment.TopStart)) {
+                    IconButton(icon = Tabler.Outline.DotsVertical, contentDescription = "More", onClick = {})
+                    DropdownMenu(visible = true, onDismissRequest = {}) {
+                        item("Share") {}
+                        item("Copy stop ID") {}
+                        item("Remove favourite", destructive = true) {}
+                    }
+                }
+            }
+        }
+    )
+
+    add(
+        ComponentSpec(name = "Tooltip", role = null, underContract = false, renderHeight = 152) { modifier, _, _ ->
+            OverlaySpecimen(modifier, height = 120.dp) {
+                // Low in its box, so the bubble above it has the room it asks for.
+                Box(Modifier.align(Alignment.BottomCenter)) {
+                    IconButton(icon = Tabler.Outline.Bookmark, contentDescription = "Save this trip", onClick = {})
+                    Tooltip(visible = true) { +"Save this trip" }
+                }
+            }
+        }
+    )
+
+    add(
+        ComponentSpec(name = "Popover", role = null, underContract = false, renderHeight = 192) { modifier, _, _ ->
+            OverlaySpecimen(modifier, height = 160.dp) {
+                Box(Modifier.align(Alignment.TopCenter)) {
+                    IconButton(icon = Tabler.Outline.InfoCircle, contentDescription = "Details", onClick = {})
+                    Popover(visible = true, onDismissRequest = {}) {
+                        Text("Runs every 15 minutes until 11pm.", style = Theme.typography.bodySmall)
+                    }
+                }
+            }
+        }
+    )
+
+    add(
+        ComponentSpec(name = "Modifier.coachmark", role = null, underContract = false, renderHeight = 232) { modifier, _, _ ->
+            OverlaySpecimen(modifier, height = 200.dp) {
+                // A queue of its own, which a tip waits on so that six of them do
+                // not introduce themselves at once. This one is the only one.
+                CompositionLocalProvider(LocalOverlayQueue provides rememberOverlayQueue()) {
+                    Box(Modifier.align(Alignment.TopCenter)) {
+                        IconButton(
+                            icon = Tabler.Outline.Bookmark,
+                            contentDescription = "Save this trip",
+                            onClick = {},
+                            modifier = Modifier.coachmark(
+                                id = "save-trip",
+                                title = "Save this trip",
+                                message = "Saved trips show up on the home screen.",
+                            ),
+                        )
+                    }
+                }
+            }
+        }
+    )
+
+    add(
+        ComponentSpec(name = "AlertDialog", role = null, underContract = false, renderHeight = 292) { modifier, _, _ ->
+            OverlaySpecimen(modifier, height = 260.dp) {
+                AlertDialog(
+                    visible = true,
+                    onDismissRequest = {},
+                    confirmLabel = "Remove",
+                    onConfirm = {},
+                    destructive = true,
+                ) {
+                    +"Remove this favourite?"
+                    message { +"Perth Underground will be taken off your home screen." }
+                }
+            }
+        }
+    )
+
+    add(
+        ComponentSpec(name = "CommandPalette", role = null, underContract = false, renderHeight = 312) { modifier, _, _ ->
+            OverlaySpecimen(modifier, height = 280.dp) {
+                CommandPalette(
+                    visible = true,
+                    onDismissRequest = {},
+                    commands = SpecimenCommands,
+                    // Sized for the box rather than for a window, which is what
+                    // these three are for: the defaults would spend a third of
+                    // the box on the inset and clip the list.
+                    maxHeight = 248.dp,
+                    topInset = Theme.spacing.md,
+                )
+            }
+        }
+    )
+
+    add(
+        ComponentSpec(name = "SideSheet", role = null, underContract = false, renderHeight = 212) { modifier, _, _ ->
+            OverlaySpecimen(modifier, height = 180.dp) {
+                Text("Departures", modifier = Modifier.padding(Theme.spacing.md))
+                SideSheet(visible = true, width = 180.dp, paneTitle = "Filters") {
+                    SheetHeader { +"Filters" }
+                    Text(
+                        "Only routes in the next hour",
+                        modifier = Modifier.padding(horizontal = Theme.spacing.md),
+                        style = Theme.typography.bodySmall,
+                    )
+                }
+            }
+        }
+    )
+
     add(
         ComponentSpec(
             name = "CalendarMonth",
@@ -3065,6 +3206,27 @@ private fun SplitButtonSpecimen(
  * image every day — which is a golden that fails once a night and teaches
  * everyone to re-record without looking.
  */
+/**
+ * An overlay's specimen: a box of [height] with a host of its own, so what is
+ * raised in it is drawn in the box the sweep handed over, as `Toast`'s is.
+ */
+@Composable
+private fun OverlaySpecimen(modifier: Modifier, height: Dp, content: @Composable BoxScope.() -> Unit) {
+    Box(modifier.fillMaxWidth().height(height)) {
+        OverlayHost(Modifier.fillMaxSize()) {
+            Box(Modifier.fillMaxSize(), content = content)
+        }
+    }
+}
+
+/** Four of a transit app's commands, two with shortcuts, in two groups. */
+private val SpecimenCommands = listOf(
+    Command("plan", "Plan a trip", onAction = {}, shortcut = "⌘T", group = "Trips"),
+    Command("saved", "Saved trips", onAction = {}, group = "Trips"),
+    Command("stops", "Nearby stops", onAction = {}, group = "Stops"),
+    Command("alerts", "Service alerts", onAction = {}, shortcut = "⌘A", group = "Stops"),
+)
+
 private val SpecimenToday = LocalDate(2026, 6, 12)
 private val SpecimenMonth = LocalDate(2026, 6, 1)
 private val SpecimenDate = LocalDate(2026, 6, 18)
