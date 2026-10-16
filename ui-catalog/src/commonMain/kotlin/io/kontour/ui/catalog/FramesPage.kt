@@ -1,5 +1,7 @@
 package io.kontour.ui.catalog
 
+import androidx.compose.foundation.gestures.ScrollableDefaults
+import androidx.compose.foundation.gestures.FlingBehavior
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.ComposeFoundationFlags
 import io.kontour.ui.components.list.rememberScrollbarListState
@@ -82,12 +84,14 @@ internal fun FramesPage(modifier: Modifier = Modifier) {
     var squircles by remember { mutableStateOf(true) }
     var dark by remember { mutableStateOf(false) }
     var dragFix by remember { mutableStateOf(ComposeFoundationFlags.isDragNodeOffsetDoubleCountingFixEnabled) }
+    var libraryFling by remember { mutableStateOf(true) }
+    val fling = if (libraryFling) ScrollDefaults.flingBehavior() else ScrollableDefaults.flingBehavior()
 
     val run = rememberFrameRun("arms")
     val shapes = rememberArmShapes(squircles)
 
     Column(
-        modifier = modifier.fillMaxSize().pageScroll(flingBehavior = ScrollDefaults.flingBehavior())
+        modifier = modifier.fillMaxSize().pageScroll(flingBehavior = fling)
             .padding(Theme.spacing.md),
         verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
     ) {
@@ -113,6 +117,12 @@ internal fun FramesPage(modifier: Modifier = Modifier) {
                     dragFix = it
                     ComposeFoundationFlags.isDragNodeOffsetDoubleCountingFixEnabled = it
                 }
+                // The library's fling against Compose's own, for this page and
+                // the list in the workload: to tell, on a phone, whether
+                // something about a fling — an inner list's iOS stretch left
+                // pulled when it hands over to the page, reported here — is the
+                // library's or the platform's.
+                Arm("Library fling", libraryFling) { libraryFling = it }
             }
         }
 
@@ -134,6 +144,7 @@ internal fun FramesPage(modifier: Modifier = Modifier) {
             Card(Modifier.fillMaxWidth()) {
                 OverlayHost(Modifier.fillMaxWidth().height(WorkloadHeight.dp)) {
                     Workload(
+                        fling = fling,
                         recording = run.collecting,
                         // The flip closes off a segment as well as flipping, so
                         // the readout can report one worst frame per flip rather
@@ -262,7 +273,7 @@ internal fun Arm(label: String, on: Boolean, enabled: Boolean = true, onChange: 
  * what an arm costs presses the same three things with it on and with it off.
  */
 @Composable
-private fun Workload(recording: Boolean, onFlipTheme: () -> Unit) {
+private fun Workload(recording: Boolean, fling: FlingBehavior, onFlipTheme: () -> Unit) {
     var sheet by remember { mutableStateOf(false) }
 
     Box(Modifier.fillMaxSize()) {
@@ -285,7 +296,7 @@ private fun Workload(recording: Boolean, onFlipTheme: () -> Unit) {
                 Modifier.fillMaxWidth().weight(1f).scrollbar(workload),
                 state = workload,
                 verticalArrangement = Arrangement.spacedBy(2.dp),
-                flingBehavior = ScrollDefaults.flingBehavior(),
+                flingBehavior = fling,
             ) {
                 items(Stops) { stop ->
                     Card(Modifier.fillMaxWidth()) {
