@@ -359,7 +359,7 @@ fun SectorChart(
                             },
                         )
                     }
-                    if (showProbe && chosen != null) {
+                    if (showProbe) {
                         val part = parts[chosen]
                         val shown = ChartSelection(
                             x = part.series,
