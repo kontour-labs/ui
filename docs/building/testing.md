@@ -89,7 +89,7 @@ require status checks, or every merge waits for one that never starts.
 | `targets` | inputs that have not compiled | Every target compiled, the ABI check, the Android host tests |
 | `site` | a change to anything the site is made from, and every tag | The Wasm bundle (unless these inputs built one), the API reference and the text mirror — the slowest thing here |
 | `deploy` | `main` and `v*` tags | Cloudflare Pages, `docs.kontour.io/ui` |
-| `publish` | a `v*` tag, or a manual version | Maven Central: see [`releasing.md`](releasing.md) |
+| `publish` | a `v*` tag, or a manual version | `maven.kontour.io`: see [`releasing.md`](releasing.md) |
 | `renders` | a manual run that asks | Contact sheets of every page |
 
 Every job has a `timeout-minutes` of about twice its ordinary length. The
@@ -159,9 +159,8 @@ alone. A tag always deploys, for the version.
 #### Publishing compiles nothing
 
 `publish` restores `targets`' Gradle home and every compile in it comes
-`FROM-CACHE`; Dokka writes the javadoc jars Central asks for. The upload is
-`publishAndReleaseToMavenCentral`, signed: Central validates the deployment and
-publishes it whole. Up to 0.4.4 it went to GitHub Packages, where twenty-two
+`FROM-CACHE`. It publishes into a folder and uploads that to the R2 bucket
+behind `maven.kontour.io`, refusing a version already there. Up to 0.4.4 it went to GitHub Packages, where twenty-two
 publications went up one after another at almost exactly thirty seconds each.
 
 #### Memory
@@ -407,7 +406,7 @@ real regression more than once.
 
 The icons, `io.kontour:tabler-icons-*`, follow Tabler's releases, and
 `.github/workflows/icons.yml` keeps the library on the newest: on every push to
-`main`, once a day and by hand it asks Maven Central for the newest release
+`main`, once a day and by hand it asks `maven.kontour.io` for the newest release
 both styles have, and when that is newer than the pin in
 `gradle/libs.versions.toml` it moves every pin with
 `python3 docs/bump-tabler-icons.py --write <version>` — the catalogue,

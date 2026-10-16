@@ -23,8 +23,14 @@ dependencyResolutionManagement {
                 includeGroupAndSubgroups("com.google")
             }
         }
-        // The icons, `io.kontour:tabler-icons-*`, are here too, from 3.49.0.1.
         mavenCentral()
+        // The icons, `io.kontour:tabler-icons-*`: Kontour's own repository,
+        // public, and the only place `io.kontour` is looked for — as an app on
+        // the library is told to set it up (`installing.md`).
+        exclusiveContent {
+            forRepository { maven("https://maven.kontour.io") }
+            filter { includeGroup("io.kontour") }
+        }
     }
 }
 

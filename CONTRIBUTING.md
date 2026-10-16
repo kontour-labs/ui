@@ -7,7 +7,7 @@ How the library is built, checked and released. Using it is the
 |---|---|
 | [`docs/building/contributing.md`](docs/building/contributing.md) | The conventions every component follows: parameter order, names, tokens, state, accessibility, and what a pull request needs |
 | [`docs/building/testing.md`](docs/building/testing.md) | Every check, what it asks and what it has caught; what CI runs and when |
-| [`docs/building/releasing.md`](docs/building/releasing.md) | Tagging a release, Maven Central, and the secrets it needs |
+| [`docs/building/releasing.md`](docs/building/releasing.md) | Tagging a release, `maven.kontour.io`, and the secrets it needs |
 | [`docs/building/hosting.md`](docs/building/hosting.md) | The documentation site on Cloudflare Pages |
 | [`docs/README.md`](docs/README.md) | The library's layers and the rules that follow from them |
 
@@ -77,7 +77,7 @@ break a section in the migrating guide, and push a tag:
 git tag v0.4.5 && git push origin v0.4.5
 ```
 
-CI runs what has not passed for that tree, publishes all three modules to Maven
-Central, and deploys the documentation labelled with the version.
+CI runs what has not passed for that tree, publishes all three modules to
+`maven.kontour.io`, and deploys the documentation labelled with the version.
 [`releasing.md`](docs/building/releasing.md) has the rest: the version rule,
-what to do when a release fails, and setting up Central's secrets.
+what to do when a release fails, and setting up the repository.

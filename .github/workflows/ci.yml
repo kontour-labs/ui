@@ -17,7 +17,7 @@
 #            else, and the public API moving
 #   site     the documentation site and the API reference, and the slowest thing here
 #   deploy   uploads the site to Cloudflare Pages, docs.kontour.io/ui
-#   publish  uploads the library to Maven Central, for a release only
+#   publish  uploads the library to maven.kontour.io, for a release only
 #   renders  contact sheets of every page, when somebody asks
 #
 # `deploy` needs only `site`, deliberately: a library regression should not take
@@ -54,7 +54,7 @@ on:
     inputs:
       version:
         description: >-
-          Publish this version to Maven Central (e.g. 0.1.0). Leave blank to
+          Publish this version to maven.kontour.io (e.g. 0.1.0). Leave blank to
           run the checks only. Use this to cut a release from a branch, where
           `GITHUB_REF_NAME` is a branch name and the build refuses it.
         required: false
@@ -984,19 +984,25 @@ jobs:
       # publishable version out of that logic.
       #
       # **It compiles nothing.** Every compile in it comes `FROM-CACHE`, from
-      # `targets`' Gradle home; Dokka writes the javadoc jars. It signs every
-      # publication, uploads the three libraries to Maven Central and releases
-      # them, which Central validates first — the POM, the signatures, the
-      # sources and javadoc jars — and takes whole or not at all. Central never replaces a
-      # version: a release that went out wrong is fixed forward, with the next
-      # patch. The secrets and their set-up are `docs/building/releasing.md`.
-      - name: Publish to Maven Central
+      # `targets`' Gradle home. It publishes into `build/release-repo` and
+      # uploads that to maven.kontour.io, an R2 bucket public through its
+      # custom domain. `prepare` refuses a version already there — a release is
+      # never replaced, so a fix is the next patch — and fetches each
+      # artifact's version list, so the publish adds to it. The secrets and
+      # their set-up are `docs/building/releasing.md`.
+      - name: Publish to maven.kontour.io
         env:
-          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
-          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
-          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_KEY }}
-          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_KEY_PASSWORD }}
+          VERSION: ${{ inputs.version || github.ref_name }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_BUCKET: ${{ vars.R2_BUCKET || 'kontour-maven' }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
         run: |
+          set -euo pipefail
+          .github/scripts/r2-release.sh prepare build/release-repo "${VERSION#v}" \
+            io/kontour/ui io/kontour/ui-nav3 io/kontour/haptics \
+            -- 'ui' 'ui-*' 'haptics' 'haptics-*'
           ./gradlew --no-daemon \
             ${{ inputs.version && format('-Pkontour.version={0}', inputs.version) || '' }} \
-            publishAndReleaseToMavenCentral
+            publishAllPublicationsToReleaseRepository
+          .github/scripts/r2-release.sh upload build/release-repo

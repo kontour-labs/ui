@@ -14,8 +14,9 @@ request, never on `main`.
     python3 docs/bump-tabler-icons.py --is-newer 3.49.0
     python3 docs/bump-tabler-icons.py --write 3.49.0 [--integrity sha512-…]
 
-`--latest` reads both packages' `maven-metadata.xml` from Maven Central, which
-needs no credentials, and prints the newest stable version both styles have.
+`--latest` reads both packages' `maven-metadata.xml` from Kontour's repository,
+`https://maven.kontour.io`, which needs no credentials, and prints the newest
+stable version both styles have.
 
 `--write` moves the three places a version lives:
 
@@ -40,7 +41,7 @@ CATALOGUE = ROOT / "gradle/libs.versions.toml"
 ICONDATA = ROOT / "docs/icondata.py"
 CHANGELOG = ROOT / "ui-docs/content/changelog.md"
 
-REPOSITORY = "https://repo1.maven.org/maven2"
+REPOSITORY = "https://maven.kontour.io"
 ARTIFACTS = ("tabler-icons-outline", "tabler-icons-filled")
 
 VERSION_LINE = re.compile(r'^(tabler-icons\s*=\s*")([^"]+)(")', re.M)
@@ -145,7 +146,7 @@ def main() -> None:
     group.add_argument("--is-newer", metavar="VERSION", help="exit 0 if VERSION is newer than the pinned one")
     group.add_argument("--write", metavar="VERSION", help="move every pin to VERSION")
     parser.add_argument("--metadata", nargs=2, metavar=("OUTLINE", "FILLED"), type=pathlib.Path,
-                        help="read maven-metadata.xml from these files rather than Maven Central")
+                        help="read maven-metadata.xml from these files rather than maven.kontour.io")
     parser.add_argument("--integrity", help="the @tabler/icons tarball's integrity, rather than npm's")
     args = parser.parse_args()
 

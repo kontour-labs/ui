@@ -308,7 +308,7 @@ def llms_index(sections, base_url: str) -> str:
         "> Android, iOS, desktop and the web. Every page of its documentation, as Markdown.",
         "",
         "The site is public: fetch it as it is, with no sign-in and no token. The library",
-        "is on Maven Central as `io.kontour:ui`, and its source is",
+        "is `io.kontour:ui`, from https://maven.kontour.io, and its source is",
         f"{REPOSITORY}. Each link below is the page's Markdown; the same",
         f"page on the site is `{base_url}#/<path>`, and the API reference is at",
         f"{base_url}api/. Everything in one file: {base_url}llms-full.txt",

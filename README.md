@@ -28,7 +28,21 @@ as Markdown for agents at
 
 ## Installing
 
-On Maven Central:
+From Kontour's Maven repository, which needs no token:
+
+```kotlin
+// settings.gradle.kts
+dependencyResolutionManagement {
+    repositories {
+        google()
+        mavenCentral()
+        exclusiveContent {
+            forRepository { maven("https://maven.kontour.io") }
+            filter { includeGroup("io.kontour") }
+        }
+    }
+}
+```
 
 ```toml
 # gradle/libs.versions.toml
@@ -52,9 +66,9 @@ kotlin {
 }
 ```
 
-`mavenCentral()` and `google()` are all the repositories it needs. Releases up
-to 0.4.4 were on GitHub Packages and needed a token; from 0.4.5 nothing does —
-[migrating](ui-docs/content/migrating.md#044-to-045) has the change.
+Releases up to 0.4.4 were on GitHub Packages and needed a token; from 0.4.5
+nothing does — [migrating](ui-docs/content/migrating.md#044-to-045) has the
+change.
 
 | Artifact | What it is |
 |---|---|

@@ -5,22 +5,27 @@ import org.gradle.kotlin.dsl.configure
 import org.gradle.kotlin.dsl.withType
 
 /**
- * Publishing, for every module that ships: the version, the coordinate task and
- * the POM.
+ * Publishing, for every module that ships: the version, the coordinate task,
+ * the repository and the POM.
  *
  * Here rather than in `ui/build.gradle.kts` because there are three published
  * modules, `:ui`, `:ui-nav3` and `:haptics`, and they must never disagree about
  * which release they are. A second copy of the version rule below would be a
  * second set of answers to the question it exists to settle.
  *
- * The upload itself is `com.vanniktech.maven.publish`, applied in each module:
- * Maven Central, signed, with the sources and javadoc jars Central requires —
- * the javadoc from Dokka, which every published module applies. It reads its
- * credentials as Gradle properties, which CI sets from secrets as
- * `ORG_GRADLE_PROJECT_mavenCentralUsername`, `…mavenCentralPassword`,
- * `…signingInMemoryKey` and `…signingInMemoryKeyPassword`: see
- * `docs/building/releasing.md`. Until 0.4.5 the library was on GitHub Packages,
- * which needed a token even to read.
+ * ### The repository
+ *
+ * `https://maven.kontour.io`: an R2 bucket, public through its custom domain,
+ * holding files laid out as Maven lays them out. Gradle publishes into
+ * `build/release-repo` (`publishAllPublicationsToReleaseRepository`), and
+ * `.github/scripts/r2-release.sh` uploads that, having first fetched each
+ * artifact's `maven-metadata.xml` into it so that publishing adds the new
+ * version to the list rather than writing a list of one. The set-up is
+ * `docs/building/releasing.md`.
+ *
+ * Not Maven Central: its free tier caps how much a month's releases may weigh,
+ * and one release of the icons is about that. Until 0.4.5 the library was on
+ * GitHub Packages, which needs a token even to read.
  *
  * ### The version
  *
@@ -37,8 +42,9 @@ import org.gradle.kotlin.dsl.withType
  * outside a tag, while the comment above it claimed a branch build was a
  * snapshot. `GITHUB_REF_TYPE` is the field that answers the question.
  *
- * The result is then checked, because the failure mode is silent: Maven Central
- * never deletes or replaces a version, and the check costs one regex.
+ * The result is then checked, because the failure mode is silent: a release is
+ * never replaced — the upload refuses a version already there — and the check
+ * costs one regex.
  *
  * Everything is read through `providers`, never `System.getenv`. The
  * configuration cache is on (`gradle.properties`), and a direct environment read
@@ -101,6 +107,13 @@ fun Project.kontourPublishing(
     }
 
     extensions.configure<PublishingExtension> {
+        repositories {
+            maven {
+                name = "Release"
+                url = rootProject.layout.buildDirectory.dir("release-repo").get().asFile.toURI()
+            }
+        }
+
         publications.withType<MavenPublication>().configureEach {
             pom {
                 name.set(displayName)

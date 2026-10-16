@@ -3,10 +3,10 @@
 Getting Kontour UI into an app: which modules there are, what each needs, and
 what to set up once they resolve.
 
-Everything is on **Maven Central**, from
-[`kontour-labs/ui`](https://github.com/kontour-labs/ui), under the
-[Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). `mavenCentral()`
-is all a build needs: no token, no repository of its own, nothing to set up in CI.
+Everything is published to Kontour's Maven repository, **`https://maven.kontour.io`**,
+from [`kontour-labs/ui`](https://github.com/kontour-labs/ui), under the
+[Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). It is public:
+no token, no credentials, nothing to set up in CI.
 
 ## The modules
 
@@ -50,6 +50,10 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        exclusiveContent {
+            forRepository { maven("https://maven.kontour.io") }
+            filter { includeGroup("io.kontour") }
+        }
     }
 }
 ```
@@ -57,8 +61,13 @@ dependencyResolutionManagement {
 `google()` is for the AndroidX artifacts Compose and Navigation 3 depend on on
 Android; most projects have both already.
 
+**`exclusiveContent` is not tidiness.** It makes `maven.kontour.io` the only
+place Gradle looks for `io.kontour` — the library and the icons it is drawn
+with — and the only thing it asks that repository for. Listed plainly instead,
+Gradle would try it for every dependency in the build first.
+
 **From 0.4.5.** Releases up to 0.4.4 were published to GitHub Packages, which
-needs a token even to read, and are not on Maven Central. An app on one of those
+needs a token even to read, and are not on `maven.kontour.io`. An app on one of those
 moves to 0.4.5 and drops the `maven.pkg.github.com` repository and its
 credentials: [migrating](migrating.md#044-to-045) has the diff.
 
@@ -127,8 +136,8 @@ and the mistakes each is easy to make.
 set. The documentation and the gallery use Tabler, as Kontour Labs builds it —
 `io.kontour:tabler-icons-outline` and `-filled`, every icon of the release, with
 `Tabler.Outline.*` under `io.kontour.icons.tabler`. The library draws its own
-few system icons from it, so it comes with the library, from Maven Central
-like everything else. Any `ImageVector` works. The site's Icons page, in its top bar, searches
+few system icons from it, so it comes with the library, from the same
+repository. Any `ImageVector` works. The site's Icons page, in its top bar, searches
 every one of them — by name, by what Tabler tags it with, and by the everyday
 word for it — and copies the property and its import.
 
@@ -241,7 +250,7 @@ haptics.play(HapticEffect.Selection(fine = true))
 | What you see | What it is |
 |---|---|
 | `Could not find io.kontour:ui:0.4.4` | Versions up to 0.4.4 are only on GitHub Packages. Move to 0.4.5 or newer |
-| `Could not find` a version that is on the [releases](https://github.com/kontour-labs/ui/releases) page | It was tagged in the last half hour: Maven Central takes about that long to serve a new release |
+| `Could not find io.kontour:…` for a version that exists | `maven.kontour.io` is missing from the repositories, or is not the one `exclusiveContent` names for `io.kontour` |
 | `401 Unauthorized` from `maven.pkg.github.com` | The old GitHub Packages repository is still in `settings.gradle.kts`. Remove it |
 | AndroidX artifacts will not resolve | `google()` is missing from the repositories |
 | Resolution succeeds but the classes are missing on one platform | A variant did not publish. Each module should have seven per version: the module itself, and one each for `-android`, `-iosarm64`, `-iossimulatorarm64`, `-js`, `-jvm`, `-wasm-js` |

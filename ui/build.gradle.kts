@@ -9,7 +9,7 @@ plugins {
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.dokka)
-    alias(libs.plugins.mavenPublish)
+    `maven-publish`
 }
 
 // ---------------------------------------------------------------------------
@@ -26,14 +26,6 @@ kontourPublishing(
     licenceNote = "Bundles the Outfit and JetBrains Mono fonts, under the SIL Open Font License 1.1; " +
         "see ui/licenses/ and NOTICE.",
 )
-
-// Maven Central: see `kontourPublishing` in buildSrc for the version and the
-// POM. Signed wherever there is a key, which CI always has and Central insists
-// on; without one, as for a `publishToMavenLocal`, unsigned.
-mavenPublishing {
-    publishToMavenCentral(automaticRelease = true)
-    if (providers.gradleProperty("signingInMemoryKey").isPresent) signAllPublications()
-}
 
 // ---------------------------------------------------------------------------
 // The API reference
