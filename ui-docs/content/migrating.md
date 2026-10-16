@@ -17,13 +17,42 @@ from the version the app is on.
 
 ## 0.4.4 to 0.4.5
 
-Two things to rewrite — `PullToRefresh` takes its list's scroll state, and
-`NavBarMarkerDrag` is `NavMarkerDrag` — and the compiler finds both. `Select`,
-`MultiSelect`, `Combobox`, `ListSection` and `Strings` have new parameters,
-defaulted and last. A few things look or behave differently enough to check.
+The repository moves, and two things to rewrite — `PullToRefresh` takes its
+list's scroll state, and `NavBarMarkerDrag` is `NavMarkerDrag` — which the
+compiler finds. `Select`, `MultiSelect`, `Combobox`, `ListSection` and `Strings`
+have new parameters, defaulted and last. A few things look or behave differently
+enough to check.
 
 ### Before you start
 
+- **Swap the repository.** 0.4.5 and the icons it is drawn with are on
+  `https://maven.kontour.io`, Kontour's own Maven repository, which needs no
+  token; they are not on GitHub Packages.
+
+  ```diff
+   // settings.gradle.kts
+   dependencyResolutionManagement {
+       repositories {
+           google()
+           mavenCentral()
+  -        maven("https://maven.pkg.github.com/kontour-labs/ui") {
+  -            credentials {
+  -                username = providers.gradleProperty("gpr.user").orNull
+  -                password = providers.gradleProperty("gpr.key").orNull
+  -            }
+  -            content { includeGroup("io.kontour") }
+  -        }
+  +        exclusiveContent {
+  +            forRepository { maven("https://maven.kontour.io") }
+  +            filter { includeGroup("io.kontour") }
+  +        }
+       }
+   }
+  ```
+
+  Then the token can go: `gpr.user` and `gpr.key` from `~/.gradle/gradle.properties`,
+  and the `KONTOUR_PACKAGES_*` secrets, or whatever CI passed the token as, from
+  the workflows that resolve the app's dependencies.
 - **Move all three modules at once**: `kontour = "0.4.5"`, and rebuild anything
   compiled against 0.4.4.
 

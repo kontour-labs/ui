@@ -54,13 +54,33 @@ wherever its row fits, a pull to refresh knows where its list is, a dialog's
 blur is cheaper to draw, and Android's back gesture keeps the screen's own
 frame rate.
 
-`PullToRefresh` takes its list's scroll state, `NavBarMarkerDrag` is
-`NavMarkerDrag`, and `Select`, `MultiSelect`, `Combobox`, `ListSection` and
-`Strings` have new parameters — see **Breaking** and
+And after that: a [`SplitListItem`](components/split-list-item.md), two rows
+side by side as one, with `split` in a `ListGroup`; wheels turned from the
+keyboard and by a screen reader; menus that take the arrows and typing; a swipe
+row's full-swipe action growing as the others give way; a dropped card landing
+as it settles; and smoother curved edges and crisper grid lines on the web, the
+desktop and iOS.
+
+**It is the first release on Kontour's own Maven repository,**It is the first release on Kontour's own Maven repository,
+`https://maven.kontour.io`, which needs no token** — the library was on GitHub
+Packages, which needed one even to read — and the documentation is public, with
+a new [patterns](patterns.md) guide to the mistakes apps on the library tend to
+make.
+
+The repository moves, `PullToRefresh` takes its list's scroll state,
+`NavBarMarkerDrag` is `NavMarkerDrag`, and `Select`, `MultiSelect`, `Combobox`,
+`ListSection` and `Strings` have new parameters — see **Breaking** and
 [Migrating](migrating.md).
 
 ### Breaking
 
+- **The library and its icons are on `https://maven.kontour.io`**, Kontour's own
+  Maven repository, and no longer on GitHub Packages. It is public: no token, no
+  `gpr.user`/`gpr.key`, nothing to set up in CI. An app swaps the
+  `maven.pkg.github.com` repository and its credentials for
+  `maven("https://maven.kontour.io")`, as the only source of `io.kontour` —
+  [Installing](installing.md#the-repositories) and [Migrating](migrating.md#044-to-045)
+  have the lines. Versions up to 0.4.4 stay on GitHub Packages only.
 - **`Select`, `MultiSelect`, `Combobox` and `ListSection` have new
   parameters** — `valueContent` and `optionContent` on the three selects,
   `textInset` on the section — so anything built against 0.4.4 has to be
@@ -69,7 +89,8 @@ frame rate.
 - **`Strings` has new fields**, each defaulted: `inRange`, which a date range
   picker says of a day inside its range; `time`, a date-time picker's time row;
   and `endDayOffset`, `endDaysLater` and `untilTime`, for an event that ends on
-  a later day than it starts.
+  a later day than it starts. A `Strings(…)` written with its arguments by
+  position, rather than by name, has to name them.
 - **[`PullToRefresh`](components/pull-to-refresh.md) takes the content's
   `scrollState`**, third, after `onRefresh`: the `LazyListState`,
   `LazyGridState` or `ScrollState` of the list it holds, which says whether the
@@ -86,6 +107,9 @@ frame rate.
 
 ### Changed
 
+- **The icons are Tabler 3.49.0.1**, from 3.49.0: the same icons,
+  `io.kontour:tabler-icons-outline` and `-filled`, re-released by
+  `kontour-labs/tabler` to `maven.kontour.io`.
 - **Curved edges are smoother, and grid lines crisp.** Two causes of the rough
   look reported on the web, the desktop and iOS, where nothing about a
   component's shape or size changes:
@@ -312,6 +336,18 @@ frame rate.
 
 ### Added
 
+- **[Patterns](patterns.md): how the pieces go together, and the mistakes that
+  are easy to make.** A scroller padded instead of its content, which puts the
+  scrollbar a page's margin in from the screen's edge; a theme or an overlay host
+  per screen; rows grouped by hand, made pressable with `Modifier.clickable`, or
+  wrapped in a card; a swipe row's shape in a group; pull to refresh and its
+  list's state; literal colours and sizes; icons with no name; dialogs composed
+  rather than shown. Each with an example that compiles. The `Scaffold` page's
+  own example applied the padding it said it handed over, and is a list's
+  `contentPadding` now.
+- **The documentation is public.** `docs.kontour.io/ui` and its Markdown for
+  agents need no sign-in and no headers, and search engines may index them. The
+  [Agents](agents.md) guide and its `CLAUDE.md` snippet drop the service token.
 - **[Drag and drop](drag-and-drop.md) has a demo to press.** Two lanes whose
   cards reorder within one and carry across to the other, and a bin that takes a
   card from either: on the guide's own page, and on the gallery's Collections
