@@ -2,7 +2,9 @@ package io.kontour.ui.charts
 
 import androidx.compose.runtime.Immutable
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.TimeZone
 import kotlin.math.roundToLong
+import kotlin.time.Instant
 
 /**
  * One axis of a [Chart]: what its values are, and how they are labelled.
@@ -14,13 +16,18 @@ import kotlin.math.roundToLong
  * ) { … }
  * ```
  *
- * Three kinds, by what is plotted along it:
+ * Four kinds, by what is plotted along it:
  *
  * | | Values | Ticks and labels |
  * |---|---|---|
  * | [number] | any `Number` | round steps — 1, 2, 2.5 or 5 of a power of ten — in the reader's digits |
  * | [date] | `LocalDate` | days, weeks, months or years, whichever fits, in the reader's calendar words |
+ * | [instant] | `Instant` | seconds, minutes or hours on the clock of a time zone, then as [date]'s |
  * | [category] | anything | one band each, in order |
+ *
+ * Numbers are written in full, "12,000" rather than "12K", on every platform:
+ * not every platform can write the short form in every language, and an axis
+ * that reads one way on one phone and another way on the next is worse.
  *
  * A bar runs along whichever axis is the number: with a [category] axis across
  * and a [number] axis up, bars stand; the other way round, they lie on their
@@ -44,11 +51,17 @@ class ChartAxis<V : Any> internal constructor(
     internal val numberLabel: ((Double) -> String)?,
     internal val dateLabel: ((LocalDate) -> String)?,
     internal val categoryLabel: ((V) -> String)?,
+    internal val timeZone: TimeZone? = null,
+    internal val instantLabel: ((Instant) -> String)? = null,
 ) {
-    /** A value of this axis in the chart's own units: a number, an epoch day, or nothing for a category. */
+    /**
+     * A value of this axis in the chart's own units: a number, an epoch day, an
+     * epoch millisecond, or nothing for a category.
+     */
     internal fun encode(value: V): Double = when (kind) {
         AxisKind.Number -> (value as Number).toDouble()
         AxisKind.Date -> (value as LocalDate).toEpochDays().toDouble()
+        AxisKind.Instant -> (value as Instant).toEpochMilliseconds().toDouble()
         AxisKind.Category -> error("a category is placed by its index, not encoded")
     }
 
@@ -57,6 +70,7 @@ class ChartAxis<V : Any> internal constructor(
     internal fun decode(position: Double): V = when (kind) {
         AxisKind.Number -> position as V
         AxisKind.Date -> LocalDate.fromEpochDays(position.roundToLong()) as V
+        AxisKind.Instant -> Instant.fromEpochMilliseconds(position.roundToLong()) as V
         AxisKind.Category -> error("a category is decoded from its index")
     }
 
@@ -135,6 +149,50 @@ class ChartAxis<V : Any> internal constructor(
         )
 
         /**
+         * An axis of moments, ticked on the clock of [timeZone]: every few
+         * seconds, minutes or hours, from its midnight, for a span of a day or
+         * less, and by the calendar, as [date] is, for a longer one.
+         *
+         * The ticks are where the zone's clocks show them, so a chart of a day
+         * that a clock change falls in has a tick at three that is two hours
+         * after the one at midnight, as the riders who were there would say.
+         *
+         * @param timeZone Whose clock the ticks are read off: the device's,
+         *   left out, or a place's, for a timetable of somewhere else.
+         * @param domain The span the axis covers; left out, the data's.
+         * @param title What the moments are of, if it needs saying.
+         * @param label How a tick, and any moment on this axis, is written.
+         *   Left out, `Theme.formats` writes the time, with the date where it
+         *   changes, or the date alone for ticks a day or more apart.
+         * @param tickCount About how many ticks to draw.
+         */
+        fun instant(
+            timeZone: TimeZone = TimeZone.currentSystemDefault(),
+            domain: ClosedRange<Instant>? = null,
+            title: String? = null,
+            label: ((Instant) -> String)? = null,
+            tickCount: Int = ChartAxisDefaults.TickCount,
+            position: ChartAxisPosition = ChartAxisPosition.Auto,
+            showGridlines: Boolean = true,
+            showLabels: Boolean = true,
+        ): ChartAxis<Instant> = ChartAxis(
+            kind = AxisKind.Instant,
+            title = title,
+            position = position,
+            showGridlines = showGridlines,
+            showLabels = showLabels,
+            tickCount = tickCount,
+            domain = domain?.let { it.start.toEpochMilliseconds().toDouble()..it.endInclusive.toEpochMilliseconds().toDouble() },
+            includeZero = false,
+            categories = null,
+            numberLabel = null,
+            dateLabel = null,
+            categoryLabel = null,
+            timeZone = timeZone,
+            instantLabel = label,
+        )
+
+        /**
          * An axis of categories, a band each.
          *
          * @param categories The bands, in order. Left out, they are the values
@@ -190,4 +248,4 @@ object ChartAxisDefaults {
     const val TickCount: Int = 5
 }
 
-internal enum class AxisKind { Number, Date, Category }
+internal enum class AxisKind { Number, Date, Instant, Category }

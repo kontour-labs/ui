@@ -90,7 +90,7 @@ internal fun chartTable(chart: ResolvedChart, strings: ChartStrings, formats: Lo
     val valueAxis = chart.valueAxis
     val series = chart.layers.map { it.series }.distinct()
     val placeTitle = placeAxis.title?.takeIf { it.isNotBlank() } ?: when (placeAxis.kind) {
-        AxisKind.Date -> strings.dateColumn
+        AxisKind.Date, AxisKind.Instant -> strings.dateColumn
         AxisKind.Category -> strings.categoryColumn
         AxisKind.Number -> strings.valueColumn
     }

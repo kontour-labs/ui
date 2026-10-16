@@ -40,15 +40,24 @@ kontour-ui-charts = { module = "io.kontour:ui-charts", version.ref = "kontour" }
 
 ## Axes
 
-`ChartAxis.number()`, `ChartAxis.date()` and `ChartAxis.category()`. A number
+`ChartAxis.number()`, `ChartAxis.date()`, `ChartAxis.instant()` and
+`ChartAxis.category()`. A number
 axis ticks in round steps, 1, 2, 2.5 or 5 of a power of ten. A date axis ticks
 in whichever calendar unit fits: days, weeks from the reader's first day of the
 week, months from the first, or years from January. A category axis gives each
 value a band, in the order the axis's own list gives them or, without one, the
 order they first appear in.
 
+An instant axis ticks on a time zone's clock, the device's unless it is given
+one: every few seconds, minutes or hours from midnight within a day, and as a
+date axis does past one. On the day the clocks change, its ticks are where the
+clocks showed them, so midnight and three are two hours apart.
+
 Every label is the reader's own, written by `Theme.formats`. A German reader
-sees German digits and month names with nothing said. Pass `label` to write
+sees German digits and month names with nothing said. Numbers are written in full,
+"12,000" rather than "12K", on every platform: not every platform can write
+the short form in every language, and an axis that reads one way on one phone
+and another on the next is worse than a longer label. Pass `label` to write
 them yourself, and `title` to name what the axis measures.
 
 **Bars stand or lie down by the axes.** With a category axis across and a number

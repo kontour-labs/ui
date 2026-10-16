@@ -3,9 +3,15 @@ package io.kontour.ui.charts
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.LocalTime
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.atStartOfDayIn
 import kotlinx.datetime.isoDayNumber
 import kotlinx.datetime.number
 import kotlinx.datetime.plus
+import kotlinx.datetime.toInstant
+import kotlinx.datetime.toLocalDateTime
 import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.floor
@@ -14,6 +20,7 @@ import kotlin.math.max
 import kotlin.math.pow
 import kotlin.math.roundToInt
 import kotlin.math.roundToLong
+import kotlin.time.Instant
 
 /**
  * An axis's ticks: where each one goes, in the chart's own units, and the span
@@ -29,9 +36,13 @@ internal class Ticks(
     val high: Double,
     val fractionDigits: Int = 0,
     val unit: DateUnit? = null,
+    /** For an instant axis ticked within a day: the clock's unit its ticks are in. */
+    val clock: ClockUnit? = null,
 )
 
 internal enum class DateUnit { Day, Week, Month, Year }
+
+internal enum class ClockUnit { Second, Minute, Hour }
 
 /**
  * Round ticks over [low]..[high]: a step of 1, 2, 2.5 or 5 times a power of ten,
@@ -170,3 +181,77 @@ private fun yearStep(years: Double): Int {
     val nice = niceNumber(years, round = false)
     return max(2, nice.roundToInt())
 }
+
+/**
+ * Ticks for a span of moments, [low]..[high] in epoch milliseconds, read off
+ * the clock of [zone]: every 1, 5, 15 or 30 seconds or minutes, or every 1, 3,
+ * 6 or 12 hours, counted from the zone's midnight, whichever gives near
+ * [count] of them; and for steps of a day or more, [dateTicks]' at the start of
+ * each of those days in [zone].
+ *
+ * On the clock, not on a stopwatch: a tick every three hours on the day the
+ * clocks go forward is at midnight, three and six, two hours apart and then
+ * three, because that is when the clocks said three and six. A time the
+ * clocks skip is moved to the moment they show it; a time they show twice is
+ * its first.
+ */
+internal fun instantTicks(low: Double, high: Double, count: Int, zone: TimeZone, firstDayOfWeek: DayOfWeek): Ticks {
+    var lo = low
+    var hi = high
+    if (lo.isNaN() || hi.isNaN()) {
+        lo = 0.0
+        hi = 1000.0
+    }
+    if (hi - lo < 1000.0) {
+        lo -= 1000.0
+        hi += 1000.0
+    }
+    val wanted = (hi - lo) / 1000.0 / max(count - 1, 1)
+    val step = ClockSteps.firstOrNull { it.seconds >= wanted }
+    if (step == null) {
+        val from = Instant.fromEpochMilliseconds(lo.roundToLong()).toLocalDateTime(zone).date
+        val to = Instant.fromEpochMilliseconds(hi.roundToLong()).toLocalDateTime(zone).date
+        val days = dateTicks(from.toEpochDays().toDouble(), to.toEpochDays().toDouble() + 1, count, firstDayOfWeek)
+        val values = days.values.map { day ->
+            LocalDate.fromEpochDays(day.roundToLong()).atStartOfDayIn(zone).toEpochMilliseconds().toDouble()
+        }.toDoubleArray()
+        return Ticks(values, values.first(), values.last(), unit = days.unit)
+    }
+    val first = Instant.fromEpochMilliseconds(lo.roundToLong()).toLocalDateTime(zone)
+    var date = first.date
+    var second = (first.hour * 3600 + first.minute * 60 + first.second) / step.seconds * step.seconds
+    val ticks = mutableListOf<Double>()
+    while (ticks.size < 400) {
+        val moment = LocalDateTime(date, LocalTime.fromSecondOfDay(second)).toInstant(zone)
+        val at = moment.toEpochMilliseconds().toDouble()
+        if (at > hi && ticks.size >= 2) break
+        // A skipped hour can move two ticks onto one moment; keep the first.
+        if (ticks.isEmpty() || at > ticks.last()) ticks += at
+        second += step.seconds
+        if (second >= SecondsPerDay) {
+            second -= SecondsPerDay
+            date = date.plus(1, DateTimeUnit.DAY)
+        }
+    }
+    return Ticks(ticks.toDoubleArray(), ticks.first(), ticks.last(), clock = step.unit)
+}
+
+private class ClockStep(val unit: ClockUnit, val seconds: Int)
+
+/** Every step divides a day, so counting from midnight lands on midnight again. */
+private val ClockSteps = listOf(
+    ClockStep(ClockUnit.Second, 1),
+    ClockStep(ClockUnit.Second, 5),
+    ClockStep(ClockUnit.Second, 15),
+    ClockStep(ClockUnit.Second, 30),
+    ClockStep(ClockUnit.Minute, 60),
+    ClockStep(ClockUnit.Minute, 300),
+    ClockStep(ClockUnit.Minute, 900),
+    ClockStep(ClockUnit.Minute, 1800),
+    ClockStep(ClockUnit.Hour, 3600),
+    ClockStep(ClockUnit.Hour, 3 * 3600),
+    ClockStep(ClockUnit.Hour, 6 * 3600),
+    ClockStep(ClockUnit.Hour, 12 * 3600),
+)
+
+private const val SecondsPerDay = 86_400

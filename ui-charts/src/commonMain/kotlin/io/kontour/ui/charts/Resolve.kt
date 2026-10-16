@@ -4,13 +4,17 @@ import io.kontour.ui.locale.DateStyle
 import io.kontour.ui.locale.LocaleFormats
 import io.kontour.ui.locale.NameWidth
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.Month
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
 import kotlin.math.roundToLong
+import kotlin.time.Instant
 
 /**
  * A chart ready to lay out: its axes' domains, ticks and labels, and every mark
@@ -346,7 +350,52 @@ private fun <V : Any> resolveAxis(
             write = write,
         )
     }
+
+    AxisKind.Instant -> {
+        val zone = axis.timeZone ?: TimeZone.currentSystemDefault()
+        val low = (axis.domain?.start ?: extent.low) - padding
+        val high = (axis.domain?.endInclusive ?: extent.high) + padding
+        val ticks = instantTicks(low, high, axis.tickCount, zone, formats.conventions.firstDayOfWeek)
+        val domainLow = if (axis.domain != null) low else min(low, ticks.low)
+        val domainHigh = if (axis.domain != null) high else max(high, ticks.high)
+        val shown = ticks.values.filter { it >= domainLow - 1e-9 && it <= domainHigh + 1e-9 }.toDoubleArray()
+        val label = axis.instantLabel
+        fun local(position: Double): LocalDateTime =
+            Instant.fromEpochMilliseconds(position.roundToLong()).toLocalDateTime(zone)
+        val tickLabels = shown.mapIndexed { index, position ->
+            val at = local(position)
+            when {
+                label != null -> label(Instant.fromEpochMilliseconds(position.roundToLong()))
+                ticks.clock != null -> clockTickLabel(at, shown.getOrNull(index - 1)?.let(::local), formats)
+                else -> dateTickLabel(at.date, ticks.unit ?: DateUnit.Day, index == 0, formats)
+            }
+        }
+        val write: (Double) -> String = { position ->
+            label?.invoke(Instant.fromEpochMilliseconds(position.roundToLong()))
+                ?: local(position).let { formats.dateTime(it.date, it.time) }
+        }
+        ResolvedAxis(
+            kind = AxisKind.Instant,
+            low = domainLow,
+            high = domainHigh,
+            ticks = shown,
+            tickLabels = tickLabels,
+            title = axis.title,
+            showGridlines = axis.showGridlines,
+            showLabels = axis.showLabels,
+            position = axis.position,
+            write = write,
+        )
+    }
 }
+
+/**
+ * A tick of an instant axis within a day: its time on the zone's clock, with its
+ * date at the first tick and wherever the date changes from the tick before,
+ * so a reader of a night's chart knows which side of midnight they are on.
+ */
+private fun clockTickLabel(at: LocalDateTime, before: LocalDateTime?, formats: LocaleFormats): String =
+    if (before == null || before.date != at.date) formats.dateTime(at.date, at.time) else formats.time(at.time)
 
 /**
  * A tick of a date axis, in the unit its ticks are in: a short date for days and
