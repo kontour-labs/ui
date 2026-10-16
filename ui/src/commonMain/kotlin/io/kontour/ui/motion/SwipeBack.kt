@@ -193,6 +193,34 @@ internal class SwipeBackInput(
         withFrameNanos { sawFrame(it) }
     }
 
+    /** The coroutine following the next frame for the pan: see [followFrame]. */
+    private var following: Job? = null
+
+    /**
+     * [nextFrame], in [scope], unless one is already waiting for it.
+     *
+     * **Held here, and not in the pan's pointer block.** The pan kept the job in
+     * a local of its `awaitPointerEventScope` block, and on iOS the first move
+     * of a back swipe or of a side sheet's drag killed the app:
+     * `Unexpected receiver type: StandaloneCoroutine`, from the block's own
+     * state machine, with the pointer handler's coroutine — a `StandaloneCoroutine`,
+     * as a launched job is — where a receiver of another type was expected.
+     * Moving the `launch` out of the block alone did not stop it; the local was
+     * still there. The JVM erases the receiver Kotlin/Native checks, so every
+     * test here passed throughout. The block now keeps nothing but what it
+     * had before 0.4.5.
+     */
+    fun followFrame(scope: CoroutineScope) {
+        if (following?.isActive == true) return
+        following = scope.launch { nextFrame() }
+    }
+
+    /** Stops [followFrame]'s coroutine, at a release. */
+    fun stopFollowing() {
+        following?.cancel()
+        following = null
+    }
+
     /**
      * That a frame was drawn at [frameTimeNanos] while the gesture was held. Two
      * close together are this screen's frame: a frame apart, rather than the
@@ -516,11 +544,9 @@ private suspend fun androidx.compose.ui.input.pointer.PointerInputScope.trackBac
             var claimed = false
             // The frames the page is drawn on under the finger, for the release
             // to be timed from: see [SwipeBackInput.nextFrame].
-            // A single frame at a time, and finished in one, so nothing has to
-            // stop it but the release, which does. No `try`/`finally` round
-            // the loop to cancel it either: see [followFrame] for what this
-            // block did on iOS with one, and a launch, inside it.
-            var frames: Job? = null
+            // The frame followed under the finger is the input's to hold: see
+            // [SwipeBackInput.followFrame] for what this block did on iOS when
+            // it held it itself.
             while (true) {
                 val event = awaitPointerEvent(pass)
                 val change = event.changes.firstOrNull { it.id == id }
@@ -563,13 +589,13 @@ private suspend fun androidx.compose.ui.input.pointer.PointerInputScope.trackBac
                 val progress = (along / span).coerceIn(0f, 1f)
                 if (change.pressed) {
                     input.move(progress, at)
-                    if (frames?.isActive != true) frames = input.followFrame(scope)
+                    input.followFrame(scope)
                     continue
                 }
                 // Let go: decided by where it would come to rest. See
                 // [releaseCommits].
                 val velocity = tracker.calculateVelocity().x * sign
-                frames?.cancel()
+                input.stopFollowing()
                 input.releaseIn(scope, releaseCommits(progress, velocity / span), velocity / span)
                 break
             }
@@ -578,24 +604,11 @@ private suspend fun androidx.compose.ui.input.pointer.PointerInputScope.trackBac
 }
 
 /**
- * The next frame, followed in [scope]: see [SwipeBackInput.nextFrame].
- *
- * **Launched from here, and not from inside the pan's `awaitPointerEventScope`.**
- * Written there as `scope.launch { input.nextFrame() }`, inside a `try` whose
- * `finally` cancelled it, the app died on iOS on the first move of a back swipe
- * or of a side sheet's drag: `Unexpected receiver type: StandaloneCoroutine`,
- * thrown from the pan block's own state machine running *in the launched
- * coroutine*, with that coroutine as its receiver. Kotlin/Native compiled the
- * restricted block wrongly; the JVM erases the receiver it would have checked,
- * so every test here passed. The launch and the `try` arrived together and
- * left together, and which of the two was the trigger was not isolated: the
- * block now makes no suspend lambda and has no `finally` round a suspension. A
- * suspend lambda made in an ordinary function is outside the restricted scope
- * altogether, and the pre-existing release launch moved with it.
+ * The release, run in [scope], from an ordinary function rather than as a
+ * suspend lambda made inside the pan's restricted pointer block. Not the cause
+ * of the iOS crash [SwipeBackInput.followFrame] describes, which this was moved
+ * out for first, but the block is simpler without it.
  */
-private fun SwipeBackInput.followFrame(scope: CoroutineScope): Job = scope.launch { nextFrame() }
-
-/** The release, run in [scope], for the same reason as [followFrame]. */
 private fun SwipeBackInput.releaseIn(scope: CoroutineScope, commit: Boolean, velocity: Float): Job =
     scope.launch { release(commit, velocity) }
 
