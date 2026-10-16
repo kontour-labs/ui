@@ -217,10 +217,11 @@ fun Text(
         reported
     } else {
         remember(grounds, reported) {
-            { result: TextLayoutResult ->
+            val record: (TextLayoutResult) -> Unit = { result ->
                 groundPaths.paths = SpanGrounds.paths(result, grounds)
                 reported?.invoke(result)
             }
+            record
         }
     }
     // Last in the chain, directly before the text's own node: behind is behind
