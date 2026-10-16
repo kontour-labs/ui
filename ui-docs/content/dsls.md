@@ -384,6 +384,20 @@ ListGroup {
 That overload is the reason the other shorthands can stay small — and it is an
 overload rather than a fifth verb because a group holds items either way.
 
+Two shorthands are named for the row they draw rather than called `item`, because
+the row is a different component: `setting` is a `SelectionRow` that opens a
+choice, and `split` is a `SplitListItem`, two rows side by side as one.
+
+```kotlin
+ListGroup {
+    setting("Units", value = "Metric", icon = Tabler.Outline.Ruler) { openUnits() }
+    split(ListItemSplit.Halves) {
+        start(onClick = ::openWifi) { +"Wi-Fi" }
+        end(onClick = ::openBluetooth) { +"Bluetooth" }
+    }
+}
+```
+
 ---
 
 ## What this cost, and what pays for it

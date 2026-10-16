@@ -163,4 +163,34 @@ class SplitListItemTest {
         val words = onNodeWithText("Wi-Fi", useUnmergedTree = true).getBoundsInRoot()
         near(words.left, title.left, "the section's title over a split row")
     }
+
+    @Test
+    fun aGroupsSplitIsOneRowBetweenItsNeighbours() = runComposeUiTest {
+        val clicks = mutableListOf<String>()
+        setContent {
+            KontourTheme(reduceMotion = true) {
+                seam = ListItemDefaults.Spacing
+                ListGroup(modifier = Modifier.width(360.dp)) {
+                    item("Notifications") { clicks += "notifications" }
+                    split(ListItemSplit.Halves) {
+                        start(onClick = { clicks += "start" }) { +"Wi-Fi" }
+                        end(onClick = { clicks += "end" }) { +"Bluetooth" }
+                    }
+                    item("Sign out") { clicks += "sign out" }
+                }
+            }
+        }
+        waitForIdle()
+        val above = onNodeWithText("Notifications").getBoundsInRoot()
+        val start = onNodeWithText("Wi-Fi").getBoundsInRoot()
+        val end = onNodeWithText("Bluetooth").getBoundsInRoot()
+        val below = onNodeWithText("Sign out").getBoundsInRoot()
+        near(start.top, end.top, "the two halves' tops")
+        near(above.bottom + seam, start.top, "the split row under the row above it")
+        near(start.bottom + seam, below.top, "the row below the split row")
+        onNodeWithText("Bluetooth").performClick()
+        onNodeWithText("Wi-Fi").performClick()
+        waitForIdle()
+        assertEquals(listOf("end", "start"), clicks)
+    }
 }

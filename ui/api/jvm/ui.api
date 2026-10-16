@@ -1424,6 +1424,8 @@ public final class io/kontour/ui/components/list/ListGroupScope {
 	public static synthetic fun item-nCNpSLQ$default (Lio/kontour/ui/components/list/ListGroupScope;Ljava/lang/String;ZLjava/lang/String;Ljava/lang/String;Landroidx/compose/ui/graphics/vector/ImageVector;ZILkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function0;ILjava/lang/Object;)V
 	public final fun setting (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Landroidx/compose/ui/graphics/vector/ImageVector;ZLkotlin/jvm/functions/Function0;)V
 	public static synthetic fun setting$default (Lio/kontour/ui/components/list/ListGroupScope;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Landroidx/compose/ui/graphics/vector/ImageVector;ZLkotlin/jvm/functions/Function0;ILjava/lang/Object;)V
+	public final fun split (Lio/kontour/ui/components/list/ListItemSplit;Lkotlin/jvm/functions/Function1;)V
+	public static synthetic fun split$default (Lio/kontour/ui/components/list/ListGroupScope;Lio/kontour/ui/components/list/ListItemSplit;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
 }
 
 public final class io/kontour/ui/components/list/ListItemDefaults {

@@ -57,17 +57,15 @@ colours — `enabled`, `onClick`, `selected`, `role`, `containerColour` and
 `trailing` read as they do on any row. A half with no `onClick` is not a
 control, and its words are content, as a row's are.
 
-In a [`ListGroup`](list-item.md), a split row goes in through the builder's
-own escape hatch, which hands it its position:
+In a [`ListGroup`](list-item.md), `split` adds a split row and works out its
+corners as it does every other row's:
 
 ```kotlin
 ListGroup {
     item("Notifications") { … }
-    item { position ->
-        SplitListItem(split = ListItemSplit.Halves, position = position) {
-            start(onClick = ::openWifi) { +"Wi-Fi" }
-            end(onClick = ::openBluetooth) { +"Bluetooth" }
-        }
+    split(ListItemSplit.Halves) {
+        start(onClick = ::openWifi) { +"Wi-Fi" }
+        end(onClick = ::openBluetooth) { +"Bluetooth" }
     }
 }
 ```
