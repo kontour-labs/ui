@@ -5,13 +5,22 @@ import org.gradle.kotlin.dsl.configure
 import org.gradle.kotlin.dsl.withType
 
 /**
- * Publishing, for every module that ships: the version, the coordinate task, the
- * repository and the POM.
+ * Publishing, for every module that ships: the version, the coordinate task and
+ * the POM.
  *
- * Here rather than in `ui/build.gradle.kts` because there are two published
- * modules now, `:ui` and `:ui-nav3`, and they must never disagree about which
- * release they are. A second copy of the version rule below would be a second
- * set of answers to the question it exists to settle.
+ * Here rather than in `ui/build.gradle.kts` because there are three published
+ * modules, `:ui`, `:ui-nav3` and `:haptics`, and they must never disagree about
+ * which release they are. A second copy of the version rule below would be a
+ * second set of answers to the question it exists to settle.
+ *
+ * The upload itself is `com.vanniktech.maven.publish`, applied in each module:
+ * Maven Central, signed, with the sources and javadoc jars Central requires —
+ * the javadoc from Dokka, which every published module applies. It reads its
+ * credentials as Gradle properties, which CI sets from secrets as
+ * `ORG_GRADLE_PROJECT_mavenCentralUsername`, `…mavenCentralPassword`,
+ * `…signingInMemoryKey` and `…signingInMemoryKeyPassword`: see
+ * `docs/building/releasing.md`. Until 0.4.5 the library was on GitHub Packages,
+ * which needed a token even to read.
  *
  * ### The version
  *
@@ -28,8 +37,8 @@ import org.gradle.kotlin.dsl.withType
  * outside a tag, while the comment above it claimed a branch build was a
  * snapshot. `GITHUB_REF_TYPE` is the field that answers the question.
  *
- * The result is then checked, because the failure mode is silent: an unpublish
- * on a package registry is a support ticket, and the check costs one regex.
+ * The result is then checked, because the failure mode is silent: Maven Central
+ * never deletes or replaces a version, and the check costs one regex.
  *
  * Everything is read through `providers`, never `System.getenv`. The
  * configuration cache is on (`gradle.properties`), and a direct environment read
@@ -92,17 +101,6 @@ fun Project.kontourPublishing(
     }
 
     extensions.configure<PublishingExtension> {
-        repositories {
-            maven {
-                name = "GitHubPackages"
-                url = uri("https://maven.pkg.github.com/kontour-labs/ui")
-                credentials {
-                    username = providers.environmentVariable("GITHUB_ACTOR").orNull
-                    password = providers.environmentVariable("GITHUB_TOKEN").orNull
-                }
-            }
-        }
-
         publications.withType<MavenPublication>().configureEach {
             pom {
                 name.set(displayName)
@@ -116,9 +114,17 @@ fun Project.kontourPublishing(
                         if (licenceNote != null) comments.set(licenceNote)
                     }
                 }
+                developers {
+                    developer {
+                        id.set("kontour-labs")
+                        name.set("Kontour Labs")
+                        url.set("https://github.com/kontour-labs")
+                    }
+                }
                 scm {
                     url.set("https://github.com/kontour-labs/ui")
                     connection.set("scm:git:https://github.com/kontour-labs/ui.git")
+                    developerConnection.set("scm:git:ssh://git@github.com/kontour-labs/ui.git")
                 }
             }
         }

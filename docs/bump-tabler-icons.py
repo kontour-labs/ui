@@ -14,24 +14,21 @@ request, never on `main`.
     python3 docs/bump-tabler-icons.py --is-newer 3.49.0
     python3 docs/bump-tabler-icons.py --write 3.49.0 [--integrity sha512-…]
 
-`--latest` reads both packages' `maven-metadata.xml` from GitHub Packages, which
-wants credentials even to read — the same ones `settings.gradle.kts` uses:
-`KONTOUR_PACKAGES_ACTOR`/`KONTOUR_PACKAGES_TOKEN`, or `GITHUB_ACTOR`/`GITHUB_TOKEN`
-— and prints the newest stable version both styles have.
+`--latest` reads both packages' `maven-metadata.xml` from Maven Central, which
+needs no credentials, and prints the newest stable version both styles have.
 
 `--write` moves the three places a version lives:
 
 * `gradle/libs.versions.toml`, `tabler-icons`;
 * `docs/icondata.py`'s `INTEGRITY`, the docs' icon browser's pin on the
   `@tabler/icons` tarball of that version — from npm's own `dist.integrity`
-  unless given, and named in the pull request so a person looks at it;
+  unless given, and named in the pull request so a person looks at it. A
+  re-release of the same icons, `3.49.0.1`, is pinned as npm's `3.49.0`;
 * the changelog, a line under `## Unreleased` → `### Changed`.
 """
 
 import argparse
-import base64
 import json
-import os
 import pathlib
 import re
 import sys
@@ -43,7 +40,7 @@ CATALOGUE = ROOT / "gradle/libs.versions.toml"
 ICONDATA = ROOT / "docs/icondata.py"
 CHANGELOG = ROOT / "ui-docs/content/changelog.md"
 
-REPOSITORY = "https://maven.pkg.github.com/kontour-labs/tabler"
+REPOSITORY = "https://repo1.maven.org/maven2"
 ARTIFACTS = ("tabler-icons-outline", "tabler-icons-filled")
 
 VERSION_LINE = re.compile(r'^(tabler-icons\s*=\s*")([^"]+)(")', re.M)
@@ -61,25 +58,15 @@ def key(version: str) -> tuple[int, ...]:
     return tuple(int(part) for part in version.split("."))
 
 
-def credentials() -> tuple[str, str]:
-    actor = os.environ.get("KONTOUR_PACKAGES_ACTOR") or os.environ.get("GITHUB_ACTOR")
-    token = os.environ.get("KONTOUR_PACKAGES_TOKEN") or os.environ.get("GITHUB_TOKEN")
-    if not actor or not token:
-        raise SystemExit(
-            "GitHub Packages needs credentials even to read: set KONTOUR_PACKAGES_ACTOR and "
-            "KONTOUR_PACKAGES_TOKEN (a token with read:packages), or GITHUB_ACTOR and GITHUB_TOKEN"
-        )
-    return actor, token
-
-
 def metadata(artifact: str) -> str:
-    actor, token = credentials()
     url = f"{REPOSITORY}/io/kontour/{artifact}/maven-metadata.xml"
-    request = urllib.request.Request(url)
-    basic = base64.b64encode(f"{actor}:{token}".encode()).decode()
-    request.add_header("Authorization", f"Basic {basic}")
-    with urllib.request.urlopen(request, timeout=60) as response:
+    with urllib.request.urlopen(url, timeout=60) as response:
         return response.read().decode()
+
+
+def npm_version(version: str) -> str:
+    """`3.49.0.1` → `3.49.0`: a re-release of the same icons is of the same Tabler release."""
+    return ".".join(version.split(".")[:3])
 
 
 def versions(xml: str) -> set[str]:
@@ -158,7 +145,7 @@ def main() -> None:
     group.add_argument("--is-newer", metavar="VERSION", help="exit 0 if VERSION is newer than the pinned one")
     group.add_argument("--write", metavar="VERSION", help="move every pin to VERSION")
     parser.add_argument("--metadata", nargs=2, metavar=("OUTLINE", "FILLED"), type=pathlib.Path,
-                        help="read maven-metadata.xml from these files rather than GitHub Packages")
+                        help="read maven-metadata.xml from these files rather than Maven Central")
     parser.add_argument("--integrity", help="the @tabler/icons tarball's integrity, rather than npm's")
     args = parser.parse_args()
 
@@ -178,9 +165,10 @@ def main() -> None:
         old = current()
         if key(new) <= key(old):
             raise SystemExit(f"{new} is not newer than the pinned {old}")
-        integrity = args.integrity or npm_integrity(new)
+        release = npm_version(new)
+        integrity = args.integrity or npm_integrity(release)
         write_catalogue(new)
-        write_integrity(new, integrity)
+        write_integrity(release, integrity)
         write_changelog(old, new)
         print(f"tabler-icons {old} → {new}; @tabler/icons integrity {integrity}")
 

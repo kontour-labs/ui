@@ -7,6 +7,8 @@ kotlin = "2.4.10"
 # what that means for a consumer.
 composeMultiplatform = "1.12.1"
 dokka = "2.1.0"
+# Publishing to Maven Central, signed. Kept in step with kontour-labs/tabler.
+mavenPublish = "0.37.0"
 
 # Android
 android-compileSdk = "37"
@@ -15,10 +17,10 @@ android-targetSdk = "37"
 androidx-activity = "1.13.0"
 
 # Icons — Kontour Labs' build of Tabler, every icon of the release named,
-# outline and filled. On GitHub Packages, so reading it needs credentials: see
-# `settings.gradle.kts`. The version is Tabler's own. The library draws its
+# outline and filled, on Maven Central. The version is Tabler's own, or Tabler's
+# with a fourth part for a re-release of the same icons. The library draws its
 # system icons from it; the catalog, the samples and the docs use the rest.
-tabler-icons = "3.49.0"
+tabler-icons = "3.49.0.1"
 
 # Navigation 3 — `:ui-nav3` only. The scene API is JetBrains' multiplatform
 # build of it; `NavEntry` and the rest of the runtime come from Google's.
@@ -73,3 +75,4 @@ composeCompiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "k
 androidApplication = { id = "com.android.application", version.ref = "agp" }
 androidMultiplatformLibrary = { id = "com.android.kotlin.multiplatform.library", version.ref = "agp" }
 dokka = { id = "org.jetbrains.dokka", version.ref = "dokka" }
+mavenPublish = { id = "com.vanniktech.maven.publish", version.ref = "mavenPublish" }

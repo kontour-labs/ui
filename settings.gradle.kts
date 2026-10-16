@@ -23,25 +23,8 @@ dependencyResolutionManagement {
                 includeGroupAndSubgroups("com.google")
             }
         }
+        // The icons, `io.kontour:tabler-icons-*`, are here too, from 3.49.0.1.
         mavenCentral()
-        // The icons, `io.kontour:tabler-icons-*`, and nothing else: GitHub
-        // Packages needs credentials even to read, so this is asked for them
-        // and for no other module. A token with `read:packages`, from
-        // `gpr.user`/`gpr.key` in the Gradle properties, or from the
-        // environment — `KONTOUR_PACKAGES_ACTOR`/`KONTOUR_PACKAGES_TOKEN`, or
-        // the `GITHUB_ACTOR`/`GITHUB_TOKEN` a GitHub Actions job has.
-        maven("https://maven.pkg.github.com/kontour-labs/tabler") {
-            name = "KontourTabler"
-            credentials {
-                username = providers.gradleProperty("gpr.user")
-                    .orElse(providers.environmentVariable("KONTOUR_PACKAGES_ACTOR"))
-                    .orElse(providers.environmentVariable("GITHUB_ACTOR")).orNull
-                password = providers.gradleProperty("gpr.key")
-                    .orElse(providers.environmentVariable("KONTOUR_PACKAGES_TOKEN"))
-                    .orElse(providers.environmentVariable("GITHUB_TOKEN")).orNull
-            }
-            content { includeModuleByRegex("io\\.kontour", "tabler-icons-.*") }
-        }
     }
 }
 
