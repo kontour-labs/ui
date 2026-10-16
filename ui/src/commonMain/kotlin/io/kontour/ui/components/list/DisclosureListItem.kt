@@ -1,5 +1,6 @@
 package io.kontour.ui.components.list
 
+import io.kontour.ui.theme.clipProxy
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.expandVertically
@@ -130,7 +131,7 @@ fun DisclosureListItem(
         ListRowEdges
             .then(modifier)
             .fillMaxWidth()
-            .clip(card)
+            .clip(card.clipProxy())
             .background(if (enabled) colours.surfaceSunken else colours.surfaceSunken.copy(alpha = 0.5f), card)
             // One edge round the whole card at high contrast, header and body
             // together, rather than one round the header alone.

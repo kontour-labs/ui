@@ -1,5 +1,6 @@
 package io.kontour.ui.components.selection
 
+import io.kontour.ui.theme.clipProxy
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.runtime.remember
@@ -161,7 +162,7 @@ private fun Preview(colour: Color, modifier: Modifier = Modifier) {
     Box(
         modifier
             .size(PreviewSize)
-            .clip(Theme.shapes.small)
+            .clip(Theme.shapes.small.clipProxy())
             .drawBehind {
                 chequerboard()
                 drawRect(colour)

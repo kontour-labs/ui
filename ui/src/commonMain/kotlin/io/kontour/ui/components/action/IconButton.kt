@@ -1,5 +1,6 @@
 package io.kontour.ui.components.action
 
+import io.kontour.ui.theme.clipProxy
 import io.kontour.ui.platform.webRole
 import io.kontour.ui.platform.WebRole
 import androidx.compose.ui.draw.drawBehind
@@ -471,7 +472,7 @@ private fun IconButtonSurface(
                     Modifier
                 }
             )
-            .clip(shape)
+            .clip(shape.clipProxy())
             .background(container, shape)
             .then(
                 if (borderColour != null) {

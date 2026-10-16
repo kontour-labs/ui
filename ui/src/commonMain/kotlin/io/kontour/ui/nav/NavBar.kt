@@ -1,5 +1,6 @@
 package io.kontour.ui.nav
 
+import io.kontour.ui.theme.clipProxy
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -443,7 +444,7 @@ internal fun NavBarLayout(
                 Box(
                     Modifier
                         .fillMaxSize()
-                        .clip(markerShape)
+                        .clip(markerShape.clipProxy())
                         .background(colours.indicator)
                         .optionalBorder(selectionEdge(), markerShape)
                 )

@@ -1,5 +1,6 @@
 package io.kontour.ui.foundation
 
+import io.kontour.ui.theme.clipProxy
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.State
@@ -146,7 +147,7 @@ fun Modifier.redacted(
                 }
             }
         }
-        .clip(shape)
+        .clip(shape.clipProxy())
         .then(redactedFill())
         // After the fill, which draws behind. This is what stops the real
         // content drawing at all — the fill has already painted by the time the

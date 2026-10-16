@@ -1,5 +1,6 @@
 package io.kontour.ui.nav
 
+import io.kontour.ui.theme.clipProxy
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -116,7 +117,7 @@ private fun CrumbLabel(crumb: Crumb, isCurrent: Boolean) {
                 .semantics { role = Role.Button }
                 .minimumTouchTarget()
                 .focusRing(interactions, shape)
-                .clip(shape)
+                .clip(shape.clipProxy())
                 .pointerCursor()
                 .clickable(
                     interactionSource = interactions,

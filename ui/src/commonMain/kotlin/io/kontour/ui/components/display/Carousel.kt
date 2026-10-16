@@ -1,5 +1,6 @@
 package io.kontour.ui.components.display
 
+import io.kontour.ui.theme.clipProxy
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.runtime.withFrameNanos
 import io.kontour.ui.a11y.highContrast
@@ -689,7 +690,7 @@ private fun Modifier.heroPage(
             placeable.placeRelative(box?.shift?.roundToInt() ?: 0, 0)
         }
     }
-    .clip(shape)
+    .clip(shape.clipProxy())
     .layout { measurable, constraints ->
         val frame = constraints.maxWidth
         val last = page == count - 1
@@ -1209,7 +1210,7 @@ private fun PageDots(
                     modifier = Modifier
                         .width(if (vertical) PageIndicatorDefaults.DotSize else width)
                         .height(if (vertical) width else PageIndicatorDefaults.DotSize)
-                        .clip(Theme.shapes.capsule),
+                        .clip(Theme.shapes.capsule.clipProxy()),
                     shape = Theme.shapes.capsule,
                     // Under a travelling style every dot is a track, and the pill
                     // drawn over them is what says which page this is.

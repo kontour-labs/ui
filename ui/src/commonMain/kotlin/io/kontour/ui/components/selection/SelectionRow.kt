@@ -1,5 +1,6 @@
 package io.kontour.ui.components.selection
 
+import io.kontour.ui.theme.clipProxy
 import io.kontour.ui.platform.webRole
 import io.kontour.ui.platform.WebRole
 import io.kontour.ui.input.focusRing
@@ -306,7 +307,7 @@ private fun SelectionRowFrame(
                     .fillMaxWidth()
                     // The row is the control, so the row shows where the keyboard is.
                     .focusRing(interactions, shape, enabled = focusable)
-                    .clip(shape)
+                    .clip(shape.clipProxy())
                     .then(interaction)
                     .padding(horizontal = Theme.spacing.sm, vertical = Theme.spacing.sm),
                 horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm),

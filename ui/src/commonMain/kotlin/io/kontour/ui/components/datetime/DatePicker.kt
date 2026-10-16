@@ -1,5 +1,6 @@
 package io.kontour.ui.components.datetime
 
+import io.kontour.ui.theme.clipProxy
 import io.kontour.ui.a11y.optionalBorder
 import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.motion.sizeSpec
@@ -724,7 +725,7 @@ private fun MonthAndYearButton(
         Modifier
             .minimumTouchTarget()
             .focusRing(interactions, shape)
-            .clip(shape)
+            .clip(shape.clipProxy())
             // A ghost button, and edged like one at the enhanced tier.
             .optionalBorder(contrastEdge(), shape)
             .pointerCursor()

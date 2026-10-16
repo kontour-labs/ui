@@ -1,5 +1,6 @@
 package io.kontour.ui.components.display
 
+import io.kontour.ui.theme.clipProxy
 import io.kontour.ui.locale.bidiIsolated
 import io.kontour.ui.locale.LocaleFormats
 import androidx.compose.foundation.BorderStroke
@@ -250,7 +251,7 @@ private fun AvatarBody(
     Box(
         modifier = modifier
             .size(size.diameter)
-            .clip(circle)
+            .clip(circle.clipProxy())
             .background(if (image != null) Theme.colours.surfaceSunken else background)
             // An avatar with no name and no picture is a well on the page —
             // 1.13:1 at the enhanced tier — so there it takes the tier's edge,
@@ -263,7 +264,7 @@ private fun AvatarBody(
                 painter = image,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.size(size.diameter).clip(circle),
+                modifier = Modifier.size(size.diameter).clip(circle.clipProxy()),
             )
 
             // `size.textSize`, which has been sitting there computed and unread.
@@ -379,16 +380,16 @@ private fun Decoration(decoration: AvatarDecoration, size: AvatarSize) {
     when (decoration) {
         is AvatarDecoration.Status -> Box(
             silent
-                .clip(round)
+                .clip(round.clipProxy())
                 .background(ground)
                 .padding(ring)
                 .size((size.diameter * StatusShare).coerceIn(StatusMin, StatusMax))
-                .clip(round)
+                .clip(round.clipProxy())
                 .background(decoration.colour)
                 .optionalBorder(edge, round),
         )
 
-        is AvatarDecoration.Count -> Box(silent.clip(Theme.shapes.capsule).background(ground).padding(ring)) {
+        is AvatarDecoration.Count -> Box(silent.clip(Theme.shapes.capsule.clipProxy()).background(ground).padding(ring)) {
             Badge(
                 count = decoration.value,
                 max = decoration.max,
@@ -401,11 +402,11 @@ private fun Decoration(decoration: AvatarDecoration, size: AvatarSize) {
             val disc = (size.diameter * GlyphShare).coerceIn(GlyphMin, GlyphMax)
             Box(
                 silent
-                    .clip(round)
+                    .clip(round.clipProxy())
                     .background(ground)
                     .padding(ring)
                     .size(disc)
-                    .clip(round)
+                    .clip(round.clipProxy())
                     .background(container)
                     .optionalBorder(edge, round),
                 contentAlignment = Alignment.Center,
@@ -500,7 +501,7 @@ fun AvatarGroup(
                 Box(
                     Modifier
                         .size(size.diameter)
-                        .clip(circle)
+                        .clip(circle.clipProxy())
                         .background(Theme.colours.surfaceSunken)
                         // The edge first, so it draws over the page-coloured ring
                         // rather than under it: a modifier earlier in the chain

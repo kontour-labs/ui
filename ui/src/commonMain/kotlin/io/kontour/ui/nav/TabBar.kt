@@ -1,5 +1,6 @@
 package io.kontour.ui.nav
 
+import io.kontour.ui.theme.clipProxy
 import io.kontour.ui.platform.webRole
 import io.kontour.ui.platform.WebRole
 import io.kontour.ui.a11y.optionalBorder
@@ -252,7 +253,7 @@ fun TabBar(
                                 .fillMaxSize()
                                 // See `indicatorShape`, which is where this is
                                 // built and why it is not built here.
-                                .clip(indicatorShape)
+                                .clip(indicatorShape.clipProxy())
                                 .background(indicatorColour)
                                 .optionalBorder(selectionEdge(), indicatorShape)
                         )
@@ -419,7 +420,7 @@ fun TabBarScope.Tab(
             // the fill above has no bounded height to take.
             .minimumTouchTarget()
             .focusRing(interactions, Theme.shapes.control)
-            .clip(Theme.shapes.control)
+            .clip(Theme.shapes.control.clipProxy())
             .pointerCursor(enabled = enabled)
             .webRole(WebRole.Tab, selected)
             .selectable(

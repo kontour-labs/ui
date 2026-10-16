@@ -1,5 +1,6 @@
 package io.kontour.ui.foundation
 
+import io.kontour.ui.theme.clipProxy
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.InlineTextContent
 import androidx.compose.runtime.Composable
@@ -389,7 +390,7 @@ private fun rememberTextRedaction(): TextRedaction {
 
     val fill = when {
         !redacted -> Modifier
-        shape != null -> Modifier.clip(shape).then(redactedFill()).drawWithContent { }
+        shape != null -> Modifier.clip(shape.clipProxy()).then(redactedFill()).drawWithContent { }
         // First pass: the layout has not been reported yet, so there is nothing
         // to draw bars from. Draw nothing at all rather than the glyphs — a
         // frame of readable text in the middle of a loading screen is the one

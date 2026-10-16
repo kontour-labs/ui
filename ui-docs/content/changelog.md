@@ -86,6 +86,19 @@ frame rate.
 
 ### Changed
 
+- **Curved edges are smoother, and grid lines crisp.** Two causes of the rough
+  look reported on the web, the desktop and iOS, where nothing about a
+  component's shape or size changes:
+  - Rows, buttons, chips, fields, menu rows, tabs and the rest clipped their
+    content by the squircle's path and then filled the same path, so each edge
+    pixel was smoothed twice and came out thinner and harder than one fill.
+    They clip by the rounded rectangle a `Surface` already used, which sits
+    within a fraction of a pixel of the squircle, and the squircle is drawn as
+    the edge — once, smoothly, and cheaper to clip.
+  - The calendar's day and hour lines and a table's column lines were centred
+    on a pixel boundary, which draws a 1dp line as two pale pixels; and at a
+    density of 1.25 or 1.5 a 1dp line is a fraction of a pixel too. They are
+    whole pixels now, on whole pixels.
 - **A [dropped](drag-and-drop.md) card lands as it settles into its place**, not
   a fraction of a second after. The drop waited for the card's flight to finish
   on a spring that ran on to a hundredth of a pixel, and for its shadow to come

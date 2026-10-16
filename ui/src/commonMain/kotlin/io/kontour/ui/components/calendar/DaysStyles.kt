@@ -1,5 +1,8 @@
 package io.kontour.ui.components.calendar
 
+import io.kontour.ui.foundation.snappedLineWidth
+import io.kontour.ui.foundation.snappedLineCentre
+import io.kontour.ui.theme.clipProxy
 import androidx.compose.runtime.getValue
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -58,7 +61,7 @@ internal fun CondensedDays(scope: CalendarScope, days: Int, modifier: Modifier) 
     Box(
         modifier
             .fillMaxWidth()
-            .clip(frame)
+            .clip(frame.clipProxy())
             .border(Theme.sizing.borderWidth, gridLine(), frame)
             .calendarCursor(scope, description = scope.dayDescription(state.date)) { key -> scope.monthKey(key, rtl) },
     ) {
@@ -155,12 +158,15 @@ private fun CondensedPage(scope: CalendarScope, packing: CondensedPacking, lists
                 // first day's too, as the hours' columns draw it, so a page
                 // swiped in beside this one has its line between the two —
                 // the last day of one week and the first of the next.
-                val width = line.toPx()
+                // Whole pixels, on the day's side of each edge: centred on a
+                // fractional edge, each line was two pale pixels.
+                val width = snappedLineWidth(line.toPx())
                 val cell = size.width / days
-                val edge = if (layoutDirection == LayoutDirection.Rtl) size.width - width / 2 else width / 2
+                val rtl = layoutDirection == LayoutDirection.Rtl
+                val edge = if (rtl) snappedLineCentre(size.width, width, after = false) else snappedLineCentre(0f, width)
                 drawLine(lineColour, Offset(edge, 0f), Offset(edge, size.height), width)
                 for (column in 1 until days) {
-                    val x = cell * column
+                    val x = snappedLineCentre(cell * column, width, after = !rtl)
                     drawLine(lineColour, Offset(x, 0f), Offset(x, size.height), width)
                 }
                 drawContent()

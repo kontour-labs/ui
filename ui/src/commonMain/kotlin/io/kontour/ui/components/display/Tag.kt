@@ -1,5 +1,6 @@
 package io.kontour.ui.components.display
 
+import io.kontour.ui.theme.clipProxy
 import io.kontour.ui.locale.bidiIsolated
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -136,7 +137,7 @@ fun Tag(
             .semantics(mergeDescendants = true) {
                 if (contentDescription != null) this.contentDescription = contentDescription
             }
-            .clip(shape)
+            .clip(shape.clipProxy())
             .background(container, shape)
             // Each tone's own border rather than a grey rectangle drawn around
             // a coloured one. Neutral is the tone that needs this — it is
@@ -239,7 +240,7 @@ fun Badge(
             modifier
                 .then(said)
                 .defaultMinSize(minWidth = 8.dp, minHeight = 8.dp)
-                .clip(round)
+                .clip(round.clipProxy())
                 .background(containerColour)
                 .optionalBorder(ring, round)
         )
@@ -248,7 +249,7 @@ fun Badge(
             modifier = modifier
                 .then(said)
                 .defaultMinSize(minWidth = 18.dp, minHeight = 18.dp)
-                .clip(Theme.shapes.capsule)
+                .clip(Theme.shapes.capsule.clipProxy())
                 .background(containerColour)
                 .optionalBorder(ring, Theme.shapes.capsule)
                 .padding(horizontal = 5.dp),

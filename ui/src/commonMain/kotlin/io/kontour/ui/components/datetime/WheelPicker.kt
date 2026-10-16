@@ -1,5 +1,6 @@
 package io.kontour.ui.components.datetime
 
+import io.kontour.ui.theme.clipProxy
 import kotlinx.coroutines.flow.collectLatest
 import io.kontour.ui.motion.scrollToItem
 import androidx.compose.animation.core.Animatable
@@ -993,7 +994,7 @@ internal fun <T> WheelDrum(
             Modifier
                 .fillMaxWidth()
                 .height(itemHeight)
-                .clip(Theme.shapes.medium)
+                .clip(Theme.shapes.medium.clipProxy())
                 .background(Theme.colours.surfaceSunken)
                 // The band says which row is chosen; at the enhanced tier it
                 // needs an edge to say it at all.
@@ -1365,7 +1366,7 @@ private fun <T> InfiniteWheel(
                 .fillMaxWidth()
                 .height(itemHeight)
                 .align(Alignment.Center)
-                .clip(Theme.shapes.medium)
+                .clip(Theme.shapes.medium.clipProxy())
                 .background(Theme.colours.surfaceSunken)
                 // The band says which row is chosen; at the enhanced tier it
                 // needs an edge to say it at all.

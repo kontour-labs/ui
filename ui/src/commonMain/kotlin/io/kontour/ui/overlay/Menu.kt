@@ -1,5 +1,6 @@
 package io.kontour.ui.overlay
 
+import io.kontour.ui.theme.clipProxy
 import io.kontour.ui.platform.webRole
 import io.kontour.ui.platform.WebRole
 import androidx.compose.animation.core.animateFloatAsState
@@ -955,7 +956,7 @@ fun MenuItem(
                 // It also fixes the corner: `inset(xxs)` is the concentric radius
                 // for a 4dp inset, and now every side really is at 4.
                 .minimumTouchTarget(fill = true)
-                .clip(rowShape)
+                .clip(rowShape.clipProxy())
                 .then(
                     if (sizing) {
                         Modifier
@@ -1400,7 +1401,7 @@ internal fun MenuActionCells(actions: List<MenuAction>, modifier: Modifier, fill
                     modifier = Modifier
                         .weight(1f)
                         .minimumTouchTarget(fill = true)
-                        .clip(cellShape)
+                        .clip(cellShape.clipProxy())
                         .then(if (filled) Modifier.background(colours.surfaceSunken) else Modifier)
                         // Edged at the enhanced tier either way, as a ghost button is.
                         .optionalBorder(edge, cellShape)

@@ -1,5 +1,6 @@
 package io.kontour.ui.components.list
 
+import io.kontour.ui.theme.clipProxy
 import io.kontour.ui.platform.webRole
 import io.kontour.ui.platform.WebRole
 import androidx.compose.foundation.background
@@ -338,7 +339,7 @@ internal fun ListItemImpl(
                     // changed height when it greyed out would jump the list around it.
                     .then(if (controls) Modifier.minimumTouchTarget() else Modifier)
                     .focusRing(interactions, shape, enabled = interactive)
-                    .clip(shape)
+                    .clip(shape.clipProxy())
                     .background(container, shape)
                     // `surfaceSunken` on `background` is **1.06:1** at the dark
                     // enhanced tier and **1.14** at light's — a group of rows reads as

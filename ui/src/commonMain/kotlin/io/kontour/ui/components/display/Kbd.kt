@@ -1,5 +1,6 @@
 package io.kontour.ui.components.display
 
+import io.kontour.ui.theme.clipProxy
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -81,7 +82,7 @@ fun Kbd(
         modifier = modifier
             .clearAndSetSemantics { }
             .defaultMinSize(minWidth = KbdDefaults.MinWidth, minHeight = KbdDefaults.Height)
-            .clip(shape)
+            .clip(shape.clipProxy())
             .background(Theme.colours.surfaceSunken, shape)
             .border(Theme.sizing.borderWidth, Theme.colours.outline, shape)
             .padding(horizontal = Theme.spacing.xxs),

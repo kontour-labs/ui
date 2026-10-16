@@ -1,5 +1,6 @@
 package io.kontour.ui.components.selection
 
+import io.kontour.ui.theme.clipProxy
 import io.kontour.ui.platform.webRole
 import io.kontour.ui.platform.WebRole
 import io.kontour.ui.motion.sizeSpec
@@ -137,7 +138,7 @@ fun Chip(
             // own KDoc documents: reserve the space, draw the pill inside it.
             .minimumTouchTarget()
             .focusRing(interactions, shape)
-            .clip(shape)
+            .clip(shape.clipProxy())
             .background(if (enabled) colours.surfaceSunken else Color.Transparent, shape)
             // A sunken fill is barely apart from the page at the enhanced tier.
             .optionalBorder(contrastEdge(), shape)
@@ -283,7 +284,7 @@ fun FilterChip(
             .minimumTouchTarget()
             .focusRing(interactions, shape)
             .heightIn(min = ChipHeight)
-            .clip(shape)
+            .clip(shape.clipProxy())
             .background(container, shape)
             .border(BorderStroke(Theme.sizing.borderWidth, borderColour), shape)
             .then(
@@ -398,7 +399,7 @@ fun InputChip(
             .minimumTouchTarget()
             .focusRing(interactions, shape)
             .heightIn(min = ChipHeight)
-            .clip(shape)
+            .clip(shape.clipProxy())
             .background(colours.surfaceSunken, shape)
             .optionalBorder(contrastEdge(), shape)
             .then(
@@ -433,7 +434,7 @@ fun InputChip(
                 Row(
                     Modifier
                         .focusRing(removeInteractions, Theme.shapes.control)
-                        .clip(Theme.shapes.control)
+                        .clip(Theme.shapes.control.clipProxy())
                         .pointerCursor(enabled = enabled)
                         .clickable(
                             enabled = enabled,
@@ -635,7 +636,7 @@ private fun ChipTag(
     val shape = Theme.shapes.capsule
     Row(
         modifier = Modifier
-            .clip(shape)
+            .clip(shape.clipProxy())
             .background(container, shape)
             // A neutral tag is a step off its chip's ground, which is nothing at
             // the enhanced tier; a solid one needs no help.

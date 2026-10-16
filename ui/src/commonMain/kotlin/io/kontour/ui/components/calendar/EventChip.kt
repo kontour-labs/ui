@@ -1,5 +1,6 @@
 package io.kontour.ui.components.calendar
 
+import io.kontour.ui.theme.clipProxy
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.foundation.BorderStroke
@@ -198,7 +199,7 @@ internal fun EventChip(
                 .matchParentSize()
                 .graphicsLayer { alpha = fade.value }
                 .then(if (stacked) Modifier.drawBehind { drawRing(shape, ring, ringWidth.toPx()) } else Modifier)
-                .clip(shape)
+                .clip(shape.clipProxy())
                 .background(fill)
                 .then(if (edge != null) Modifier.border(edge, shape) else Modifier),
             // A block's text from its top, as time runs; a bar's and a line's level

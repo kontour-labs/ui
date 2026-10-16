@@ -1,5 +1,6 @@
 package io.kontour.ui.components.calendar
 
+import io.kontour.ui.theme.clipProxy
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -120,7 +121,7 @@ internal fun MonthView(scope: CalendarScope) {
                 // In a box, cornered as the library's containers are and edged
                 // with the grid's own line: the days' lines meet an edge rather
                 // than stopping in the open.
-                .clip(frame)
+                .clip(frame.clipProxy())
                 .border(Theme.sizing.borderWidth, gridLine(), frame)
                 // Ctrl, or Cmd, and plus or minus: a week fewer or more, as a
                 // browser zooms its page. Before the cursor, which leaves keys

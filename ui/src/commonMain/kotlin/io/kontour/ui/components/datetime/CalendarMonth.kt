@@ -1,5 +1,6 @@
 package io.kontour.ui.components.datetime
 
+import io.kontour.ui.theme.clipProxy
 import io.kontour.ui.locale.LocaleFormats
 import io.kontour.ui.locale.DateTimeConventions
 import io.kontour.ui.locale.DateStyle
@@ -859,7 +860,7 @@ private fun DayCell(
                         scaleY = fillScale
                     }
                 }
-                .clip(shape)
+                .clip(shape.clipProxy())
                 .background(container, shape)
         )
 
@@ -918,7 +919,7 @@ private fun DayCell(
             Modifier
                 .minimumTouchTarget()
                 .matchCellSize()
-                .clip(shape)
+                .clip(shape.clipProxy())
                 // Inside the day: the days either side touch it. With no
                 // indication, this is the only sign of where the keyboard is.
                 .insetFocusRing(interactions, shape, enabled)

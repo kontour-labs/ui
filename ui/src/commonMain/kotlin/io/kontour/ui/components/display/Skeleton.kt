@@ -1,5 +1,6 @@
 package io.kontour.ui.components.display
 
+import io.kontour.ui.theme.clipProxy
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloat
@@ -80,7 +81,7 @@ fun Skeleton(
     Box(
         modifier
             .clearAndSetSemantics { }
-            .clip(shape)
+            .clip(shape.clipProxy())
             .skeletonFill(angle)
     )
 }

@@ -1,5 +1,6 @@
 package io.kontour.ui.nav
 
+import io.kontour.ui.theme.clipProxy
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -453,7 +454,7 @@ private fun RailItems(
                     Box(
                         Modifier
                             .fillMaxSize()
-                            .clip(Theme.shapes.capsule)
+                            .clip(Theme.shapes.capsule.clipProxy())
                             .background(colours.indicator)
                             .optionalBorder(selectionEdge(), Theme.shapes.capsule)
                     )

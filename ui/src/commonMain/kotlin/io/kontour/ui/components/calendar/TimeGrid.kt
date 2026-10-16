@@ -1,5 +1,7 @@
 package io.kontour.ui.components.calendar
 
+import io.kontour.ui.foundation.snappedLineWidth
+import io.kontour.ui.foundation.snappedLineCentre
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.foundation.layout.fillMaxSize
@@ -905,12 +907,18 @@ private fun DayColumn(scope: CalendarScope, date: LocalDate, modifier: Modifier)
                 }
             }
             .drawBehind {
-                val width = line.toPx()
+                // Whole pixels, below each hour's edge: centred on it, each
+                // line was two pale pixels.
+                val width = snappedLineWidth(line.toPx())
                 // The day's start edge, and an hour's line across it each hour.
-                val x = if (layoutDirection == LayoutDirection.Rtl) size.width - width / 2 else width / 2
+                val x = if (layoutDirection == LayoutDirection.Rtl) {
+                    snappedLineCentre(size.width, width, after = false)
+                } else {
+                    snappedLineCentre(0f, width)
+                }
                 drawLine(lineColour, Offset(x, 0f), Offset(x, size.height), width)
                 for (h in 1 until HoursPerDay) {
-                    val y = h * hourPx
+                    val y = snappedLineCentre(h * hourPx, width)
                     drawLine(lineColour, Offset(0f, y), Offset(size.width, y), width)
                 }
                 val nowTime = now()?.takeIf { it.date == date }?.time

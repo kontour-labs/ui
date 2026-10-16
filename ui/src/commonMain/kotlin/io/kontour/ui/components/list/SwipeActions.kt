@@ -1,5 +1,6 @@
 package io.kontour.ui.components.list
 
+import io.kontour.ui.theme.clipProxy
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
@@ -1062,7 +1063,7 @@ fun SwipeActions(
                 // The row itself carries the shape, so the page shows between it
                 // and the buttons rather than the buttons sitting in a strip cut
                 // out of one clipped box.
-                .clip(shape)
+                .clip(shape.clipProxy())
                 // **A tap on a row showing its actions puts it back**, rather than
                 // opening whatever the row opens. The row is half off the screen;
                 // what a tap on it asks for is the row, not the thing it links to.

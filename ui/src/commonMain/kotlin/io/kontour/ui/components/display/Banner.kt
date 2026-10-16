@@ -1,5 +1,6 @@
 package io.kontour.ui.components.display
 
+import io.kontour.ui.theme.clipProxy
 import io.kontour.ui.motion.exitOrFade
 import io.kontour.ui.motion.enterOrFade
 import androidx.compose.animation.AnimatedVisibility
@@ -111,7 +112,7 @@ fun Banner(
                     LiveRegionMode.Polite
                 }
             }
-            .clip(shape)
+            .clip(shape.clipProxy())
             .background(colours.container, shape)
             .border(BorderStroke(Theme.sizing.borderWidth, colours.border), shape)
             .padding(Theme.spacing.sm),
@@ -277,7 +278,7 @@ fun Callout(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clip(shape)
+            .clip(shape.clipProxy())
             .background(colours.container, shape)
             .border(BorderStroke(Theme.sizing.borderWidth, colours.border), shape)
             .padding(Theme.spacing.sm),

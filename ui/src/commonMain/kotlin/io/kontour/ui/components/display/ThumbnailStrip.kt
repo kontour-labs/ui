@@ -1,5 +1,6 @@
 package io.kontour.ui.components.display
 
+import io.kontour.ui.theme.clipProxy
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -172,7 +173,7 @@ fun ThumbnailStrip(
                     Box(
                         Modifier
                             .layoutId(page)
-                            .clip(shape)
+                            .clip(shape.clipProxy())
                             .semantics {
                                 contentDescription = describe(page, count)
                                 role = Role.RadioButton

@@ -1,5 +1,6 @@
 package io.kontour.ui.components.selection
 
+import io.kontour.ui.theme.clipProxy
 import io.kontour.ui.platform.webRole
 import io.kontour.ui.platform.WebRole
 import androidx.compose.animation.animateColorAsState
@@ -167,7 +168,7 @@ private fun Swatch(
             .minimumTouchTarget()
             .focusRing(interactions, shape)
             .size(size)
-            .clip(shape)
+            .clip(shape.clipProxy())
             .background(if (enabled) fill else fill.copy(alpha = 0.5f), shape)
             .border(width = ringWidth, color = ringColour, shape = shape)
             .pointerCursor(enabled = enabled)
