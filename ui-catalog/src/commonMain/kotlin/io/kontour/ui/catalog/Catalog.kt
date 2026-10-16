@@ -277,6 +277,8 @@ fun Catalog(settings: CatalogSettings = rememberCatalogSettings()) {
             ) {
                 WindowSizeClassProvider(Modifier.fillMaxSize()) {
                   Box(Modifier.fillMaxSize()) {
+                    // First, so the gallery draws over it: see `WarmUp`.
+                    FirstUseWarmUp(remember { storedWarmUp() })
                     OverlayHost {
                         // Where a specimen with no state of its own sends its
                         // press, so that nothing in the gallery is wired to a
