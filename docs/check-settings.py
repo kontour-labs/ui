@@ -30,6 +30,8 @@ from pathlib import Path
 
 UI = Path("ui/src/commonMain/kotlin")
 NAV3 = Path("ui-nav3/src/commonMain/kotlin")
+# The charts, published apart from `:ui` and held to every rule it is.
+CHARTS = Path("ui-charts/src/commonMain/kotlin")
 
 BLOCK_COMMENT = re.compile(r"/\*.*?\*/", re.S)
 LINE_COMMENT = re.compile(r"(?<!:)//[^\n]*")
@@ -179,7 +181,7 @@ MAX_QUIET_FILLS = 0
 
 def quiet_fills() -> list[str]:
     found = []
-    for path in files(UI):
+    for path in files(UI, CHARTS):
         if path.parent.name in ("theme", "a11y"):
             continue
         text = source(path)
@@ -206,7 +208,7 @@ MAX_FADED_INKS = 0
 
 def faded_inks() -> list[str]:
     found = []
-    for path in files(UI):
+    for path in files(UI, CHARTS):
         text = source(path)
         count = len(ALPHA_ON_INK.findall(text))
         if count and not READS_TIER.search(text):
@@ -239,7 +241,7 @@ MAX_FIXED_STROKES = 0
 
 def fixed_strokes() -> list[str]:
     found = []
-    for path in files(UI):
+    for path in files(UI, CHARTS):
         if path.name == "Sizing.kt":
             continue
         for m in FIXED_STROKE.finditer(source(path)):
@@ -261,7 +263,7 @@ MAX_RAW_BUTTON_COLOURS = 0
 
 def raw_button_colours() -> list[str]:
     found = []
-    for path in files(UI):
+    for path in files(UI, CHARTS):
         if path.name == "ButtonStyles.kt":
             continue
         count = len(RAW_BUTTON_COLOURS.findall(source(path)))
@@ -283,7 +285,7 @@ MAX_UNREAD_SIZING = 0
 def unread_sizing() -> list[str]:
     sizing = UI / "io/kontour/ui/theme/Sizing.kt"
     fields = SIZING_FIELD.findall(sizing.read_text())
-    everything = "\n".join(source(p) for p in files(UI) if p != sizing)
+    everything = "\n".join(source(p) for p in files(UI, CHARTS) if p != sizing)
     return [f for f in fields if not re.search(r"\.%s\b" % re.escape(f), everything)]
 
 
@@ -381,7 +383,7 @@ def ungated_movement() -> tuple[list[str], list[str]]:
     """Movement in a function that never reads the setting; and stale exemptions."""
     found: list[str] = []
     seen_allowed: set[str] = set()
-    for path in files(UI, NAV3):
+    for path in files(UI, NAV3, CHARTS):
         text = source(path)
         spans = function_spans(text)
         reported: set[str] = set()
@@ -433,6 +435,7 @@ DEVELOPER_TEXT = re.compile(
 # By file, for the one file whose job is words; by literal for the rest.
 LITERAL_FILES_ALLOWED = {
     "Strings.kt": "where the words live",
+    "ChartStrings.kt": "the charts' words, kept apart from `Strings` as their module is",
     "EnglishData.kt": "the built-in English, which is the words' other home",
 }
 LITERAL_ALLOWED = {
@@ -477,7 +480,7 @@ def _is_words(literal: str) -> bool:
 
 def literal_phrases() -> list[str]:
     found = []
-    for path in files(UI):
+    for path in files(UI, CHARTS):
         if path.name in LITERAL_FILES_ALLOWED:
             continue
         text = _strip_developer_text(source(path))
@@ -522,7 +525,7 @@ MAX_CASE_CHANGES = 0
 
 def case_changes() -> list[str]:
     found = []
-    for path in files(UI):
+    for path in files(UI, CHARTS):
         if path.name in CASE_ALLOWED:
             continue
         count = len(CASE_CHANGE.findall(source(path)))
@@ -551,7 +554,7 @@ MAX_UNFORMATTED_NUMBERS = 0
 
 def unformatted_numbers() -> list[str]:
     found = []
-    for path in files(UI):
+    for path in files(UI, CHARTS):
         if path.name in NUMBER_ALLOWED:
             continue
         text = source(path)
@@ -579,7 +582,7 @@ CALENDAR_ALLOWED = {
 
 def calendar_words() -> list[str]:
     found = []
-    for path in files(UI):
+    for path in files(UI, CHARTS):
         if path.name in CALENDAR_ALLOWED:
             continue
         count = len(CALENDAR_WORD.findall(source(path)))
@@ -608,7 +611,7 @@ MAX_ABSOLUTE_PLACEMENT = 0
 
 def absolute_placement() -> list[str]:
     found = []
-    for path in files(UI):
+    for path in files(UI, CHARTS):
         if path.name in PLACEMENT_ALLOWED:
             continue
         text = source(path)

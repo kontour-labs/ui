@@ -345,18 +345,20 @@ private fun <X : Any> ChartPlot(
     val gap = Theme.spacing.xs
     var frame by remember { mutableStateOf<ChartFrame?>(null) }
     val tiles = remember { PatternTiles() }
-    val hairline = Theme.sizing.dividerThickness
-    val config = remember(colours, patterns, density, hairline) {
+    // Every stroke from the theme's sizing, so that lines thicken with the
+    // rest of the library at the high contrast tier.
+    val sizing = Theme.sizing
+    val config = remember(colours, patterns, density, sizing) {
         with(density) {
             DrawConfig(
                 colours = colours,
                 patterns = patterns,
-                lineWidth = ChartDefaults.LineWidth.toPx(),
+                lineWidth = sizing.borderWidthStrong.toPx(),
                 pointSize = ChartDefaults.PointSize.toPx(),
                 cornerRadius = ChartDefaults.BarCornerRadius.toPx(),
-                hairline = hairline.toPx(),
+                hairline = sizing.dividerThickness.toPx(),
                 tileSize = PatternTile.roundToPx(),
-                tileStroke = PatternStroke.toPx(),
+                tileStroke = (sizing.borderWidth * 1.5f).toPx(),
                 tiles = tiles,
             )
         }
@@ -414,7 +416,7 @@ private fun <X : Any> ChartPlot(
                     Key.MoveEnd -> last
                     Key.Escape -> {
                         if (index < 0) return@onKeyEvent false
-                        selection?.clear()
+                        selection.clear()
                         return@onKeyEvent true
                     }
                     else -> return@onKeyEvent false
@@ -447,7 +449,7 @@ private fun <X : Any> ChartPlot(
                     },
                 )
             }
-            if (showProbe && selectedPlace != null) {
+            if (showProbe) {
                 val shown = selectionAt(chart, selectedPlace, decode)
                 if (shown != null) {
                     Box {
@@ -541,9 +543,6 @@ private fun placeExtent(all: DoubleArray, group: DoubleArray): Pair<Double, Doub
  * two repeats of it, so it reads as a texture rather than as a stray line.
  */
 private val PatternTile = 7.dp
-
-/** A fill pattern's line. */
-private val PatternStroke = 1.5.dp
 
 /** A chart's width when nothing gives it one: a phone's, so it is not a sliver in a row. */
 private val DefaultWidth = 320.dp

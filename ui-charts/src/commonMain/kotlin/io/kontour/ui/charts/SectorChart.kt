@@ -123,6 +123,7 @@ fun SectorChart(
 
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val tiles = remember { PatternTiles() }
+    val sizing = Theme.sizing
     val legendModel = remember(parts) {
         ChartModel(
             marks = listOf(
@@ -179,7 +180,7 @@ fun SectorChart(
                         val look = lookOf(series.indexOf(part.series), colours.series, patterns, part.style, part.series.style)
                         val path = sectorPath(circle, radius, hole, angle, extent * direction)
                         drawPath(path, look.colour, alpha = fade.value)
-                        tiles.brush(look.fill, colours.patternInk, PatternTileSize.roundToPx(), PatternTileStroke.toPx())
+                        tiles.brush(look.fill, colours.patternInk, PatternTileSize.roundToPx(), (sizing.borderWidth * 1.5f).toPx())
                             ?.let { drawPath(path, it, alpha = fade.value) }
                         // The gap between sectors, in the page's own ground, so
                         // that two sectors of near colours are still two.
@@ -312,4 +313,3 @@ private val DefaultSize = 200.dp
 
 /** The tile a sector's fill pattern repeats, as a [Chart]'s. */
 private val PatternTileSize = 7.dp
-private val PatternTileStroke = 1.5.dp

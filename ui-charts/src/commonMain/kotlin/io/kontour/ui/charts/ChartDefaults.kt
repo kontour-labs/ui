@@ -55,9 +55,6 @@ object ChartDefaults {
     @Composable
     fun showPatterns(): Boolean = highContrast() || differentiateWithoutColour()
 
-    /** A line's stroke, and a rule's. */
-    val LineWidth: Dp = 2.dp
-
     /** The size of a point's symbol. */
     val PointSize: Dp = 7.dp
 

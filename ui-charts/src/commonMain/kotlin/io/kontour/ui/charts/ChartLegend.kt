@@ -64,15 +64,20 @@ private fun LegendSwatch(model: ChartModel, series: ChartSeries, colours: ChartC
     val mark = model.marks.firstOrNull { mark -> mark.runs.any { it.series == series } }
     val look = lookOf(model.slotOf(series), colours.series, patterns, mark?.style, series.style)
     val tiles = remember { PatternTiles() }
-    val lineLike = mark?.kind == MarkKind.Line || mark?.kind == MarkKind.Point
-    val symbolShown = mark?.kind == MarkKind.Point || (lineLike && (mark?.showPoints == true || patterns))
+    val sizing = Theme.sizing
+    // Read once: a series with no mark yet has a square swatch, as a bar's.
+    val kind = mark?.kind
+    val markSymbol = mark?.symbol
+    val markShowsPoints = mark?.showPoints == true
+    val lineLike = kind == MarkKind.Line || kind == MarkKind.Point
+    val symbolShown = kind == MarkKind.Point || (lineLike && (markShowsPoints || patterns))
     Spacer(
         Modifier
             .size(width = if (lineLike) LineSwatchWidth else SwatchSize, height = SwatchSize)
             .drawBehind {
                 if (lineLike) {
-                    if (mark?.kind == MarkKind.Line) {
-                        val width = ChartDefaults.LineWidth.toPx()
+                    if (kind == MarkKind.Line) {
+                        val width = sizing.borderWidthStrong.toPx()
                         val path = Path().apply {
                             moveTo(0f, size.height / 2)
                             lineTo(size.width, size.height / 2)
@@ -81,7 +86,7 @@ private fun LegendSwatch(model: ChartModel, series: ChartSeries, colours: ChartC
                     }
                     if (symbolShown) {
                         val symbol = Path()
-                        addSymbol(symbol, mark?.symbol ?: look.symbol, Offset(size.width / 2, size.height / 2), ChartDefaults.PointSize.toPx())
+                        addSymbol(symbol, markSymbol ?: look.symbol, Offset(size.width / 2, size.height / 2), ChartDefaults.PointSize.toPx())
                         drawPath(symbol, look.colour)
                     }
                 } else {
@@ -89,7 +94,7 @@ private fun LegendSwatch(model: ChartModel, series: ChartSeries, colours: ChartC
                         addRoundRect(RoundRect(0f, 0f, size.width, size.height, CornerRadius(ChartDefaults.BarCornerRadius.toPx())))
                     }
                     drawPath(swatch, look.colour)
-                    tiles.brush(look.fill, colours.patternInk, SwatchTile.roundToPx(), SwatchTileStroke.toPx())?.let { drawPath(swatch, it) }
+                    tiles.brush(look.fill, colours.patternInk, SwatchTile.roundToPx(), sizing.borderWidth.toPx())?.let { drawPath(swatch, it) }
                 }
             },
     )
@@ -105,4 +110,3 @@ private val LineSwatchWidth = 20.dp
 
 /** A swatch's pattern, finer than the plot's, so that two repeats fit in it. */
 private val SwatchTile = 6.dp
-private val SwatchTileStroke = 1.dp

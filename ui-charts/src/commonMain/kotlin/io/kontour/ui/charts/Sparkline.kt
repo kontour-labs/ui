@@ -89,13 +89,14 @@ fun Sparkline(
         if (reveal.value < 1f) reveal.animateTo(1f, motion.tweenSlow())
     }
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+    val lineWidth = Theme.sizing.borderWidthStrong
 
     Spacer(
         modifier
             .defaultMinSize(minWidth = DefaultWidth, minHeight = DefaultHeight)
             .semantics { this.contentDescription = description }
             .drawWithCache {
-                val stroke = ChartDefaults.LineWidth.toPx()
+                val stroke = lineWidth.toPx()
                 val present = numbers.filter { !it.isNaN() }
                 val low = present.minOrNull() ?: 0.0
                 val high = present.maxOrNull() ?: 1.0
