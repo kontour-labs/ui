@@ -60,11 +60,22 @@ def key(version: str) -> tuple[int, ...]:
     return tuple(int(part) for part in version.split("."))
 
 
+# Named, because `maven.kontour.io` is behind Cloudflare, whose bot protection
+# answers Python's own `Python-urllib/3.x` with a 403 while it serves curl,
+# Gradle and anything else that says what it is. Found when the icon workflow
+# first read the bucket rather than Maven Central.
+USER_AGENT = "kontour-bump-tabler-icons (+https://github.com/kontour-labs/ui)"
+
+
+def fetch(url: str, timeout: int = 60):
+    return urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": USER_AGENT}), timeout=timeout)
+
+
 def metadata(artifact: str) -> str | None:
     """The artifact's `maven-metadata.xml`, or None while it has never been published there."""
     url = f"{REPOSITORY}/io/kontour/{artifact}/maven-metadata.xml"
     try:
-        with urllib.request.urlopen(url, timeout=60) as response:
+        with fetch(url) as response:
             return response.read().decode()
     except urllib.error.HTTPError as error:
         if error.code == 404:
@@ -92,7 +103,7 @@ def latest(sources: list[str]) -> str:
 
 def npm_integrity(version: str) -> str:
     url = f"https://registry.npmjs.org/@tabler/icons/{version}"
-    with urllib.request.urlopen(url, timeout=60) as response:
+    with fetch(url) as response:
         integrity = json.load(response)["dist"]["integrity"]
     if not integrity.startswith("sha512-"):
         raise SystemExit(f"@tabler/icons {version} has no sha512 integrity on npm: {integrity}")
