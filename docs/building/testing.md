@@ -333,7 +333,7 @@ reachable dial.
 
 ## Screenshot goldens
 
-Two kinds, both in `ui-catalog/screenshots/`, both **compared** rather than
+Three kinds, all in `ui-catalog/screenshots/`, all **compared** rather than
 regenerated. A mismatch fails and writes the render plus a diff with every
 changed pixel in magenta to `ui-catalog/build/screenshot-diffs/`.
 
@@ -343,6 +343,13 @@ changed pixel in magenta to `ui-catalog/build/screenshot-diffs/`.
 - **Per-component renders**, under `screenshots/components/`, are one specimen
   on its own, light and dark, driven from the registry. These are what the
   [component pages](../../ui-docs/content/components.md) show.
+- **Variant renders**, under `screenshots/components-rtl/` and
+  `screenshots/components-fontscale2/`, are a few of those specimens again, right
+  to left and at twice the type size: the ones with a direction in them, and
+  the ones with text in a box that has to grow round it. `ComponentVariantRenderTest`
+  names them. The sweeps already ask whether anything clips or stays in English;
+  these are for a chevron pointing the wrong way, or a label wrapped into a
+  shape nobody meant, which only a picture shows.
 
 A component whose defining state is not its resting one also declares a
 `RenderState`, which adds `<slug>-<state>-{light,dark}.png` beside the resting
@@ -377,6 +384,13 @@ schemes would otherwise be found one run at a time. And each per-component
 render is read back and required to differ from its own corner pixel: a
 component that draws nothing produces a clean card, and the golden would then
 *defend* the blank.
+
+A golden that is not committed is written on the first run and passes, which
+is how a new one is recorded here. On CI, which sets `CI` and throws its
+checkout away, that would be a picture nobody ever compares against, and the
+three chart specimens went a round like that in 0.5.0. So on CI a missing golden
+fails, and its render is in `screenshot-diffs` as `<name>-actual.png` to be
+looked at and committed.
 
 ### Run the gate after the last edit, not before it
 
