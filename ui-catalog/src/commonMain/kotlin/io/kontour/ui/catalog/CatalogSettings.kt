@@ -1,5 +1,7 @@
 package io.kontour.ui.catalog
 
+import androidx.compose.foundation.ComposeFoundationFlags
+import androidx.compose.foundation.ExperimentalFoundationApi
 import io.kontour.ui.locale.PseudoLocale
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
@@ -171,6 +173,18 @@ class CatalogSettings {
 
     /** The frame-time readout. Gallery-only until the site has somewhere to put it. */
     var frameTimes by mutableStateOf(false)
+
+    /**
+     * Compose Foundation's `isDragNodeOffsetDoubleCountingFixEnabled`, to try
+     * either side of it on a phone. On in 1.12, where it is CMP-10830: a drag
+     * whose node moves while it is dragged — a list inside a sheet, under a
+     * shrinking bar — releases at a fraction of the finger's speed on iOS, so a
+     * fling there stops short. Foundation reads the flag on every drag event, so
+     * switching it takes effect from the next drag. Gallery-only, like
+     * [frameTimes]: a library does not set a process-wide flag for its app.
+     */
+    @OptIn(ExperimentalFoundationApi::class)
+    var dragOffsetFix by mutableStateOf(ComposeFoundationFlags.isDragNodeOffsetDoubleCountingFixEnabled)
 }
 
 @Composable
