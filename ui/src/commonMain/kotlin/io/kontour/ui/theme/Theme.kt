@@ -295,6 +295,12 @@ fun KontourTheme(
     motion: Motion = remember(reduceMotion) { kontourMotion(reduceMotion) },
     sizing: Sizing = remember(contrast) { kontourSizing(contrast) },
     componentDefaults: ComponentDefaults = remember { ComponentDefaults() },
+    /**
+     * Every word the library says on its own. **English, whatever `locale`
+     * is**: the locale changes how numbers and dates are written, and the words
+     * are the app's, built from its own resources with `Strings.from` and built
+     * again when its language changes. See `ui-docs/content/localisation.md`.
+     */
     strings: Strings = remember { Strings() },
     /**
      * Every glyph the library draws on its own behalf. Tabler's by default;

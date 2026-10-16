@@ -126,6 +126,22 @@ val strings = Strings.from(object : StringLookup {
 Multiplatform resources and moko-resources plug in the same way: a
 `StringLookup` is two functions.
 
+**`Strings()` is English whatever `locale` says.** The theme's `locale` changes
+how numbers, dates and lists are written, and the layout direction, and not one
+word: the words are the app's, built from the app's resources. So an in-app
+language setting builds them again when it changes:
+
+```kotlin
+val strings = remember(locale) { Strings.from(lookupFor(locale)) }
+KontourTheme(locale = locale, strings = strings) { App() }
+```
+
+A key the lookup has nothing for falls back to the English, so a translation
+that is missing one says it in English rather than saying nothing. The charts
+have words of their own, `ChartStrings`, built the same way with
+`ChartStrings.from(lookup)` over the same lookup, and provided with
+`LocalChartStrings`.
+
 ## Scripts and fonts
 
 The bundled faces — Outfit and JetBrains Mono — are Latin. For any other script
