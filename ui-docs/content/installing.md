@@ -44,6 +44,9 @@ that version or newer.
 
 ## The repositories
 
+`google()` and `mavenCentral()`, which nearly every project has already, and
+Kontour's repository for `io.kontour`:
+
 ```kotlin
 // settings.gradle.kts
 dependencyResolutionManagement {
@@ -265,8 +268,9 @@ together. The pattern is a conditional `includeBuild`, which swaps all three
 modules at once:
 
 ```kotlin
+// settings.gradle.kts
 if (providers.gradleProperty("kontour.ui.local").orNull.toBoolean()) {
-    includeBuild("../../ui")
+    includeBuild("../ui")
 }
 ```
 

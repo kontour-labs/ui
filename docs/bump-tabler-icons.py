@@ -33,6 +33,7 @@ import json
 import pathlib
 import re
 import sys
+import urllib.error
 import urllib.request
 import xml.etree.ElementTree as ElementTree
 
@@ -59,10 +60,16 @@ def key(version: str) -> tuple[int, ...]:
     return tuple(int(part) for part in version.split("."))
 
 
-def metadata(artifact: str) -> str:
+def metadata(artifact: str) -> str | None:
+    """The artifact's `maven-metadata.xml`, or None while it has never been published there."""
     url = f"{REPOSITORY}/io/kontour/{artifact}/maven-metadata.xml"
-    with urllib.request.urlopen(url, timeout=60) as response:
-        return response.read().decode()
+    try:
+        with urllib.request.urlopen(url, timeout=60) as response:
+            return response.read().decode()
+    except urllib.error.HTTPError as error:
+        if error.code == 404:
+            return None
+        raise
 
 
 def npm_version(version: str) -> str:
@@ -154,7 +161,11 @@ def main() -> None:
         print(current())
     elif args.latest:
         sources = [p.read_text() for p in args.metadata] if args.metadata else [metadata(a) for a in ARTIFACTS]
-        print(latest(sources))
+        if any(source is None for source in sources):
+            print(f"The icons are not on maven.kontour.io yet; staying on {current()}.", file=sys.stderr)
+            print(current())
+        else:
+            print(latest(sources))
     elif args.is_newer:
         if not STABLE.match(args.is_newer):
             raise SystemExit(f"not a release version: {args.is_newer}")

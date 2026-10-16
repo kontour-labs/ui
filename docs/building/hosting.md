@@ -78,6 +78,6 @@ agent reads. It covers what to fetch and a `CLAUDE.md` snippet for an app. For
 Claude Code on the web, `docs.kontour.io` has to be allowed by the environment's
 network access.
 
-Building the site in such an environment also needs `codeload.github.com`
+Building the site in a sandboxed environment needs `codeload.github.com`
 allowed. The Kotlin/JS toolchain fetches a package from there, and without it
 `:ui-docs:wasmJsBrowserDistribution` fails before compiling anything.

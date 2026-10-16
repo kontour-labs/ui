@@ -3,7 +3,7 @@
 # Asked for as "whenever the library rebuilds/updates, it automatically checks
 # for a newer version of kontour's tabler icon library and updates to it". On
 # every push to `main`, once a day, and by hand, this reads the newest release
-# from Maven Central. When it is newer than the one pinned, the bump goes on a
+# from maven.kontour.io. When it is newer than the one pinned, the bump goes on a
 # branch of its own (`docs/bump-tabler-icons.py --write` moves the catalogue,
 # the docs' icon-data pin and the changelog), a pull request is opened for it,
 # and CI is run on that branch with the slow classes — so a redrawn icon shows
