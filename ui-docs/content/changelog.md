@@ -87,6 +87,20 @@ On `main`, and in the next release.
   written in Arabic-Indic digits or with a thousands separator, so it fell back
   to fading the whole sentence. `AnimatedCounter`'s cells were measured from
   Western digits and clipped wider ones.
+- **A command palette says where its arrows are.** The highlighted command was
+  published as selected, so every arrow told a screen reader a choice had been
+  made, and nothing said which command the arrows had reached. It is drawn as
+  before and said politely from the field, "Saved trips, 2 of 3", or "No
+  matching commands".
+- **A coachmark is read once.** Its bubble said its title and message, and then
+  each again from the texts inside it, and its place in the tour as "2 / 5",
+  which a screen reader reads as "two slash five". It is one sentence now,
+  ending "2 of 5".
+- **A toast waits for a reader who needs it to.** Its time follows Android's
+  *Time to take action*, which someone using TalkBack or switch access sets so
+  that anything with a control in it waits for them, and its clock stops while
+  keyboard focus is on its action or its close, as it does under a finger or a
+  pointer.
 - **A selection is drawn over code and highlights.** Dragged across a sentence
   with `code` in it, a selection lit up the words either side and left the code
   looking unselected, though it was selected and copied. A span's background

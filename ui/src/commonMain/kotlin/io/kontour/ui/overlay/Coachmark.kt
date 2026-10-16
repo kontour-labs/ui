@@ -1037,11 +1037,22 @@ private fun CoachmarkBubble(
     val hasPrevious = index > 0
     val hasNext = index < count - 1
 
+    // Said once, as one sentence with where it is in the tour: the words
+    // below are drawn and not read. The merged bubble used to say its title
+    // and message, and then the same title, the same message and "2 / 5" from
+    // the texts merged into it, which a screen reader reads as "two slash
+    // five".
+    val formats = Theme.formats
+    val spoken = buildList {
+        add(title)
+        add(message)
+        if (count > 1) add(strings.itemOfCount(formats.quantity(index + 1), formats.quantity(count)))
+    }
     Surface(
         modifier = modifier
             .widthIn(max = BubbleMaxWidth)
             .semantics(mergeDescendants = true) {
-                contentDescription = strings.sentences(listOf(title, message))
+                contentDescription = strings.sentences(spoken)
             },
         shape = Theme.shapes.container,
         containerColour = colours.container,
@@ -1053,13 +1064,14 @@ private fun CoachmarkBubble(
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.xxs),
         ) {
             Row(
+                modifier = Modifier.clearAndSetSemantics { },
                 horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 step.icon?.let { Icon(it, contentDescription = null, size = Theme.sizing.iconMedium) }
                 Text(title, style = Theme.typography.titleSmall)
             }
-            Text(message, style = Theme.typography.bodySmall)
+            Text(message, style = Theme.typography.bodySmall, modifier = Modifier.clearAndSetSemantics { })
 
             Row(
                 modifier = Modifier
@@ -1072,7 +1084,8 @@ private fun CoachmarkBubble(
                 // user cannot decide whether to sit through.
                 if (count > 1) {
                     Text(
-                        text = strings.tourPosition(Theme.formats.quantity(index + 1), Theme.formats.quantity(count)),
+                        text = strings.tourPosition(formats.quantity(index + 1), formats.quantity(count)),
+                        modifier = Modifier.clearAndSetSemantics { },
                         style = Theme.typography.labelSmall,
                         // Faded beside the message at the standard tier (5.4:1); ink at the
                         // enhanced one, which asks 7.

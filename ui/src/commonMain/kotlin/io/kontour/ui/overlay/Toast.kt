@@ -79,6 +79,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.platform.LocalAccessibilityManager
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
@@ -165,6 +167,12 @@ internal class Toast(
     /** What was left of its time, in milliseconds, when its clock last started or stopped. */
     internal var leftMillis by mutableLongStateOf(durationMillis)
 
+    /**
+     * How long it is shown for, which is [durationMillis] unless the platform
+     * asks for longer: see the clock in `ToastStack`.
+     */
+    internal var lifetimeMillis by mutableLongStateOf(durationMillis)
+
     /** When its clock last started, while it runs; null while it is stopped. */
     internal var runningSince: TimeMark? by mutableStateOf(null)
 
@@ -172,7 +180,7 @@ internal class Toast(
     internal fun remaining(): Float {
         if (durationMillis <= 0) return 1f
         val spent = runningSince?.elapsedNow()?.inWholeMilliseconds ?: 0L
-        return ((leftMillis - spent).toFloat() / durationMillis).coerceIn(0f, 1f)
+        return ((leftMillis - spent).toFloat() / lifetimeMillis).coerceIn(0f, 1f)
     }
 }
 
@@ -1084,6 +1092,22 @@ private fun ToastStack(state: ToastHostState, config: ToastHostConfig) {
      */
     val hovered = remember { mutableStateOf(false) }
 
+    /**
+     * Whether keyboard focus is inside the front card: on its action, or its
+     * close. A reader who has tabbed to "Undo" is about to press it, and the
+     * clock running out under them took the control away mid-reach, which
+     * WCAG's 2.2.1 is about. A screen reader's focus is not visible from here;
+     * what it gets instead is the longer time below.
+     */
+    val focused = remember { mutableStateOf(false) }
+    val stopped = { held.value || hovered.value || focused.value }
+
+    // The time a reader has asked for, where the platform knows it: Android's
+    // "Time to take action", which a reader using TalkBack or switch access
+    // sets so that something with a control in it waits for them. Elsewhere
+    // the manager hands back the time it was given.
+    val accessibility = LocalAccessibilityManager.current
+
     val frontId = visible.lastOrNull()?.id
     val settle = remember(stackScope, pull) { PullSettle(stackScope, pull) }
     LaunchedEffect(frontId) {
@@ -1095,6 +1119,7 @@ private fun ToastStack(state: ToastHostState, config: ToastHostConfig) {
         held.value = false
         // The pointer was on the card that has gone, not on this one.
         hovered.value = false
+        focused.value = false
     }
 
     // Every toast runs its clock, including the ones with no room to be drawn.
@@ -1133,9 +1158,16 @@ private fun ToastStack(state: ToastHostState, config: ToastHostConfig) {
             val atFront by rememberUpdatedState(visible.lastOrNull() === toast)
             LaunchedEffect(toast.id) {
                 if (toast.durationMillis <= 0) return@LaunchedEffect
-                val floor = (toast.durationMillis * ToastDefaults.PromotedFloor).toLong()
-                val grace = (toast.durationMillis * ToastDefaults.ClearedGrace).toLong()
-                var left = toast.durationMillis
+                val lifetime = accessibility?.calculateRecommendedTimeoutMillis(
+                    originalTimeoutMillis = toast.durationMillis,
+                    containsIcons = toast.icon != null,
+                    containsText = true,
+                    containsControls = toast.actionLabel != null,
+                )?.takeIf { it > 0 && it != Long.MAX_VALUE } ?: toast.durationMillis
+                toast.lifetimeMillis = lifetime
+                val floor = (lifetime * ToastDefaults.PromotedFloor).toLong()
+                val grace = (lifetime * ToastDefaults.ClearedGrace).toLong()
+                var left = lifetime
                 var front = atFront
                 var clears = state.clears
                 while (left > 0) {
@@ -1149,10 +1181,10 @@ private fun ToastStack(state: ToastHostState, config: ToastHostConfig) {
                     // stack is one object — the others are in the queue behind a
                     // card that is not going anywhere, and expiring on schedule
                     // would empty the queue the reader is holding open.
-                    if (held.value || hovered.value) {
+                    if (stopped()) {
                         toast.leftMillis = left
                         toast.runningSince = null
-                        snapshotFlow { held.value || hovered.value }.first { !it }
+                        snapshotFlow { stopped() }.first { !it }
                         continue
                     }
                     val mark = TimeSource.Monotonic.markNow()
@@ -1162,7 +1194,7 @@ private fun ToastStack(state: ToastHostState, config: ToastHostConfig) {
                     // this toast reaches the front, the user sends another one away
                     // by hand, or a finger arrives on the stack.
                     val moved = withinOrNull(left) {
-                        snapshotFlow { Triple(atFront, state.clears, held.value || hovered.value) }
+                        snapshotFlow { Triple(atFront, state.clears, stopped()) }
                             .first { (nowFront, nowClears, nowHeld) ->
                                 nowFront != front || nowClears != clears || nowHeld
                             }
@@ -1175,7 +1207,7 @@ private fun ToastStack(state: ToastHostState, config: ToastHostConfig) {
                     if (nowClears != clears) {
                         clears = nowClears
                         // Topped up toward a full lifetime, never past one.
-                        left = minOf(left + grace, toast.durationMillis)
+                        left = minOf(left + grace, lifetime)
                     }
                     if (nowFront != front) {
                         front = nowFront
@@ -1206,7 +1238,7 @@ private fun ToastStack(state: ToastHostState, config: ToastHostConfig) {
                     val since = state.lastExpiry?.elapsedNow()?.inWholeMilliseconds
                     if (since != null && since < ToastStagger) delay(ToastStagger - since)
                     // A finger that arrived during the wait holds this one too.
-                    if (held.value || hovered.value) snapshotFlow { held.value || hovered.value }.first { !it }
+                    if (stopped()) snapshotFlow { stopped() }.first { !it }
                     state.lastExpiry = TimeSource.Monotonic.markNow()
                     // `expire`, not `dismiss`: running out of time is the stack
                     // working, and must not read as the user clearing one.
@@ -1246,6 +1278,7 @@ private fun ToastStack(state: ToastHostState, config: ToastHostConfig) {
                     settle = settle,
                     held = held,
                     hovered = hovered,
+                    focused = focused,
                     countdown = config.countdown,
                     scope = stackScope,
                     modifier = config.modifier,
@@ -1290,6 +1323,8 @@ private fun ToastCard(
     held: MutableState<Boolean>,
     /** Whether a mouse's pointer rests on the front card: see `ToastStack`. */
     hovered: MutableState<Boolean>,
+    /** Whether keyboard focus is inside the front card: see `ToastStack`. */
+    focused: MutableState<Boolean>,
     countdown: ToastCountdown,
     /** The stack's scope — see the settle in the gesture below. */
     scope: CoroutineScope,
@@ -1493,6 +1528,8 @@ private fun ToastCard(
             modifier = modifier
                 // A mouse resting on the front card stops the clocks.
                 .then(if (depth == 0) Modifier.pointerHovers(hovered) else Modifier)
+                // And so does keyboard focus on its action or its close.
+                .then(if (depth == 0) Modifier.onFocusChanged { focused.value = it.hasFocus } else Modifier)
                 // The gesture is the outermost thing, above the padding — and
                 // that is the point. Below it the swipe area was exactly the
                 // visible pill and the 16dp ring around it was dead space, on a

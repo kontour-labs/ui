@@ -256,18 +256,26 @@ internal fun ListItemImpl(
      * padding is the same either side.
      */
     centred: Boolean = false,
+    /**
+     * Drawn as [selected] is, and not published as it: the row a keyboard has
+     * arrowed to in a list it has not chosen from, a command palette's. Said
+     * as selected, every arrow press told a screen reader the choice had moved,
+     * and the row it left changed from a selectable control to a button.
+     */
+    highlighted: Boolean = false,
 ) {
     val colours = Theme.colours
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
+    val drawnSelected = selected || highlighted
 
     val container = when {
         !enabled -> disabledContainerColour
-        selected -> selectedContainerColour
+        drawnSelected -> selectedContainerColour
         else -> containerColour
     }
     val content = when {
         !enabled -> colours.contentDisabled
-        selected -> colours.accent.onContainer
+        drawnSelected -> colours.accent.onContainer
         else -> contentColour
     }
 
@@ -351,7 +359,7 @@ internal fun ListItemImpl(
                     // A selected row is a tint 1.25:1 from the page at the
                     // enhanced tier; there it is outlined in the accent as well,
                     // over whatever edge the row already has.
-                    .optionalBorder(if (selected && enabled) selectionEdge() else null, shape)
+                    .optionalBorder(if (drawnSelected && enabled) selectionEdge() else null, shape)
                     .then(clickModifier)
                     // `xs`, not `sm`. The 12dp version put 24dp of air around a
                     // single line of text inside a row whose minimum is already 56dp,
