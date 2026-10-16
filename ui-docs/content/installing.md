@@ -248,6 +248,55 @@ haptics.play(HapticEffect.Selection(fine = true))
 
 ---
 
+## The size of an app
+
+The library is large, and an app ships only the part of it that it uses.
+
+**On the web and on iOS, nothing needs turning on.** A production Kotlin/Wasm
+or Kotlin/JS build is compiled as a whole program: the compiler starts from
+`main`, keeps only what it can reach, and Binaryen then optimises what is left.
+Kotlin/Native links an iOS app the same way. A component the app never calls,
+and a Tabler icon it never names, is not in the binary at all. Each icon is its
+own declaration, built the first time it is drawn, for exactly this reason.
+
+**On Android, R8 does the same**, with `isMinifyEnabled = true` in the release
+build type. The library needs no keep rules of its own there.
+
+**On the desktop, nothing is shrunk unless you ask.** A JVM app ships every
+class of every dependency, which for the icons alone is some six thousand.
+Compose Desktop shrinks with ProGuard in its release build:
+
+```kotlin
+// build.gradle.kts
+compose.desktop.application {
+    buildTypes.release.proguard {
+        isEnabled = true
+        configurationFiles.from("proguard-rules.pro")
+    }
+}
+```
+
+The library needs one rule there, for the class `:haptics` loads by name on a
+Mac (see [Haptics](haptics.md)). Its jar carries the rule in
+`META-INF/proguard/kontour-haptics.pro`; a shrinker that does not read rules
+out of dependencies needs it copied into the app's own file. Without it the
+app still runs, and the trackpad silently stops tapping:
+
+```
+# proguard-rules.pro
+-keep class io.kontour.haptics.MacTrackpadFfm { <init>(); }
+-dontwarn java.lang.foreign.**
+```
+
+**What every app pays for anyway** is whatever `KontourTheme` itself refers
+to: the type scale's fonts, the default English of every component, and the
+locale data for formatting numbers and dates. The fonts are about 350 KB and
+ship with the app on every platform but the web, where they are fetched as
+they are first drawn. `probes/` in the repository weighs this, an app at a
+time.
+
+---
+
 ## When it fails
 
 | What you see | What it is |

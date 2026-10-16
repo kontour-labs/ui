@@ -24,7 +24,23 @@ The version an app is on is the `kontour` entry in its version catalog. See
 
 ## Unreleased
 
-On `main`, and in the next release. Nothing yet.
+On `main`, and in the next release.
+
+### Added
+
+- **[Installing](installing.md#the-size-of-an-app) says what an app ships.**
+  On the web, iOS and Android, a component or an icon the app never uses is
+  not in it at all; on the desktop that needs ProGuard, and the section gives
+  the one rule the library needs there.
+
+### Fixed
+
+- **A selection is drawn over code and highlights.** Dragged across a sentence
+  with `code` in it, a selection lit up the words either side and left the code
+  looking unselected, though it was selected and copied. A span's background
+  is now painted behind the selection rather than over it, for
+  [`richText`](components/text.md)'s `code` and `highlight` and for any
+  background a caller gives a span.
 
 ---
 

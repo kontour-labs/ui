@@ -26,6 +26,7 @@ in these files, which win where this file disagrees with them:
 | `ui-samples/` | The documentation's examples, compiled against `:ui` and copied into the pages |
 | `ui-docs/` | The site (`docs.kontour.io/ui`), a Wasm app. Its pages are `ui-docs/content/*.md` |
 | `showcase/` | Hosts for the gallery: desktop, Android, an iOS Xcode project |
+| `probes/` | Five tiny web apps that exist to be weighed: what an app on the library ships |
 | `docs/` | Python checks and generators, and the contributor docs under `docs/building/` |
 
 ## Conventions that bite
@@ -135,6 +136,14 @@ the history of every raise above them:
 | `total` | The sum | With `app` |
 
 There is also `MAX_FILES` (14) for the number of files in the distribution.
+
+**The site's figure is not an app's.** It holds every component and demo. What
+an app ships is measured by the probes in [`probes/`](probes/README.md), with
+`python3 docs/check-bundle-size.py --probes` and their own `PROBE_CEILINGS`:
+`theme` is what `KontourTheme` alone costs every app, and `button` and `icon`
+show that unused components and icons are left out. A probe that grows is
+something every app now pays for, and `docs/probe-attribution.py probes/theme`
+says what.
 
 ### Check it before CI does
 

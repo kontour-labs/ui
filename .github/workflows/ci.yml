@@ -211,7 +211,7 @@ jobs:
           # anything added there later, which counts for every gate until it
           # is placed. The README, CONTRIBUTING, CLAUDE.md, the changelog and
           # the IDE's run configurations are read by nothing Gradle runs.
-          own='ui|ui-nav3|haptics|ui-catalog|ui-samples|ui-docs|showcase|docs|README\.md|CONTRIBUTING\.md|CLAUDE\.md|CHANGELOG\.md|\.run|\.gitignore'
+          own='ui|ui-nav3|haptics|ui-catalog|ui-samples|ui-docs|showcase|probes|docs|README\.md|CONTRIBUTING\.md|CLAUDE\.md|CHANGELOG\.md|\.run|\.gitignore'
           shared=$(git ls-tree --name-only HEAD | grep -vxE "$own")
           fingerprint() {
             for path in $shared "$@"; do
@@ -222,7 +222,7 @@ jobs:
             [checks]=$(git rev-parse 'HEAD^{tree}')
             [library]=$(fingerprint ui ui-nav3 haptics)
             [catalog]=$(fingerprint ui ui-nav3 haptics ui-catalog)
-            [docs]=$(fingerprint ui ui-nav3 haptics ui-catalog ui-samples ui-docs docs README.md)
+            [docs]=$(fingerprint ui ui-nav3 haptics ui-catalog ui-samples ui-docs probes docs README.md)
             [targets]=$(fingerprint ui ui-nav3 haptics ui-catalog showcase docs/check-xcode-host.py)
           )
 
@@ -807,6 +807,28 @@ jobs:
       - name: Check the bundle size
         if: steps.bundle.outputs.cache-hit != 'true'
         run: python3 docs/check-bundle-size.py
+
+      # What an *app* ships, which the site's figure above cannot say: the site
+      # holds every component and every demo. Each probe is one small app on
+      # the library, and the differences between them say whether the theme
+      # grew, and whether unused components and icons are still being left out.
+      # See `probes/README.md`. Only the compile and Binaryen run, not webpack:
+      # what is weighed is each probe's own `.wasm`.
+      - name: Build the probes
+        if: steps.bundle.outputs.cache-hit != 'true'
+        run: >-
+          ./gradlew --no-daemon
+          :probes:empty:compileProductionExecutableKotlinWasmJsOptimize
+          :probes:theme:compileProductionExecutableKotlinWasmJsOptimize
+          :probes:button:compileProductionExecutableKotlinWasmJsOptimize
+          :probes:icon:compileProductionExecutableKotlinWasmJsOptimize
+          :probes:icons:compileProductionExecutableKotlinWasmJsOptimize
+
+      - name: Check the probes
+        if: steps.bundle.outputs.cache-hit != 'true'
+        run: |
+          python3 docs/probe-attribution.py probes/theme --top 20 || true
+          python3 docs/check-bundle-size.py --probes
 
       # For a later run of the same inputs, in the runners' cache: see
       # `changes`. One unused for a week is evicted, and built again.

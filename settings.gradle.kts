@@ -64,6 +64,15 @@ include(":ui-samples")
 // is no third copy of either.
 include(":ui-docs")
 
+// Apps that exist to be weighed: what an app on the library ships, which the
+// site's own figure cannot say because it holds every component. Never
+// published; see `probes/README.md`.
+include(":probes:empty")
+include(":probes:theme")
+include(":probes:button")
+include(":probes:icon")
+include(":probes:icons")
+
 // Hosts that put the gallery on a screen. None of them ships; they exist so the
 // library can be run and poked at on each platform it claims to support.
 //

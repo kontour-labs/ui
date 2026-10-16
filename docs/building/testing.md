@@ -969,6 +969,8 @@ Counts are therefore the gates.
 | `ThemeSwitchCostDiagnostic` | `:ui-catalog` | *times* a switch under the overlay it is made from, and **counts** the recompositions across one |
 | `FrameReadout` | `:ui-catalog`, on screen | real frames, on a real device |
 | `docs/check-bundle-size.py` | CI | gzip bytes a reader downloads |
+| `docs/check-bundle-size.py --probes` | CI | gzip bytes an app on the library ships, one small app at a time |
+| `docs/probe-attribution.py` | CI, printed | what is in a probe's Wasm, by package |
 | `docs/measure-web.mjs` | local only | a real browser on the built site |
 
 ### The two things a count cannot see
@@ -1029,6 +1031,29 @@ was not what the reports were about, which is the claim that was needed.
 `docs/check-bundle-size.py` is the half that does run in CI, because bytes are the
 same everywhere. Skia is ratcheted separately from the application binary — at
 roughly two thirds of the payload it would swamp any total that mixed them.
+
+The site's figure is the whole library, gallery and documentation, so it says
+how fast the site grows and nothing about what an app ships. `--probes` weighs
+the five apps in [`probes/`](../../probes/README.md) instead, each one the
+library with a little drawn on it, and prints each against the probe it is read
+from: `theme` against `empty` is what the theme alone costs every app,
+`button` against `theme` is one component, and `icons` against `icon` is
+forty-nine icons. A probe has its own ceiling, `PROBE_CEILINGS`, under the same
+rule as the site's. `probe-attribution.py` then says what the weight is made of,
+by package, from the binary before Binaryen stripped its names: a package in
+`theme` at all is one every app pays for.
+
+iOS cannot be weighed in CI, which has no Mac, and the probes are web apps. On
+a Mac, link the gallery's framework in release and read the binary's segments:
+
+```sh
+./gradlew :ui-catalog:linkReleaseFrameworkIosArm64
+xcrun size -m ui-catalog/build/bin/iosArm64/releaseFramework/Catalog.framework/Catalog
+```
+
+That is the whole gallery, so the same caveat as the site's applies. The
+resources beside it, `composeResources/` and the fonts in it, are the same in
+every app.
 
 `countPhases` has to be applied through a component's **real public content
 slot**. A replica assembled by the test is the easiest way to write a performance

@@ -23,6 +23,11 @@ binary is invisible inside a number Skia dominates. Splitting them is what makes
 this a ratchet on our own code.
 
     python3 docs/check-bundle-size.py [--dist DIR] [--update]
+    python3 docs/check-bundle-size.py --probes [--update]
+
+`--probes` weighs the apps in `probes/` instead: one app each, so the figure is
+what an app on the library ships rather than what the site does. See
+`probes/README.md` for what each one answers.
 
 `--update` rewrites the ceilings in this file to what was just measured. Use it
 when a change is *meant* to move a number, in the same commit, so the diff shows
@@ -216,6 +221,25 @@ CEILINGS = {
 # fetched resource is spending against a different budget than it looks.
 MAX_FILES = 14
 
+# The probes in `probes/`, in gzip bytes of each one's own `.wasm`, under the
+# same rule as `CEILINGS`. Each is listed with the probe it is read against,
+# because the difference is the answer (`probes/README.md`) and the absolute
+# figure mostly Compose.
+#
+# A probe with no ceiling fails: the first run prints the figures, and a
+# ceiling is set from them by `--probes --update` with a note here saying where
+# they came from.
+PROBE_CEILINGS: dict[str, int] = {
+}
+
+PROBE_BASELINES = {
+    "empty": None,
+    "theme": "empty",
+    "button": "theme",
+    "icon": "theme",
+    "icons": "icon",
+}
+
 COMPRESSIBLE = {".html", ".css", ".js", ".mjs", ".json", ".wasm", ".svg"}
 
 
@@ -248,7 +272,11 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--dist", default="ui-docs/build/dist/wasmJs/productionExecutable")
     parser.add_argument("--update", action="store_true")
+    parser.add_argument("--probes", action="store_true")
     options = parser.parse_args()
+
+    if options.probes:
+        return check_probes(options.update)
 
     dist = pathlib.Path(options.dist)
     if not dist.is_dir():
@@ -312,6 +340,81 @@ def main() -> int:
         return 1
 
     print("\n  Under every ceiling.")
+    return 0
+
+
+def probe_wasm(name: str) -> list[pathlib.Path]:
+    """The probe's own optimised binary: what Binaryen wrote, and only that."""
+    build = pathlib.Path("probes") / name / "build"
+    return sorted(build.glob("**/productionExecutable/optimized/*.wasm"))
+
+
+def check_probes(update: bool) -> int:
+    sizes: dict[str, tuple[int, int]] = {}
+    missing = []
+    for name in PROBE_BASELINES:
+        files = probe_wasm(name)
+        if not files:
+            missing.append(name)
+            continue
+        sizes[name] = (sum(transfer_size(f) for f in files), sum(f.stat().st_size for f in files))
+    if missing:
+        print("no optimised binary for " + ", ".join(missing) + ". Build them first:\n")
+        for name in missing:
+            print(f"  ./gradlew :probes:{name}:compileProductionExecutableKotlinWasmJsOptimize")
+        return 2
+
+    if update:
+        source = pathlib.Path(__file__).read_text()
+        body = "".join(
+            f'    "{name}": {int(gz * 1.03 / 1_000 + 1) * 1_000:_},\n' for name, (gz, _) in sizes.items()
+        )
+        source = re.sub(
+            r"^(PROBE_CEILINGS: dict\[str, int\] = \{\n)(?:    .*\n)*(\})",
+            lambda m: m.group(1) + body + m.group(2),
+            source,
+            count=1,
+            flags=re.M,
+        )
+        pathlib.Path(__file__).write_text(source)
+        print("  probe ceilings updated")
+        return 0
+
+    print("              gzip         raw     against   difference   ceiling")
+    over = []
+    for name, (gz, raw) in sizes.items():
+        baseline = PROBE_BASELINES[name]
+        difference = f"{gz - sizes[baseline][0]:+12,}" if baseline else " " * 12
+        ceiling = PROBE_CEILINGS.get(name)
+        if ceiling is None:
+            verdict = "none set"
+            over.append((name, gz, None))
+        elif gz > ceiling:
+            verdict = f"OVER by {gz - ceiling:,}"
+            over.append((name, gz, ceiling))
+        else:
+            verdict = f"{ceiling - gz:,} to spare"
+        print(f"  {name:>8}  {gz:10,}  {raw:10,}   {baseline or '':>9} {difference}   {verdict}")
+
+    if "icons" in sizes and "icon" in sizes:
+        each = (sizes["icons"][0] - sizes["icon"][0]) / 49
+        print(f"\n  One more icon: about {each:,.0f} gzip bytes.")
+
+    if over:
+        print()
+        for name, measured, ceiling in over:
+            if ceiling is None:
+                print(f"    {name}: {measured:,}, and no ceiling — set one with --probes --update")
+            else:
+                print(f"    {name}: {measured:,} against {ceiling:,}")
+        print(
+            "\n  A probe grew past its ceiling, or has none. If the growth is the point of\n"
+            "  the change, raise it with --probes --update and a note above\n"
+            "  PROBE_CEILINGS. If not, something every app pays for arrived."
+        )
+        return 1
+
+    print("\n  Every probe under its ceiling.")
     return 0
 
 
