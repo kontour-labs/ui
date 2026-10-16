@@ -292,6 +292,7 @@ private fun Pull(
     onRefresh: () -> Unit,
     report: (Rect) -> Unit,
     list: (LazyListState) -> Unit = {},
+    rowTop: (Float) -> Unit = {},
 ): PullToRefreshState {
     var refreshing by mutableStateOf(false)
     val pull = rememberPullToRefreshState()
@@ -308,6 +309,7 @@ private fun Pull(
             items(40) { index ->
                 Box(
                     Modifier
+                        .then(if (index == 0) Modifier.reportBounds { rowTop(it.top) } else Modifier)
                         .fillMaxWidth()
                         .height(40.dp)
                         .background(if (index % 2 == 0) Color.LightGray else Color.White)
@@ -321,3 +323,54 @@ private fun Pull(
 /** Comfortably past the 80dp threshold at this scene's density, plus slop. */
 private const val PastThreshold = 260f
 private const val Steps = 24
+
+/**
+ * The content comes down with the finger, not after it.
+ *
+ * The content's offset was an `animateFloatAsState` whose target was the pull,
+ * read in composition: every move recomposed the container and restarted a
+ * spring towards where the finger now was, so the list trailed the finger by a
+ * few frames for the whole pull, and caught up only when it stopped. A spring is
+ * for the way home after the finger lets go.
+ */
+class PullToRefreshTrackingTest {
+
+    @Test
+    fun theContentFollowsTheFingerFrameForFrame() {
+        var bounds = Rect.Zero
+        var listTop = 0f
+        var furthest = 0f
+        var caughtUp = 0f
+
+        Scene(width = 400, height = 600) {
+            Box(Modifier.fillMaxSize()) {
+                Pull(onRefresh = {}, report = { bounds = it }, rowTop = { listTop = it })
+            }
+        }.use { scene ->
+            scene.frames(4)
+            val start = listTop
+            val from = Offset(bounds.center.x, bounds.top + 40f)
+            scene.press(from)
+            scene.frame()
+            repeat(20) { step ->
+                scene.move(Offset(from.x, from.y + (step + 1) * 6f))
+                scene.frame()
+            }
+            // The finger stops. Content that follows it has already stopped too;
+            // content chasing it on an animation goes on arriving.
+            val atStop = listTop
+            furthest = atStop - start
+            scene.frames(20)
+            caughtUp = listTop - atStop
+            scene.release(Offset(from.x, from.y + 120f))
+            scene.frames(30)
+        }
+
+        assertTrue(furthest > 20f, "the content never came down, so this measured nothing (it moved ${furthest}px)")
+        assertTrue(
+            kotlin.math.abs(caughtUp) < 1f,
+            "after the finger stopped, the content went on moving ${caughtUp}px: it was " +
+                "chasing the finger on an animation instead of following it",
+        )
+    }
+}

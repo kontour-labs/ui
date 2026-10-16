@@ -193,5 +193,8 @@ fun Modifier.concentric(extra: Dp = 0.dp): Modifier {
     val shape = remember(container.shape, container.padding, extra) {
         container.shape.inset(container.padding + extra)
     }
-    return clip(shape)
+    // Through the proxy, as every other clip in the library is: a squircle's
+    // own path is a generic path to Skia, clipped by mask on the GPU, where its
+    // rounded-rectangle stand-in is clipped analytically.
+    return clip(shape.clipProxy())
 }

@@ -108,6 +108,13 @@ internal fun suggest() = Unit
 @Composable
 internal fun Departures() = Unit
 
+/** A page's header, where its fading rather than its content is the subject. */
+@Composable
+internal fun HeroHeader(modifier: Modifier = Modifier) = Unit
+
+/** How far a page scrolls before its header has faded out. */
+internal const val FadeDistancePx = 300f
+
 /** A departure that has not arrived yet, for the redaction example. */
 internal class Departure(val name: String, val detail: String)
 

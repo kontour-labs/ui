@@ -606,7 +606,10 @@ private fun MenuSurface(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val reduced = Theme.motion.reduceMotion
-    val covered = dimmedBy() > 0f
+    // Whether a level is over it at all, which changes twice per submenu; how
+    // far, which changes every frame, is read in the layer and the draw.
+    val dimming by rememberUpdatedState(dimmedBy)
+    val covered by remember { derivedStateOf { dimming() > 0f } }
     val dim = Theme.colours.scrim
     OverlaySurface(
         modifier = modifier

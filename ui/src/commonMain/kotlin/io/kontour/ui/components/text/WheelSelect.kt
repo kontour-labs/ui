@@ -465,7 +465,20 @@ private fun WheelPanel(
                         // so the row cut there reads as more of the wheel rather
                         // than as a row cut off. Not at high contrast, where
                         // nothing fades.
-                        .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+                        //
+                        // Offscreen only while there is that sliver to fade.
+                        // The layer is a buffer the whole drum renders into
+                        // and is composited back from, every frame it scrolls,
+                        // and opened about its field or at high contrast
+                        // nothing fades. The same mistake `fadingEdges` made.
+                        .graphicsLayer {
+                            val opening = geometry.opening
+                            compositingStrategy = if (solid || opening == null || opening == Opening.About) {
+                                CompositingStrategy.Auto
+                            } else {
+                                CompositingStrategy.Offscreen
+                            }
+                        }
                         .drawWithContent {
                             drawContent()
                             val opening = geometry.opening
@@ -564,7 +577,12 @@ private enum class Opening {
 
 /** Which way a [WheelPanel] opened, and where it put its drum, from its measure to its drawing. */
 private class PanelGeometry {
-    var opening: Opening? = null
+    /**
+     * State, because the drum's layer reads it as well as its drawing: the
+     * layer is offscreen only when there is a sliver to fade, and the two have
+     * to agree, or the fade's `DstOut` erases through the panel to the page.
+     */
+    var opening: Opening? by mutableStateOf(null)
     var drumTop: Int = 0
 }
 

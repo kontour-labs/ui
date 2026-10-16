@@ -1068,9 +1068,17 @@ repository can run it: it needs a phone.
 
 ```sh
 ./gradlew :showcase:android:installRelease   # release, not debug
+# and compiled as it will be once the phone has had an idle night with it:
+adb shell cmd package compile -m speed -f io.kontour.ui.catalog
 ```
 
-Judging performance from a debug build is judging the wrong thing.
+Judging performance from a debug build is judging the wrong thing, and a
+release build without R8 is most of the way to one: until 0.4.5 the gallery's
+had `isMinifyEnabled = false`, so every composable kept the source information
+and trace calls Compose leaves for R8 to strip. Neither the gallery nor the
+library ships a baseline profile yet, so a fresh install runs the library's
+code interpreted until the phone compiles it; the `compile` line does that now,
+and is the build to judge.
 
 There is an iOS host now — `showcase/ios/`, an Xcode project over the `Catalog`
 framework `:ui-catalog` already produced — so the readout is reachable on that

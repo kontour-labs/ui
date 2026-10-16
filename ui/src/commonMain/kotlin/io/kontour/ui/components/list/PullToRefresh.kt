@@ -1,9 +1,10 @@
 package io.kontour.ui.components.list
 
+import kotlinx.coroutines.flow.collectLatest
+import androidx.compose.animation.core.Animatable
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.layout.onVisibilityChanged
 import io.kontour.ui.motion.scrollSpec
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.gestures.ScrollableState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -402,16 +403,29 @@ fun PullToRefresh(
     // indicator's placement and its layer — rather than in composition, where
     // every frame of the spring home after a release recomposed the whole
     // container, list and all, to move it.
-    val indicatorOffset = animateFloatAsState(
-        targetValue = when {
-            refreshing -> with(density) { PullToRefreshDefaults.Threshold.toPx() }
-            else -> state.offset
-        },
-        // The list's way home once the refresh is done is content travelling
-        // with no finger on it, so under reduced motion it is there at once.
-        animationSpec = motion.scrollSpec(),
-        label = "pullToRefresh",
-    )
+    //
+    // **With the finger, not after it.** This was an `animateFloatAsState`
+    // aimed at the pull, so every move restarted a spring towards where the
+    // finger now was: the list trailed it by 27px on a steady pull and caught up
+    // only when it stopped, and reading the pull to set the target recomposed
+    // the container on every pointer event. While a finger is down it snaps to
+    // the pull; the spring is for the way home once it lets go.
+    val thresholdPx = with(density) { PullToRefreshDefaults.Threshold.toPx() }
+    val indicatorOffset = remember { Animatable(0f) }
+    val currentMotion by rememberUpdatedState(motion)
+    LaunchedEffect(indicatorOffset, state) {
+        snapshotFlow { Triple(if (busy) thresholdPx else state.offset, holding, busy) }
+            .collectLatest { (target, held, _) ->
+                if (held && !busy) {
+                    indicatorOffset.snapTo(target)
+                } else {
+                    // The list's way home once the refresh is done is content
+                    // travelling with no finger on it, so under reduced motion
+                    // it is there at once.
+                    indicatorOffset.animateTo(target, currentMotion.scrollSpec())
+                }
+            }
+    }
     val indicatorShown by remember(indicatorOffset) { derivedStateOf { indicatorOffset.value > 0.5f } }
     // Read in composition, not in the semantics block below, so the label
     // changes when the latch does: the block is only re-run when it is rebuilt.

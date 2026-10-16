@@ -1,5 +1,6 @@
 package io.kontour.ui.samples
 
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -112,10 +113,13 @@ fun FloatingActionButtonBasics() {
 
 @Composable
 fun ExtendedFloatingActionButtonCollapsing(listState: LazyListState) {
+    // Derived: the screen recomposes when the answer changes, not on every row
+    // the list scrolls past.
+    val atTop by remember { derivedStateOf { listState.firstVisibleItemIndex == 0 } }
     ExtendedFloatingActionButton(
         icon = Tabler.Outline.Navigation,
         contentDescription = "Start trip to Perth Station",
-        expanded = listState.firstVisibleItemIndex == 0,
+        expanded = atTop,
         onClick = { start() },
     ) {
         +"Start"

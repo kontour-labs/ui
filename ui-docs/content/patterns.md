@@ -264,6 +264,116 @@ Dialog(
   says something is true until it is fixed; a dialog asks a question; a sheet
   holds a task. [Overlays](overlays.md) has the table, and the reasons.
 
+## Smooth: what makes an app feel slow
+
+Most of what makes an app on Compose feel sluggish is not a component. It is
+the build being judged, or a value that changes every frame being read in the
+wrong place.
+
+### Judge the build you ship
+
+A debug build is slow in ways a release build is not, and two of them are easy
+to mistake for the library:
+
+- **Android: R8 on, and compiled.** A release build with `isMinifyEnabled =
+  false` keeps the source information and trace calls Compose leaves in every
+  composable for R8 to strip, and loses the inlining it relies on. And until the
+  phone has compiled the app — after its first idle night, or a baseline
+  profile — much of it runs interpreted. To judge it as it will settle:
+
+  ```kotlin
+  // build.gradle.kts, the app's
+  buildTypes {
+      release {
+          isMinifyEnabled = true
+          isShrinkResources = true
+          proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+      }
+  }
+  ```
+
+  then `adb shell cmd package compile -m speed -f <your.package>` after
+  installing it.
+- **iOS: Release, and not under the debugger.** The Kotlin framework is built
+  from Xcode's configuration, so a Debug run is unoptimised Kotlin/Native; and an
+  app started from Xcode runs with its debugger and Metal's validation attached.
+  Run Release, then open the app from the home screen. On a ProMotion phone,
+  `CADisableMinimumFrameDurationOnPhone` in `Info.plist` is what lets it past
+  60Hz.
+
+### Read what moves where it is used
+
+A value that changes every frame — a scroll position, a drag, an animation —
+recomposes whatever reads it in composition, every frame. Two ways not to.
+
+**Ask the scroll a question, and derive the answer:**
+
+```kotlin
+// Not this, in a screen's composable: the read is the screen's, so the whole
+// screen recomposes each time the list scrolls past a row.
+val atTop = list.firstVisibleItemIndex == 0
+```
+
+<!--sample:PatternScrollAnswer-->
+```kotlin
+val list = rememberScrollbarListState()
+// A question about the scroll, answered in a derived state: the screen
+// recomposes when the answer changes, not on every pixel the list moves.
+val atTop by remember { derivedStateOf { list.firstVisibleItemIndex == 0 } }
+Box(Modifier.fillMaxSize()) {
+    LazyColumn(Modifier.fillMaxSize().scrollbar(list), state = list) {
+        items(stops, key = { it.name }) { stop ->
+            ListItem(onClick = { openStop(stop.name) }) { +stop.name }
+        }
+    }
+    ExtendedFloatingActionButton(
+        onClick = { plan() },
+        icon = Tabler.Outline.Route,
+        contentDescription = "Plan a trip",
+        expanded = atTop,
+        modifier = Modifier.align(Alignment.BottomEnd).padding(Theme.spacing.md),
+    ) {
+        +"Plan a trip"
+    }
+}
+```
+
+**Or read it in the layout or the draw**, which Compose re-runs on its own
+without composing anything — `graphicsLayer { }`, `offset { }`,
+`drawBehind { }`, the lambda forms rather than the value forms:
+
+```kotlin
+// Not this: a new alpha is a new modifier, so the header recomposes every frame.
+HeroHeader(Modifier.alpha(1f - scroll.value / 300f))
+```
+
+<!--sample:PatternFadeOnScroll-->
+```kotlin
+val scroll = rememberScrollState()
+Column(Modifier.fillMaxSize().verticalScroll(scroll)) {
+    // The value is read inside the layer's block, which Compose re-runs on
+    // its own, without composing or measuring anything: the header fades
+    // as the page scrolls, and nothing else is asked to change.
+    HeroHeader(
+        Modifier.graphicsLayer {
+            alpha = 1f - (scroll.value / FadeDistancePx).coerceIn(0f, 1f)
+        },
+    )
+    Departures()
+}
+```
+
+The library's own components take their moving values this way — a top bar's
+collapse, a sheet's offset, a pull's distance — so this is about your code
+around them.
+
+### A lazy list knows its rows
+
+Give `items` a `key`, so a row that moves keeps its state and its animations
+rather than being rebuilt in its new place; `listGroup` takes one too. Where
+rows are of different kinds — a header, a stop, an advert — give each kind a
+`contentType`, so the list reuses a stop for a stop and never a header for one.
+
 ## Material stays out
 
 The library is built on Compose Foundation, without Material, and an app on it

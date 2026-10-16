@@ -342,7 +342,8 @@ The repository moves, `PullToRefresh` takes its list's scroll state,
   per screen; rows grouped by hand, made pressable with `Modifier.clickable`, or
   wrapped in a card; a swipe row's shape in a group; pull to refresh and its
   list's state; literal colours and sizes; icons with no name; dialogs composed
-  rather than shown. Each with an example that compiles. The `Scaffold` page's
+  rather than shown; and what makes an app feel slow — the build being judged,
+  and a moving value read in composition. Each with an example that compiles. The `Scaffold` page's
   own example applied the padding it said it handed over, and is a list's
   `contentPadding` now.
 - **The documentation is public.** `docs.kontour.io/ui` and its Markdown for
@@ -394,6 +395,20 @@ The repository moves, `PullToRefresh` takes its list's scroll state,
   than three times; a large title is drawn offscreen only while its second line
   is being cut away; and a sheet works out how collapsed it is without making a
   list on every frame.
+- **[Pull to refresh](components/pull-to-refresh.md) comes down with the
+  finger.** The content chased the pull on a spring, restarted on every move,
+  so it trailed a steady pull by 27px and caught up only when the finger
+  stopped — and setting the spring's target recomposed the container on every
+  pointer event. It follows the finger exactly now, and springs only on the way
+  home.
+- **Lighter in places that are drawn every frame.** A
+  [wheel select](components/wheel-select.md)'s drum renders offscreen only while
+  it has a sliver to fade, as fading edges already did; a
+  [text field](components/text-field.md) no longer resolves seven font
+  resources on every composition for an answer only the web uses; a
+  `Modifier.concentric` clip goes through the same rounded-rectangle stand-in
+  as every other clip; and a menu under an opening submenu works out whether
+  it is covered once rather than on every frame.
 
 **Sheets and overlays**
 

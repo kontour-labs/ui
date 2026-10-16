@@ -17,10 +17,10 @@ How the library is built, checked and released. Using it is the
 Every component in every state, on whichever platform you want to poke at it:
 
 ```sh
-./gradlew :showcase:desktop:run          # a JVM window
-./gradlew :showcase:android:installDebug # a device or emulator
-./gradlew :ui-catalog:jsBrowserRun       # a browser
-open showcase/ios/KontourUI.xcodeproj    # an iPhone or a simulator, from a Mac
+./gradlew :showcase:desktop:run            # a JVM window
+./gradlew :showcase:android:installRelease # a device or emulator, as it ships
+./gradlew :ui-catalog:jsBrowserRun         # a browser
+open showcase/ios/KontourUI.xcodeproj      # an iPhone or a simulator, from a Mac
 ```
 
 The iOS one is an Xcode project rather than a Gradle task, because linking a

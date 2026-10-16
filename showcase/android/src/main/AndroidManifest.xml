@@ -8,6 +8,9 @@
         android:label="Kontour UI"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.NoActionBar">
+        <!-- So a release build can be traced (Perfetto, Android Studio's
+             profiler) and benchmarked, which a debuggable build distorts. -->
+        <profileable android:shell="true" />
         <activity
             android:name=".MainActivity"
             android:exported="true"

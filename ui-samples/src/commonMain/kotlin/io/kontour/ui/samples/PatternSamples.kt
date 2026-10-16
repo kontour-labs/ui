@@ -1,5 +1,15 @@
 package io.kontour.ui.samples
 
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
+import io.kontour.icons.tabler.outline.Route
+import io.kontour.ui.components.action.ExtendedFloatingActionButton
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.Box
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
@@ -178,5 +188,45 @@ fun PatternPullToRefresh(refreshing: Boolean) {
         LazyColumn(state = rows) {
             items(stops, key = { it.name }) { stop -> ListItem { +stop.name } }
         }
+    }
+}
+
+@Composable
+fun PatternScrollAnswer() {
+    val list = rememberScrollbarListState()
+    // A question about the scroll, answered in a derived state: the screen
+    // recomposes when the answer changes, not on every pixel the list moves.
+    val atTop by remember { derivedStateOf { list.firstVisibleItemIndex == 0 } }
+    Box(Modifier.fillMaxSize()) {
+        LazyColumn(Modifier.fillMaxSize().scrollbar(list), state = list) {
+            items(stops, key = { it.name }) { stop ->
+                ListItem(onClick = { openStop(stop.name) }) { +stop.name }
+            }
+        }
+        ExtendedFloatingActionButton(
+            onClick = { plan() },
+            icon = Tabler.Outline.Route,
+            contentDescription = "Plan a trip",
+            expanded = atTop,
+            modifier = Modifier.align(Alignment.BottomEnd).padding(Theme.spacing.md),
+        ) {
+            +"Plan a trip"
+        }
+    }
+}
+
+@Composable
+fun PatternFadeOnScroll() {
+    val scroll = rememberScrollState()
+    Column(Modifier.fillMaxSize().verticalScroll(scroll)) {
+        // The value is read inside the layer's block, which Compose re-runs on
+        // its own, without composing or measuring anything: the header fades
+        // as the page scrolls, and nothing else is asked to change.
+        HeroHeader(
+            Modifier.graphicsLayer {
+                alpha = 1f - (scroll.value / FadeDistancePx).coerceIn(0f, 1f)
+            },
+        )
+        Departures()
     }
 }

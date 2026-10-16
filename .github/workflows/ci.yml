@@ -599,6 +599,10 @@ jobs:
       # compiles them. So are the Android host tests, which need the Android
       # compile `:ui:assemble` already does. They are last, because `--tests`
       # filters the task named before it.
+      #
+      # The Android gallery as **release**: R8 shrinks and optimises it, and
+      # R8 is where a missing class or a reflective lookup fails, so the
+      # variant someone installs to judge performance is the one checked here.
       - name: Compile
         run: |
           ./gradlew --no-daemon \
@@ -617,7 +621,7 @@ jobs:
             :haptics:compileKotlinIosArm64 \
             :haptics:compileKotlinIosSimulatorArm64 \
             :haptics:assemble \
-            :showcase:android:assembleDebug \
+            :showcase:android:assembleRelease \
             :ui:assemble \
             :ui:checkKotlinAbi \
             :ui-nav3:checkKotlinAbi \

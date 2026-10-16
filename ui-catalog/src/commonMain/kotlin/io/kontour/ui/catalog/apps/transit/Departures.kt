@@ -1,5 +1,6 @@
 package io.kontour.ui.catalog.apps.transit
 
+import androidx.compose.runtime.derivedStateOf
 import io.kontour.ui.components.list.rememberScrollbarListState
 import io.kontour.ui.components.list.scrollbar
 import androidx.compose.foundation.gestures.Orientation
@@ -99,7 +100,8 @@ internal fun DeparturesPage(
         toast("Departures updated")
     }
 
-    val visible = shown.filter { it.mode in showing }
+    val visible = remember(shown, showing) { shown.filter { it.mode in showing } }
+    val atTop by remember { derivedStateOf { list.firstVisibleItemIndex == 0 } }
 
     Box(Modifier.fillMaxSize()) {
         // The list under the bar, which is drawn over it and follows its
@@ -217,7 +219,7 @@ internal fun DeparturesPage(
             ExtendedFloatingActionButton(
                 icon = Tabler.Outline.Route,
                 contentDescription = "Plan a trip",
-                expanded = list.firstVisibleItemIndex == 0,
+                expanded = atTop,
                 onClick = onPlan,
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
