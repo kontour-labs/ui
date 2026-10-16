@@ -171,14 +171,39 @@ import sys
 # fetch — by the same rule over 0.4.2's total (7,148,576, as 0.4.2 derived it)
 # plus `app`'s growth. It holds even with `js`, `fonts` and `other` at their
 # ceilings: 7,370,214.
+#
+# Raised 2026-10-16 for 0.4.5, from CI's own measurement on
+# `claude/quirky-fermi-ak6fnd` (4ea762bb), the first run to build the site with
+# 0.4.4's and 0.4.5's work together. `app` is 3,779,287: +223,751 gzip on
+# 0.4.3's 3,555,536, +6.3%, and over its ceiling by 109,287; `total` is
+# 7,563,532, over by 3,532. Kotlin, Compose and Skia are 0.4.3's, so `skiko`
+# (3,324,678), `js` (103,304), `fonts` (352,932) and `other` (3,331) measured
+# inside their ceilings and stay. Read by source, lines added and removed in
+# `:ui` since v0.4.4:
+#
+#   components +3,947 −679   SplitListItem, swipe actions that grow the full
+#                            swipe's action, the list DSL's `split`
+#   overlay    +1,751 −156
+#   nav        +1,281 −441
+#   list, date
+#   and time,
+#   calendar,
+#   text       +3,620 −585
+#   sheet      +365   −81
+#   the site   +1,712 −251   lines of pages: the patterns guide, the changelog
+#                            and migrating, the public install pages
+#
+# plus +509 −63 in the gallery, the drag-and-drop demo among them.
+#
+# `app` and `total` through `--update`'s rule by hand, over CI's figures.
 
 CEILINGS = {
     "skiko": 3_430_000,
-    "app": 3_670_000,
+    "app": 3_900_000,
     "js": 110_000,
     "fonts": 370_000,
     "other": 10_000,
-    "total": 7_560_000,
+    "total": 7_800_000,
 }
 
 # The whole *distribution*, in files — `dist.rglob("*")`, which is every file the
