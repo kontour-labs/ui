@@ -131,13 +131,93 @@ class PseudoLocaleSweepTest {
         assertTrue(english.dismiss !in said { Text(Theme.strings.dismiss) }, "the sweep flags a word that went through Strings")
     }
 
+    /**
+     * No component joins words, writes digits or separates with a slash on its
+     * own, where a language could not change it.
+     *
+     * Under the right-to-left pseudo-locale, every word that went through
+     * `Theme.strings` and every number, date and list that went through
+     * `Theme.formats` arrives wrapped in a right-to-left run. Whatever is left
+     * once the runs and the specimen's own words are taken out was put there by
+     * a component: a ", " between two strings, a ". " between sentences, a
+     * " / " between a position and a count, or a number written with
+     * `toString()`. Each is English punctuation or Western digits a translation
+     * cannot reach, and each is read in the wrong order in a right-to-left
+     * language.
+     */
+    @Test
+    fun nothingIsJoinedOrNumberedOutsideTheStrings() {
+        val registrySource = File("src/commonMain/kotlin/io/kontour/ui/contract/ComponentRegistry.kt").readText()
+        val callerWords = callerPieces(registrySource)
+        val leaks = mutableListOf<String>()
+        for (spec in componentRegistry) {
+            said(PseudoLocale.Bidi) { spec.content(Modifier, true) {} }.forEach { text ->
+                strayIn(text, callerWords)?.let { leaks += "${spec.name}: $it in \"${text.filter { c -> c != Rlo && c != Pdf }}\"" }
+            }
+        }
+        assertTrue(
+            leaks.isEmpty(),
+            "${leaks.size} piece(s) of English punctuation or Western digits were written by a component:\n" +
+                leaks.joinToString("\n") { "  · $it" },
+        )
+    }
+
+    @Test
+    fun aCommaWrittenBetweenTwoStringsIsCaught() {
+        // The control: two strings joined with a comma in the component are
+        // caught, and the same two joined by the locale's list are not.
+        val joined = said(PseudoLocale.Bidi) { Text(Theme.strings.dismiss + ", " + Theme.strings.close) }
+        assertTrue(joined.any { strayIn(it, emptySet()) != null }, "the sweep cannot see a written comma: $joined")
+        val listed = said(PseudoLocale.Bidi) { Text(Theme.formats.list(listOf(Theme.strings.dismiss, Theme.strings.close))) }
+        assertTrue(listed.none { strayIn(it, emptySet()) != null }, "the sweep flags the locale's own list: $listed")
+        val counted = said(PseudoLocale.Bidi) { Text(3.toString()) }
+        assertTrue(counted.any { strayIn(it, emptySet()) != null }, "the sweep cannot see a number written by toString")
+    }
+
+    /**
+     * What of [text] a component wrote: the text with every right-to-left run
+     * and every piece of the specimen's own words taken out, if what is left
+     * has a joiner, a slash or a Western digit in it.
+     */
+    private fun strayIn(text: String, callerWords: Set<String>): String? {
+        var left = buildString {
+            var depth = 0
+            for (char in text) {
+                when (char) {
+                    Rlo -> depth++
+                    Pdf -> depth = maxOf(0, depth - 1)
+                    else -> if (depth == 0) append(char)
+                }
+            }
+        }
+        callerWords.sortedByDescending { it.length }.forEach { left = left.replace(it, " ") }
+        return Stray.find(left)?.value?.let { "\"$it\"" }
+    }
+
+    /**
+     * The words a specimen passes in itself: every string literal in the
+     * registry, split at its templates, so `"Route ${it.route}"` leaves
+     * `"Route "`. Only pieces with a letter or a digit in them, so a literal
+     * `", "` in the registry hides nothing.
+     */
+    private fun callerPieces(source: String): Set<String> =
+        Regex("""("(?:[^"\\]|\\.)*")""").findAll(source)
+            .map { it.value.removeSurrounding("\"") }
+            .flatMap { it.split(Regex("""\$\{[^}]*}|\$[A-Za-z_][A-Za-z0-9_]*""")) }
+            .map { it.trim() }
+            .filter { piece -> piece.any { it.isLetterOrDigit() } }
+            .toSet()
+
     /** Everything [content] says to a screen reader, under the accented pseudo-locale. */
-    private fun said(content: @Composable () -> Unit): Set<String> {
+    private fun said(content: @Composable () -> Unit): Set<String> = said(PseudoLocale.Accented, content)
+
+    /** Everything [content] says to a screen reader, under [mode]. */
+    private fun said(mode: PseudoLocale, content: @Composable () -> Unit): Set<String> {
         val said = mutableSetOf<String>()
         runComposeUiTest {
             setContent {
                 KontourTheme(reduceMotion = true) {
-                    PseudoLocalised(PseudoLocale.Accented) {
+                    PseudoLocalised(mode) {
                         OverlayHost {
                             Box(Modifier.width(420.dp)) { content() }
                         }
@@ -159,5 +239,12 @@ class PseudoLocaleSweepTest {
 
     private companion object {
         val hasTextLayout = SemanticsMatcher.keyIsDefined(SemanticsActions.GetTextLayoutResult)
+
+        /** The start and end of a right-to-left run, as the bidi pseudo-locale wraps a word. */
+        const val Rlo = '\u202E'
+        const val Pdf = '\u202C'
+
+        /** What a component may not write itself: a joiner, a slash between numbers, or a Western digit. */
+        val Stray = Regex(""", |\. | / |[0-9]""")
     }
 }

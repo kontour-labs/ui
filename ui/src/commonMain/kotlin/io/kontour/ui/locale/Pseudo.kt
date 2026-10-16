@@ -132,7 +132,13 @@ private class PseudoFormats(private val base: LocaleFormats, private val mode: P
     override fun dateTime(date: LocalDate, time: LocalTime) = words(number(base.dateTime(date, time)))
     override fun relativeTime(value: Long, unit: RelativeUnit) = words(number(base.relativeTime(value, unit)))
     override fun relativeNow() = words(base.relativeNow())
-    override fun list(items: List<String>, style: ListStyle) = base.list(items, style)
+    // Wrapped under Bidi, as every other formatter is, so the language's own
+    // joiners (", ", " and ") are inside the right-to-left run and a sweep can
+    // tell them from a comma written into a component. Only under Bidi: the
+    // items are wrapped already in the other modes, and marking them again
+    // would stack a tall pseudo-locale's marks twice.
+    override fun list(items: List<String>, style: ListStyle) =
+        if (mode == PseudoLocale.Bidi) words(base.list(items, style)) else base.list(items, style)
 
     override fun withConventions(conventions: DateTimeConventions): LocaleFormats =
         PseudoFormats(base.withConventions(conventions), mode)
