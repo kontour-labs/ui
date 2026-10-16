@@ -22,8 +22,10 @@ class TicksTest {
 
     @Test
     fun aRangeOfNumbersIsTickedInRoundSteps() {
+        // 94 over four gaps is 23.5 a step, and the round number nearest that
+        // is 25: five ticks, as many as were asked for.
         val ticks = niceTicks(3.0, 97.0, 5)
-        assertEquals(listOf(0.0, 20.0, 40.0, 60.0, 80.0, 100.0), ticks.values.toList())
+        assertEquals(listOf(0.0, 25.0, 50.0, 75.0, 100.0), ticks.values.toList())
         assertEquals(0.0, ticks.low)
         assertEquals(100.0, ticks.high)
         assertEquals(0, ticks.fractionDigits)

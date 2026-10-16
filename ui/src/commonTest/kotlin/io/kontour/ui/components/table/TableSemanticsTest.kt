@@ -98,7 +98,7 @@ class TableSemanticsTest {
                 }
             }
         }
-        onNodeWithContentDescription("Select all")
+        onNodeWithContentDescription("Select all rows")
             .assert(SemanticsMatcher.expectValue(SemanticsProperties.ToggleableState, ToggleableState.Indeterminate))
             .performClick()
         onNodeWithText("950").performClick()
