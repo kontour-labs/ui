@@ -57,7 +57,7 @@ class ReorderMouseTest {
                             Modifier
                         },
                         itemCount = 3,
-                        handleIcon = SystemIcons.More,
+                        handleIcon = SystemIcons.Default.more,
                     ) {
                         Box(
                             Modifier

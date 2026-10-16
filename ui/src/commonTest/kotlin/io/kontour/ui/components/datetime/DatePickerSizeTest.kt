@@ -42,8 +42,8 @@ class DatePickerSizeTest {
                         value = LocalDate(2026, 6, 18),
                         onValueChange = {},
                         today = LocalDate(2026, 6, 12),
-                        previousIcon = SystemIcons.ChevronLeft,
-                        nextIcon = SystemIcons.ChevronRight,
+                        previousIcon = SystemIcons.Default.chevronLeft,
+                        nextIcon = SystemIcons.Default.chevronRight,
                         modifier = Modifier.testTag("picker"),
                     )
                 }

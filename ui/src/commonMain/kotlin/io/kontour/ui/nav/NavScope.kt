@@ -19,7 +19,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import io.kontour.ui.foundation.SurfaceDefaults
-import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.theme.Theme
 
 /**
@@ -195,7 +194,7 @@ sealed interface NavBarScope : NavScope {
  * ```
  *
  * A [NavScope.group] with nothing to decide: the library's horizontal dots
- * (`SystemIcons.More`), `Theme.strings.more` for its name, and a key of its
+ * (`Theme.icons.more`), `Theme.strings.more` for its name, and a key of its
  * own, so there is one per surface. Asked for as *"an easy api to add a '…'
  * menu to the end with one of those dropdown options. this is useful for lots
  * of nav items"* — a bar has room for five destinations, and an app with nine
@@ -229,7 +228,7 @@ fun NavScope.more(
                 expanded = false,
                 onExpandedChange = {},
                 key = NavMoreKey,
-                icon = SystemIcons.More,
+                icon = Theme.icons.more,
                 header = { +name },
                 modifier = modifier,
                 badge = badge,

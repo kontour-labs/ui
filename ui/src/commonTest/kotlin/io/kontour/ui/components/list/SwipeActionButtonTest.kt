@@ -32,7 +32,7 @@ class SwipeActionButtonTest {
      */
     @Test
     fun aRowComposedOpenShowsItsLabelAtOnce() = runComposeUiTest {
-        val delete = SwipeAction(label = "Delete", icon = SystemIcons.Close, onAction = {}, background = Color.Red)
+        val delete = SwipeAction(label = "Delete", icon = SystemIcons.Default.close, onAction = {}, background = Color.Red)
         mainClock.autoAdvance = false
         setContent {
             KontourTheme(reduceMotion = false) {

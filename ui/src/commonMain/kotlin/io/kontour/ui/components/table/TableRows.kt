@@ -27,6 +27,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
@@ -65,7 +66,6 @@ import io.kontour.ui.foundation.ContentSlot
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.ProvideContentColour
 import io.kontour.ui.foundation.ProvideTextStyle
-import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.insetFocusRing
 import io.kontour.ui.input.pointerCursor
@@ -88,6 +88,8 @@ internal data class TableEnv<T>(
     val striped: Boolean,
     val sort: TableSort?,
     val onSortChange: ((TableSort) -> Unit)?,
+    /** The ascending arrow, then the descending one. */
+    val sortIcons: Pair<ImageVector, ImageVector>,
     val selection: TableSelection,
     val selected: Set<Any>,
     val onSelectedChange: ((Set<Any>) -> Unit)?,
@@ -233,9 +235,9 @@ internal fun <T> HeaderCellContent(env: TableEnv<T>, column: TableColumn<T>, mod
             if (sorted != null) {
                 Icon(
                     imageVector = if (sorted.direction == SortDirection.Ascending) {
-                        SystemIcons.SortAscending
+                        env.sortIcons.first
                     } else {
-                        SystemIcons.SortDescending
+                        env.sortIcons.second
                     },
                     contentDescription = null,
                     tint = colour,

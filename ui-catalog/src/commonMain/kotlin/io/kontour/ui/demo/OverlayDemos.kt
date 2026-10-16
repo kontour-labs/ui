@@ -325,7 +325,7 @@ internal val DropdownMenuDemo = ComponentDemo(
                 item("Journey length", selected = order == 1, onClick = { order = 1 })
                 divider()
                 // On a phone it opens in place over its row; with a mouse, beside it.
-                submenu("Add to a list", leadingIcon = SystemIcons.Plus) {
+                submenu("Add to a list", leadingIcon = SystemIcons.Default.plus) {
                     item("Favourites") { echo("Added to Favourites") }
                     item("Morning commute") { echo("Added to Morning commute") }
                 }

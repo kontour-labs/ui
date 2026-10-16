@@ -182,11 +182,11 @@ class CalloutTreatmentTest {
 
     /** The tone's own mark, which is what `Callout` defaults to. */
     private fun calloutMark(tone: Tone) = when (tone) {
-        Tone.Warning -> io.kontour.ui.foundation.SystemIcons.Warning
-        Tone.Neutral, Tone.Info -> io.kontour.ui.foundation.SystemIcons.Info
-        Tone.Success -> io.kontour.ui.foundation.SystemIcons.Success
-        Tone.Danger -> io.kontour.ui.foundation.SystemIcons.Danger
-        Tone.Accent -> io.kontour.ui.foundation.SystemIcons.Info
+        Tone.Warning -> io.kontour.ui.foundation.SystemIcons.Default.warning
+        Tone.Neutral, Tone.Info -> io.kontour.ui.foundation.SystemIcons.Default.info
+        Tone.Success -> io.kontour.ui.foundation.SystemIcons.Default.success
+        Tone.Danger -> io.kontour.ui.foundation.SystemIcons.Default.danger
+        Tone.Accent -> io.kontour.ui.foundation.SystemIcons.Default.info
     }
 
     private companion object {

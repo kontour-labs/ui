@@ -134,7 +134,7 @@ fun FloatingActionButton(
  *
  * ```
  * FloatingActionButton(onClick = ::open, contentDescription = "Open menu") {
- *     Icon(SystemIcons.Plus, contentDescription = null, modifier = Modifier.rotate(turn))
+ *     Icon(Theme.icons.plus, contentDescription = null, modifier = Modifier.rotate(turn))
  * }
  * ```
  *

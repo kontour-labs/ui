@@ -15,9 +15,24 @@ Icon(Tabler.Outline.Star, contentDescription = "Favourite", size = Theme.sizing.
 
 **Components take icons from the caller.** A button's leading icon, a menu
 item's icon, an empty state's illustration — all parameters, so the choice of
-icon library stays an application decision. The exception is `SystemIcons`: the
+icon library stays an application decision. The exception is `Theme.icons`: the
 handful of glyphs a component draws on its own behalf, because they are structure
 rather than content. A submenu with no chevron gives no sign it opens anything.
+They are Tabler's unless the app says otherwise, and every one of them is the
+app's to replace:
+
+```kotlin
+KontourTheme(
+    icons = SystemIcons(
+        close = FontAwesome.Solid.Times,
+        chevronDown = FontAwesome.Solid.ChevronDown,
+    ),
+) { App() }
+```
+
+A component that draws one also takes it as a parameter, for the one place that
+wants something else: `Select(chevron = …)`, `ToastHost(dismissIcon = …)`,
+`Table(sortAscendingIcon = …)`.
 
 `Icon` corrects for a non-square viewport, so an icon set whose glyphs are not
 drawn on a uniform grid still renders undistorted — see

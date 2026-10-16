@@ -24,7 +24,8 @@ import io.kontour.ui.theme.Theme
  * proportions.
  *
  * The design system ships **no icon set** — only the handful of glyphs its own
- * controls draw when nobody passes one, in `SystemIcons`. Components take an
+ * controls draw when nobody passes one, in [Theme.icons], each of which an app
+ * can replace. Components take an
  * [ImageVector] or a [Painter], so the choice of icon library stays an
  * application decision and `:ui` does not drag a few hundred kilobytes of
  * glyphs into every consumer.

@@ -109,7 +109,7 @@ class InertControlPublishesStateTest {
         setContent {
             KontourTheme {
                 IconToggleButton(
-                    icon = SystemIcons.Check,
+                    icon = SystemIcons.Default.check,
                     contentDescription = "Favourite",
                     checked = true,
                     onCheckedChange = null,

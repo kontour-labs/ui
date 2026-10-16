@@ -269,7 +269,7 @@ in even though it carries no `@Composable`.
 
 It also refuses four parameter names outright, each with the reason:
 `supportingText`, `headline`, `isEnabled`, `onDismiss` — and the rest of the
-eighteen rules in [`contributing.md`](contributing.md#the-shape-of-a-component):
+nineteen rules in [`contributing.md`](contributing.md#the-shape-of-a-component):
 no English in a default or an announcement, no default a caller cannot write,
 time as a `Duration`, `show<Part>` for a switch, `initial<What>` for a starting
 value, no two KDoc blocks in a row, a KDoc on everything a caller holds or

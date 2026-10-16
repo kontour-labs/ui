@@ -251,7 +251,7 @@ class ActivityCalendarTest {
     /** Several marks on one day are said together, and share the cell. */
     @Test
     fun severalMarksCombine() {
-        val plane = io.kontour.ui.foundation.SystemIcons.Close
+        val plane = io.kontour.ui.foundation.SystemIcons.Default.close
         val combined = requireNotNull(
             combineMarks(
                 listOf(

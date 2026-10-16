@@ -202,7 +202,7 @@ class DayDecorationTest {
     @Test
     fun anIconIsDrawnOnTheLine() = runComposeUiTest {
         val blue = Color(0xFF1976D2)
-        range(decorationFor = { if (it == day) DayDecoration(icon = SystemIcons.Close, iconColour = blue) else null })
+        range(decorationFor = { if (it == day) DayDecoration(icon = SystemIcons.Default.close, iconColour = blue) else null })
         val blues = image().count(cell(day)) { it.near(blue, 0.15f) }
         assertTrue(blues > 6, "the 10th's icon was not drawn ($blues blue pixels)")
     }

@@ -38,7 +38,6 @@ import io.kontour.ui.theme.Theme
  * ExpandingListItem(
  *     expanded = open,
  *     onExpandedChange = { open = it },
- *     chevron = Tabler.Outline.ChevronDown,
  *     header = {
  *         +"Perth Underground"
  *         supporting { +"4 platforms" }
@@ -87,7 +86,7 @@ fun ExpandingListItem(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     position: GroupPosition = GroupPosition.Only,
-    chevron: ImageVector? = null,
+    chevron: ImageVector? = Theme.icons.chevronDown,
     spacing: Dp = ListItemDefaults.Spacing,
     expandedLabel: String = Theme.strings.expanded,
     collapsedLabel: String = Theme.strings.collapsed,

@@ -61,7 +61,8 @@ import androidx.compose.ui.graphics.Shape
  * so nothing offers to save it as one.
  *
  * @param revealIcon The eye: shown plain while the password can be read, and
- *   struck through while it is hidden. No toggle at all without one.
+ *   struck through while it is hidden. `Theme.icons.reveal` by default; `null`
+ *   leaves the field with no toggle at all, which until 0.5.0 was the default.
  * @param hideIcon An already-slashed eye to show while the password is hidden,
  *   instead of drawing the slash across [revealIcon].
  * @param newPassword Set for a sign-up or change-password field. Changes the
@@ -80,7 +81,7 @@ fun PasswordField(
     placeholder: String? = null,
     supporting: String? = null,
     errorMessage: String? = null,
-    revealIcon: ImageVector? = null,
+    revealIcon: ImageVector? = Theme.icons.reveal,
     hideIcon: ImageVector? = null,
     revealLabel: String = Theme.strings.showPassword,
     hideLabel: String = Theme.strings.hidePassword,
@@ -160,7 +161,8 @@ fun PasswordField(
  * password.
  *
  * @param revealIcon The eye: shown plain while the secret can be read, and
- *   struck through while it is hidden. No toggle at all without one.
+ *   struck through while it is hidden. `Theme.icons.reveal` by default; `null`
+ *   leaves the field with no toggle at all.
  * @param hideIcon An already-slashed eye to show while the secret is hidden,
  *   instead of drawing the slash across [revealIcon].
  * @param revealLastTyped Shows the character just typed for a moment before it
@@ -175,7 +177,7 @@ fun SecretField(
     placeholder: String? = null,
     supporting: String? = null,
     errorMessage: String? = null,
-    revealIcon: ImageVector? = null,
+    revealIcon: ImageVector? = Theme.icons.reveal,
     hideIcon: ImageVector? = null,
     revealLabel: String = Theme.strings.show,
     hideLabel: String = Theme.strings.hide,

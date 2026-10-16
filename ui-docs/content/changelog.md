@@ -28,6 +28,29 @@ On `main`, and in the next release.
 
 ### Added
 
+- **Charts**, in their own module, `io.kontour:ui-charts`. A
+  [`Chart`](components/chart.md) is made of marks, `line`, `area`, `bar`,
+  `point`, `rectangle` and `rule`, as many and as mixed as it needs, over number,
+  date or category axes written by `Theme.formats`. Bars and areas stack, group
+  or normalise. Series take their colours from a palette chosen to stay apart
+  under colour blindness, and with `showPatterns`, on at the high contrast tier
+  and where the reader asks, a dash, a symbol and a hatching each as well. A
+  change of data moves from the old chart to the new. A screen reader hears a
+  summary and then each place along the chart, and a selection moves by touch,
+  pointer, keys or screen reader. `SectorChart` draws a pie or a donut, and
+  `Sparkline` a trend the size of a word.
+- **`Theme.icons`**: every glyph the library draws on its own behalf, Tabler's
+  unless `KontourTheme(icons = SystemIcons(…))` replaces some. A select's
+  chevron, a toast's close, a stepper's minus and plus, a sorted column's arrow
+  and a calendar's today were Tabler's and nothing else. The components that
+  draw them also take them: `Select`, `MultiSelect` and `Combobox` a `chevron`,
+  `ToastHost` a `dismissIcon`, `Pagination` and `EventCalendarDefaults.Header`
+  a `previousIcon` and `nextIcon`, `Stepper` a `decrementIcon` and
+  `incrementIcon`, `Table` its two sort arrows, `FileField` an `attachIcon` and
+  `removeIcon`, and `TopBar`, `SheetHeader` and both side sheets a `backIcon`.
+- **`differentiateWithoutColour()`**, from iOS's *Differentiate Without
+  Colour* and Android's colour correction, with `LocalDifferentiateWithoutColour`
+  for an app's own answer.
 - **[Installing](installing.md#the-size-of-an-app) says what an app ships.**
   On the web, iOS and Android, a component or an icon the app never uses is
   not in it at all; on the desktop that needs ProGuard, and the section gives
@@ -35,6 +58,16 @@ On `main`, and in the next release.
 
 ### Breaking
 
+- **`SystemIcons` is a class, read as `Theme.icons`.** `SystemIcons.Close` is
+  `Theme.icons.close`, every glyph in lower camel case, and
+  `DatePickerDefaults.TodayIcon` is `Theme.icons.today`. `KontourTheme` and
+  `ProvideTokens` take `icons`. See
+  [Migrating](migrating.md#systemiconsclose-is-themeiconsclose).
+- **Glyphs by default where there were none.** `SearchField`'s search and clear
+  icons, `NavSearch`'s search icon, the password and secret fields' reveal, and
+  `Accordion`'s and `ExpandingListItem`'s chevron default to `Theme.icons`
+  rather than to `null`, so each has its control without being given a glyph.
+  A side sheet's back is the chevron a top bar's is.
 - **`Strings` has new fields**, `labelledValue` and `selectAllRows`, at the end,
   so an app that builds its own with named arguments needs nothing; one that
   passes them by position, or overrides `Strings.from`'s keys, recompiles. See

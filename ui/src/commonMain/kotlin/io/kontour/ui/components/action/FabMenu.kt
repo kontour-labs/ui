@@ -38,7 +38,6 @@ import androidx.compose.ui.unit.dp
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.Surface
-import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.overlay.LocalOverlayHost
 import io.kontour.ui.overlay.OverlayEntry
@@ -181,7 +180,7 @@ object FabMenuDefaults {
  * FabMenu(
  *     expanded = open,
  *     onExpandedChange = { open = it },
- *     icon = SystemIcons.Plus,
+ *     icon = Theme.icons.plus,
  *     contentDescription = "Add",
  * ) {
  *     item(Tabler.Outline.Star, "Save stop") { save() }
@@ -421,7 +420,7 @@ fun FabMenu(
     // `openness` here would put an animation in the *composition* phase, which
     // is the thing the lambda above exists to avoid — and a swap at the halfway
     // mark is not better than one at the moment the user asked for it.
-    val closeIcon = expandedIcon ?: if (motion.reduceMotion) SystemIcons.Close else null
+    val closeIcon = expandedIcon ?: if (motion.reduceMotion) Theme.icons.close else null
     val showingClose = closeIcon != null && open
 
     FloatingActionButton(

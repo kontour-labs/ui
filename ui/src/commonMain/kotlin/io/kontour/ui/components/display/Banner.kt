@@ -45,7 +45,6 @@ import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.IconButton
-import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.ContentScope
 import io.kontour.ui.foundation.ContentSlot
 import io.kontour.ui.foundation.Icon
@@ -94,7 +93,7 @@ fun Banner(
     modifier: Modifier = Modifier,
     tone: Tone = Tone.Info,
     onDismissRequest: (() -> Unit)? = null,
-    dismissIcon: ImageVector? = SystemIcons.Close,
+    dismissIcon: ImageVector? = Theme.icons.close,
     dismissLabel: String = Theme.strings.dismiss,
     content: BannerScope.() -> Unit,
 ) {
@@ -211,7 +210,7 @@ fun AnimatedBanner(
     modifier: Modifier = Modifier,
     tone: Tone = Tone.Info,
     onDismissRequest: (() -> Unit)? = null,
-    dismissIcon: ImageVector? = SystemIcons.Close,
+    dismissIcon: ImageVector? = Theme.icons.close,
     dismissLabel: String = Theme.strings.dismiss,
     content: BannerScope.() -> Unit,
 ) {
@@ -312,30 +311,9 @@ object CalloutDefaults {
      * tones that are notes rather than states.
      */
     @Composable
-    fun icon(tone: Tone): ImageVector = toneIcon(tone)
+    fun icon(tone: Tone): ImageVector = Theme.icons.tone(tone)
 }
 
-/**
- * The glyph a tone falls back to.
- *
- * Not a `when` on a colour: the tone is the vocabulary and the icon is one of
- * the things it decides, alongside the ground and the border in
- * [toneColours].
- */
-private fun toneIcon(tone: Tone): ImageVector = when (tone) {
-    Tone.Neutral -> SystemIcons.Info
-    Tone.Info -> SystemIcons.Info
-    Tone.Success -> SystemIcons.Success
-    Tone.Warning -> SystemIcons.Warning
-    Tone.Danger -> SystemIcons.Danger
-    // The same glyph as `Info`, deliberately. The two differ in emphasis rather
-    // than in kind — an accent aside is a note in the brand's colour and an info
-    // one is a note in the informational colour — and inventing a second mark to
-    // keep them apart would be signalling a difference the component does not
-    // have. This is the tone a markdown blockquote becomes, and "here is a note"
-    // is what it means.
-    Tone.Accent -> SystemIcons.Info
-}
 
 
 /**

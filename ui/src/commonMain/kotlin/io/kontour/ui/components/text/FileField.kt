@@ -43,7 +43,6 @@ import io.kontour.ui.files.LocalFileChooser
 import io.kontour.ui.files.PickedFile
 import io.kontour.ui.files.rememberFilePicker
 import io.kontour.ui.foundation.Icon
-import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.kontourIndication
@@ -87,6 +86,10 @@ import kotlin.math.round
  *
  * @param placeholder What the empty field says. "Choose file…", or "Choose
  *   files…" for [multiple], by default.
+ * @param attachIcon What the empty field ends with, and a field of several
+ *   files: `Theme.icons.attach` by default.
+ * @param removeIcon A file's remove, on its chip or, holding one file, at the
+ *   field's end where [attachIcon] was: `Theme.icons.close` by default.
  * @param types What the picker offers. See [FileTypes].
  * @param sizeLabel How a file's size is written. [FileFieldDefaults.sizeLabel]
  *   counts in thousands, as the platforms' file browsers do.
@@ -104,6 +107,8 @@ fun FileField(
     supporting: String? = null,
     errorMessage: String? = null,
     leadingIcon: ImageVector? = null,
+    attachIcon: ImageVector = Theme.icons.attach,
+    removeIcon: ImageVector = Theme.icons.close,
     types: FileTypes = FileTypes.Any,
     multiple: Boolean = false,
     sizeLabel: (bytes: Long) -> String = FileFieldDefaults.sizeLabel(),
@@ -156,7 +161,7 @@ fun FileField(
             Box(Modifier.size(Theme.sizing.iconMedium), contentAlignment = Alignment.Center) {
                 if (single != null) {
                     IconButton(
-                        icon = SystemIcons.Close,
+                        icon = removeIcon,
                         contentDescription = strings.removeFile(single.name),
                         onClick = { onFilesChange(emptyList()) },
                         enabled = enabled,
@@ -165,7 +170,7 @@ fun FileField(
                     )
                 } else {
                     Icon(
-                        imageVector = SystemIcons.Attach,
+                        imageVector = attachIcon,
                         contentDescription = null,
                         tint = if (enabled) colours.label else colours.contentDisabled,
                         size = Theme.sizing.iconMedium,
@@ -238,6 +243,7 @@ fun FileField(
                                 // each have their own remove.
                                 onRemove = if (single == null) ({ onFilesChange(files - file) }) else null,
                                 removeLabel = strings.removeFile(file.name),
+                                removeIcon = removeIcon,
                                 muted = if (enabled) colours.label else colours.contentDisabled,
                             )
                         }
@@ -256,13 +262,14 @@ private fun FileChip(
     enabled: Boolean,
     onRemove: (() -> Unit)?,
     removeLabel: String,
+    removeIcon: ImageVector,
     muted: Color,
 ) {
     InputChip(
         onRemove = { onRemove?.invoke() },
         removeLabel = removeLabel,
         enabled = enabled,
-        removeIcon = if (onRemove != null) SystemIcons.Close else null,
+        removeIcon = if (onRemove != null) removeIcon else null,
     ) {
         +file.name
         val size = file.size

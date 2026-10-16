@@ -68,7 +68,7 @@ class ComponentDefaultsReachTest {
                             bounds = Rect(it.positionInRoot(), it.size.toSize())
                         },
                     ) {
-                        +SystemIcons.Plus
+                        +SystemIcons.Default.plus
                         +"Save"
                     }
                 }

@@ -84,7 +84,7 @@ module's 391 declarations. The 130 indented ones it could not see are every
 method on every builder scope, so the gate reported no problems for as long as
 the drift stayed inside a shorthand.
 
-Eighteen rules, and each one is there because it caught something real:
+Nineteen rules, and each one is there because it caught something real:
 
 | | |
 |---|---|
@@ -106,6 +106,7 @@ Eighteen rules, and each one is there because it caught something real:
 | A starting value is `initial<What>` | a bare `initial` says it is a starting value and not of what |
 | Every state holder, `remember*`, `*Defaults` and `*Colours` has a KDoc | 51 of them reached the reference as a bare name |
 | A lambda parameter never takes its function's parameter's name | renaming `selected` to `value` left `value == value` behind, and every radio option drew selected |
+| Tabler is imported only by `SystemIcons.kt` and `Kbd.kt` | a glyph named in a component is one the app cannot replace; it belongs in `Theme.icons` |
 
 `enabled` sits directly after `modifier` with no exceptions. An earlier draft let
 it follow an optional `onClick` instead — which reads better on the three

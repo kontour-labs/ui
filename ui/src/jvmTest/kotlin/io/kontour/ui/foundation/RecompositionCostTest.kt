@@ -29,6 +29,7 @@ import io.kontour.ui.theme.Tone
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import io.kontour.ui.foundation.SystemIcons
 
 /**
  * Work that a frame should not be doing, counted.
@@ -118,7 +119,7 @@ class RecompositionCostTest {
                             +"The "; bold("950"); +" leaves at "; code("12:04"); +". "
                             // An icon rides in the string as an id, and has to
                             // come out the same id every time for this to hold.
-                            +SystemIcons.Check; icon(SystemIcons.Check, "on time")
+                            +SystemIcons.Default.check; icon(SystemIcons.Default.check, "on time")
                             tone(Tone.Warning, "Delayed"); +" — "
                             link("replacement buses") { followed = now }
                             +" or "; link("timetables", url = "https://transperth.wa.gov.au")

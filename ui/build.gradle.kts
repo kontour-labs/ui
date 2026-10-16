@@ -372,6 +372,22 @@ val checkApiConventions = tasks.register("checkApiConventions") {
                     }
             }
 
+            // Tabler is imported in two files and no others.
+            //
+            // A component that names a Tabler glyph itself draws a glyph the app
+            // cannot change: until 0.5.0 that was a select's chevron, a toast's
+            // close and a side sheet's back arrow, among thirteen of them, and
+            // the only way to swap one was to fork the component. They are read
+            // from `Theme.icons` now, whose fallbacks are in `SystemIcons.kt`,
+            // and the key caps a `Kbd` is passed are in `Kbd.kt`. A third file
+            // with an import is a glyph that skipped the theme.
+            if (Regex("""(?m)^import io\.kontour\.icons\.""").containsMatchIn(text) &&
+                !rel.endsWith("foundation/SystemIcons.kt") && !rel.endsWith("components/display/Kbd.kt")
+            ) {
+                problems += "$rel :: imports Tabler — read the glyph from `Theme.icons`, and add it to " +
+                    "`SystemIcons` if it is not there, so that an app can replace it"
+            }
+
             // Every public scope carries both markers.
             //
             // `@LayoutScopeMarker` is a `@DslMarker`, and it is the one doing

@@ -42,9 +42,9 @@ class MenuActionRowTest {
                     Box(Modifier.fillMaxSize().padding(24.dp)) {
                         DropdownMenu(visible = open, onDismissRequest = { open = false }) {
                             actionRow {
-                                action("Copy", SystemIcons.Close) { ran = "Copy" }
-                                action("Share", SystemIcons.Close) { ran = "Share" }
-                                action("Save", SystemIcons.Close) { ran = "Save" }
+                                action("Copy", SystemIcons.Default.close) { ran = "Copy" }
+                                action("Share", SystemIcons.Default.close) { ran = "Share" }
+                                action("Save", SystemIcons.Default.close) { ran = "Save" }
                             }
                             item("Report a problem") {}
                         }
@@ -68,8 +68,8 @@ class MenuActionRowTest {
                     Box(Modifier.fillMaxSize().padding(24.dp)) {
                         DropdownMenu(visible = true, onDismissRequest = {}) {
                             actionRow {
-                                action("Copy", SystemIcons.Close) {}
-                                action("Share", SystemIcons.Close) {}
+                                action("Copy", SystemIcons.Default.close) {}
+                                action("Share", SystemIcons.Default.close) {}
                             }
                         }
                     }

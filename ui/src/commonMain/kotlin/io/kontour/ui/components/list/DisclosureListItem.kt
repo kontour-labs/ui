@@ -30,7 +30,6 @@ import io.kontour.ui.foundation.GroupPosition
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.ProvideContentColour
 import io.kontour.ui.foundation.ProvideTextStyle
-import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.shape
 import io.kontour.ui.interaction.rememberTapFeedback
 import io.kontour.ui.motion.chevronTurn
@@ -85,7 +84,7 @@ fun DisclosureListItem(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     position: GroupPosition = GroupPosition.Only,
-    chevron: ImageVector? = SystemIcons.ChevronDown,
+    chevron: ImageVector? = Theme.icons.chevronDown,
     expandedLabel: String = Theme.strings.expanded,
     collapsedLabel: String = Theme.strings.collapsed,
     interactionSource: MutableInteractionSource? = null,

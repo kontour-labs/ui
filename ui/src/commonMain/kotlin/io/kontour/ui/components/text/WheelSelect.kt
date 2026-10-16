@@ -57,7 +57,6 @@ import io.kontour.ui.components.datetime.WheelDrive
 import io.kontour.ui.components.datetime.WheelDrum
 import io.kontour.ui.components.datetime.WheelPickerDefaults
 import io.kontour.ui.foundation.Icon
-import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.DragClaim
@@ -245,7 +244,7 @@ fun <T> WheelSelect(
         leadingIcon = leadingIcon,
         trailing = {
             Icon(
-                imageVector = SystemIcons.ChevronUpDown,
+                imageVector = Theme.icons.chevronUpDown,
                 contentDescription = null,
                 tint = if (enabled) colours.label else colours.contentDisabled,
                 size = Theme.sizing.iconMedium,

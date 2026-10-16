@@ -19,7 +19,7 @@ class AvatarDecorationTest {
                 Avatar(name = "Aaron") {
                     status(Color.Green, "Online")
                     count(3)
-                    icon(SystemIcons.Close, description = null, at = AvatarCorner.BottomStart)
+                    icon(SystemIcons.Default.close, description = null, at = AvatarCorner.BottomStart)
                 }
             }
         }

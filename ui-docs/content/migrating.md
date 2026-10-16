@@ -17,9 +17,32 @@ from the version the app is on.
 
 ## 0.4.5 to 0.5.0
 
-Unreleased, and growing. So far nothing an app writes has to change: `Strings`
-has two new fields, defaulted and last. Charts are a new module, which an app
-takes only if it wants them.
+Unreleased, and growing. `SystemIcons` is the theme's now, so code that named
+one of its glyphs changes; `Strings` has two new fields, defaulted and last.
+Charts are a new module, which an app takes only if it wants them.
+
+### `SystemIcons.Close` is `Theme.icons.close`
+
+The library's own glyphs are read from the theme, so that an app can replace
+them. Each is a property of a `SystemIcons`, in lower camel case, and
+`DatePickerDefaults.TodayIcon` is one of them, `today`.
+
+```diff
+- IconButton(icon = SystemIcons.Close, contentDescription = "Close", onClick = close)
++ IconButton(icon = Theme.icons.close, contentDescription = "Close", onClick = close)
+- DatePicker(…, todayIcon = DatePickerDefaults.TodayIcon)
++ DatePicker(…, todayIcon = Theme.icons.today)
+```
+
+Outside a composition, where `Theme` cannot be read (a list built at the top
+of a file), `SystemIcons.Default.close` is Tabler's.
+
+To use another icon set's glyphs throughout, give the theme a set:
+
+```diff
+- KontourTheme { App() }
++ KontourTheme(icons = SystemIcons(close = FontAwesome.Solid.Times)) { App() }
+```
 
 ### Check
 
@@ -31,6 +54,14 @@ takes only if it wants them.
 - **What a stat says.** Its supporting line and trend are joined with
   `Strings.sentences` rather than an English full stop. In English that is the
   same sentence; an app with its own `sentences` hears its own separator.
+- **Fields that grew a glyph.** `SearchField` leads with a magnifier and ends
+  with a clear button, `NavSearch` leads with the magnifier, `PasswordField` and
+  `SecretField` have their reveal toggle, and `Accordion` and
+  `ExpandingListItem` their chevron, without being given one: each was `null`,
+  which drew nothing, and for `SearchField` and the password fields left out
+  the control itself. Pass `null` to keep the old look.
+- **A side sheet's back is a chevron**, `Theme.icons.chevronBack`, as a top
+  bar's and a sheet header's are. It was the one arrow in the library.
 
 ---
 

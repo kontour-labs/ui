@@ -37,11 +37,11 @@ class BadgeAlignmentTest {
             KontourTheme(reduceMotion = true) {
                 TopBar(
                     actions = {
-                        IconButton(onClick = {}, icon = SystemIcons.Close, contentDescription = "Search")
+                        IconButton(onClick = {}, icon = SystemIcons.Default.close, contentDescription = "Search")
                         BadgedBox(badge = { Badge(count = count) }) {
-                            IconButton(onClick = {}, icon = SystemIcons.Close, contentDescription = "Filter")
+                            IconButton(onClick = {}, icon = SystemIcons.Default.close, contentDescription = "Filter")
                         }
-                        IconButton(onClick = {}, icon = SystemIcons.Close, contentDescription = "More")
+                        IconButton(onClick = {}, icon = SystemIcons.Default.close, contentDescription = "More")
                     },
                 ) { +"Chats" }
             }

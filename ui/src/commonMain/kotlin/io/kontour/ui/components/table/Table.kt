@@ -19,6 +19,7 @@ import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
@@ -330,6 +331,9 @@ class TableScope<T> internal constructor() {
  * @param outlined A border round the whole table, with a card's corners.
  * @param sort The current sort, which the header shows.
  * @param onSortChange Makes headers sortable, and is handed the sort a tap asks for.
+ * @param sortAscendingIcon The arrow on a column sorted smallest first,
+ *   `Theme.icons.sortAscending` by default.
+ * @param sortDescendingIcon The arrow on a column sorted largest first.
  * @param selection How rows are picked.
  * @param selected The keys of the selected rows.
  * @param onSelectedChange Handed the keys selected after a row or checkbox is tapped.
@@ -353,6 +357,8 @@ fun <T> Table(
     outlined: Boolean = false,
     sort: TableSort? = null,
     onSortChange: ((TableSort) -> Unit)? = null,
+    sortAscendingIcon: ImageVector = Theme.icons.sortAscending,
+    sortDescendingIcon: ImageVector = Theme.icons.sortDescending,
     selection: TableSelection = TableSelection.None,
     selected: Set<Any> = emptySet(),
     onSelectedChange: ((Set<Any>) -> Unit)? = null,
@@ -417,6 +423,7 @@ fun <T> Table(
             striped = striped,
             sort = sort,
             onSortChange = onSortChange,
+            sortIcons = sortAscendingIcon to sortDescendingIcon,
             selection = selection,
             selected = selected,
             onSelectedChange = onSelectedChange,

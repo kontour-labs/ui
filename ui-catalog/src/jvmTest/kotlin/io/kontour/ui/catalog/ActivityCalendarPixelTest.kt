@@ -81,7 +81,7 @@ class ActivityCalendarPixelTest {
             val (image, bounds) = render(direction, selected = null) { date, _ ->
                 when (date) {
                     end -> listOf(ActivityMark(corner = Ear, dot = Dot))
-                    end.minus(DatePeriod(days = 1)) -> listOf(ActivityMark(fill = Fill, icon = SystemIcons.Star, contentColour = Color.Black))
+                    end.minus(DatePeriod(days = 1)) -> listOf(ActivityMark(fill = Fill, icon = SystemIcons.Default.star, contentColour = Color.Black))
                     else -> emptyList()
                 }
             }
@@ -121,8 +121,8 @@ class ActivityCalendarPixelTest {
                         ActivityMark(corner = Ear2, dot = Dot2),
                     )
                     end.minus(DatePeriod(days = 1)) -> listOf(
-                        ActivityMark(fill = Fill, icon = SystemIcons.Star, contentColour = Color.Black),
-                        ActivityMark(icon = SystemIcons.Star),
+                        ActivityMark(fill = Fill, icon = SystemIcons.Default.star, contentColour = Color.Black),
+                        ActivityMark(icon = SystemIcons.Default.star),
                     )
                     else -> emptyList()
                 }

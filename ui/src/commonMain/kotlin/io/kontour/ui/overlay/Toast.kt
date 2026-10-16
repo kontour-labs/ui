@@ -99,7 +99,6 @@ import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.Surface
-import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.interaction.DragClaim
 import io.kontour.ui.interaction.FeedbackIntent
@@ -716,6 +715,7 @@ object ToastDefaults {
  * @param showDismiss Puts a close control on every toast. Off by default, because
  *   a toast that dismisses itself in four seconds does not need one — turn it on
  *   where toasts are pinned, or where they carry an action worth reading twice.
+ * @param dismissIcon The close control's glyph, `Theme.icons.close` by default.
  * @param countdown Shows the front toast's time left: a wash across its
  *   background or a bar along its foot, each drawn back as the time runs out
  *   and still while the clock is. None by default.
@@ -739,6 +739,7 @@ fun ToastHost(
     alignment: OverlayAlignment = OverlayAlignment.Centre,
     maxVisible: Int = ToastDefaults.MaxVisible,
     showDismiss: Boolean = false,
+    dismissIcon: ImageVector = Theme.icons.close,
     dismissLabel: String = Theme.strings.dismiss,
     countdown: ToastCountdown = ToastCountdown.None,
     /**
@@ -777,6 +778,7 @@ fun ToastHost(
             maxVisible = maxVisible,
             showClose = showDismiss,
             closeLabel = dismissLabel,
+            closeIcon = dismissIcon,
             windowInsets = windowInsets,
             countdown = countdown,
         )
@@ -967,6 +969,7 @@ private data class ToastHostConfig(
     val maxVisible: Int,
     val showClose: Boolean,
     val closeLabel: String,
+    val closeIcon: ImageVector,
     val windowInsets: WindowInsets,
     val countdown: ToastCountdown,
 )
@@ -1235,6 +1238,7 @@ private fun ToastStack(state: ToastHostState, config: ToastHostConfig) {
                     towardEdge = towardEdge,
                     showClose = config.showClose,
                     closeLabel = config.closeLabel,
+                    closeIcon = config.closeIcon,
                     frontHeight = frontHeight,
                     onFrontMeasured = { frontHeightPx = it },
                     swipe = swipe,
@@ -1259,6 +1263,7 @@ private fun ToastCard(
     towardEdge: Boolean,
     showClose: Boolean,
     closeLabel: String,
+    closeIcon: ImageVector,
     /** How tall the card in front is — see `ToastStack`. Zero until it reports. */
     frontHeight: Dp,
     onFrontMeasured: (Int) -> Unit,
@@ -1483,6 +1488,7 @@ private fun ToastCard(
             depth = depth,
             showClose = showClose && depth == 0,
             closeLabel = closeLabel,
+            closeIcon = closeIcon,
             countdown = countdown,
             modifier = modifier
                 // A mouse resting on the front card stops the clocks.
@@ -1671,6 +1677,7 @@ private fun ToastSurface(
     toast: Toast,
     showClose: Boolean,
     closeLabel: String,
+    closeIcon: ImageVector,
     countdown: ToastCountdown,
     /** Zero is the front one. Anything behind it is drawn as a bare pill. */
     depth: Int,
@@ -1863,7 +1870,7 @@ private fun ToastSurface(
             }
             if (showClose) {
                 IconButton(
-                    icon = SystemIcons.Close,
+                    icon = closeIcon,
                     contentDescription = closeLabel,
                     onClick = onClose,
                     variant = ButtonVariant.Ghost,

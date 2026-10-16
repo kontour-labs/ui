@@ -17,7 +17,6 @@ import io.kontour.ui.foundation.ContentSlot
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.ProvideContentColour
 import io.kontour.ui.foundation.ProvideTextStyle
-import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.theme.Theme
 
 /**
@@ -107,8 +106,8 @@ internal fun StatLayout(slots: StatScope, modifier: Modifier, alignment: Alignme
                     // their own ahead of the caller's content: a tick or an
                     // alert. Decorative — the caller's words already say it.
                     val sentiment = when (slots.trendDirection) {
-                        StatTrend.Positive -> SystemIcons.Success
-                        StatTrend.Negative -> SystemIcons.Danger
+                        StatTrend.Positive -> Theme.icons.success
+                        StatTrend.Negative -> Theme.icons.danger
                         StatTrend.Neutral -> null
                     }
                     if (highContrast() && sentiment != null) {

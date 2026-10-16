@@ -36,10 +36,10 @@ in these files, which win where this file disagrees with them:
   `Theme.colours`. A sample with `color =` fails `checkKdocSamples`.
 - **Tokens, not literals**: `Theme.colours`, `Theme.spacing`, `Theme.typography`,
   `Theme.shapes`, `Theme.motion`. English a component says on its own goes in
-  `Theme.strings`.
+  `Theme.strings`, and a glyph it draws on its own comes from `Theme.icons`.
 - **Parameter order** is checked by `:ui:checkApiConventions`: `modifier` first
   among the optionals, `enabled` straight after it, `interactionSource` after
-  every non-slot. Its eighteen rules are listed in `contributing.md`.
+  every non-slot. Its nineteen rules are listed in `contributing.md`.
 - **Every public change goes into the API dump**: run `./gradlew :ui:updateKotlinAbi`
   (and `:ui-nav3:`, `:haptics:`) and read the diff. A break gets a **Breaking**
   line in `ui-docs/content/changelog.md`'s Unreleased section and a before and

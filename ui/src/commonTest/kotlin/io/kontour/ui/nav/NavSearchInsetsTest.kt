@@ -68,7 +68,7 @@ class NavSearchInsetsTest {
                         Box(Modifier.fillMaxSize().background(Color.White)) {
                             state = rememberNavSearchState()
                             NavBar {
-                                item(true, {}, key = "chats", icon = SystemIcons.Check) { +"Chats" }
+                                item(true, {}, key = "chats", icon = SystemIcons.Default.check) { +"Chats" }
                                 slot(weight = 1f) {
                                     NavSearch(
                                         state = state,

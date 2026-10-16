@@ -64,8 +64,8 @@ class ToolbarConcentricityTest {
                                 group = Rect(it.positionInRoot(), it.size.toSize())
                             },
                         ) {
-                            item(onClick = {}, contentDescription = "Out", icon = SystemIcons.Dash)
-                            item(onClick = {}, contentDescription = "In", icon = SystemIcons.Plus)
+                            item(onClick = {}, contentDescription = "Out", icon = SystemIcons.Default.dash)
+                            item(onClick = {}, contentDescription = "In", icon = SystemIcons.Default.plus)
                         }
                     }
                 }

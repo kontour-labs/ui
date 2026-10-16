@@ -36,10 +36,10 @@ class FabMenuItemsTest {
                     FabMenu(
                         expanded = true,
                         onExpandedChange = {},
-                        icon = SystemIcons.Close,
+                        icon = SystemIcons.Default.close,
                         contentDescription = "Add",
                     ) {
-                        repeat(count) { index -> item(SystemIcons.Close, "Item $index", onClick = {}) }
+                        repeat(count) { index -> item(SystemIcons.Default.close, "Item $index", onClick = {}) }
                     }
                 }
             }

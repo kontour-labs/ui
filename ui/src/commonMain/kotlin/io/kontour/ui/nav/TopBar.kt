@@ -31,6 +31,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.unit.isSpecified
@@ -55,7 +56,6 @@ import io.kontour.ui.foundation.LocalContainerColour
 import io.kontour.ui.foundation.ProvideContentColour
 import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.BarSurface
-import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.adaptive.topEdges
 import io.kontour.ui.motion.smoothstep
 import io.kontour.ui.platform.platformOverscrollMovesContent
@@ -216,6 +216,7 @@ fun TopBar(
     style: TopBarStyle = TopBarStyle.Small,
     onBack: (() -> Unit)? = null,
     backLabel: String = Theme.strings.back,
+    backIcon: ImageVector = Theme.icons.chevronBack,
     navigation: (@Composable () -> Unit)? = null,
     actions: (@Composable RowScope.() -> Unit)? = null,
     /**
@@ -358,7 +359,7 @@ fun TopBar(
                         .heightIn(min = TopBarDefaults.Height)
                         .padding(horizontal = Theme.spacing.xs),
                     centred = style == TopBarStyle.Centred,
-                    leading = { BarNavigation(onBack, backLabel, navigation) },
+                    leading = { BarNavigation(onBack, backLabel, backIcon, navigation) },
                     title = {
                         // Centred when the bar could centre it and started when it
                         // could not — see `CentredBarTitle` — so a Centred bar
@@ -385,7 +386,7 @@ fun TopBar(
                     // had: a bar with nothing to put on that line was drawing
                     // 56dp of nothing above its own title.
                     hasControls = onBack != null || navigation != null || actions != null,
-                    leading = { BarNavigation(onBack, backLabel, navigation) },
+                    leading = { BarNavigation(onBack, backLabel, backIcon, navigation) },
                     actions = actions,
                     slots = slots,
                     minExpanded = floor,
@@ -550,7 +551,7 @@ private fun HeroBar(
                                 progress = progress,
                                 onMeasured = { shrink, travel -> collapseState?.measured(shrink, travel) },
                                 hasControls = onBack != null || navigation != null || actions != null,
-                                leading = { BarNavigation(onBack, backLabel, navigation) },
+                                leading = { BarNavigation(onBack, backLabel, backIcon, navigation) },
                                 actions = actions,
                                 slots = slots,
                                 minExpanded = (open - insetTop).coerceAtLeast(0.dp),
@@ -1904,12 +1905,13 @@ private class BarStaysNode(var state: TopBarCollapseState) : Modifier.Node(), La
 internal fun BarNavigation(
     onBack: (() -> Unit)?,
     backLabel: String,
+    backIcon: ImageVector,
     navigation: (@Composable () -> Unit)?,
 ) {
     when {
         navigation != null -> navigation()
         onBack != null -> IconButton(
-            icon = SystemIcons.ChevronBack,
+            icon = backIcon,
             contentDescription = backLabel,
             onClick = onBack,
         )

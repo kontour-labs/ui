@@ -95,7 +95,7 @@ class TopBarHeroTest {
                         style = style,
                         navigation = {
                             IconButton(
-                                icon = io.kontour.ui.foundation.SystemIcons.ChevronBack,
+                                icon = io.kontour.ui.foundation.SystemIcons.Default.chevronBack,
                                 contentDescription = "Back",
                                 onClick = {},
                                 modifier = Modifier.reportBounds { back = it },

@@ -15,6 +15,7 @@ import androidx.compose.ui.text.intl.Locale
 import io.kontour.ui.adaptive.LocalWindowSizeClass
 import io.kontour.ui.adaptive.PhoneDefault
 import io.kontour.ui.adaptive.rememberWindowSizeClassFromWindow
+import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.LocalContentColour
 import io.kontour.ui.foundation.LocalTextStyle
 import io.kontour.ui.foundation.textSelectionColours
@@ -131,6 +132,17 @@ object Theme {
      */
     val strings: Strings
         @Composable @ReadOnlyComposable get() = LocalStrings.current
+
+    /**
+     * Every glyph the library draws that the caller did not supply: a select's
+     * chevron, a toast's close, a sorted column's arrow. Tabler's unless the app
+     * gives `KontourTheme` a set of its own; see [SystemIcons].
+     *
+     * Read by parameter defaults where a component takes the glyph, as
+     * [strings] is, so a call site can still override one.
+     */
+    val icons: SystemIcons
+        @Composable @ReadOnlyComposable get() = LocalSystemIcons.current
 
     /**
      * How this reader writes everything that is not words: numbers, dates,
@@ -285,6 +297,12 @@ fun KontourTheme(
     componentDefaults: ComponentDefaults = remember { ComponentDefaults() },
     strings: Strings = remember { Strings() },
     /**
+     * Every glyph the library draws on its own behalf. Tabler's by default;
+     * `SystemIcons(close = …, chevronDown = …)` replaces the ones given and
+     * keeps Tabler's for the rest.
+     */
+    icons: SystemIcons = SystemIcons.Default,
+    /**
      * The reader's locale: the device's, followed live, at the root; the
      * enclosing theme's in a nested one.
      *
@@ -401,6 +419,7 @@ fun KontourTheme(
         LocalSizing provides sizing,
         LocalComponentDefaults provides componentDefaults,
         LocalStrings provides strings,
+        LocalSystemIcons provides icons,
         LocalLocaleFormats provides formats,
         LocalContrastLevel provides contrast,
         LocalBackdropBlur provides backdropBlur,
@@ -615,6 +634,9 @@ val LocalComponentDefaults = staticCompositionLocalOf<ComponentDefaults> { error
 /** @see LocalColourScheme */
 val LocalStrings = staticCompositionLocalOf<Strings> { error(NOT_IN_THEME) }
 
+/** @see Theme.icons */
+val LocalSystemIcons = staticCompositionLocalOf<SystemIcons> { error(NOT_IN_THEME) }
+
 /**
  * The formats in use; read through [Theme.formats].
  *
@@ -691,6 +713,7 @@ fun ProvideTokens(
     sizing: Sizing = LocalSizing.current,
     componentDefaults: ComponentDefaults = LocalComponentDefaults.current,
     strings: Strings = LocalStrings.current,
+    icons: SystemIcons = LocalSystemIcons.current,
     formats: LocaleFormats = LocalLocaleFormats.current,
     content: @Composable () -> Unit,
 ) {
@@ -721,6 +744,7 @@ fun ProvideTokens(
         LocalSizing provides sizing,
         LocalComponentDefaults provides componentDefaults,
         LocalStrings provides strings,
+        LocalSystemIcons provides icons,
         LocalLocaleFormats provides formats,
         LocalContentColour provides
             if (contentColour == outgoingColours.content) {

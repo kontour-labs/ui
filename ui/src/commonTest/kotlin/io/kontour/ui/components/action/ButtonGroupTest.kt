@@ -38,7 +38,7 @@ import kotlin.test.assertTrue
 @OptIn(ExperimentalTestApi::class)
 class ButtonGroupTest {
 
-    private val icon = SystemIcons.Plus
+    private val icon = SystemIcons.Default.plus
 
     /**
      * Each action fires its own callback.

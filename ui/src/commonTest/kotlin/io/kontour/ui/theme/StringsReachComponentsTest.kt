@@ -52,7 +52,7 @@ class StringsReachComponentsTest {
                 Banner(
                     tone = Tone.Info,
                     onDismissRequest = {},
-                    dismissIcon = SystemIcons.Close,
+                    dismissIcon = SystemIcons.Default.close,
                 ) { +"Delayed" }
             }
         }
@@ -79,8 +79,8 @@ class StringsReachComponentsTest {
                 PasswordField(
                     state = TextFieldState(),
                     label = "Password",
-                    revealIcon = SystemIcons.Check,
-                    hideIcon = SystemIcons.Close,
+                    revealIcon = SystemIcons.Default.check,
+                    hideIcon = SystemIcons.Default.close,
                 )
             }
         }
@@ -111,7 +111,7 @@ class StringsReachComponentsTest {
                 Banner(
                     tone = Tone.Info,
                     onDismissRequest = {},
-                    dismissIcon = SystemIcons.Close,
+                    dismissIcon = SystemIcons.Default.close,
                 ) { +"Delayed" }
             }
         }
@@ -133,7 +133,7 @@ class StringsReachComponentsTest {
                 Banner(
                     tone = Tone.Info,
                     onDismissRequest = {},
-                    dismissIcon = SystemIcons.Close,
+                    dismissIcon = SystemIcons.Default.close,
                     dismissLabel = "Verwerfen",
                 ) { +"Delayed" }
             }

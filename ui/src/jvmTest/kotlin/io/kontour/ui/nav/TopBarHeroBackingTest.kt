@@ -53,7 +53,7 @@ class TopBarHeroBackingTest {
                             actions = {
                                 IconButton(
                                     onClick = {},
-                                    icon = SystemIcons.More,
+                                    icon = SystemIcons.Default.more,
                                     contentDescription = "More",
                                     modifier = Modifier.testTag("action"),
                                 )

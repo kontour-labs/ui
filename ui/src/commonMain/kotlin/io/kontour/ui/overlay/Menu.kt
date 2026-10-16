@@ -117,7 +117,6 @@ import io.kontour.ui.foundation.HorizontalDivider
 import io.kontour.ui.foundation.LocalContentColour
 import io.kontour.ui.foundation.ProvideContentColour
 import io.kontour.ui.foundation.ProvideTextStyle
-import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.InputModality
 import io.kontour.ui.input.LocalInputModality
@@ -763,7 +762,7 @@ private fun MenuLevelSurface(
             trailing {
                 val slot = this
                 Box(Modifier.graphicsLayer { rotationZ = turn * level.progress.value.coerceIn(0f, 1f) }) {
-                    with(slot) { +SystemIcons.ChevronForward }
+                    with(slot) { +Theme.icons.chevronForward }
                 }
             }
         }
@@ -1223,7 +1222,7 @@ fun SubMenu(
             interactionSource = interactions,
         ) {
             label()
-            trailing { +SystemIcons.ChevronForward }
+            trailing { +Theme.icons.chevronForward }
         }
     }
 
@@ -1323,7 +1322,7 @@ private fun InPlaceSubMenuRow(
         interactionSource = interactionSource,
     ) {
         label()
-        trailing { +SystemIcons.ChevronForward }
+        trailing { +Theme.icons.chevronForward }
     }
 }
 

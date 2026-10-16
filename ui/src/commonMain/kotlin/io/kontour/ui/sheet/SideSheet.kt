@@ -25,6 +25,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerEventPass
@@ -37,9 +38,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.navigationevent.NavigationEvent
-import io.kontour.icons.tabler.Tabler
-import io.kontour.icons.tabler.outline.ArrowLeft
-import io.kontour.icons.tabler.outline.ArrowRight
 import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.adaptive.ContainerGaps
 import io.kontour.ui.adaptive.OverlapInsets
@@ -128,17 +126,19 @@ fun ModalSideSheet(
     dismissible: Boolean = true,
     dismissLabel: String = Theme.strings.close,
     /**
-     * Shown as a back arrow at the sheet's leading edge, above the content.
+     * Shown as a back button at the sheet's leading edge, above the content,
+     * with `backIcon` on it.
      *
      * For a sheet that was pushed onto from another one — a stop, then a route
      * within it. `null` for a sheet with nothing behind it, where the scrim and
      * a close button in the content are the way out.
      *
-     * The arrow follows the reading direction rather than the sheet's side: back
-     * means back, and a start-side sheet does not point the other way.
+     * The chevron follows the reading direction rather than the sheet's side:
+     * back means back, and a start-side sheet does not point the other way.
      */
     onBack: (() -> Unit)? = null,
     backLabel: String = Theme.strings.back,
+    backIcon: ImageVector = Theme.icons.chevronBack,
     paneTitle: String? = null,
     /**
      * What the sheet's *content* keeps clear of. Every edge including the
@@ -162,6 +162,7 @@ fun ModalSideSheet(
     val latestPaneTitle by rememberUpdatedState(paneTitle)
     val latestOnBack by rememberUpdatedState(onBack)
     val latestBackLabel by rememberUpdatedState(backLabel)
+    val latestBackIcon by rememberUpdatedState(backIcon)
     // And whether it may be put away, which the scrim, the back gesture and the
     // swipe towards its edge all ask as the reader tries rather than once, when
     // it opened: see `OverlayEntry.dismissibleNow`.
@@ -226,6 +227,7 @@ fun ModalSideSheet(
                         paneTitle = latestPaneTitle,
                         onBack = latestOnBack,
                         backLabel = latestBackLabel,
+                        backIcon = latestBackIcon,
                         progress = LocalOverlayProgress.current,
                         swipeAway = latestDismissible,
                         // Captured as an object, not a measurement: the modifier
@@ -286,6 +288,7 @@ fun SideSheet(
     /** See [ModalSideSheet]. */
     onBack: (() -> Unit)? = null,
     backLabel: String = Theme.strings.back,
+    backIcon: ImageVector = Theme.icons.chevronBack,
     paneTitle: String? = null,
     /** See [ModalSideSheet]. */
     windowInsets: WindowInsets = WindowInsets.allEdges,
@@ -317,6 +320,7 @@ fun SideSheet(
         paneTitle = paneTitle,
         onBack = onBack,
         backLabel = backLabel,
+        backIcon = backIcon,
         windowInsets = windowInsets,
         progress = { progress.value },
         content = content,
@@ -341,6 +345,7 @@ private fun SideSheetPanel(
     paneTitle: String?,
     onBack: (() -> Unit)?,
     backLabel: String,
+    backIcon: ImageVector,
     windowInsets: WindowInsets,
     // How far in the sheet has slid, 0 to 1. Driven from outside in both
     // directions — by the overlay host for a modal sheet, by the sheet's own
@@ -441,15 +446,14 @@ private fun SideSheetPanel(
                     ) {
                         if (onBack != null) {
                             IconButton(
-                                // Reading direction, not sheet side. Back is
-                                // back; a start-side sheet does not point the
-                                // other way because it happens to open from the
-                                // left.
-                                icon = if (isRtl) {
-                                    Tabler.Outline.ArrowRight
-                                } else {
-                                    Tabler.Outline.ArrowLeft
-                                },
+                                // Reading direction, not sheet side: the
+                                // default is `chevronBack`, read where the sheet
+                                // was called. Back is back; a start-side sheet
+                                // does not point the other way because it
+                                // happens to open from the left. A chevron, as a
+                                // top bar's and a sheet header's are, where it
+                                // was the one arrow in the library.
+                                icon = backIcon,
                                 contentDescription = backLabel,
                                 onClick = onBack,
                                 variant = ButtonVariant.Ghost,

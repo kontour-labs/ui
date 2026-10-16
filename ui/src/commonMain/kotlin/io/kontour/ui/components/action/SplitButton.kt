@@ -21,7 +21,6 @@ import androidx.compose.ui.semantics.semantics
 import io.kontour.ui.a11y.LocalTouchTargetOwnedByParent
 import io.kontour.ui.foundation.GroupPosition
 import io.kontour.ui.foundation.RowContentScope
-import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.shape
 import io.kontour.ui.overlay.AnchoredDropdownMenuImpl
 import io.kontour.ui.overlay.MenuScope
@@ -102,7 +101,7 @@ fun SplitButton(
     contentDescription: String? = null,
     variant: ButtonVariant = ButtonVariant.Primary,
     size: ButtonSize = ButtonSize.Medium,
-    chevron: ImageVector = SystemIcons.ChevronDown,
+    chevron: ImageVector = Theme.icons.chevronDown,
     shape: CornerBasedShape = Theme.shapes.control,
     interactionSource: MutableInteractionSource? = null,
     menu: @Composable MenuScope.() -> Unit,

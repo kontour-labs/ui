@@ -23,7 +23,6 @@ import androidx.compose.ui.text.style.TextDecoration
 import io.kontour.ui.a11y.highContrast
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.foundation.Icon
-import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
@@ -66,7 +65,7 @@ data class Crumb(
 fun Breadcrumbs(
     crumbs: List<Crumb>,
     modifier: Modifier = Modifier,
-    separator: ImageVector = SystemIcons.ChevronForward,
+    separator: ImageVector = Theme.icons.chevronForward,
 ) {
     Row(
         modifier = modifier

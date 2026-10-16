@@ -146,7 +146,7 @@ class CursorPlacementTest {
                             Modifier
                         },
                         itemCount = 3,
-                        handleIcon = SystemIcons.More,
+                        handleIcon = SystemIcons.Default.more,
                     ) {
                         Box(
                             Modifier

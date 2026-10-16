@@ -128,11 +128,10 @@ fun NavSearch(
     placement: NavExpandPlacement = NavExpandPlacement.AboveKeyboard,
     placeholder: String = Theme.strings.search,
     /**
-     * Beside the placeholder. `null` for none, matching
-     * [io.kontour.ui.components.text.SearchField] — the library owns no
-     * magnifier glyph, because an icon set is the app's choice.
+     * Beside the placeholder: `Theme.icons.search` by default, as
+     * [io.kontour.ui.components.text.SearchField]'s is, and `null` for none.
      */
-    searchIcon: ImageVector? = null,
+    searchIcon: ImageVector? = Theme.icons.search,
     containerColour: Color = NavExpandingSlotDefaults.containerColour(),
     contentColour: Color = Theme.colours.content,
     onQuery: ((String) -> Unit)? = null,

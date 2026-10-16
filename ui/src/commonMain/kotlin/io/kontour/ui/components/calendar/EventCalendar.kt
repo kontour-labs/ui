@@ -64,6 +64,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.Placeable
@@ -89,7 +90,6 @@ import io.kontour.ui.components.datetime.MonthFlick
 import io.kontour.ui.components.datetime.PeriodPager
 import io.kontour.ui.components.datetime.SwipeCommitShare
 import io.kontour.ui.components.selection.SegmentedControl
-import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.interaction.DragClaim
 import io.kontour.ui.interaction.FeedbackIntent
@@ -601,6 +601,10 @@ object EventCalendarDefaults {
      *   switcher.
      * @param switcher How the views are offered: side by side, or in a menu
      *   from a button that names the one on show. See [CalendarSwitcher].
+     * @param previousIcon The way back a period, `Theme.icons.chevronBack` by
+     *   default, which points the way the reader's language runs.
+     * @param nextIcon The way on a period, `Theme.icons.chevronForward`.
+     * @param todayIcon The way back to today, `Theme.icons.today`.
      */
     @Composable
     fun Header(
@@ -608,8 +612,11 @@ object EventCalendarDefaults {
         modifier: Modifier = Modifier,
         views: List<CalendarView> = Views,
         switcher: CalendarSwitcher = CalendarSwitcher.Segmented,
+        previousIcon: ImageVector = Theme.icons.chevronBack,
+        nextIcon: ImageVector = Theme.icons.chevronForward,
+        todayIcon: ImageVector = Theme.icons.today,
     ) {
-        CalendarHeader(state, modifier, views, switcher)
+        CalendarHeader(state, modifier, views, switcher, HeaderIcons(previousIcon, nextIcon, todayIcon))
     }
 
     /**
@@ -712,8 +719,17 @@ internal fun periodTitle(state: EventCalendarState, formats: LocaleFormats, time
     }
 }
 
+/** The header's three glyphs, as [EventCalendarDefaults.Header] was given them. */
+private class HeaderIcons(val previous: ImageVector, val next: ImageVector, val today: ImageVector)
+
 @Composable
-private fun CalendarHeader(state: EventCalendarState, modifier: Modifier, asked: List<CalendarView>, asStyle: CalendarSwitcher) {
+private fun CalendarHeader(
+    state: EventCalendarState,
+    modifier: Modifier,
+    asked: List<CalendarView>,
+    asStyle: CalendarSwitcher,
+    icons: HeaderIcons,
+) {
     // Only what the calendar offers, whatever the header was asked for.
     val views = asked.filter { it in state.allowedViews }
     val strings = Theme.strings
@@ -760,14 +776,14 @@ private fun CalendarHeader(state: EventCalendarState, modifier: Modifier, asked:
         }
         val arrows = @Composable {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = { state.step(-1) }, icon = SystemIcons.ChevronBack, contentDescription = back)
+                IconButton(onClick = { state.step(-1) }, icon = icons.previous, contentDescription = back)
                 IconButton(
                     onClick = { state.showToday() },
-                    icon = DatePickerDefaults.TodayIcon,
+                    icon = icons.today,
                     contentDescription = strings.returnToToday,
                     enabled = state.today != null,
                 )
-                IconButton(onClick = { state.step(1) }, icon = SystemIcons.ChevronForward, contentDescription = on)
+                IconButton(onClick = { state.step(1) }, icon = icons.next, contentDescription = on)
             }
         }
         val switcher = @Composable { switcherModifier: Modifier ->
@@ -838,7 +854,7 @@ private fun ViewMenu(state: EventCalendarState, views: List<CalendarView>, names
             modifier = Modifier.semantics { onClick(label = strings.chooseView) { open = true; true } },
         ) {
             +names.getValue(state.view)
-            +SystemIcons.ChevronDown
+            +Theme.icons.chevronDown
         }
         DropdownMenu(visible = open, onDismissRequest = { open = false }, alignment = OverlayAlignment.End) {
             for (view in views) {
