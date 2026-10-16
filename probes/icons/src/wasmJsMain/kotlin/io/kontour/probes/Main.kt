@@ -24,7 +24,6 @@ import io.kontour.icons.tabler.outline.GripVertical
 import io.kontour.icons.tabler.outline.HelpCircle
 import io.kontour.icons.tabler.outline.Home
 import io.kontour.icons.tabler.outline.InfoCircle
-import io.kontour.icons.tabler.outline.Layers
 import io.kontour.icons.tabler.outline.Map
 import io.kontour.icons.tabler.outline.MapPin
 import io.kontour.icons.tabler.outline.MessageCircle
@@ -49,6 +48,7 @@ import io.kontour.icons.tabler.outline.Ticket
 import io.kontour.icons.tabler.outline.Train
 import io.kontour.icons.tabler.outline.Trash
 import io.kontour.icons.tabler.outline.User
+import io.kontour.icons.tabler.outline.Video
 import io.kontour.icons.tabler.outline.Volume
 import io.kontour.icons.tabler.outline.Walk
 import io.kontour.icons.tabler.outline.Wifi
@@ -103,7 +103,7 @@ private val icons = listOf(
     Tabler.Outline.Settings,
     Tabler.Outline.Note,
     Tabler.Outline.Navigation,
-    Tabler.Outline.Layers,
+    Tabler.Outline.Video,
     Tabler.Outline.HelpCircle,
     Tabler.Outline.Eye,
     Tabler.Outline.Calendar,
