@@ -501,7 +501,7 @@ private fun DragItemScope.DocumentTab(
     val inset = Theme.spacing.xs
     val hairline = Theme.sizing.borderWidth
     val colour = if (selected) colours.selectedContent else colours.content
-    val showsClose = onClose != null && (selected || hovered || showsCloseAt.value)
+    val showsClose = selected || hovered || showsCloseAt.value
 
     Box(
         Modifier
