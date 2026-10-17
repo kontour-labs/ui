@@ -86,8 +86,10 @@ class DocumentTabsDragTest {
         // What happened along the way, said all at once if anything is wrong:
         // where each strip's gap was, and what was felt, at each stage.
         val seen = mutableListOf<String>()
+        var pointer = Offset.Zero
         fun note(stage: String) {
-            seen += "$stage: top gap ${panes.top.state!!.dropIndex}, bottom gap ${panes.bottom!!.state!!.dropIndex}, felt ${felt.toList()}"
+            seen += "$stage: top gap ${panes.top.state!!.dropIndex}, bottom gap ${panes.bottom!!.state!!.dropIndex}, " +
+                "felt ${felt.toList()}, bottom ${panes.bottom!!.state!!.status}, pointer $pointer, strips ${panes.strips}"
         }
         panes.run { scene ->
             val grab = panes.glyph("top", "Timetable").center
@@ -104,10 +106,13 @@ class DocumentTabsDragTest {
             // little, inside the tear-off, where it still rides its strip.
             val down = grab + Offset(0f, 24f)
             scene.carry(grab, down)
+            pointer = down
             note("picked up")
             scene.carry(down, clear)
+            pointer = clear
             note("pulled clear")
             scene.carry(clear, drop)
+            pointer = drop
             note("over the second strip")
             scene.release(drop, PointerType.Mouse)
             scene.frames(2)
@@ -146,6 +151,9 @@ class DocumentTabsDragTest {
         val bottom = bottom?.let { Strip(it, "Right pane") }
         val drops = mutableListOf<DropEvent<String>>()
         private val glyphs = mutableMapOf<Pair<String, String>, Rect>()
+
+        /** Where each strip is, in root pixels. */
+        val strips = mutableMapOf<String, Rect>()
 
         fun glyph(strip: String, tab: String): Rect = glyphs.getValue(strip to tab)
 
@@ -195,7 +203,7 @@ class DocumentTabsDragTest {
                 state = state,
                 value = strip.items.firstOrNull(),
                 onValueChange = {},
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().reportBounds { strips[name] = it },
                 leading = { tab -> Box(Modifier.size(16.dp).reportBounds { glyphs[name to tab] = it }) },
             )
         }
