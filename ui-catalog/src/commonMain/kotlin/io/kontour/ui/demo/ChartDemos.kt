@@ -157,7 +157,10 @@ internal val ChartDemo = ComponentDemo(
                     }
                     ChartKindDemo.LyingBars -> Unit
                 }
-                rule(y = 700, label = "Capacity")
+                // A normalised chart reads in shares, and so do its rules: the
+                // capacity in riders would be far off its end.
+                val shares = stacking == ChartStacking.Normalised && (kind == ChartKindDemo.Bars || kind == ChartKindDemo.Areas)
+                if (shares) rule(y = 0.5, label = "Half") else rule(y = 700, label = "Capacity")
                 if (references) {
                     // A school holiday shaded, and three events pinned, the
                     // last two close enough that one pin stands on the other.

@@ -196,7 +196,7 @@ internal fun layOutFrame(
     val rulePins = pinsByRule.mapIndexed { index, pin -> pin?.let { RulePin(it.first, rows[index]) } }
     val frame = blankFrame(width, height, plot, rtl, gap, xAtBottom, yAtStart)
     val mapper = Mapper(frame, x, y)
-    val regionLabels = chart.model.regions.map { region ->
+    val regionLabels = chart.regions.map { region ->
         val label = region.label?.takeIf { it.isNotBlank() } ?: return@map null
         val span = regionRect(region, mapper, chart)
         val room = (span.width - pinPad * 2).toInt()

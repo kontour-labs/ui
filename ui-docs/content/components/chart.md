@@ -88,6 +88,12 @@ bars, piles them into one, with negative values hanging below zero.
 `Grouped` puts them side by side. `Normalised` scales each place to the same
 whole, so the axis reads as shares of it. Areas stack the same way.
 
+A normalised chart's value axis is shares from 0 to 100%, and everything else
+along it is a share too: `rule(y = 0.5)` is the halfway line, and a rule in the
+data's own units, which would be off the end, is not drawn. One series on its
+own is shared out across its places instead, so each bar reads as its part of
+the whole series, as a sector chart's parts do.
+
 ## Series
 
 Series take their colours from the theme in the order they first appear, and

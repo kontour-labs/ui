@@ -69,8 +69,10 @@ internal fun niceTicks(low: Double, high: Double, count: Int): Ticks {
     }
     val target = max(count, 2)
     val step = niceNumber((hi - lo) / (target - 1), round = true)
-    val first = floor(lo / step) * step
-    val last = ceil(hi / step) * step
+    // Rounded with a little give, so an end that is a tick but for floating
+    // point, 1.0000000000000002 for 1, does not reach out a whole step past it.
+    val first = floor(lo / step + StepSlack) * step
+    val last = ceil(hi / step - StepSlack) * step
     val n = ((last - first) / step).roundToInt() + 1
     val values = DoubleArray(n) { index ->
         val value = first + index * step
@@ -81,6 +83,9 @@ internal fun niceTicks(low: Double, high: Double, count: Int): Ticks {
         .let { if (abs(step * 10.0.pow(it) - (step * 10.0.pow(it)).roundToLong()) > 1e-6) it + 1 else it }
     return Ticks(values, first, last, fractionDigits = digits)
 }
+
+/** How far past a tick, in steps, an end may sit and still end on it: rounding, not data. */
+private const val StepSlack = 1e-9
 
 /** The round number nearest [value]: 1, 2, 2.5, 5 or 10, times a power of ten. */
 internal fun niceNumber(value: Double, round: Boolean): Double {

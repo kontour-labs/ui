@@ -31,6 +31,8 @@ internal class ResolvedChart(
     val y: ResolvedAxis,
     val layers: List<Layer>,
     val rules: List<Rule>,
+    /** The regions on the axes, cut to them. */
+    val regions: List<Region>,
     /** Every place a reader can select or move to, along the bucket axis, in order. */
     val places: DoubleArray,
 ) {
@@ -58,7 +60,7 @@ internal class ResolvedChart(
 
     /** A copy with these axes' spans and these layers, for a frame between two charts. */
     fun with(x: ResolvedAxis, y: ResolvedAxis, layers: List<Layer>): ResolvedChart =
-        ResolvedChart(model, horizontal, x, y, layers, rules, places)
+        ResolvedChart(model, horizontal, x, y, layers, rules, regions, places)
 }
 
 /**
@@ -131,36 +133,48 @@ internal fun <X : Any, Y : Any> resolve(
         layers += layersOf(markIndex, mark, model, horizontal)
     }
 
+    // On a normalised chart the value axis is shares of each place's whole, so
+    // only the normalised stacks measure it. A rule, a region, a band or a line
+    // beside them is read as a share too, and stretched the axis to its own
+    // units instead: a "Capacity" rule at 700 riders made the axis run to
+    // 70,000% and pressed the bars flat against its foot.
+    val normalised = layers.any { it.mark.stacking == ChartStacking.Normalised }
+    fun measuresValues(layer: Layer) = !normalised || layer.mark.stacking == ChartStacking.Normalised
+
     // The data's extent along each axis, with zero wherever a bar or an area is
     // measured from it.
     val xs = Extent()
     val ys = Extent()
     layers.forEach { layer ->
+        val values = measuresValues(layer)
         for (i in 0 until layer.size) {
-            xs += layer.across[i]
-            ys += layer.up[i]
-            layer.acrossEnd?.let { xs += it[i] }
-            layer.upEnd?.let { ys += it[i] }
-            layer.base?.let { base -> if (horizontal) xs += base[i] else ys += base[i] }
+            if (values || !horizontal) xs += layer.across[i]
+            if (values || horizontal) ys += layer.up[i]
+            if (values || !horizontal) layer.acrossEnd?.let { xs += it[i] }
+            if (values || horizontal) layer.upEnd?.let { ys += it[i] }
+            if (values) layer.base?.let { base -> if (horizontal) xs += base[i] else ys += base[i] }
         }
     }
     model.rules.forEach { rule ->
-        rule.x?.let { xs += it }
-        rule.y?.let { ys += it }
+        if (!normalised || !horizontal) rule.x?.let { xs += it }
+        if (!normalised || horizontal) rule.y?.let { ys += it }
     }
     // A region widens the axes to take it in, as a rule does: a forecast's
     // shading after today runs on past the last day of data.
     model.regions.forEach { region ->
-        region.xStart?.let { xs += it }
-        region.xEnd?.let { xs += it }
-        region.yStart?.let { ys += it }
-        region.yEnd?.let { ys += it }
+        if (!normalised || !horizontal) {
+            region.xStart?.let { xs += it }
+            region.xEnd?.let { xs += it }
+        }
+        if (!normalised || horizontal) {
+            region.yStart?.let { ys += it }
+            region.yEnd?.let { ys += it }
+        }
     }
     val measured = layers.any { it.mark.kind == MarkKind.Bar || it.mark.kind == MarkKind.Area }
     if (measured) {
         if (horizontal) xs += 0.0 else ys += 0.0
     }
-    val normalised = layers.any { it.mark.stacking == ChartStacking.Normalised }
 
     // Bars across a number or date axis stand on their value, so half a bar's
     // width either side of the first and the last is part of the domain.
@@ -183,10 +197,41 @@ internal fun <X : Any, Y : Any> resolve(
         x = x,
         y = y,
         layers = layers,
-        rules = model.rules,
+        rules = model.rules.filter { rule -> rule.x.within(x) && rule.y.within(y) },
+        regions = model.regions.mapNotNull { it.clampedTo(x, y) },
         places = places,
     )
 }
+
+/**
+ * Whether a reference at this position is on [axis]: anywhere along it, or not
+ * on it at all. One past the end is not drawn or said, as with a share above
+ * 100% on a normalised chart, or a value past a domain the caller fixed.
+ */
+private fun Double?.within(axis: ResolvedAxis): Boolean =
+    this == null || axis.kind == AxisKind.Category ||
+        (this >= axis.low - AxisSlack * (axis.high - axis.low) && this <= axis.high + AxisSlack * (axis.high - axis.low))
+
+/** This region cut to the axes, or `null` if none of it is on them. */
+private fun Region.clampedTo(x: ResolvedAxis, y: ResolvedAxis): Region? {
+    fun clamp(start: Double?, end: Double?, axis: ResolvedAxis): Pair<Double?, Double?>? {
+        if (axis.kind == AxisKind.Category) return start to end
+        val from = start ?: axis.low
+        val to = end ?: axis.high
+        if (max(from, to) < axis.low || min(from, to) > axis.high) return null
+        return start?.coerceIn(axis.low, axis.high) to end?.coerceIn(axis.low, axis.high)
+    }
+    val (xStart, xEnd) = clamp(this.xStart, this.xEnd, x) ?: return null
+    val (yStart, yEnd) = clamp(this.yStart, this.yEnd, y) ?: return null
+    return if (xStart == this.xStart && xEnd == this.xEnd && yStart == this.yStart && yEnd == this.yEnd) {
+        this
+    } else {
+        Region(xStart, xEnd, yStart, yEnd, label, style)
+    }
+}
+
+/** How far past an axis's end a reference may sit and still be on it: rounding, not data. */
+private const val AxisSlack = 1e-9
 
 /** The layers of one mark, stacked as it says, a run each. */
 private fun layersOf(markIndex: Int, mark: Mark, model: ChartModel, horizontal: Boolean): List<Layer> {
@@ -195,6 +240,7 @@ private fun layersOf(markIndex: Int, mark: Mark, model: ChartModel, horizontal: 
     val stacks = (mark.kind == MarkKind.Bar || mark.kind == MarkKind.Area) &&
         (mark.stacking == ChartStacking.Stacked || mark.stacking == ChartStacking.Normalised)
     val grouped = mark.kind == MarkKind.Bar && !stacks && runs.size > 1
+    val normalised = stacks && mark.stacking == ChartStacking.Normalised
 
     // Place → running totals above and below zero, and the whole for a normalised stack.
     val above = HashMap<Double, Double>()
@@ -207,6 +253,13 @@ private fun layersOf(markIndex: Int, mark: Mark, model: ChartModel, horizontal: 
                 val value = if (lying) run.xs[i] else run.ys[i]
                 if (!value.isNaN()) whole[place] = (whole[place] ?: 0.0) + abs(value)
             }
+        }
+        // One series is the whole of every place it stands at, so each bar came
+        // out full and all of them alike. Its whole is the series' instead, and
+        // each place reads as its share of all of them, as a sector's does.
+        if (runs.size == 1) {
+            val total = whole.values.sum()
+            whole.keys.toList().forEach { whole[it] = total }
         }
     }
 
@@ -238,7 +291,7 @@ private fun layersOf(markIndex: Int, mark: Mark, model: ChartModel, horizontal: 
         // of each place's whole, so its values are those shares too. They were
         // the raw values, written by the percent writer the axis uses, and a
         // value of 42 was said as "4,200%".
-        val values = if (mark.stacking == ChartStacking.Normalised && stacks) {
+        val values = if (normalised) {
             DoubleArray(n) { i ->
                 val place = if (lying) run.ys[i] else run.xs[i]
                 val total = whole[place] ?: 0.0
@@ -258,9 +311,13 @@ private fun layersOf(markIndex: Int, mark: Mark, model: ChartModel, horizontal: 
                 if (value.isNaN()) continue
                 val totals = if (value >= 0) above else below
                 val start = totals[place] ?: 0.0
+                // A whole of shares that adds to a hair over one, as 0.1 + 0.2
+                // + 0.7 does, is one: past it, the axis took another step and
+                // topped out at 120% over bars that stop at 100.
+                val top = if (normalised) snappedToWhole(start + value) else start + value
                 base!![i] = start
-                tops[i] = start + value
-                totals[place] = start + value
+                tops[i] = top
+                totals[place] = top
             }
         }
         Layer(
@@ -279,6 +336,16 @@ private fun layersOf(markIndex: Int, mark: Mark, model: ChartModel, horizontal: 
         )
     }
 }
+
+/** [share], or exactly one whole either way when it is within rounding of it. */
+private fun snappedToWhole(share: Double): Double = when {
+    abs(share - 1.0) < WholeSlack -> 1.0
+    abs(share + 1.0) < WholeSlack -> -1.0
+    else -> share
+}
+
+/** How near a stack of shares must come to one to be one: rounding, not data. */
+private const val WholeSlack = 1e-9
 
 /** The smallest step between neighbouring places of [layers], or 1 if there is none. */
 private fun smallestGap(layers: List<Layer>): Double {

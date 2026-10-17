@@ -147,6 +147,10 @@ interface ChartScope<X : Any, Y : Any> {
      * A rule is a reference rather than data: it is drawn and labelled, and a
      * screen reader hears its label and where it is after the chart's summary,
      * but it is not a series and has no place in the legend.
+     *
+     * On a [normalised][ChartStacking.Normalised] chart the value axis is
+     * shares, and so is a rule along it: `rule(y = 0.5)` is the halfway line.
+     * One past the end of an axis is not drawn.
      */
     fun rule(
         x: X? = null,
@@ -169,6 +173,8 @@ interface ChartScope<X : Any, Y : Any> {
      * one, with its [label] inside its top corner. On a category axis it covers
      * the whole of each category it names. Like a rule it is a reference, not
      * data: a reader hears its label and its span after the chart's summary.
+     * Along a [normalised][ChartStacking.Normalised] chart's value axis its
+     * ends are shares, as a [rule]'s are, and it is cut to the axis.
      */
     fun region(
         xStart: X? = null,
@@ -191,7 +197,17 @@ enum class ChartStacking {
     /** Side by side, each from zero. For bars; areas overlap, as with [None]. */
     Grouped,
 
-    /** Stacked, and each place scaled to the same whole, so the axis reads as shares of it. */
+    /**
+     * Stacked, and each place scaled to the same whole, so the axis reads as
+     * shares of it: what part of each month each route carried.
+     *
+     * With one series there is nothing to share a place with, so its whole is
+     * the series' own, and each place reads as its share of all of them. The
+     * value axis runs from 0 to 100%, down to -100% with negatives, and
+     * everything else along it — a rule, a region, a line or band beside the
+     * stacks — is read as a share too, rather than stretching it to its own
+     * units.
+     */
     Normalised,
 }
 

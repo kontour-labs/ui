@@ -116,7 +116,7 @@ internal fun DrawScope.drawChart(
 
     // Regions behind everything drawn from data, each in its selection-coloured
     // wash; their labels are drawn after the marks, where they are clear of them.
-    chart.model.regions.forEach { region ->
+    chart.regions.forEach { region ->
         val rect = regionRect(region, m, chart)
         if (rect.width <= 0f || rect.height <= 0f) return@forEach
         val colour = region.style?.colour?.takeIf { it != Color.Unspecified } ?: colours.selection
@@ -183,7 +183,7 @@ internal fun DrawScope.drawChart(
     // place whatever was there, and a line through "Capacity" crossed it out.
     val needed = frame.regionLabels.any { it != null } || frame.ruleLabels.any { it != null }
     val data = if (needed) obstaclesOf(chart, m, config) else null
-    chart.model.regions.forEachIndexed { index, region ->
+    chart.regions.forEachIndexed { index, region ->
         val label = frame.regionLabels.getOrNull(index) ?: return@forEachIndexed
         val rect = regionRect(region, m, chart)
         val w = label.size.width.toFloat()

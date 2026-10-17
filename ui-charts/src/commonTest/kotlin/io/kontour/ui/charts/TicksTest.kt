@@ -50,6 +50,14 @@ class TicksTest {
     }
 
     @Test
+    fun anEndThatIsATickButForRoundingEndsOnIt() {
+        // 0.1 + 0.2 + 0.7, a normalised stack's top: one step more made the
+        // axis 120% over bars that stop at 100.
+        assertEquals(1.0, niceTicks(0.0, 0.1 + 0.2 + 0.7, 5).high)
+        assertEquals(0.0, niceTicks(0.1 + 0.2 - 0.3, 1.0, 5).low)
+    }
+
+    @Test
     fun zeroIsZeroAndNotATinyNegative() {
         val ticks = niceTicks(-0.3, 0.3, 7)
         assertTrue(ticks.values.any { it == 0.0 && 1.0 / it > 0 }, "zero is written as -0 or a rounding error: ${ticks.values.toList()}")

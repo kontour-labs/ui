@@ -63,7 +63,7 @@ internal fun chartSummary(
         val at = rule.y?.let { chart.y.write(it) } ?: rule.x?.let { chart.x.write(it) }
         parts += if (at == null) label else strings.seriesValue(label, at)
     }
-    chart.model.regions.forEach { region ->
+    chart.regions.forEach { region ->
         val label = region.label?.takeIf { it.isNotBlank() } ?: return@forEach
         val span = when {
             region.xStart != null || region.xEnd != null -> spanOf(chart.x, region.xStart, region.xEnd, strings)
