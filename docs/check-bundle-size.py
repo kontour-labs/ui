@@ -201,10 +201,27 @@ import sys
 # plus +509 −63 in the gallery, the drag-and-drop demo among them.
 #
 # `app` and `total` through `--update`'s rule by hand, over CI's figures.
+#
+# Raised 2026-10-17 for 0.5.0, from CI's own measurement on
+# `claude/trusting-dijkstra-w1a6rz` (8579d74a, run 116), the first run to build
+# the site with the charts' range bars, stems, box plots, streams and heat
+# maps. `app` is 3,914,619: +17,573 gzip on run 115's 3,897,046 (4d91ceca), and
+# over its ceiling by 14,619. `total` is 7,698,863, inside its ceiling, and
+# stays, as do `skiko` (3,324,678), `js` (103,303), `fonts` (352,932) and
+# `other` (3,331). Read by source, lines added and removed since 4d91ceca:
+#
+#   charts     +1,644 −419   the new marks, the heat map's ramp and scale, the
+#                            tooltip and selection shared by both charts
+#   gallery    +285   −80    the new kinds' demos and specimens, one demo window
+#   the site   +205   −41    lines of pages: the chart page's new sections
+#   :ui        +286   −273   one copy each of a coach mark's bubble, an
+#                            event's ground and last day, and tone ink
+#
+# `app` through `--update`'s rule by hand, over CI's figure.
 
 CEILINGS = {
     "skiko": 3_430_000,
-    "app": 3_900_000,
+    "app": 4_040_000,
     "js": 110_000,
     "fonts": 370_000,
     "other": 10_000,
