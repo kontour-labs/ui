@@ -151,13 +151,15 @@ fun ChartDumbbells() {
     // Each route's two fares, joined by a stem: a dumbbell.
     val offPeak = ChartSeries("Off-peak")
     val peak = ChartSeries("Peak")
+    // Read out here: a chart's content records marks, and is not composed.
+    val joining = SeriesStyle(colour = Theme.colours.outlineStrong)
     Chart(
         xAxis = ChartAxis.category<String>(),
         yAxis = ChartAxis.number(title = "Fare"),
         modifier = Modifier.fillMaxWidth().height(200.dp),
         contentDescription = "Fares by route",
     ) {
-        stem(fares, x = { it.route }, yStart = { it.offPeak }, yEnd = { it.peak }, style = SeriesStyle(colour = Theme.colours.outlineStrong))
+        stem(fares, x = { it.route }, yStart = { it.offPeak }, yEnd = { it.peak }, style = joining)
         point(fares, x = { it.route }, y = { it.offPeak }, series = { offPeak })
         point(fares, x = { it.route }, y = { it.peak }, series = { peak })
     }

@@ -1050,8 +1050,9 @@ public final class io/kontour/ui/components/display/KeyValueListDefaults {
 }
 
 public final class io/kontour/ui/components/display/KeyValueListKt {
-	public static final fun KeyValueList-DzVHIIc (Landroidx/compose/ui/Modifier;FZLkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
+	public static final fun KeyValueList-EUb7tLY (Landroidx/compose/ui/Modifier;FZZLkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
 	public static final fun KeyValueRows-6a0pyJM (Lio/kontour/ui/components/display/KeyValueScope;Landroidx/compose/ui/Modifier;FZLandroidx/compose/runtime/Composer;I)V
+	public static final fun KeyValueRows-942rkJo (Lio/kontour/ui/components/display/KeyValueScope;Landroidx/compose/ui/Modifier;FZZLandroidx/compose/runtime/Composer;I)V
 }
 
 public final class io/kontour/ui/components/display/KeyValueScope {

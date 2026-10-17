@@ -164,10 +164,14 @@ interface ChartScope<X : Any, Y : Any> {
      * top, a lollipop; over a bar, its margin of error.
      *
      * ```kotlin
-     * stem(days, x = { it.day }, yStart = { it.low }, yEnd = { it.high }, style = SeriesStyle(colour = Theme.colours.outlineStrong))
+     * stem(days, x = { it.day }, yStart = { it.low }, yEnd = { it.high }, style = joining)
      * point(days, x = { it.day }, y = { it.low }, series = { low })
      * point(days, x = { it.day }, y = { it.high }, series = { high })
      * ```
+     *
+     * `joining` is a [SeriesStyle] read before the chart, such as
+     * `SeriesStyle(colour = Theme.colours.outlineStrong)`: the content records
+     * marks and is not composed, so it cannot read the theme itself.
      *
      * A stem is said as its range where nothing else at its place says its
      * ends: a dumbbell's two points already say the low and the high, and the
