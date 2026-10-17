@@ -98,7 +98,7 @@ internal fun chartTable(chart: ResolvedChart, strings: ChartStrings, formats: Lo
     // A column a value a series has at each place, or a box's five numbers and
     // its outliers, each a column of its own. A stem that only joins what other
     // marks say has none.
-    class Column(val title: String, val cell: (Double) -> String)
+    class TableColumn(val title: String, val cell: (Double) -> String)
     val series = chart.layers.filterNot { it.isSilent(chart) }.map { it.series }.distinct()
     val columns = series.flatMap { one ->
         val layers = chart.layers.filter { it.series == one && !it.isSilent(chart) }
@@ -118,10 +118,10 @@ internal fun chartTable(chart: ResolvedChart, strings: ChartStrings, formats: Lo
                 strings.upperQuartileColumn to { place: Double -> at(place) { valueAxis.write(boxes.up[it]) } },
                 strings.highColumn to { place: Double -> at(place) { valueAxis.write(box.high[it]) } },
                 strings.outliersColumn to { place: Double -> at(place) { formats.list(box.outliers[it].map(valueAxis.write), ListStyle.Unit) } },
-            ).map { (title, cell) -> Column(if (named != null) strings.seriesColumn(named, title) else title, cell) }
+            ).map { (title, cell) -> TableColumn(if (named != null) strings.seriesColumn(named, title) else title, cell) }
         } else {
             listOf(
-                Column(named ?: valueAxis.title ?: strings.valueColumn) { place ->
+                TableColumn(named ?: valueAxis.title ?: strings.valueColumn) { place ->
                     val written = layers.flatMap { layer ->
                         val places = if (chart.horizontal && layer.mark.kind == MarkKind.Bar) layer.up else layer.across
                         places.indices.filter { places[it] == place && !layer.values[it].isNaN() }.map { i ->
