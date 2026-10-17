@@ -83,6 +83,12 @@ class DocumentTabsDragTest {
         )
         var nextAfterDrop = 0f
         var leftAt = 0f
+        // What happened along the way, said all at once if anything is wrong:
+        // where each strip's gap was, and what was felt, at each stage.
+        val seen = mutableListOf<String>()
+        fun note(stage: String) {
+            seen += "$stage: top gap ${panes.top.state!!.dropIndex}, bottom gap ${panes.bottom!!.state!!.dropIndex}, felt ${felt.toList()}"
+        }
         panes.run { scene ->
             val grab = panes.glyph("top", "Timetable").center
             leftAt = grab.x
@@ -92,16 +98,26 @@ class DocumentTabsDragTest {
             // edge, which is Bins' near one.
             val bins = panes.glyph("bottom", "Bins").center
             val drop = Offset(bins.x - pitch / 2f, bins.y)
+            val clear = Offset(grab.x, (grab.y + drop.y) / 2f)
             scene.pickUp(grab)
-            scene.carry(grab, Offset(grab.x, (grab.y + drop.y) / 2f))
-            assertTrue(FeedbackIntent.DragThreshold in felt, "pulled clear of its strip, the tab should come away: $felt")
-            scene.carry(Offset(grab.x, (grab.y + drop.y) / 2f), drop)
-            assertEquals(1, panes.bottom!!.state!!.dropIndex, "the gap should open in the second strip, before Bins")
+            // Straight down, as a tab is pulled to the pane below: first a
+            // little, inside the tear-off, where it still rides its strip.
+            val down = grab + Offset(0f, 24f)
+            scene.carry(grab, down)
+            note("picked up")
+            scene.carry(down, clear)
+            note("pulled clear")
+            scene.carry(clear, drop)
+            note("over the second strip")
             scene.release(drop, PointerType.Mouse)
             scene.frames(2)
             nextAfterDrop = panes.glyph("top", "Fares").center.x
             scene.frames(40)
         }
+        val story = seen.joinToString("\n")
+        assertTrue(seen[0].startsWith("picked up: top gap 0"), "picked up, the tab should ride its strip, in its own place:\n$story")
+        assertTrue(seen[1].startsWith("pulled clear: top gap null") && FeedbackIntent.DragThreshold in felt, "pulled clear, the tab should come away:\n$story")
+        assertTrue(seen[2].startsWith("over the second strip: top gap null, bottom gap 1"), "the gap should open in the second strip, before Bins:\n$story")
         assertEquals(listOf("Fares", "Route map", "Lifts"), panes.top.items.toList())
         assertEquals(listOf("Signage", "Timetable", "Bins", "Wi-Fi"), panes.bottom!!.items.toList())
         val dropped = panes.drops.single()
