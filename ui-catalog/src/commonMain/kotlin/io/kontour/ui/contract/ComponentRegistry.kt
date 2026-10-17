@@ -354,6 +354,18 @@ class ComponentSpec(
      */
     val minWidth: Int? = null,
     /**
+     * Whether this specimen takes whatever width it is given, so that its size
+     * measured with no bound says nothing about whether it fits.
+     *
+     * False for almost everything. The renders measure a specimen with no bound
+     * to catch a row that cannot wrap running off the canvas, which a golden
+     * cannot see. But a chart given no width takes a phone's, 320dp, and a
+     * window of overlays takes its dialog's own 400dp; given the 300dp canvas,
+     * each fills it and no more. For these the fit check is off, and their
+     * goldens are what show they fit.
+     */
+    val sizesToCanvas: Boolean = false,
+    /**
      * Extra renders beyond the resting one — see [RenderState].
      *
      * Empty for most components, because most of them look like themselves
@@ -1212,6 +1224,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
             expectsMinimumTarget = false,
             underContract = false,
             renderHeight = 240,
+            sizesToCanvas = true,
             states = listOf(
                 // What a chart says about its data besides the data: a span
                 // shaded and named, a forecast's likely range, events pinned
@@ -1266,6 +1279,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
             expectsMinimumTarget = false,
             underContract = false,
             renderHeight = 200,
+            sizesToCanvas = true,
         ) { modifier, _, _ ->
             val parts = listOf("Rent" to 45, "Food" to 30, "Travel" to 25)
             SectorChart(
@@ -2323,6 +2337,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
             name = "Toast",
             role = null,
             underContract = false,
+            sizesToCanvas = true,
             // **No `minWidth`, and that is the finding.**
             //
             // It carried 260 with a note saying a card "sizes itself to its
@@ -2393,7 +2408,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
     // what a specimen is.
 
     add(
-        ComponentSpec(name = "DropdownMenu", role = null, underContract = false, renderHeight = 232) { modifier, _, _ ->
+        ComponentSpec(name = "DropdownMenu", role = null, underContract = false, renderHeight = 232, sizesToCanvas = true) { modifier, _, _ ->
             OverlaySpecimen(modifier, height = 200.dp) {
                 // In the middle and centred on its anchor, so the menu's shadow
                 // has room on every side inside the window.
@@ -2410,7 +2425,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
     )
 
     add(
-        ComponentSpec(name = "Tooltip", role = null, underContract = false, renderHeight = 152) { modifier, _, _ ->
+        ComponentSpec(name = "Tooltip", role = null, underContract = false, renderHeight = 152, sizesToCanvas = true) { modifier, _, _ ->
             OverlaySpecimen(modifier, height = 120.dp) {
                 // Low in its box, so the bubble above it has the room it asks for.
                 Box(Modifier.align(Alignment.BottomCenter)) {
@@ -2422,7 +2437,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
     )
 
     add(
-        ComponentSpec(name = "Popover", role = null, underContract = false, renderHeight = 192) { modifier, _, _ ->
+        ComponentSpec(name = "Popover", role = null, underContract = false, renderHeight = 192, sizesToCanvas = true) { modifier, _, _ ->
             OverlaySpecimen(modifier, height = 160.dp) {
                 Box(Modifier.align(Alignment.TopCenter)) {
                     IconButton(icon = Tabler.Outline.InfoCircle, contentDescription = "Details", onClick = {})
@@ -2435,7 +2450,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
     )
 
     add(
-        ComponentSpec(name = "Modifier.coachmark", role = null, underContract = false, renderHeight = 232) { modifier, _, _ ->
+        ComponentSpec(name = "Modifier.coachmark", role = null, underContract = false, renderHeight = 232, sizesToCanvas = true) { modifier, _, _ ->
             OverlaySpecimen(modifier, height = 200.dp) {
                 // A queue of its own, which a tip waits on so that six of them do
                 // not introduce themselves at once. This one is the only one.
@@ -2458,7 +2473,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
     )
 
     add(
-        ComponentSpec(name = "AlertDialog", role = null, underContract = false, renderHeight = 372) { modifier, _, _ ->
+        ComponentSpec(name = "AlertDialog", role = null, underContract = false, renderHeight = 372, sizesToCanvas = true) { modifier, _, _ ->
             OverlaySpecimen(modifier, height = 340.dp) {
                 AlertDialog(
                     visible = true,
@@ -2475,7 +2490,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
     )
 
     add(
-        ComponentSpec(name = "CommandPalette", role = null, underContract = false, renderHeight = 352) { modifier, _, _ ->
+        ComponentSpec(name = "CommandPalette", role = null, underContract = false, renderHeight = 352, sizesToCanvas = true) { modifier, _, _ ->
             OverlaySpecimen(modifier, height = 320.dp) {
                 CommandPalette(
                     visible = true,
@@ -2492,7 +2507,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
     )
 
     add(
-        ComponentSpec(name = "SideSheet", role = null, underContract = false, renderHeight = 212) { modifier, _, _ ->
+        ComponentSpec(name = "SideSheet", role = null, underContract = false, renderHeight = 212, sizesToCanvas = true) { modifier, _, _ ->
             OverlaySpecimen(modifier, height = 180.dp) {
                 Text("Stops", modifier = Modifier.padding(Theme.spacing.md))
                 SideSheet(visible = true, width = 180.dp, paneTitle = "Filters") {

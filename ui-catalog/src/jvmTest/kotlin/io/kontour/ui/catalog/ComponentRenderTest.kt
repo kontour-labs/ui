@@ -109,6 +109,7 @@ class ComponentRenderTest {
                 width = CanvasWidth,
                 height = spec.renderHeight?.times(2) ?: CanvasHeight,
                 trim = InkMargin,
+                allowOverflow = spec.sizesToCanvas,
             ) {
                 Frame(dark = dark, contrast = contrast) { spec.content(Modifier, true) {} }
             }
@@ -133,6 +134,7 @@ class ComponentRenderTest {
                     width = CanvasWidth,
                     height = state.height?.times(2) ?: spec.renderHeight?.times(2) ?: CanvasHeight,
                     trim = InkMargin,
+                    allowOverflow = spec.sizesToCanvas,
                 ) {
                     Frame(dark = dark, contrast = contrast) { state.content(Modifier) }
                 }

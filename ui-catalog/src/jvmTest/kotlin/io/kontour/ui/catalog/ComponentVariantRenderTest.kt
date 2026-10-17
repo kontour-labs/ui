@@ -80,6 +80,7 @@ class ComponentVariantRenderTest {
                 // it does not use is cropped off again.
                 height = (spec.renderHeight ?: CanvasHeightDp) * 2 * heightScale,
                 trim = InkMargin,
+                allowOverflow = spec.sizesToCanvas,
             ) {
                 variant {
                     KontourTheme(darkTheme = false, reduceMotion = true) {
