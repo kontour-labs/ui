@@ -75,6 +75,14 @@ class DropListState<T : Any> internal constructor(
     internal var shape: Shape? = null
     internal var layoutDirection: LayoutDirection = LayoutDirection.Ltr
 
+    /**
+     * How far, in pixels, a pointer may stray from this list before one of its
+     * items carried along it comes away; `null`, the default, for an item that
+     * follows the pointer anywhere from the start. A document tab rides its
+     * strip until it is pulled clear, as a browser's does: see `DocumentTabs`.
+     */
+    internal var tearOff: Float? = null
+
     /** The host, for which of this list's own items is carried. */
     internal var host: DragHost? = null
 
@@ -484,13 +492,50 @@ fun <T : Any> LazyListScope.dragItems(
     state: DropListState<T>,
     contentType: (T) -> Any? = { null },
     itemContent: @Composable DragItemScope.(index: Int, item: T) -> Unit,
+) = dragItems(state, DragItemOptions.Plain, contentType, itemContent)
+
+/**
+ * How a component built on a drop list wants its items: what [dragItems] does
+ * for a plain list, unless a component says otherwise.
+ *
+ * @property movesOnItem Whether the item's own node offers a screen reader the
+ *   moves. Off for an item that offers them on a node of its own, beside its
+ *   other actions: a document tab's, with its "Close".
+ * @property shape The carried thing's shadow, in place of the list's.
+ * @property slides Whether the items slide to new places. A list whose items
+ *   change size as they come and go slides only while something is carried:
+ *   otherwise each item after one growing chases a placement spring frame by
+ *   frame.
+ * @property before Emits whatever comes before the item with this key, and at
+ *   the end, `null`: what is leaving the list, still drawn where it was.
+ */
+internal class DragItemOptions(
+    val movesOnItem: Boolean = true,
+    val shape: Shape? = null,
+    val slides: Boolean = true,
+    val before: (LazyListScope.(key: Any?) -> Unit)? = null,
+) {
+    companion object {
+        val Plain = DragItemOptions()
+    }
+}
+
+/** [dragItems] on [options]' terms. */
+internal fun <T : Any> LazyListScope.dragItems(
+    state: DropListState<T>,
+    options: DragItemOptions,
+    contentType: (T) -> Any? = { null },
+    itemContent: @Composable DragItemScope.(index: Int, item: T) -> Unit,
 ) {
     val items = state.items
     val gap = state.gapIndex
     val carried = state.heldKey
+    val before = options.before
     fun emit(index: Int, item: T, folded: Boolean) {
-        item(key = state.key(item), contentType = contentType(item)) {
-            DragItem(state, index, item, folded, itemContent)
+        val key = state.key(item)
+        before?.invoke(this, key)
+        item(key = key, contentType = contentType(item)) {
+            DragItem(state, index, item, folded, options, itemContent)
         }
     }
     val carriedAt = if (carried == null) -1 else items.indexOfFirst { state.key(it) == carried }
@@ -506,6 +551,7 @@ fun <T : Any> LazyListScope.dragItems(
             emit(index, item, folded = false)
         }
         if (gap != null && !gapped) gapItem(state)
+        before?.invoke(this, null)
         return
     }
     // One of its own carried: the others in order, with the carried item at the
@@ -522,6 +568,7 @@ fun <T : Any> LazyListScope.dragItems(
         place++
     }
     if (!placed) emit(carriedAt, items[carriedAt], folded = gap == null)
+    before?.invoke(this, null)
 }
 
 /** What an item of [dragItems] can do besides draw itself. */
@@ -537,6 +584,12 @@ interface DragItemScope {
     @Composable
     fun Modifier.dragHandle(): Modifier
 }
+
+/**
+ * What this item is, as a drop list's moves need it: for a component that
+ * offers the moves on a node of its own, with [DragItemOptions.movesOnItem] off.
+ */
+internal fun DragItemScope.sourceSpec(): SourceSpec = (this as DragItemScopeImpl<*>).spec()
 
 private class DragItemScopeImpl<T : Any>(
     private val state: DropListState<T>,
@@ -579,6 +632,7 @@ private fun <T : Any> LazyItemScope.DragItem(
     index: Int,
     item: T,
     folded: Boolean,
+    options: DragItemOptions,
     content: @Composable DragItemScope.(index: Int, item: T) -> Unit,
 ) {
     val handle = remember { SourceHandle() }
@@ -603,7 +657,8 @@ private fun <T : Any> LazyItemScope.DragItem(
     // is simply there.
     val held = state.heldKey == state.key(item)
     val fade: SpringSpec<Float>? = if (held) null else spring(stiffness = Spring.StiffnessMediumLow)
-    val slide: SpringSpec<IntOffset>? = if (held || Theme.motion.reduceMotion) {
+    val slides = options.slides || host?.session != null
+    val slide: SpringSpec<IntOffset>? = if (held || !slides || Theme.motion.reduceMotion) {
         null
     } else {
         spring(stiffness = Spring.StiffnessMediumLow, visibilityThreshold = IntOffset.VisibilityThreshold)
@@ -614,15 +669,16 @@ private fun <T : Any> LazyItemScope.DragItem(
             .foldedAway(folded, vertical)
             .focusRequester(focus)
             .focusGroup()
-            .carriedElement(handle, list = true, shape = state.shape ?: DragAndDropDefaults.previewShape)
+            .carriedElement(handle, list = true, shape = options.shape ?: state.shape ?: DragAndDropDefaults.previewShape)
             .pickUpGesture(
                 handle = handle,
                 spec = scope::spec,
                 enabled = state.canDrag(item),
                 start = DragStart.Auto,
                 interactionSource = null,
-                // A handle offers them inside the row a reader lands on.
-                offersMoves = scope.handles == 0,
+                // A handle offers them inside the row a reader lands on, and an
+                // item that offers them itself does so beside its own actions.
+                offersMoves = options.movesOnItem && scope.handles == 0,
             ),
     ) {
         scope.content(index, item)

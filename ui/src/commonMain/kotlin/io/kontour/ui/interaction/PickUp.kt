@@ -12,6 +12,9 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerId
 import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.PointerInputScope
+import androidx.compose.ui.input.pointer.PointerType
+import androidx.compose.ui.input.pointer.isSecondaryPressed
+import androidx.compose.ui.input.pointer.isTertiaryPressed
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -106,6 +109,11 @@ internal suspend fun PointerInputScope.detectPickUp(
     val budget = PickUpHoldSlop.toPx()
     awaitEachGesture {
         val down = awaitFirstDown(requireUnconsumed = false)
+        // A mouse's own button only. A right press is a context menu's and a
+        // middle one closes a document tab, and either dragged a row away with
+        // it. A touch reports no buttons at all, so it is asked of a mouse.
+        val buttons = currentEvent.buttons
+        if (down.type == PointerType.Mouse && (buttons.isSecondaryPressed || buttons.isTertiaryPressed)) return@awaitEachGesture
         if (!accepts(down.position)) return@awaitEachGesture
         if (immediate()) {
             // Slop rather than a hold. Without it a plain click on a row would

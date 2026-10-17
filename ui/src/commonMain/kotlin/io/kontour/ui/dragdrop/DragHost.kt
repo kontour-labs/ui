@@ -26,11 +26,13 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameMillis
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Shape
@@ -106,6 +108,9 @@ internal class DragHost {
     /** Told where a carried thing ended: true for landed, false for refused. */
     var onLanding: (landed: Boolean) -> Unit = {}
 
+    /** Told as a carried thing comes off the list it rode along, and as it boards one again. */
+    var onTear: (off: Boolean) -> Unit = {}
+
     /** What a screen reader was last told, from the live region the host keeps. */
     var said: String by mutableStateOf("")
         private set
@@ -156,8 +161,58 @@ internal class DragHost {
             region.armed = false
             region.enteredAt = null
         }
+        // Picked up from a list it rides along, on the line it was picked up on.
+        next.fromList?.takeIf { it.tearOff != null }?.let { list -> board(next, list, next.pointer.acrossOf(list)) }
         retarget()
     }
+
+    /**
+     * Puts [current] on [list]'s line, [across] from its top (or its start, for
+     * a column) — where the pointer held it as it was picked up, or, boarding
+     * again, where it is held on the thing, so the thing lies along the list.
+     */
+    private fun board(current: DragSession, list: DropListState<*>, across: Float) {
+        val bounds = list.target.boundsInRoot() ?: return
+        val depth = if (list.orientation == Orientation.Horizontal) bounds.height else bounds.width
+        current.riding = list
+        current.line = across.coerceIn(0f, (depth - 1f).coerceAtLeast(0f))
+    }
+
+    /** How far across [list] this point is, from its top or its start. */
+    private fun Offset.acrossOf(list: DropListState<*>): Float {
+        val bounds = list.target.boundsInRoot() ?: return 0f
+        return if (list.orientation == Orientation.Horizontal) y - bounds.top else x - bounds.left
+    }
+
+    /**
+     * Where [current] is held for a pointer at [at]: on the line of the list it
+     * rides, along it as far as the list goes, until the pointer strays further
+     * from the list than its tear-off — and from then on, under the pointer.
+     */
+    private fun ride(current: DragSession, at: Offset): Offset {
+        val list = current.riding ?: return at
+        val reach = list.tearOff ?: return at
+        val bounds = list.target.boundsInRoot() ?: return at
+        if (!bounds.inflate(reach).contains(at)) {
+            current.riding = null
+            onTear(true)
+            return at
+        }
+        // Inside the list's own bounds, which are what is hit: right and bottom
+        // are its first pixels outside.
+        return if (list.orientation == Orientation.Horizontal) {
+            Offset(at.x.coerceIn(bounds.left, bounds.right - 1f), bounds.top + current.line)
+        } else {
+            Offset(bounds.left + current.line, at.y.coerceIn(bounds.top, bounds.bottom - 1f))
+        }
+    }
+
+    /** The list a free thing at [at] boards: one that rides its things, would take this one, and is under it. */
+    private fun boardable(current: DragSession, at: Offset): DropListState<*>? = targets
+        .filter { it.enabled && it.type === current.type && it.layer >= blockedBelow && it.list?.tearOff != null }
+        .filter { it.accepts(current.payload) && it.boundsInRoot()?.contains(at) == true }
+        .maxByOrNull { it.layer }
+        ?.list
 
     /** Whether something under the pointer would scroll if given frames to do it. */
     fun wantsToScroll(edge: Float): Boolean {
@@ -193,9 +248,18 @@ internal class DragHost {
     fun carry(pointerInRoot: Offset) {
         val current = session ?: return
         if (current.phase != DragPhase.Carrying) return
-        current.pointer = pointerInRoot
+        if (current.riding == null && !current.keyboard) {
+            boardable(current, pointerInRoot)?.let { list ->
+                board(current, list, current.grab.acrossOf(list.orientation))
+                onTear(false)
+            }
+        }
+        current.pointer = ride(current, pointerInRoot)
         retarget()
     }
+
+    /** How far into the thing, across a list running [orientation], it is held. */
+    private fun Offset.acrossOf(orientation: Orientation): Float = if (orientation == Orientation.Horizontal) y else x
 
     /**
      * Works out, again, what the carried thing is over: after it moved, and after
@@ -348,6 +412,16 @@ internal class DragSession(
 ) {
     var pointer: Offset by mutableStateOf(pointer)
     var target: DropTarget? by mutableStateOf(null)
+
+    /**
+     * The list the thing rides along, held on its line until the pointer pulls
+     * it clear by the list's [DropListState.tearOff]; `null` while it follows
+     * the pointer anywhere. A document tab rides its strip.
+     */
+    var riding: DropListState<*>? by mutableStateOf(null)
+
+    /** How far across [riding] the thing is held: from its top, or its start for a column. */
+    var line: Float = 0f
     var phase: DragPhase by mutableStateOf(DragPhase.Carrying)
 
     /** Where in the target list it would land, counted without the source. */
@@ -779,16 +853,29 @@ internal fun DragLayer(host: DragHost) {
     DragAnnouncer(host)
     val snaps = rememberDetentTicker(FeedbackIntent.Snap)
     val landing = rememberLandingFeedback()
-    DisposableEffect(host, snaps, landing) {
+    // Coming off the list it rode along is a threshold passed, and boarding one
+    // again the softer way back: the thing is free, then it is held again.
+    val tear = rememberDetentTicker(FeedbackIntent.DragThreshold, back = FeedbackIntent.DragThresholdBack)
+    DisposableEffect(host, snaps, landing, tear) {
         // A place for each snap, counted up: the ticker wants a detent that
         // changed, and a drag's places have no order of their own.
         var crossings = 0
         host.onSnap = { snaps.at(crossings++) }
         host.onLanding = { landed -> if (landed) landing.landed() else landing.refused() }
-        host.onEnded = { snaps.reset() }
+        host.onTear = { off ->
+            // Armed on the line as the first tear comes, which the ticker needs
+            // a first call for.
+            tear.at(if (off) 0f else 1f)
+            tear.at(if (off) 1f else 0f)
+        }
+        host.onEnded = {
+            snaps.reset()
+            tear.reset()
+        }
         onDispose {
             host.onSnap = {}
             host.onLanding = {}
+            host.onTear = {}
             host.onEnded = {}
         }
     }
@@ -840,8 +927,26 @@ internal fun DragLayer(host: DragHost) {
     // by a keyboard, over the place it would land, moving to each in turn.
     LaunchedEffect(session) {
         if (!session.keyboard) {
-            snapshotFlow { session.phase to session.topLeft }.collect { (phase, at) ->
-                if (phase == DragPhase.Carrying) position.snapTo(at)
+            // Except as it comes off the line of a list it rode, or boards
+            // one: a jump of up to the tear-off at once, under the pointer or
+            // onto the line, which it closes on the flight's spring and then
+            // goes back to following exactly.
+            var rode = session.riding
+            var catching = false
+            val snappy = motion.springSnappy
+            val catchUp = spring(snappy.dampingRatio, snappy.stiffness, visibilityThreshold = Offset.VisibilityThreshold)
+            snapshotFlow { Triple(session.phase, session.topLeft, session.riding) }.collectLatest { (phase, at, riding) ->
+                if (phase != DragPhase.Carrying) return@collectLatest
+                if (riding !== rode) {
+                    rode = riding
+                    catching = !motion.reduceMotion
+                }
+                if (catching) {
+                    position.animateTo(at, catchUp)
+                    catching = false
+                } else {
+                    position.snapTo(at)
+                }
             }
         } else {
             snapshotFlow { Triple(session.phase, session.target, session.index) }.collect { (phase, target, _) ->

@@ -90,6 +90,7 @@ import io.kontour.ui.components.datetime.MonthFlick
 import io.kontour.ui.components.datetime.PeriodPager
 import io.kontour.ui.components.datetime.SwipeCommitShare
 import io.kontour.ui.components.selection.SegmentedControl
+import io.kontour.ui.foundation.FadingText
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.interaction.DragClaim
 import io.kontour.ui.interaction.FeedbackIntent
