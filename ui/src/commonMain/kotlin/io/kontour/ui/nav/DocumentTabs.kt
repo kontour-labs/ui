@@ -44,8 +44,11 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.addOutline
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
@@ -73,6 +76,7 @@ import androidx.compose.ui.semantics.collectionInfo
 import androidx.compose.ui.semantics.collectionItemInfo
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -331,7 +335,9 @@ fun <T : Any> DocumentTabs(
 
             val options = DragItemOptions(
                 movesOnItem = false,
-                shape = body,
+                // The carried tab's shadow is its ground's, below the gap at the
+                // strip's top: the whole node's let the shadow show through the gap.
+                shape = BelowGap(body, Theme.spacing.xs),
                 slides = false,
                 before = { next ->
                     ghosts.filter { it.after == next || (next == null && it.after !in keySet) }.forEach { ghost ->
@@ -439,6 +445,9 @@ fun <T : Any> DocumentTabs(
                         state = state.listState,
                         modifier = Modifier.align(Alignment.TopStart).fillMaxWidth(),
                         orientation = Orientation.Horizontal,
+                        // Disabled, the strip still scrolls, but says so in the
+                        // disabled grey, as everything else on it does.
+                        colour = if (enabled) Theme.colours.outlineStrong else Theme.colours.contentDisabled,
                         alwaysVisible = true,
                     )
                 }
@@ -528,6 +537,17 @@ private fun DragItemScope.DocumentTab(
             .drawBehind {
                 val top = inset.toPx()
                 val line = hairline.toPx()
+                // Carried, the tab is lifted off its strip: a tab on its own,
+                // grounded whether or not it was the selected one, and with
+                // neither the feet that join it to the page nor the hairline
+                // that parts it from the tab before. The host edges it at the
+                // high contrast tier, as it edges anything carried.
+                val lifted = isDragging
+                if (lifted && size.height > top) {
+                    val ground = body.createOutline(Size(size.width, size.height - top), layoutDirection, this)
+                    translate(top = top) { drawOutline(ground, colours.selectedContainer) }
+                    return@drawBehind
+                }
                 if (separates) {
                     val x = if (layoutDirection == LayoutDirection.Ltr) 0f else size.width
                     val reach = (size.height - top) * SeparatorShare
@@ -655,6 +675,21 @@ private fun Modifier.tabWidth(width: State<Dp>, grow: Animatable<Float, Animatio
         val placeable = measurable.measure(constraints.copy(minWidth = whole, maxWidth = whole))
         layout(shown, placeable.height) { placeable.placeRelative(0, 0) }
     }
+
+/** [body] below the gap at the top of a strip: where a tab's ground is, and so where a carried tab's shadow is. */
+private class BelowGap(private val body: Shape, private val gap: Dp) : Shape {
+    override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline {
+        val top = with(density) { gap.toPx() }.coerceIn(0f, size.height.coerceAtLeast(0f))
+        val path = Path()
+        path.addOutline(body.createOutline(Size(size.width, size.height - top), layoutDirection, density))
+        path.translate(Offset(0f, top))
+        return Outline.Generic(path)
+    }
+
+    override fun equals(other: Any?): Boolean = other is BelowGap && other.body == body && other.gap == gap
+
+    override fun hashCode(): Int = 31 * body.hashCode() + gap.hashCode()
+}
 
 /** A strip's own memory: what it showed, what is leaving, and where its keyboard and pointer are. */
 @Stable
