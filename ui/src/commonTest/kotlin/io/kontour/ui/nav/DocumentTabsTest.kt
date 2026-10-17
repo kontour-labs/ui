@@ -105,7 +105,8 @@ class DocumentTabsTest {
         strip(below = true)
         val strip = onNodeWithTag("strip").fetchSemanticsNode().boundsInRoot
         val page = onNodeWithTag("page").fetchSemanticsNode().boundsInRoot
-        val tall = with(density) { (DocumentTabsDefaults.Height * 2).toPx() }
+        // Well over a tab bar's height, and a quarter of the column's room.
+        val tall = with(density) { 100.dp.toPx() }
         assertTrue(strip.height < tall, "the strip took ${strip.height}px of the column's room")
         assertEquals(strip.bottom, page.top, 0.5f, "the page should start where the strip ends")
     }
