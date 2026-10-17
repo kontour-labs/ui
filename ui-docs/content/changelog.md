@@ -107,6 +107,9 @@ On `main`, and in the next release.
   with its button disabled about one time in three. The host draws an
   overlay's content once more, a frame after it appears, from what it has been
   given since.
+- **A colour picker's swatch is named by its hex code as a unit.** In a
+  right-to-left language the `#` took the line's direction and the code read
+  "E53935#"; it is isolated now, as a badge's count is.
 - **What the library says is joined the reader's way.** A key-value row was
   read "label, value" with a comma written into the component, and a stat's
   supporting line and trend, and an activity day's meaning, were joined with an

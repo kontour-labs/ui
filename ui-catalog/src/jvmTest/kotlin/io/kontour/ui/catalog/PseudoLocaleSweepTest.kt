@@ -29,6 +29,7 @@ import io.kontour.ui.theme.Strings
 import io.kontour.ui.theme.Theme
 import java.io.File
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
@@ -149,10 +150,11 @@ class PseudoLocaleSweepTest {
     fun nothingIsJoinedOrNumberedOutsideTheStrings() {
         val registrySource = File("src/commonMain/kotlin/io/kontour/ui/contract/ComponentRegistry.kt").readText()
         val callerWords = callerPieces(registrySource)
+        val templates = callerTemplates(registrySource)
         val leaks = mutableListOf<String>()
         for (spec in componentRegistry) {
             said(PseudoLocale.Bidi) { spec.content(Modifier, true) {} }.forEach { text ->
-                strayIn(text, callerWords)?.let { leaks += "${spec.name}: $it in \"${text.filter { c -> c != Rlo && c != Pdf }}\"" }
+                strayIn(text, callerWords, templates)?.let { leaks += "${spec.name}: $it in \"${text.filter { c -> c != Rlo && c != Pdf }}\"" }
             }
         }
         assertTrue(
@@ -172,14 +174,22 @@ class PseudoLocaleSweepTest {
         assertTrue(listed.none { strayIn(it, emptySet()) != null }, "the sweep flags the locale's own list: $listed")
         val counted = said(PseudoLocale.Bidi) { Text(3.toString()) }
         assertTrue(counted.any { strayIn(it, emptySet()) != null }, "the sweep cannot see a number written by toString")
+        // A specimen's own templated words go whole, value and all; a template
+        // of nothing but values hides nothing between them.
+        val templates = callerTemplates("""Text("Photo ${'$'}{page + 1}") ; Text("${'$'}a, ${'$'}b")""")
+        assertEquals(null, strayIn("Photo 2", emptySet(), templates), "a specimen's templated words were taken for the component's")
+        assertTrue(strayIn("4, 5", emptySet(), templates) != null, "a template of values alone hid a comma written between them")
     }
 
     /**
-     * What of [text] a component wrote: the text with every right-to-left run
-     * and every piece of the specimen's own words taken out, if what is left
-     * has a joiner, a slash or a Western digit in it.
+     * What of [text] a component wrote: the text with every right-to-left run,
+     * every piece of the specimen's own words and every colour's hex code
+     * taken out, if what is left has a joiner, a slash or a Western digit in it.
+     *
+     * A hex code is an identifier, written in Latin letters and digits in every
+     * locale as a style sheet writes it, so it is no number a locale formats.
      */
-    private fun strayIn(text: String, callerWords: Set<String>): String? {
+    private fun strayIn(text: String, callerWords: Set<String>, callerTemplates: List<Regex> = emptyList()): String? {
         var left = buildString {
             var depth = 0
             for (char in text) {
@@ -190,6 +200,8 @@ class PseudoLocaleSweepTest {
                 }
             }
         }
+        left = HexCode.replace(left, " ")
+        callerTemplates.forEach { left = it.replace(left, " ") }
         callerWords.sortedByDescending { it.length }.forEach { left = left.replace(it, " ") }
         return Stray.find(left)?.value?.let { "\"$it\"" }
     }
@@ -207,6 +219,23 @@ class PseudoLocaleSweepTest {
             .map { it.trim() }
             .filter { piece -> piece.any { it.isLetterOrDigit() } }
             .toSet()
+
+    /**
+     * The specimen's templated words, each as a pattern with its values left
+     * open, so `"Photo ${page + 1}"` takes "Photo 2" out whole: the number is
+     * the specimen's, not the component's. Only templates with a word of their
+     * own, so `"$a, $b"` hides no comma a component wrote between two values.
+     */
+    private fun callerTemplates(source: String): List<Regex> =
+        Regex("""("(?:[^"\\]|\\.)*")""").findAll(source)
+            .map { it.value.removeSurrounding("\"") }
+            .filter { Template.containsMatchIn(it) }
+            .mapNotNull { literal ->
+                val parts = literal.split(Template)
+                if (parts.none { part -> part.any { it.isLetter() } }) return@mapNotNull null
+                Regex(parts.joinToString("""[^\s,.;:/]+""") { Regex.escape(it) })
+            }
+            .toList()
 
     /** Everything [content] says to a screen reader, under the accented pseudo-locale. */
     private fun said(content: @Composable () -> Unit): Set<String> = said(PseudoLocale.Accented, content)
@@ -246,5 +275,11 @@ class PseudoLocaleSweepTest {
 
         /** What a component may not write itself: a joiner, a slash between numbers, or a Western digit. */
         val Stray = Regex(""", |\. | / |[0-9]""")
+
+        /** A colour's hex code, `#E53935` or with alpha. */
+        val HexCode = Regex("""#[0-9A-Fa-f]{6}(?:[0-9A-Fa-f]{2})?\b""")
+
+        /** A string template's value, `$name` or `${expression}`. */
+        val Template = Regex("""\$\{[^}]*}|\$[A-Za-z_][A-Za-z0-9_]*""")
     }
 }
