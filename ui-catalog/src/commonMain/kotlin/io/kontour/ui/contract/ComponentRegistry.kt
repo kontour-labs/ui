@@ -224,6 +224,9 @@ import io.kontour.ui.overlay.ToastHost
 import io.kontour.ui.overlay.rememberToastHostState
 import io.kontour.ui.sheet.DragHandle
 import io.kontour.ui.theme.Theme
+import io.kontour.ui.dragdrop.rememberDropListState
+import io.kontour.ui.dragdrop.DragType
+import io.kontour.ui.nav.DocumentTabs
 import kotlin.math.abs
 import kotlin.time.Duration.Companion.minutes
 import kotlinx.coroutines.flow.filterNotNull
@@ -2153,6 +2156,57 @@ val componentRegistry: List<ComponentSpec> = buildList {
         }
     )
 
+    add(
+        // A strip of open documents. The control is the selected tab, as a
+        // bar's is its selected destination; three tabs, since every tab
+        // offers its moves and a "Close", and the action sweep follows each.
+        ComponentSpec(
+            name = "DocumentTabs",
+            role = Role.Tab,
+            control = ControlLocator.SelectedOption,
+            // It fills the width it is given, as a bar does; given none, its
+            // tabs are as wide as they go.
+            sizesToCanvas = true,
+            states = listOf(
+                // More than fit: shrunk to the narrowest, the strip scrolled to
+                // the selected tab at its end and faded at the other.
+                RenderState("overflowing") { modifier ->
+                    val many = (1..12).map { "Document $it" }
+                    val state = rememberDropListState(
+                        listState = rememberLazyListState(),
+                        type = SpecimenDocument,
+                        items = many,
+                        key = { it },
+                        label = "Open documents",
+                        itemLabel = { it },
+                        onDrop = {},
+                    )
+                    DocumentTabs(state, value = many.last(), onValueChange = {}, modifier = modifier.fillMaxWidth(), onClose = {}, onAdd = {})
+                },
+            ),
+        ) { modifier, enabled, onClick ->
+            val documents = listOf("Timetable", "Fares", "Route map")
+            val state = rememberDropListState(
+                listState = rememberLazyListState(),
+                type = SpecimenDocument,
+                items = documents,
+                key = { it },
+                label = "Open documents",
+                itemLabel = { it },
+                onDrop = {},
+            )
+            DocumentTabs(
+                state = state,
+                value = documents.first(),
+                onValueChange = { onClick() },
+                modifier = modifier.fillMaxWidth(),
+                enabled = enabled,
+                onClose = {},
+                onAdd = {},
+            )
+        }
+    )
+
     // --- Collections -----------------------------------------------------
     add(
         ComponentSpec("ListItem", Role.Button) { modifier, enabled, onClick ->
@@ -3455,3 +3509,6 @@ private fun rememberHeldDown(): MutableInteractionSource {
     LaunchedEffect(source) { source.emit(PressInteraction.Press(Offset.Zero)) }
     return source
 }
+
+/** What the document tabs specimen's strips carry. */
+private val SpecimenDocument = DragType<String>("specimenDocument")

@@ -1,5 +1,6 @@
 package io.kontour.ui.dragdrop
 
+import androidx.compose.foundation.gestures.Orientation
 import io.kontour.ui.locale.Quantity
 import io.kontour.ui.locale.PluralCategory
 import androidx.compose.foundation.layout.Box
@@ -194,9 +195,25 @@ internal fun DragHost?.movesFor(
     val list = spec.fromList
     val index = spec.fromIndex
     if (list != null && index != null) {
-        if (index > 0) add(CustomAccessibilityAction(strings.moveUp) { this@movesFor.dropAt(spec, list.target, index - 1) })
+        // A row says which way across, as its reader reads it: back is left,
+        // and right to left it is right. It said up and down, a column's
+        // words, for a row of tabs. The orientation is read here, in the
+        // semantics block, where a row that has just said it is one is seen.
+        val across = list.orientation == Orientation.Horizontal
+        val rtl = layoutDirection == LayoutDirection.Rtl
+        val back = when {
+            !across -> strings.moveUp
+            rtl -> strings.moveRight
+            else -> strings.moveLeft
+        }
+        val forward = when {
+            !across -> strings.moveDown
+            rtl -> strings.moveLeft
+            else -> strings.moveRight
+        }
+        if (index > 0) add(CustomAccessibilityAction(back) { this@movesFor.dropAt(spec, list.target, index - 1) })
         if (index < list.items.size - 1) {
-            add(CustomAccessibilityAction(strings.moveDown) { this@movesFor.dropAt(spec, list.target, index + 1) })
+            add(CustomAccessibilityAction(forward) { this@movesFor.dropAt(spec, list.target, index + 1) })
         }
     }
     val host = this@movesFor ?: return@buildList

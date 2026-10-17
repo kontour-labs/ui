@@ -55,6 +55,7 @@ PHRASES: dict[str, str | dict[str, str]] = {
     "fileBytes": {"one": "%1$s byte", "other": "%1$s bytes"},
     "fileSize": "%1$s %2$s",
     "removeFile": "Remove %1$s",
+    "closeTab": "Close %1$s",
     "timeRange": "%1$s – %2$s",
     "eventCount": {"one": "%1$s event", "other": "%1$s events"},
     "moreEvents": {"one": "%1$s more event", "other": "%1$s more events"},

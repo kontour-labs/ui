@@ -818,7 +818,7 @@ HAPTIC_FILE_NAMES = {
     "Select": "MultiSelect",
     "TableRows": "Table",
     "Pressable": "Modifier.pressable",
-    "DragHost": "Modifier.dragSource",
+    "DragHost": ("Modifier.dragSource", "DocumentTabs"),
     "MarkerDrag": ("NavBar", "NavRail", "TabBar"),
 }
 

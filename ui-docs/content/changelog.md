@@ -66,6 +66,14 @@ On `main`, and in the next release.
   `cell` for a heat map, shaded along `ChartColours.ramp`, with a scale and,
   with patterns on, its numbers written in its cells. Each is said, tabled and
   animated as the others are.
+- **[`DocumentTabs`](components/document-tabs.md)**: open documents as a
+  browser's or an editor's tabs. The selected one is raised and joined to its
+  page by feet that curve into it; the others sit flat, each with a ×, and a
+  "+" opens another. Tabs grow in as they open and shrink away as they close,
+  share the width down to a minimum and then scroll, and drag: along the strip
+  with a detent at each place, or pulled off it into another strip, as a split
+  view's panes exchange them. Middle click, Delete, the arrow keys and a screen
+  reader's actions all work.
 - **`KeyValueList(compact = true)`**, for a small container of its own: the
   rows take the style around them and the list is as wide as its rows. A
   chart's tooltip is one now, rather than rows laid out by hand.
@@ -102,7 +110,8 @@ On `main`, and in the next release.
   rather than to `null`, so each has its control without being given a glyph.
   A side sheet's back is the chevron a top bar's is.
 - **`Strings` has new fields**, `labelledValue`, `selectAllRows`,
-  `sortAscending`, `sortDescending`, `notSorted` and `showDay`, at the end,
+  `sortAscending`, `sortDescending`, `notSorted`, `showDay`, `moveLeft`,
+  `moveRight`, `newTab` and `closeTab`, at the end,
   so an app that builds its own with named arguments needs nothing; one that
   passes them by position, or overrides `Strings.from`'s keys, recompiles. See
   [Migrating](migrating.md#045-to-050).
@@ -198,6 +207,12 @@ On `main`, and in the next release.
 
 ### Changed
 
+- **A drop list laid out as a row says "Move left" and "Move right"** to a
+  screen reader, the other way round right to left, rather than a column's
+  "Move up" and "Move down".
+- **A mouse picks things up with its own button only.** A right press is a
+  context menu's and a middle one closes a tab; either dragged a row or a card
+  away with it.
 - **A lone coach mark is a tour's bubble.** `Modifier.coachmark` and a tour's
   steps drew their bubbles apart, and only the tour's way on was filled in the
   bubble's ink, where a ghost button on the accent read as words. "Got it" is

@@ -463,6 +463,18 @@ data class Strings(
      * says it: "Double-tap to show day". The day is the button's name.
      */
     val showDay: String = "Show day",
+    /**
+     * Moves a thing one place back along a row a screen reader reads across:
+     * a document tab, a card in a row of them. [moveUp] and [moveDown] are a
+     * column's. Back is left, and right to left it is right.
+     */
+    val moveLeft: String = "Move left",
+    /** The same, one place forward: right, and right to left, left. */
+    val moveRight: String = "Move right",
+    /** A tab strip's "+": what a screen reader calls the button that opens another tab. */
+    val newTab: String = "New tab",
+    /** A document tab's ×, named for the tab it closes: "Close Timetable". */
+    val closeTab: (name: String) -> String = { name -> "Close $name" },
 ) {
     companion object {
         /**
@@ -659,6 +671,10 @@ data class Strings(
         sortDescending = lookup.text("sortDescending") ?: fallback.sortDescending,
         notSorted = lookup.text("notSorted") ?: fallback.notSorted,
         showDay = lookup.text("showDay") ?: fallback.showDay,
+        moveLeft = lookup.text("moveLeft") ?: fallback.moveLeft,
+        moveRight = lookup.text("moveRight") ?: fallback.moveRight,
+        newTab = lookup.text("newTab") ?: fallback.newTab,
+        closeTab = { name -> lookup.phrase("closeTab", null, name) ?: fallback.closeTab(name) },
         )
     }
 }
@@ -906,4 +922,8 @@ internal fun Strings.mapped(transform: (String) -> String): Strings = Strings(
     sortDescending = transform(sortDescending),
     notSorted = transform(notSorted),
     showDay = transform(showDay),
+    moveLeft = transform(moveLeft),
+    moveRight = transform(moveRight),
+    newTab = transform(newTab),
+    closeTab = { a0 -> transform(closeTab(a0)) },
 )
