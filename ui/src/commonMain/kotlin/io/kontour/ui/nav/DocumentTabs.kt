@@ -457,7 +457,8 @@ fun <T : Any> DocumentTabs(
                     // it: flush with the strip's end, its edge at high contrast
                     // ran into the strip's. Level with the tabs' labels, which sit
                     // below the gap at the strip's top, not with the strip's middle.
-                    Box(Modifier.width(addRoom), contentAlignment = Alignment.Center) {
+                    // And no taller than the strip, as the tabs' × are not.
+                    Box(Modifier.width(addRoom).heightIn(max = height), contentAlignment = Alignment.Center) {
                         IconButton(
                             onClick = onAdd,
                             icon = addIcon,
@@ -668,7 +669,10 @@ private fun TabFace(
             }
         }
         FadingText(label, Theme.typography.labelLarge, Modifier.weight(1f), colour)
-        close?.invoke()
+        // No taller than the tab: a phone's touch target is 48dp, and the ×
+        // reserving it grew the tab that showed it 8dp taller than the rest,
+        // and the strip with it. It is pressed across the tab's height.
+        if (close != null) Box(Modifier.heightIn(max = height), contentAlignment = Alignment.Center) { close() }
     }
 }
 
