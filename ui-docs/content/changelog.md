@@ -136,6 +136,14 @@ On `main`, and in the next release.
   [`richText`](components/text.md)'s `code` and `highlight` and for any
   background a caller gives a span.
 
+### Changed
+
+- **An app on the web is about 18 KB smaller.** Six small regular expressions
+  in the theme's formats, plurals and keyboard handling brought a
+  regular-expression engine into every web app. Each is a loop now, with the
+  same answers. `KontourTheme` alone costs 18,533 gzip bytes less, measured by
+  the [`theme` probe](https://github.com/kontour-labs/ui/tree/main/probes).
+
 ---
 
 ## 0.4.5 — 16 October 2026

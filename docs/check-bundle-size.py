@@ -245,6 +245,11 @@ MAX_FILES = 14
 # `io.kontour.ui.theme` at 100,713, `kotlin.text.regex` at 74,655 and
 # `kotlinx.datetime.format` at 46,396. The last two are reached from the theme's
 # defaults rather than from anything drawn, and are where to look first.
+#
+# Measured again 2026-10-17 on CI (05644143), the ceilings unmoved: the theme's
+# six `Regex` calls became loops, and `theme` fell from 728,602 to 710,069,
+# 18,533 less, with `button`, `icon` and `icons` down with it. `kotlin.text.regex`
+# is still 55,268 before Binaryen, so something outside `:ui` reaches it too.
 PROBE_CEILINGS: dict[str, int] = {
     "empty": 588_000,
     "theme": 751_000,
