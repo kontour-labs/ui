@@ -260,19 +260,6 @@ public final class io/kontour/ui/charts/ChartStringsKt {
 	public static final fun pseudoLocalised (Lio/kontour/ui/charts/ChartStrings;Lio/kontour/ui/locale/PseudoLocale;)Lio/kontour/ui/charts/ChartStrings;
 }
 
-public final class io/kontour/ui/charts/FillPattern : java/lang/Enum {
-	public static final field CrossHatch Lio/kontour/ui/charts/FillPattern;
-	public static final field Diagonal Lio/kontour/ui/charts/FillPattern;
-	public static final field Dots Lio/kontour/ui/charts/FillPattern;
-	public static final field Horizontal Lio/kontour/ui/charts/FillPattern;
-	public static final field ReverseDiagonal Lio/kontour/ui/charts/FillPattern;
-	public static final field Solid Lio/kontour/ui/charts/FillPattern;
-	public static final field Vertical Lio/kontour/ui/charts/FillPattern;
-	public static fun getEntries ()Lkotlin/enums/EnumEntries;
-	public static fun valueOf (Ljava/lang/String;)Lio/kontour/ui/charts/FillPattern;
-	public static fun values ()[Lio/kontour/ui/charts/FillPattern;
-}
-
 public final class io/kontour/ui/charts/LinePattern : java/lang/Enum {
 	public static final field DashDot Lio/kontour/ui/charts/LinePattern;
 	public static final field Dashed Lio/kontour/ui/charts/LinePattern;
@@ -312,17 +299,17 @@ public final class io/kontour/ui/charts/SectorChartScope$DefaultImpls {
 
 public final class io/kontour/ui/charts/SeriesStyle {
 	public static final field $stable I
-	public synthetic fun <init> (JLio/kontour/ui/charts/LinePattern;Lio/kontour/ui/charts/PointSymbol;Lio/kontour/ui/charts/FillPattern;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public synthetic fun <init> (JLio/kontour/ui/charts/LinePattern;Lio/kontour/ui/charts/PointSymbol;Lio/kontour/ui/charts/FillPattern;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (JLio/kontour/ui/charts/LinePattern;Lio/kontour/ui/charts/PointSymbol;Lio/kontour/ui/foundation/FillPattern;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (JLio/kontour/ui/charts/LinePattern;Lio/kontour/ui/charts/PointSymbol;Lio/kontour/ui/foundation/FillPattern;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1-0d7_KjU ()J
 	public final fun component2 ()Lio/kontour/ui/charts/LinePattern;
 	public final fun component3 ()Lio/kontour/ui/charts/PointSymbol;
-	public final fun component4 ()Lio/kontour/ui/charts/FillPattern;
-	public final fun copy-Iv8Zu3U (JLio/kontour/ui/charts/LinePattern;Lio/kontour/ui/charts/PointSymbol;Lio/kontour/ui/charts/FillPattern;)Lio/kontour/ui/charts/SeriesStyle;
-	public static synthetic fun copy-Iv8Zu3U$default (Lio/kontour/ui/charts/SeriesStyle;JLio/kontour/ui/charts/LinePattern;Lio/kontour/ui/charts/PointSymbol;Lio/kontour/ui/charts/FillPattern;ILjava/lang/Object;)Lio/kontour/ui/charts/SeriesStyle;
+	public final fun component4 ()Lio/kontour/ui/foundation/FillPattern;
+	public final fun copy-Iv8Zu3U (JLio/kontour/ui/charts/LinePattern;Lio/kontour/ui/charts/PointSymbol;Lio/kontour/ui/foundation/FillPattern;)Lio/kontour/ui/charts/SeriesStyle;
+	public static synthetic fun copy-Iv8Zu3U$default (Lio/kontour/ui/charts/SeriesStyle;JLio/kontour/ui/charts/LinePattern;Lio/kontour/ui/charts/PointSymbol;Lio/kontour/ui/foundation/FillPattern;ILjava/lang/Object;)Lio/kontour/ui/charts/SeriesStyle;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getColour-0d7_KjU ()J
-	public final fun getFill ()Lio/kontour/ui/charts/FillPattern;
+	public final fun getFill ()Lio/kontour/ui/foundation/FillPattern;
 	public final fun getLine ()Lio/kontour/ui/charts/LinePattern;
 	public final fun getSymbol ()Lio/kontour/ui/charts/PointSymbol;
 	public fun hashCode ()I

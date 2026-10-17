@@ -58,22 +58,6 @@ final enum class io.kontour.ui.charts/ChartStacking : kotlin/Enum<io.kontour.ui.
     final fun values(): kotlin/Array<io.kontour.ui.charts/ChartStacking> // io.kontour.ui.charts/ChartStacking.values|values#static(){}[0]
 }
 
-final enum class io.kontour.ui.charts/FillPattern : kotlin/Enum<io.kontour.ui.charts/FillPattern> { // io.kontour.ui.charts/FillPattern|null[0]
-    enum entry CrossHatch // io.kontour.ui.charts/FillPattern.CrossHatch|null[0]
-    enum entry Diagonal // io.kontour.ui.charts/FillPattern.Diagonal|null[0]
-    enum entry Dots // io.kontour.ui.charts/FillPattern.Dots|null[0]
-    enum entry Horizontal // io.kontour.ui.charts/FillPattern.Horizontal|null[0]
-    enum entry ReverseDiagonal // io.kontour.ui.charts/FillPattern.ReverseDiagonal|null[0]
-    enum entry Solid // io.kontour.ui.charts/FillPattern.Solid|null[0]
-    enum entry Vertical // io.kontour.ui.charts/FillPattern.Vertical|null[0]
-
-    final val entries // io.kontour.ui.charts/FillPattern.entries|#static{}entries[0]
-        final fun <get-entries>(): kotlin.enums/EnumEntries<io.kontour.ui.charts/FillPattern> // io.kontour.ui.charts/FillPattern.entries.<get-entries>|<get-entries>#static(){}[0]
-
-    final fun valueOf(kotlin/String): io.kontour.ui.charts/FillPattern // io.kontour.ui.charts/FillPattern.valueOf|valueOf#static(kotlin.String){}[0]
-    final fun values(): kotlin/Array<io.kontour.ui.charts/FillPattern> // io.kontour.ui.charts/FillPattern.values|values#static(){}[0]
-}
-
 final enum class io.kontour.ui.charts/LinePattern : kotlin/Enum<io.kontour.ui.charts/LinePattern> { // io.kontour.ui.charts/LinePattern|null[0]
     enum entry DashDot // io.kontour.ui.charts/LinePattern.DashDot|null[0]
     enum entry Dashed // io.kontour.ui.charts/LinePattern.Dashed|null[0]
@@ -302,12 +286,12 @@ final class io.kontour.ui.charts/ChartStrings { // io.kontour.ui.charts/ChartStr
 }
 
 final class io.kontour.ui.charts/SeriesStyle { // io.kontour.ui.charts/SeriesStyle|null[0]
-    constructor <init>(androidx.compose.ui.graphics/Color = ..., io.kontour.ui.charts/LinePattern? = ..., io.kontour.ui.charts/PointSymbol? = ..., io.kontour.ui.charts/FillPattern? = ...) // io.kontour.ui.charts/SeriesStyle.<init>|<init>(androidx.compose.ui.graphics.Color;io.kontour.ui.charts.LinePattern?;io.kontour.ui.charts.PointSymbol?;io.kontour.ui.charts.FillPattern?){}[0]
+    constructor <init>(androidx.compose.ui.graphics/Color = ..., io.kontour.ui.charts/LinePattern? = ..., io.kontour.ui.charts/PointSymbol? = ..., io.kontour.ui.foundation/FillPattern? = ...) // io.kontour.ui.charts/SeriesStyle.<init>|<init>(androidx.compose.ui.graphics.Color;io.kontour.ui.charts.LinePattern?;io.kontour.ui.charts.PointSymbol?;io.kontour.ui.foundation.FillPattern?){}[0]
 
     final val colour // io.kontour.ui.charts/SeriesStyle.colour|{}colour[0]
         final fun <get-colour>(): androidx.compose.ui.graphics/Color // io.kontour.ui.charts/SeriesStyle.colour.<get-colour>|<get-colour>(){}[0]
     final val fill // io.kontour.ui.charts/SeriesStyle.fill|{}fill[0]
-        final fun <get-fill>(): io.kontour.ui.charts/FillPattern? // io.kontour.ui.charts/SeriesStyle.fill.<get-fill>|<get-fill>(){}[0]
+        final fun <get-fill>(): io.kontour.ui.foundation/FillPattern? // io.kontour.ui.charts/SeriesStyle.fill.<get-fill>|<get-fill>(){}[0]
     final val line // io.kontour.ui.charts/SeriesStyle.line|{}line[0]
         final fun <get-line>(): io.kontour.ui.charts/LinePattern? // io.kontour.ui.charts/SeriesStyle.line.<get-line>|<get-line>(){}[0]
     final val symbol // io.kontour.ui.charts/SeriesStyle.symbol|{}symbol[0]
@@ -316,8 +300,8 @@ final class io.kontour.ui.charts/SeriesStyle { // io.kontour.ui.charts/SeriesSty
     final fun component1(): androidx.compose.ui.graphics/Color // io.kontour.ui.charts/SeriesStyle.component1|component1(){}[0]
     final fun component2(): io.kontour.ui.charts/LinePattern? // io.kontour.ui.charts/SeriesStyle.component2|component2(){}[0]
     final fun component3(): io.kontour.ui.charts/PointSymbol? // io.kontour.ui.charts/SeriesStyle.component3|component3(){}[0]
-    final fun component4(): io.kontour.ui.charts/FillPattern? // io.kontour.ui.charts/SeriesStyle.component4|component4(){}[0]
-    final fun copy(androidx.compose.ui.graphics/Color = ..., io.kontour.ui.charts/LinePattern? = ..., io.kontour.ui.charts/PointSymbol? = ..., io.kontour.ui.charts/FillPattern? = ...): io.kontour.ui.charts/SeriesStyle // io.kontour.ui.charts/SeriesStyle.copy|copy(androidx.compose.ui.graphics.Color;io.kontour.ui.charts.LinePattern?;io.kontour.ui.charts.PointSymbol?;io.kontour.ui.charts.FillPattern?){}[0]
+    final fun component4(): io.kontour.ui.foundation/FillPattern? // io.kontour.ui.charts/SeriesStyle.component4|component4(){}[0]
+    final fun copy(androidx.compose.ui.graphics/Color = ..., io.kontour.ui.charts/LinePattern? = ..., io.kontour.ui.charts/PointSymbol? = ..., io.kontour.ui.foundation/FillPattern? = ...): io.kontour.ui.charts/SeriesStyle // io.kontour.ui.charts/SeriesStyle.copy|copy(androidx.compose.ui.graphics.Color;io.kontour.ui.charts.LinePattern?;io.kontour.ui.charts.PointSymbol?;io.kontour.ui.foundation.FillPattern?){}[0]
     final fun equals(kotlin/Any?): kotlin/Boolean // io.kontour.ui.charts/SeriesStyle.equals|equals(kotlin.Any?){}[0]
     final fun hashCode(): kotlin/Int // io.kontour.ui.charts/SeriesStyle.hashCode|hashCode(){}[0]
     final fun toString(): kotlin/String // io.kontour.ui.charts/SeriesStyle.toString|toString(){}[0]
