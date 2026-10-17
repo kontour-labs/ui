@@ -57,6 +57,8 @@ import io.kontour.ui.interaction.rememberDetentTicker
 import io.kontour.ui.overlay.Tooltip
 import io.kontour.ui.theme.Theme
 import kotlin.math.PI
+import kotlin.math.abs
+import kotlin.math.asin
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.max
@@ -195,6 +197,7 @@ fun SectorChart(
                 ),
             ),
             rules = emptyList(),
+            regions = emptyList(),
             series = series,
             xCategories = emptyList(),
             yCategories = emptyList(),
@@ -228,6 +231,9 @@ fun SectorChart(
         }
     }
     val pullOut = Theme.spacing.xxs
+    // Each sector's corners, where its edges meet its arcs: the theme's small
+    // shape's, as a bar's end is.
+    val corner = Theme.shapes.extraSmall.topStart
     val ticker = rememberDetentTicker()
     val currentSelection by rememberUpdatedState(selection)
     val choose: (Int) -> Unit = { index ->
@@ -312,7 +318,7 @@ fun SectorChart(
                         val middle = radians(angle + extent * direction / 2)
                         val out = pullOut.toPx() * pulls[index].value
                         val origin = Offset(circle.x + out * cos(middle), circle.y + out * sin(middle))
-                        val path = sectorPath(origin, radius, hole, angle, extent * direction)
+                        val path = sectorPath(origin, radius, hole, angle, extent * direction, corner.toPx(size, this))
                         drawPath(path, look.colour, alpha = fade.value)
                         tiles.brush(look.fill, colours.patternInk, PatternTileSize.roundToPx(), (sizing.borderWidth * 1.5f).toPx())
                             ?.let { drawPath(path, it, alpha = fade.value) }
@@ -484,20 +490,67 @@ private class SectorRecorder : SectorChartScope {
 }
 
 /** A sector of a ring from [hole] to [radius] round [centre], from [start] degrees for [sweep] degrees. */
-private fun sectorPath(centre: Offset, radius: Float, hole: Float, start: Float, sweep: Float): Path {
+/**
+ * A sector from [start] through [sweep] degrees, between [hole] and [radius],
+ * each corner where an edge meets an arc rounded by [corner] — less where the
+ * sector is too thin or the ring too narrow to take it, and square at the
+ * centre of a pie, where its edges meet each other.
+ */
+internal fun sectorPath(centre: Offset, radius: Float, hole: Float, start: Float, sweep: Float, corner: Float = 0f): Path {
     val path = Path()
     val outer = Rect(centre, radius)
-    if (hole <= 0f) {
-        path.moveTo(centre.x, centre.y)
-        path.arcTo(outer, start, sweep, forceMoveTo = false)
-        path.close()
-    } else {
-        val inner = Rect(centre, hole)
-        path.arcTo(outer, start, sweep, forceMoveTo = true)
-        path.arcTo(inner, start + sweep, -sweep, forceMoveTo = false)
-        path.close()
+    val half = (abs(sweep) / 2).coerceAtMost(90f) * PI.toFloat() / 180f
+    val reach = sin(half)
+    var r = min(corner, (radius - hole) / 2)
+    r = min(r, radius * reach / (1 + reach))
+    if (hole > 0f && reach < 1f) r = min(r, hole * reach / (1 - reach))
+    if (r < 0.5f || abs(sweep) >= 359.9f) {
+        if (hole <= 0f) {
+            path.moveTo(centre.x, centre.y)
+            path.arcTo(outer, start, sweep, forceMoveTo = false)
+            path.close()
+        } else {
+            path.arcTo(outer, start, sweep, forceMoveTo = true)
+            path.arcTo(Rect(centre, hole), start + sweep, -sweep, forceMoveTo = false)
+            path.close()
+        }
+        return path
     }
+    val way = if (sweep < 0) -1f else 1f
+    val end = start + sweep
+    fun at(degrees: Float, distance: Float) =
+        Offset(centre.x + distance * cos(radians(degrees)), centre.y + distance * sin(radians(degrees)))
+    fun degrees(value: Float) = value * 180f / PI.toFloat()
+    // The fillet between an edge and the outer arc: its circle sits r inside
+    // the arc, and meets the edge where it is r from it.
+    val outerTurn = degrees(asin(r / (radius - r)))
+    val outerAlong = sqrt((radius - r) * (radius - r) - r * r)
+    path.moveTo(at(start, outerAlong).x, at(start, outerAlong).y)
+    fillet(path, at(start + way * outerTurn, radius - r), r, at(start, outerAlong), at(start + way * outerTurn, radius))
+    path.arcTo(outer, start + way * outerTurn, sweep - 2 * way * outerTurn, forceMoveTo = false)
+    fillet(path, at(end - way * outerTurn, radius - r), r, at(end - way * outerTurn, radius), at(end, outerAlong))
+    if (hole > 0f) {
+        val innerTurn = degrees(asin(r / (hole + r)))
+        val innerAlong = sqrt((hole + r) * (hole + r) - r * r)
+        path.lineTo(at(end, innerAlong).x, at(end, innerAlong).y)
+        fillet(path, at(end - way * innerTurn, hole + r), r, at(end, innerAlong), at(end - way * innerTurn, hole))
+        path.arcTo(Rect(centre, hole), end - way * innerTurn, -(sweep - 2 * way * innerTurn), forceMoveTo = false)
+        fillet(path, at(start + way * innerTurn, hole + r), r, at(start + way * innerTurn, hole), at(start, innerAlong))
+    } else {
+        path.lineTo(centre.x, centre.y)
+    }
+    path.close()
     return path
+}
+
+/** The short way round the circle of [r] about [centre], from [from] to [to]. */
+private fun fillet(path: Path, centre: Offset, r: Float, from: Offset, to: Offset) {
+    val a = atan2(from.y - centre.y, from.x - centre.x) * 180f / PI.toFloat()
+    val b = atan2(to.y - centre.y, to.x - centre.x) * 180f / PI.toFloat()
+    var turn = b - a
+    while (turn > 180f) turn -= 360f
+    while (turn <= -180f) turn += 360f
+    path.arcTo(Rect(centre, r), a, turn, forceMoveTo = false)
 }
 
 private fun radians(degrees: Float): Float = (degrees * PI / 180.0).toFloat()

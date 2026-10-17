@@ -111,16 +111,70 @@ interface ChartScope<X : Any, Y : Any> {
     )
 
     /**
+     * A band from [yStart] to [yEnd] at each of [items], one band per series:
+     * a forecast's likely range, a day's least and most, a reading and its
+     * margin of error.
+     *
+     * ```kotlin
+     * band(forecast, x = { it.day }, yStart = { it.low }, yEnd = { it.high }, series = { likely })
+     * line(forecast, x = { it.day }, y = { it.expected }, series = { likely })
+     * ```
+     *
+     * Drawn as a light fill between the two edges, so a line drawn after it,
+     * in the same series, reads as the value and the band as how far it might
+     * go. A reader hears the range at each place, a tooltip shows it, and a
+     * [ChartDataTable] writes it as one cell. Either end `null` is a gap.
+     */
+    fun <T> band(
+        items: List<T>,
+        x: (T) -> X,
+        yStart: (T) -> Y?,
+        yEnd: (T) -> Y?,
+        series: (T) -> ChartSeries = { ChartSeries.Default },
+        interpolation: ChartInterpolation = ChartInterpolation.Linear,
+        style: SeriesStyle? = null,
+    )
+
+    /**
      * A line right across the plot at [y], or right up it at [x] — a target, an
-     * average, today — with an optional [label] at its end.
+     * average, today, an event — with an optional [label].
+     *
+     * A rule up the plot has its label in a pin above it, and pins that would
+     * touch stack one above the other, so a run of events close together keeps
+     * every label. A rule across has its label at its end, on the page's
+     * ground, so it stays legible over the marks it crosses.
      *
      * A rule is a reference rather than data: it is drawn and labelled, and a
-     * screen reader hears its label after the chart's summary, but it is not a
-     * series and has no place in the legend.
+     * screen reader hears its label and where it is after the chart's summary,
+     * but it is not a series and has no place in the legend.
      */
     fun rule(
         x: X? = null,
         y: Y? = null,
+        label: String? = null,
+        style: SeriesStyle? = null,
+    )
+
+    /**
+     * A shaded span of the plot: from [xStart] to [xEnd] across and right up
+     * it, or [yStart] to [yEnd] up and right across it, or a box given all
+     * four — a fortnight a launch ran, an outage, the forecast after today, a
+     * comfortable range. An end left `null` runs to the edge of the plot.
+     *
+     * ```kotlin
+     * region(xStart = launchDay, xEnd = fortnightLater, label = "Launch fortnight")
+     * ```
+     *
+     * Drawn behind every mark, in the selection's colour unless [style] gives
+     * one, with its [label] inside its top corner. On a category axis it covers
+     * the whole of each category it names. Like a rule it is a reference, not
+     * data: a reader hears its label and its span after the chart's summary.
+     */
+    fun region(
+        xStart: X? = null,
+        xEnd: X? = null,
+        yStart: Y? = null,
+        yEnd: Y? = null,
         label: String? = null,
         style: SeriesStyle? = null,
     )

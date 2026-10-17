@@ -101,6 +101,52 @@ palette of its own provides `LocalSeriesColours`.
 `SeriesStyle` overrides a series' colour, dash, symbol or fill, on a
 `ChartSeries` for everywhere it appears or on a mark for that mark alone.
 
+## Regions, bands and rules
+
+What a chart says besides its data: a stretch of time and what it was, how far
+a forecast might go, the events that explain a spike.
+
+<!--sample:ChartAnnotations-->
+```kotlin
+// The week so far, a forecast's likely range after today, and what else
+// happened: a span shaded and named, events pinned above the plot.
+Chart(
+    xAxis = ChartAxis.date(),
+    yAxis = ChartAxis.number(title = "Riders"),
+    modifier = Modifier.fillMaxWidth().height(240.dp),
+    contentDescription = "Route 950 this week, and the next two days",
+) {
+    val route = ChartSeries("Route 950")
+    region(xStart = LocalDate(2026, 10, 16), label = "Forecast")
+    region(xStart = LocalDate(2026, 10, 13), xEnd = LocalDate(2026, 10, 14), label = "School holidays")
+    band(ahead, x = { it.day }, yStart = { it.low }, yEnd = { it.high }, series = { route })
+    line(week.filter { it.route == "950" }, x = { it.day }, y = { it.riders }, series = { route })
+    line(ahead, x = { it.day }, y = { it.likely }, series = { route }, style = SeriesStyle(line = LinePattern.Dashed))
+    rule(x = LocalDate(2026, 10, 15), label = "Timetable change")
+    rule(y = 800, label = "Capacity")
+}
+```
+
+- `region` shades a span of the plot and names it in its top corner: from
+  `xStart` to `xEnd` across and right up it, or `yStart` to `yEnd` up and right
+  across it. An end left out runs to the edge, so `region(xStart = today)` is
+  everything after today. It is drawn behind the marks, in the selection's
+  colour unless its `style` gives one, and widens the axis to take it in.
+- `band` fills between a low and a high value at each place, one band per
+  series: a forecast's likely range, a day's least and most. Drawn light and
+  with no edge, so a `line` through it in the same series reads as the value
+  and the band as its range. A reader hears the range at each place, the
+  tooltip shows it, and `ChartDataTable` writes it in one cell.
+- `rule` with an `x` is an event: its label sits in a pin above the plot, and
+  pins that would touch stand one on another, so a run of events close together
+  keeps every label. With a `y` it is a target or an average, its label at its
+  end on the page's ground so it reads over the marks it crosses.
+
+Regions and rules are references, not data: each is said after the chart's
+summary by its label and where it is ("Capacity, 800"; "School holidays, 13 Oct
+to 14 Oct"), and none is in the legend. One with no label is decoration, and
+is not said at all.
+
 ## Selection
 
 Give a chart a `rememberChartSelectionState()` and it is interactive. A tap or

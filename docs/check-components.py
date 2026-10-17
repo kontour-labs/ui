@@ -1096,7 +1096,10 @@ MAX_SILENT_FOCUS_TRAPS = 0
 # share of its band, a sector's gap, a pattern's ink, a chart's height and the
 # most places a screen reader is walked through one at a time. Facts about a
 # chart rather than dials a brand turns, so on the charts' own Defaults.
-MAX_DEFAULTS_LITERALS = 108
+#
+# **107**, lowered 2026-10-17: a bar's corner was one of the nine, and is
+# the theme's small shape now, as every other corner in the library is.
+MAX_DEFAULTS_LITERALS = 107
 
 # Every field on `ComponentDefaults` is read by something.
 #

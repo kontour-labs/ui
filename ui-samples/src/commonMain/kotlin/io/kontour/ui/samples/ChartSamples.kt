@@ -14,7 +14,9 @@ import io.kontour.ui.charts.ChartDataTable
 import io.kontour.ui.charts.ChartInterpolation
 import io.kontour.ui.charts.ChartSeries
 import io.kontour.ui.charts.ChartStacking
+import io.kontour.ui.charts.LinePattern
 import io.kontour.ui.charts.SectorChart
+import io.kontour.ui.charts.SeriesStyle
 import io.kontour.ui.charts.Sparkline
 import io.kontour.ui.charts.rememberChartSelectionState
 import io.kontour.ui.foundation.Text
@@ -50,6 +52,35 @@ fun ChartBasics() {
             interpolation = ChartInterpolation.Monotone,
             showPoints = true,
         )
+        rule(y = 800, label = "Capacity")
+    }
+}
+
+private class Forecast(val day: LocalDate, val low: Int, val likely: Int, val high: Int)
+
+private val ahead = listOf(
+    Forecast(LocalDate(2026, 10, 16), 905, 905, 905),
+    Forecast(LocalDate(2026, 10, 17), 860, 930, 990),
+    Forecast(LocalDate(2026, 10, 18), 840, 955, 1060),
+)
+
+@Composable
+fun ChartAnnotations() {
+    // The week so far, a forecast's likely range after today, and what else
+    // happened: a span shaded and named, events pinned above the plot.
+    Chart(
+        xAxis = ChartAxis.date(),
+        yAxis = ChartAxis.number(title = "Riders"),
+        modifier = Modifier.fillMaxWidth().height(240.dp),
+        contentDescription = "Route 950 this week, and the next two days",
+    ) {
+        val route = ChartSeries("Route 950")
+        region(xStart = LocalDate(2026, 10, 16), label = "Forecast")
+        region(xStart = LocalDate(2026, 10, 13), xEnd = LocalDate(2026, 10, 14), label = "School holidays")
+        band(ahead, x = { it.day }, yStart = { it.low }, yEnd = { it.high }, series = { route })
+        line(week.filter { it.route == "950" }, x = { it.day }, y = { it.riders }, series = { route })
+        line(ahead, x = { it.day }, y = { it.likely }, series = { route }, style = SeriesStyle(line = LinePattern.Dashed))
+        rule(x = LocalDate(2026, 10, 15), label = "Timetable change")
         rule(y = 800, label = "Capacity")
     }
 }

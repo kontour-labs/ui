@@ -1,18 +1,21 @@
 package io.kontour.ui.charts
 
-import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.foundation.shape.CornerBasedShape
+import androidx.compose.foundation.shape.ZeroCornerSize
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.addOutline
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.text.drawText
+import androidx.compose.ui.unit.LayoutDirection
 import kotlin.math.max
 import kotlin.math.min
 
@@ -22,12 +25,46 @@ internal class DrawConfig(
     val patterns: Boolean,
     val lineWidth: Float,
     val pointSize: Float,
-    val cornerRadius: Float,
+    /** The theme's small shape, which a bar's end, a rectangle and a region are cut from. */
+    val cornerShape: CornerBasedShape,
+    /** The theme's capsule, for a rule's pin. */
+    val pinShape: Shape,
     val hairline: Float,
     val tileSize: Int,
     val tileStroke: Float,
     val tiles: PatternTiles,
-)
+) {
+    /** The squircles a bar's end, a rectangle and a region are cut from, made once. */
+    val corners = Corners(cornerShape)
+}
+
+/**
+ * The theme's shape, rounded at the far end of a bar each way, or all round.
+ * From `Theme.shapes`, so a chart's corners are the squircle every other
+ * component has, and a brand that rounds less rounds its charts less. Read
+ * left to right whatever the language: a bar's far end is worked out already.
+ */
+internal class Corners(base: CornerBasedShape) {
+    private val none = ZeroCornerSize
+    val up: Shape = base.copy(bottomEnd = none, bottomStart = none)
+    val down: Shape = base.copy(topStart = none, topEnd = none)
+    val right: Shape = base.copy(topStart = none, bottomStart = none)
+    val left: Shape = base.copy(topEnd = none, bottomEnd = none)
+    val all: Shape = base
+}
+
+/** How strongly a region is washed in its colour: a ground to read marks over, not a mark. */
+private const val RegionOpacity = 0.12f
+
+/** How strongly a band is filled: lighter than an area, which is a value, where a band is a range. */
+private const val BandOpacity = 0.22f
+
+/** [shape] at [rect], added to [path]; nothing for a rect with no area. */
+private fun DrawScope.addShape(path: Path, rect: Rect, shape: Shape) {
+    if (rect.width <= 0f || rect.height <= 0f) return
+    val outline = shape.createOutline(rect.size, LayoutDirection.Ltr, this)
+    path.addPath(Path().apply { addOutline(outline) }, rect.topLeft)
+}
 
 /**
  * Draws one frame of [chart] into [frame]: gridlines, then every mark in the
@@ -75,6 +112,25 @@ internal fun DrawScope.drawChart(
         drawLine(colours.axis, Offset(plot.left, zero), Offset(plot.right, zero), config.hairline)
     }
 
+    // Regions behind everything drawn from data, each in its selection-coloured
+    // wash with its label in its top corner, on the reading side.
+    chart.model.regions.forEachIndexed { index, region ->
+        val rect = regionRect(region, m, chart)
+        if (rect.width <= 0f || rect.height <= 0f) return@forEachIndexed
+        val colour = region.style?.colour?.takeIf { it != Color.Unspecified } ?: colours.selection
+        val path = Path()
+        addShape(path, rect, config.corners.all)
+        drawPath(path, colour, alpha = RegionOpacity)
+        // At the high tier its edge is drawn too, so it is a shape and not
+        // only a tint.
+        if (config.patterns) drawPath(path, colour, style = Stroke(config.hairline))
+        frame.regionLabels.getOrNull(index)?.let { label ->
+            val gap = frame.gap / 2
+            val left = if (frame.rtl) rect.right - gap - label.size.width else rect.left + gap
+            drawText(label, colours.label, Offset(left, rect.top + gap / 2))
+        }
+    }
+
     val seriesCount = chart.model.series.size
     val pad = config.pointSize
     clipRect(plot.left - pad, plot.top - pad, plot.right + pad, plot.bottom + pad) {
@@ -82,6 +138,7 @@ internal fun DrawScope.drawChart(
             val look = lookOf(layer.slot, colours.series, config.patterns, layer.mark.style, layer.series.style)
             when (layer.mark.kind) {
                 MarkKind.Area -> drawArea(layer, look, m, config, alpha)
+                MarkKind.Band -> drawArea(layer, look, m, config, alpha, band = true)
                 MarkKind.Line -> {
                     drawLineMark(layer, look, m, config, alpha)
                     if (layer.mark.showPoints || (config.patterns && seriesCount > 1)) {
@@ -95,28 +152,47 @@ internal fun DrawScope.drawChart(
         }
     }
 
-    // Rules, over the marks they are a reference for.
+    // Rules, over the marks they are a reference for: every line first, then
+    // the pins, so a stem that rises past a lower pin goes behind it.
+    val inset = frame.gap / 2
+    val pins = mutableListOf<Pair<Rect, RulePin>>()
     chart.rules.forEachIndexed { index, rule ->
         val colour = rule.style?.colour?.takeIf { it != Color.Unspecified } ?: colours.axis
         val effect = (rule.style?.line ?: LinePattern.Dashed).effect(config.hairline * 2)
         val stroke = config.hairline * 1.5f
-        val label = frame.ruleLabels.getOrNull(index)
         rule.y?.let { value ->
             val y = m.py(value)
             drawLine(colour, Offset(plot.left, y), Offset(plot.right, y), stroke, pathEffect = effect)
-            label?.let {
-                val left = if (frame.rtl) plot.left + config.hairline * 2 else plot.right - it.size.width - config.hairline * 2
-                drawText(it, colours.label, Offset(left, y - it.size.height - config.hairline * 2))
+            frame.ruleLabels.getOrNull(index)?.let { label ->
+                val left = if (frame.rtl) plot.left + inset else plot.right - label.size.width - inset
+                val top = y - label.size.height - config.hairline * 2
+                // On the page's ground, so it is read over a line it crosses.
+                val backing = Path()
+                addShape(backing, Rect(left - inset / 2, top, left + label.size.width + inset / 2, top + label.size.height), config.corners.all)
+                drawPath(backing, colours.ground, alpha = 0.85f)
+                drawText(label, colours.label, Offset(left, top))
             }
         }
         rule.x?.let { value ->
             val x = m.px(value)
             drawLine(colour, Offset(x, plot.top), Offset(x, plot.bottom), stroke, pathEffect = effect)
-            label?.let {
-                val left = if (frame.rtl) x - it.size.width - config.hairline * 3 else x + config.hairline * 3
-                drawText(it, colours.label, Offset(left, plot.top))
+            frame.rulePins.getOrNull(index)?.let { pin ->
+                val width = pin.layout.size.width + inset * 2
+                val bottom = plot.top - inset - pin.row * (frame.pinHeight + inset)
+                val left = pinStart(x, width, plot.left, frame.width)
+                val rect = Rect(left, bottom - frame.pinHeight, left + width, bottom)
+                // Its stem, from the pin to the plot.
+                drawLine(colour, Offset(x, rect.bottom), Offset(x, plot.top), stroke, pathEffect = effect)
+                pins += rect to pin
             }
         }
+    }
+    pins.forEach { (rect, pin) ->
+        val capsule = Path()
+        addShape(capsule, rect, config.pinShape)
+        drawPath(capsule, colours.ground)
+        drawPath(capsule, colours.axis, style = Stroke(config.hairline))
+        drawText(pin.layout, colours.label, Offset(rect.left + inset, rect.top + (rect.height - pin.layout.size.height) / 2))
     }
 
     // The selection: a line through the selected place, and a ring round each
@@ -168,7 +244,7 @@ private fun DrawScope.drawLineMark(layer: Layer, look: SeriesLook, m: Mapper, co
     )
 }
 
-private fun DrawScope.drawArea(layer: Layer, look: SeriesLook, m: Mapper, config: DrawConfig, alpha: Float) {
+private fun DrawScope.drawArea(layer: Layer, look: SeriesLook, m: Mapper, config: DrawConfig, alpha: Float, band: Boolean = false) {
     val base = layer.base ?: DoubleArray(layer.size)
     val stacked = layer.mark.stacking == ChartStacking.Stacked || layer.mark.stacking == ChartStacking.Normalised
     val fillPath = Path()
@@ -189,8 +265,10 @@ private fun DrawScope.drawArea(layer: Layer, look: SeriesLook, m: Mapper, config
         start = end + 1
     }
     // Unstacked areas overlap, so each lets the others show through; stacked
-    // ones tile, and are near solid.
-    fill(fillPath, look, config, alpha, opacity = if (stacked) 0.85f else 0.3f)
+    // ones tile, and are near solid. A band is a range, not a value, and has
+    // no edge of its own: the line drawn through it is the value.
+    fill(fillPath, look, config, alpha, opacity = if (band) BandOpacity else if (stacked) 0.85f else 0.3f)
+    if (band) return
     drawPath(
         outline,
         look.colour,
@@ -210,51 +288,64 @@ private fun DrawScope.drawBars(layer: Layer, look: SeriesLook, chart: ResolvedCh
     val thickness = band * ChartDefaults.BarFraction / layer.groupCount
     val offset = (layer.groupIndex - (layer.groupCount - 1) / 2f) * thickness
     val stacked = layer.mark.stacking == ChartStacking.Stacked || layer.mark.stacking == ChartStacking.Normalised
+    // A stack is one bar, so only its outermost part each way is rounded: the
+    // top of what stands above zero and the foot of what hangs below. Every
+    // stack had square ends, and stacking is a bar's default, so nearly every
+    // bar in a chart was square.
+    val outer = if (stacked) outermostOf(layer, chart) else null
+    val corners = config.corners
     val path = Path()
     for (i in 0 until layer.size) {
         if (tops[i].isNaN()) continue
         val positive = tops[i] >= base[i]
+        val rounded = outer == null || outer[i]
         if (lying) {
             val centre = m.py(places[i]) + offset
             val from = m.px(base[i])
             val to = m.px(tops[i])
-            val left = min(from, to)
-            val right = max(from, to)
-            val length = right - left
-            val r = if (stacked) 0f else min(config.cornerRadius, min(thickness / 2, length / 2))
+            val rect = Rect(min(from, to), centre - thickness / 2, max(from, to), centre + thickness / 2)
             // The far end is rounded; which side that is depends on the sign
-            // and on which way the language reads.
-            val farIsRight = (to >= from)
-            path.addRoundRect(
-                RoundRect(
-                    rect = Rect(left, centre - thickness / 2, right, centre + thickness / 2),
-                    topLeft = CornerRadius(if (farIsRight) 0f else r),
-                    topRight = CornerRadius(if (farIsRight) r else 0f),
-                    bottomRight = CornerRadius(if (farIsRight) r else 0f),
-                    bottomLeft = CornerRadius(if (farIsRight) 0f else r),
-                ),
-            )
+            // and on which way the language reads, both in `from` and `to`.
+            val shape = if (!rounded) null else if (to >= from) corners.right else corners.left
+            if (shape == null) path.addRect(rect) else addShape(path, rect, shape)
         } else {
             val direction = if (m.frame.rtl) -1f else 1f
             val centre = m.px(places[i]) + offset * direction
             val from = m.py(base[i])
             val to = m.py(tops[i])
-            val top = min(from, to)
-            val bottom = max(from, to)
-            val length = bottom - top
-            val r = if (stacked) 0f else min(config.cornerRadius, min(thickness / 2, length / 2))
-            path.addRoundRect(
-                RoundRect(
-                    rect = Rect(centre - thickness / 2, top, centre + thickness / 2, bottom),
-                    topLeft = CornerRadius(if (positive) r else 0f),
-                    topRight = CornerRadius(if (positive) r else 0f),
-                    bottomRight = CornerRadius(if (positive) 0f else r),
-                    bottomLeft = CornerRadius(if (positive) 0f else r),
-                ),
-            )
+            val rect = Rect(centre - thickness / 2, min(from, to), centre + thickness / 2, max(from, to))
+            val shape = if (!rounded) null else if (positive) corners.up else corners.down
+            if (shape == null) path.addRect(rect) else addShape(path, rect, shape)
         }
     }
     fill(path, look, config, alpha)
+}
+
+/**
+ * Whether each of [layer]'s values is the outermost of its stack at its place:
+ * the highest above zero, or the lowest below it, of every series of its mark.
+ */
+private fun outermostOf(layer: Layer, chart: ResolvedChart): BooleanArray {
+    val lying = chart.horizontal
+    val stack = chart.layers.filter { it.markIndex == layer.markIndex }
+    val highest = HashMap<Double, Double>()
+    val lowest = HashMap<Double, Double>()
+    stack.forEach { other ->
+        val places = if (lying) other.up else other.across
+        val tops = if (lying) other.across else other.up
+        val base = other.base ?: DoubleArray(other.size)
+        for (i in 0 until other.size) {
+            if (tops[i].isNaN() || tops[i] == base[i]) continue
+            if (tops[i] > base[i]) highest[places[i]] = max(highest[places[i]] ?: tops[i], tops[i])
+            else lowest[places[i]] = min(lowest[places[i]] ?: tops[i], tops[i])
+        }
+    }
+    val places = if (lying) layer.up else layer.across
+    val tops = if (lying) layer.across else layer.up
+    val base = layer.base ?: DoubleArray(layer.size)
+    return BooleanArray(layer.size) { i ->
+        if (tops[i] >= base[i]) tops[i] == highest[places[i]] else tops[i] == lowest[places[i]]
+    }
 }
 
 /** The smallest step between neighbouring [places], for the width of bars across a continuous axis. */
@@ -290,9 +381,7 @@ private fun DrawScope.drawRectangles(layer: Layer, look: SeriesLook, m: Mapper, 
         val x1 = m.px(ends[i])
         val y0 = m.py(layer.up[i])
         val y1 = m.py(tops[i])
-        val rect = Rect(min(x0, x1), min(y0, y1), max(x0, x1), max(y0, y1))
-        val r = min(config.cornerRadius, min(rect.width, rect.height) / 2)
-        path.addRoundRect(RoundRect(rect, CornerRadius(r)))
+        addShape(path, Rect(min(x0, x1), min(y0, y1), max(x0, x1), max(y0, y1)), config.corners.all)
     }
     fill(path, look, config, alpha, opacity = 0.85f)
 }
@@ -306,7 +395,7 @@ private fun DrawScope.drawLabels(frame: ChartFrame, m: Mapper, colours: ChartCol
         val centre = m.px(label.value)
         if (centre < plot.left - 1f || centre > plot.right + 1f) return@forEach
         val left = (centre - w / 2).coerceIn(0f, max(0f, frame.width - w))
-        val top = if (frame.xAxisAtBottom) plot.bottom + half else plot.top - half - h
+        val top = if (frame.xAxisAtBottom) plot.bottom + half else plot.top - frame.pinBand - half - h
         drawText(label.layout, colours.label, Offset(left, top))
     }
     frame.yLabels.forEach { label ->

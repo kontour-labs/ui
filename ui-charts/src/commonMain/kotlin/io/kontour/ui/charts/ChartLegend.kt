@@ -91,7 +91,7 @@ private fun LegendSwatch(model: ChartModel, series: ChartSeries, colours: ChartC
                     }
                 } else {
                     val swatch = Path().apply {
-                        addRoundRect(RoundRect(0f, 0f, size.width, size.height, CornerRadius(ChartDefaults.BarCornerRadius.toPx())))
+                        addRoundRect(RoundRect(0f, 0f, size.width, size.height, CornerRadius(size.minDimension / 4)))
                     }
                     drawPath(swatch, look.colour)
                     tiles.brush(look.fill, colours.patternInk, SwatchTile.roundToPx(), sizing.borderWidth.toPx())?.let { drawPath(swatch, it) }

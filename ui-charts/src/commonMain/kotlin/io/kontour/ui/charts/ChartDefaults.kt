@@ -70,9 +70,6 @@ object ChartDefaults {
     /** The size of a point's symbol. */
     val PointSize: Dp = 7.dp
 
-    /** The rounding of a bar's end, and of a rectangle's corners. */
-    val BarCornerRadius: Dp = 3.dp
-
     /** How much of a band a bar fills, the rest being the gap between bars. */
     const val BarFraction: Float = 0.7f
 

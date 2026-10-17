@@ -348,14 +348,16 @@ private fun <X : Any> ChartPlot(
     // Every stroke from the theme's sizing, so that lines thicken with the
     // rest of the library at the high contrast tier.
     val sizing = Theme.sizing
-    val config = remember(colours, patterns, density, sizing) {
+    val shapes = Theme.shapes
+    val config = remember(colours, patterns, density, sizing, shapes) {
         with(density) {
             DrawConfig(
                 colours = colours,
                 patterns = patterns,
                 lineWidth = sizing.borderWidthStrong.toPx(),
                 pointSize = ChartDefaults.PointSize.toPx(),
-                cornerRadius = ChartDefaults.BarCornerRadius.toPx(),
+                cornerShape = shapes.extraSmall,
+                pinShape = shapes.capsule,
                 hairline = sizing.dividerThickness.toPx(),
                 tileSize = PatternTile.roundToPx(),
                 tileStroke = (sizing.borderWidth * 1.5f).toPx(),
@@ -450,7 +452,7 @@ private fun <X : Any> ChartPlot(
                 )
             }
             if (showProbe) {
-                val shown = selectionAt(chart, selectedPlace, decode)
+                val shown = selectionAt(chart, selectedPlace, decode, strings)
                 if (shown != null) {
                     Box {
                         Tooltip(visible = true) {
@@ -517,13 +519,18 @@ private fun <X : Any> ChartPlot(
 }
 
 /** What is at [place], for the tooltip. */
-private fun <X : Any> selectionAt(chart: ResolvedChart, place: Double, decode: (Double) -> X?): ChartSelection<X>? {
+private fun <X : Any> selectionAt(chart: ResolvedChart, place: Double, decode: (Double) -> X?, strings: ChartStrings): ChartSelection<X>? {
     val x = decode(place) ?: return null
+    val write = chart.valueAxis.write
     val values = chart.layers.mapNotNull { layer ->
         val index = layer.across.indexOfFirst { it == place }
         if (index < 0) return@mapNotNull null
         val value = layer.values[index]
-        if (value.isNaN()) null else ChartSelectedValue(layer.series, value, chart.valueAxis.write(value))
+        if (value.isNaN()) return@mapNotNull null
+        // A band's value is its foot, and what it shows is its range.
+        val top = if (layer.mark.kind == MarkKind.Band) layer.upEnd?.get(index) else null
+        val label = if (top != null && top != value) strings.valueRange(write(value), write(top)) else write(value)
+        ChartSelectedValue(layer.series, value, label)
     }
     return ChartSelection(x, chart.placeAxis.write(place), values)
 }

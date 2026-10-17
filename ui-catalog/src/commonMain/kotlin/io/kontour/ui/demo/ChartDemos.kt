@@ -42,6 +42,7 @@ private val chartPoints = Knob.Flag("Points", initial = true)
 private val chartTooltip = Knob.Flag("Tooltip", initial = true)
 private val chartAnimated = Knob.Flag("Animated", initial = true)
 private val chartDonut = Knob.Flag("Donut", initial = true)
+private val chartReferences = Knob.Flag("References", initial = true)
 
 /** A month's riders on one route. */
 private class Riders(val month: String, val route: String, val riders: Int)
@@ -74,6 +75,7 @@ internal val ChartDemo = ComponentDemo(
         chartTooltip,
         chartAnimated,
         chartDonut,
+        chartReferences,
     ),
 ) {
     var seed by remember { mutableIntStateOf(0) }
@@ -88,6 +90,7 @@ internal val ChartDemo = ComponentDemo(
     val tooltip = this[chartTooltip]
     val animated = this[chartAnimated]
     val donut = this[chartDonut]
+    val references = this[chartReferences]
     val selection = rememberChartSelectionState<String>()
     val spacing = Theme.spacing
 
@@ -120,6 +123,18 @@ internal val ChartDemo = ComponentDemo(
                 animateData = animated,
             ) {
                 val series = { item: Riders -> ChartSeries(item.route) }
+                // Under the lines, as a range should be: the first route's
+                // likely spread either side of what it carried.
+                if (references && kind == ChartKindDemo.Lines) {
+                    band(
+                        data.filter { it.route == routes[0] },
+                        x = { it.month },
+                        yStart = { it.riders - 60 },
+                        yEnd = { it.riders + 60 },
+                        series = series,
+                        interpolation = interpolation,
+                    )
+                }
                 when (kind) {
                     ChartKindDemo.Lines ->
                         line(data, x = { it.month }, y = { it.riders }, series = series, interpolation = interpolation, showPoints = points)
@@ -143,6 +158,14 @@ internal val ChartDemo = ComponentDemo(
                     ChartKindDemo.LyingBars -> Unit
                 }
                 rule(y = 700, label = "Capacity")
+                if (references) {
+                    // A school holiday shaded, and three events pinned, the
+                    // last two close enough that one pin stands on the other.
+                    region(xStart = "Apr", xEnd = "May", label = "Holidays")
+                    rule(x = "Feb", label = "Launch")
+                    rule(x = "Jun", label = "v1.2")
+                    rule(x = "Jul", label = "Outage")
+                }
             }
         }
 

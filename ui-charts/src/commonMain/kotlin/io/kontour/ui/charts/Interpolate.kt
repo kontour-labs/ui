@@ -37,7 +37,8 @@ internal fun collapsed(chart: ResolvedChart): ResolvedChart {
     val valueLow = if (chart.horizontal) chart.x.low else chart.y.low
     val layers = chart.layers.map { layer ->
         when (layer.mark.kind) {
-            MarkKind.Bar, MarkKind.Area, MarkKind.Line -> {
+            // A band rises from its low edge, as an area does from its base.
+            MarkKind.Bar, MarkKind.Area, MarkKind.Line, MarkKind.Band -> {
                 val lying = chart.horizontal && layer.mark.kind == MarkKind.Bar
                 val floor = DoubleArray(layer.size) { layer.base?.get(it) ?: valueLow }
                 if (lying) layer.copy(across = floor) else layer.copy(up = floor)
@@ -58,7 +59,7 @@ private fun blendAxis(from: ResolvedAxis, to: ResolvedAxis, t: Double): Resolved
 private fun blendLayer(from: Layer, to: Layer, t: Double, horizontal: Boolean): Layer {
     val lying = horizontal && to.mark.kind == MarkKind.Bar
     return when (to.mark.kind) {
-        MarkKind.Line, MarkKind.Area -> {
+        MarkKind.Line, MarkKind.Area, MarkKind.Band -> {
             // Read the old line at the new places, so a line of 12 points can
             // become one of 30 without anything jumping.
             val up = DoubleArray(to.size) { i -> lerp(sampleAt(from.across, from.up, to.across[i]), to.up[i], t) }

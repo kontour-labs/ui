@@ -44,6 +44,12 @@ On `main`, and in the next release.
   a picture does not serve. **`SectorChart` takes a selection**, chosen by tap,
   pointer, arrow keys or a screen reader on each sector's own node.
   **`ChartAxis.instant()`** plots moments, ticked on a time zone's clock.
+- **A chart's references beside its data**: `region` shades and names a span,
+  a launch's fortnight or everything after today; `band` fills a forecast's or
+  a day's range between two values at each place; and a `rule` up the plot is
+  an event, its label in a pin above the plot, stacked where pins would touch.
+  Each is said to a screen reader by its label and where it is. Bars, rectangles
+  and sectors are cut with the library's squircle corners.
 - **`Theme.icons`**: every glyph the library draws on its own behalf, Tabler's
   unless `KontourTheme(icons = SystemIcons(…))` replaces some. A select's
   chevron, a toast's close, a stepper's minus and plus, a sorted column's arrow
@@ -126,6 +132,11 @@ On `main`, and in the next release.
   that anything with a control in it waits for them, and its clock stops while
   keyboard focus is on its action or its close, as it does under a finger or a
   pointer.
+- **A tooltip never takes a tap.** Its bubble scrolls, for text too long for
+  its side at a large type size, and the scroller took every tap on the bubble
+  whether it had anywhere to scroll or not, so a tap on whatever was under a
+  [`Tooltip`](components/tooltip.md) went nowhere. It scrolls, and takes the
+  pointer, only while its text overflows.
 - **A side sheet comes in from its own side right to left.** An end sheet in a
   right-to-left layout came in at the start, across the content it was meant
   to sit beside, rounded on the wrong edge and sliding the wrong way: its edge

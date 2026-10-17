@@ -11,6 +11,7 @@ package io.kontour.ui.charts
 internal class ChartModel(
     val marks: List<Mark>,
     val rules: List<Rule>,
+    val regions: List<Region>,
     /** Every series, in the order it first appears: a series' slot is its index here. */
     val series: List<ChartSeries>,
     /** The values of a category axis across, by index; empty for any other kind. */
@@ -24,7 +25,7 @@ internal class ChartModel(
     fun slotOf(series: ChartSeries): Int = this.series.indexOf(series).coerceAtLeast(0)
 }
 
-internal enum class MarkKind { Line, Area, Bar, Point, Rectangle }
+internal enum class MarkKind { Line, Area, Bar, Point, Rectangle, Band }
 
 /**
  * One mark: one call in the content. Its items are split into one run per
@@ -52,7 +53,7 @@ internal class Run(
     val ys: DoubleArray,
     /** A rectangle's other corner across; `null` for every other mark. */
     val xEnds: DoubleArray?,
-    /** A rectangle's other corner up; `null` for every other mark. */
+    /** A rectangle's other corner up, or a band's top; `null` for every other mark. */
     val yEnds: DoubleArray?,
 ) {
     val size: Int get() = xs.size
@@ -62,6 +63,19 @@ internal class Run(
 internal class Rule(
     val x: Double?,
     val y: Double?,
+    val label: String?,
+    val style: SeriesStyle?,
+)
+
+/**
+ * A [ChartScope.region], in the chart's own units: `null` on an axis it spans
+ * the whole of.
+ */
+internal class Region(
+    val xStart: Double?,
+    val xEnd: Double?,
+    val yStart: Double?,
+    val yEnd: Double?,
     val label: String?,
     val style: SeriesStyle?,
 )
@@ -80,6 +94,7 @@ internal class ChartRecorder<X : Any, Y : Any>(
 
     private val marks = mutableListOf<Mark>()
     private val rules = mutableListOf<Rule>()
+    private val regions = mutableListOf<Region>()
     private val series = LinkedHashSet<ChartSeries>()
     private val xCategories = CategoryIndex(xAxis.kind == AxisKind.Category, xAxis.categories)
     private val yCategories = CategoryIndex(yAxis.kind == AxisKind.Category, yAxis.categories)
@@ -87,6 +102,7 @@ internal class ChartRecorder<X : Any, Y : Any>(
     fun build(): ChartModel = ChartModel(
         marks = marks.toList(),
         rules = rules.toList(),
+        regions = regions.toList(),
         series = series.toList(),
         xCategories = xCategories.values(),
         yCategories = yCategories.values(),
@@ -202,6 +218,51 @@ internal class ChartRecorder<X : Any, Y : Any>(
             )
         }
         marks += Mark(MarkKind.Rectangle, runs, ChartStacking.None, ChartInterpolation.Linear, false, null, style)
+    }
+
+    override fun <T> band(
+        items: List<T>,
+        x: (T) -> X,
+        yStart: (T) -> Y?,
+        yEnd: (T) -> Y?,
+        series: (T) -> ChartSeries,
+        interpolation: ChartInterpolation,
+        style: SeriesStyle?,
+    ) {
+        val bySeries = LinkedHashMap<ChartSeries, MutableList<DoubleArray>>()
+        items.forEach { item ->
+            val across = xOf(x(item))
+            if (across.isNaN()) return@forEach
+            val low = yOf(yStart(item))
+            val high = yOf(yEnd(item))
+            val owner = series(item)
+            this.series += owner
+            // Either end missing is a gap, as a line's missing value is; ends
+            // given the wrong way round are the same band.
+            val gap = low.isNaN() || high.isNaN()
+            bySeries.getOrPut(owner) { mutableListOf() } += doubleArrayOf(
+                across,
+                if (gap) Double.NaN else minOf(low, high),
+                if (gap) Double.NaN else maxOf(low, high),
+            )
+        }
+        val runs = bySeries.map { (owner, points) ->
+            val ordered = points.sortedBy { it[0] }
+            Run(
+                series = owner,
+                xs = DoubleArray(ordered.size) { ordered[it][0] },
+                ys = DoubleArray(ordered.size) { ordered[it][1] },
+                xEnds = null,
+                yEnds = DoubleArray(ordered.size) { ordered[it][2] },
+            )
+        }
+        marks += Mark(MarkKind.Band, runs, ChartStacking.None, interpolation, false, null, style)
+    }
+
+    override fun region(xStart: X?, xEnd: X?, yStart: Y?, yEnd: Y?, label: String?, style: SeriesStyle?) {
+        fun across(value: X?) = value?.let { xOf(it) }?.takeUnless { it.isNaN() }
+        fun up(value: Y?) = value?.let { yOf(it) }?.takeUnless { it.isNaN() }
+        regions += Region(across(xStart), across(xEnd), up(yStart), up(yEnd), label, style)
     }
 
     override fun rule(x: X?, y: Y?, label: String?, style: SeriesStyle?) {

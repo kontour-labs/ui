@@ -132,6 +132,14 @@ internal fun <X : Any, Y : Any> resolve(
         rule.x?.let { xs += it }
         rule.y?.let { ys += it }
     }
+    // A region widens the axes to take it in, as a rule does: a forecast's
+    // shading after today runs on past the last day of data.
+    model.regions.forEach { region ->
+        region.xStart?.let { xs += it }
+        region.xEnd?.let { xs += it }
+        region.yStart?.let { ys += it }
+        region.yEnd?.let { ys += it }
+    }
     val measured = layers.any { it.mark.kind == MarkKind.Bar || it.mark.kind == MarkKind.Area }
     if (measured) {
         if (horizontal) xs += 0.0 else ys += 0.0
@@ -186,6 +194,27 @@ private fun layersOf(markIndex: Int, mark: Mark, model: ChartModel, horizontal: 
         }
     }
 
+    if (mark.kind == MarkKind.Band) {
+        // Drawn as an area between its edges, its base the low one, so it
+        // animates and rises as an area does; read as the range from low to high.
+        return runs.map { run ->
+            val high = run.yEnds ?: DoubleArray(run.size) { run.ys[it] }
+            Layer(
+                markIndex = markIndex,
+                mark = mark,
+                series = run.series,
+                slot = model.slotOf(run.series),
+                across = run.xs.copyOf(),
+                up = high.copyOf(),
+                base = run.ys.copyOf(),
+                acrossEnd = null,
+                upEnd = high,
+                values = run.ys.copyOf(),
+                groupIndex = 0,
+                groupCount = 1,
+            )
+        }
+    }
     return runs.mapIndexed { runIndex, run ->
         val n = run.size
         val raw = DoubleArray(n) { if (lying) run.xs[it] else run.ys[it] }

@@ -37,7 +37,11 @@ internal fun chartSummary(
 
     val valueAxis = chart.valueAxis
     chart.model.series.forEach { series ->
-        val values = chart.layers.filter { it.series == series }.flatMap { layer -> layer.values.filter { !it.isNaN() } }
+        // A band's top counts as well as its foot: the most a band reaches is
+        // its high edge.
+        val values = chart.layers.filter { it.series == series }.flatMap { layer ->
+            layer.values.filter { !it.isNaN() } + (if (layer.mark.kind == MarkKind.Band) layer.upEnd?.filter { !it.isNaN() }.orEmpty() else emptyList())
+        }
         if (values.isEmpty()) return@forEach
         val direction = when (trendOf(values.toDoubleArray())) {
             1 -> strings.trendRising
@@ -52,8 +56,32 @@ internal fun chartSummary(
             strings.seriesSummary(series.name, least, most, direction)
         }
     }
-    chart.rules.mapNotNull { it.label }.forEach { parts += it }
+    // A rule and a region by their labels and where they are: "Capacity, 700",
+    // "Launch fortnight, 1 Feb to 14 Feb". One with no label is decoration.
+    chart.rules.forEach { rule ->
+        val label = rule.label?.takeIf { it.isNotBlank() } ?: return@forEach
+        val at = rule.y?.let { chart.y.write(it) } ?: rule.x?.let { chart.x.write(it) }
+        parts += if (at == null) label else strings.seriesValue(label, at)
+    }
+    chart.model.regions.forEach { region ->
+        val label = region.label?.takeIf { it.isNotBlank() } ?: return@forEach
+        val span = when {
+            region.xStart != null || region.xEnd != null -> spanOf(chart.x, region.xStart, region.xEnd, strings)
+            region.yStart != null || region.yEnd != null -> spanOf(chart.y, region.yStart, region.yEnd, strings)
+            else -> null
+        }
+        parts += if (span == null) label else strings.seriesValue(label, span)
+    }
     return sentences(parts)
+}
+
+/** From [start] to [end] on [axis], written, an end not given being the axis's own. */
+private fun spanOf(axis: ResolvedAxis, start: Double?, end: Double?, strings: ChartStrings): String {
+    val first = if (axis.kind == AxisKind.Category) 0.0 else axis.low
+    val last = if (axis.kind == AxisKind.Category) axis.ticks.lastOrNull() ?: 0.0 else axis.high
+    val from = axis.write(start ?: first)
+    val to = axis.write(end ?: last)
+    return if (from == to) from else strings.valueRange(from, to)
 }
 
 private fun axisSentence(axis: ResolvedAxis, chart: ResolvedChart, unnamed: String, strings: ChartStrings): String {
@@ -69,7 +97,8 @@ private fun axisSentence(axis: ResolvedAxis, chart: ResolvedChart, unnamed: Stri
 
 /** What a chart of these marks is called: by the one kind of mark it has, or a chart, for a mix. */
 internal fun kindOf(model: ChartModel, strings: ChartStrings): String {
-    val kinds = model.marks.map { it.kind }.toSet()
+    // A band is an area between two edges, and named as one.
+    val kinds = model.marks.map { if (it.kind == MarkKind.Band) MarkKind.Area else it.kind }.toSet()
     return when {
         kinds == setOf(MarkKind.Line) -> strings.lineChart
         kinds == setOf(MarkKind.Area) -> strings.areaChart
@@ -98,12 +127,12 @@ internal fun placeDescriptions(chart: ResolvedChart, strings: ChartStrings, form
         }
         val said = chart.layers.mapNotNull { layer ->
             val places = if (chart.horizontal && layer.mark.kind == MarkKind.Bar) layer.up else layer.across
-            val values = group.flatMap { place ->
-                places.indices.filter { places[it] == place }.map { layer.values[it] }.filter { !it.isNaN() }
-            }
-            if (values.isEmpty()) return@mapNotNull null
+            val indices = group.flatMap { place -> places.indices.filter { places[it] == place && !layer.values[it].isNaN() } }
+            if (indices.isEmpty()) return@mapNotNull null
+            val values = indices.map { layer.values[it] }
             val least = values.min()
-            val most = values.max()
+            // A band's place is said from its foot to its top.
+            val most = if (layer.mark.kind == MarkKind.Band) indices.maxOf { layer.upEnd?.get(it) ?: layer.values[it] } else values.max()
             val amount = if (least == most) valueAxis.write(least) else strings.valueRange(valueAxis.write(least), valueAxis.write(most))
             if (layer.series.name.isBlank()) amount else strings.seriesValue(layer.series.name, amount)
         }

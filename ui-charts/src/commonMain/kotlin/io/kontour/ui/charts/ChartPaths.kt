@@ -2,6 +2,8 @@ package io.kontour.ui.charts
 
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.RoundRect
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.Color
@@ -95,8 +97,11 @@ internal fun addSymbol(path: Path, symbol: PointSymbol, centre: Offset, size: Fl
     when (symbol) {
         PointSymbol.Circle -> path.addOval(Rect(centre, r))
         PointSymbol.Square -> {
+            // Its corners eased, as every square in the library is; still a
+            // square beside the circle, at a glance and to the eye that needs
+            // the two told apart.
             val h = r * 0.9f
-            path.addRect(Rect(x - h, y - h, x + h, y + h))
+            path.addRoundRect(RoundRect(Rect(x - h, y - h, x + h, y + h), CornerRadius(h * 0.35f)))
         }
         PointSymbol.Diamond -> {
             val h = r * 1.25f

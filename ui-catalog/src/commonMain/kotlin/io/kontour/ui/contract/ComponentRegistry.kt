@@ -31,6 +31,8 @@ import io.kontour.ui.components.display.BranchTimeline
 import io.kontour.ui.charts.Chart
 import io.kontour.ui.charts.ChartAxis
 import io.kontour.ui.charts.ChartSeries
+import io.kontour.ui.charts.LinePattern
+import io.kontour.ui.charts.SeriesStyle
 import io.kontour.ui.charts.SectorChart
 import io.kontour.ui.charts.Sparkline
 import io.kontour.ui.components.table.Table
@@ -1210,6 +1212,36 @@ val componentRegistry: List<ComponentSpec> = buildList {
             expectsMinimumTarget = false,
             underContract = false,
             renderHeight = 240,
+            states = listOf(
+                // What a chart says about its data besides the data: a span
+                // shaded and named, a forecast's likely range, events pinned
+                // above the plot (two close enough that one stands on the
+                // other) and a target across it.
+                RenderState("annotated", height = 300) { modifier ->
+                    val weeks = (1..12).toList()
+                    val riders = listOf(420, 450, 440, 480, 520, 600, 580, 610, 640, 630, 660, 690)
+                    val ahead = (12..16).toList()
+                    val route = ChartSeries("Route 950")
+                    Chart(
+                        xAxis = ChartAxis.number(title = "Week"),
+                        yAxis = ChartAxis.number(title = "Riders"),
+                        modifier = modifier.fillMaxWidth().height(280.dp),
+                        contentDescription = "Riders by week, and the weeks ahead",
+                        showLegend = false,
+                        animateData = false,
+                    ) {
+                        region(xStart = 5, xEnd = 7, label = "Holidays")
+                        region(xStart = 12, label = "Forecast")
+                        band(ahead, x = { it }, yStart = { 690 + (it - 12) * 10 }, yEnd = { 690 + (it - 12) * 40 }, series = { route })
+                        line(weeks, x = { it }, y = { riders[it - 1] }, series = { route })
+                        line(ahead, x = { it }, y = { 690 + (it - 12) * 25 }, series = { route }, style = SeriesStyle(line = LinePattern.Dashed))
+                        rule(x = 3, label = "Launch")
+                        rule(x = 9, label = "v1.2")
+                        rule(x = 10, label = "Outage")
+                        rule(y = 700, label = "Target")
+                    }
+                },
+            ),
         ) { modifier, _, _ ->
             val months = listOf("Jul", "Aug", "Sep", "Oct")
             val riders = listOf(620, 710, 680, 790)
