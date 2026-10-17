@@ -1,5 +1,7 @@
 package io.kontour.ui.components.list
 
+import io.kontour.ui.input.PressWatchers
+import io.kontour.ui.input.reportsPresses
 import io.kontour.ui.theme.clipProxy
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.animation.AnimatedVisibility
@@ -784,7 +786,7 @@ fun SwipeActions(
     DisposableEffect(showing, state) {
         if (!showing) return@DisposableEffect onDispose { }
         val key = Any()
-        OpenSwipeRows.add(key) { root ->
+        PressWatchers.add(key) { root ->
             // On the screen, as the press is: a press in a popup, or another
             // window, is in a root of its own, and its root's coordinates
             // compared with this row's said nothing.
@@ -795,7 +797,7 @@ fun SwipeActions(
             settling?.cancel()
             scope.launch { state.reset() }
         }
-        onDispose { OpenSwipeRows.remove(key) }
+        onDispose { PressWatchers.remove(key) }
     }
 
     Box(
@@ -805,7 +807,7 @@ fun SwipeActions(
             .onGloballyPositioned { placed.coordinates = it }
             // A press on this row closes any other that is open, with or
             // without an `OverlayHost` round the app to see every press.
-            .closesOpenSwipeRows()
+            .reportsPresses()
             .semantics {
                 // The only route to these that does not require knowing the
                 // gesture exists. Withheld while disabled, as the gesture is: a
@@ -1743,48 +1745,6 @@ private const val SideScrollQuietMillis = 250L
 /** Where a row is, for a press elsewhere to be told from one on it. Not state: written in layout, read in input. */
 private class RowPlace {
     var coordinates: LayoutCoordinates? = null
-}
-
-/**
- * The [SwipeActions] rows showing their actions, each told of every press —
- * where, on the screen — to close at one that is not on it.
- *
- * One for the process rather than one for each `OverlayHost`: a row inside a
- * host nested in another is closed by a press in the outer one too.
- */
-internal object OpenSwipeRows {
-    private val open = LinkedHashMap<Any, (Offset) -> Unit>()
-
-    fun add(key: Any, onPress: (Offset) -> Unit) {
-        open[key] = onPress
-    }
-
-    fun remove(key: Any) {
-        open.remove(key)
-    }
-
-    /** A press went down at [screen], on the screen. */
-    fun pressedAt(screen: Offset) {
-        if (open.isEmpty()) return
-        for (onPress in open.values.toList()) onPress(screen)
-    }
-}
-
-/**
- * Tells [OpenSwipeRows] of every press that goes down in this node, before
- * anything in it sees the press, and takes nothing from it: on an app's root —
- * `OverlayHost` puts it there — so a press anywhere closes a row left open.
- */
-@Composable
-internal fun Modifier.closesOpenSwipeRows(): Modifier {
-    val placed = remember { RowPlace() }
-    return onGloballyPositioned { placed.coordinates = it }.pointerInput(Unit) {
-        awaitEachGesture {
-            val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-            val coordinates = placed.coordinates?.takeIf { it.isAttached } ?: return@awaitEachGesture
-            OpenSwipeRows.pressedAt(coordinates.localToScreen(down.position))
-        }
-    }
 }
 
 /** Whether this is a side's actions shown, waiting for a tap. */

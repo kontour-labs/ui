@@ -53,7 +53,7 @@ import io.kontour.ui.platform.WarnIfWindowPansForKeyboard
 import io.kontour.ui.components.text.TextContextMenuHost
 import io.kontour.ui.foundation.ScrimLayer
 import io.kontour.ui.input.clearFocusOnTap
-import io.kontour.ui.components.list.closesOpenSwipeRows
+import io.kontour.ui.input.reportsPresses
 import io.kontour.ui.motion.BackPan
 import io.kontour.ui.motion.BackStyle
 import io.kontour.ui.motion.EdgePanWidth
@@ -982,8 +982,9 @@ fun OverlayHost(
                 .onPreviewKeyEvent { drags.handleKey(it, direction) }
                 .trackHostOrigin(state)
                 .clearFocusOnTap(clearFocusOnTap)
-                // A swipe row left showing its actions closes at a press anywhere else.
-                .closesOpenSwipeRows()
+                // Every press, wherever it lands, to what lets go at one
+                // elsewhere: a swipe row left open, a chart's selection.
+                .reportsPresses()
                 .then(if (ownBack != null && tracksSwipe) Modifier.edgeSwipeBack(ownBack.navigationEventDispatcher) else Modifier),
         ) {
             Box(

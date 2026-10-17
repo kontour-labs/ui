@@ -440,6 +440,20 @@ Turn it off for a screen built to hold the keyboard up — a chat composer, a
 search-as-you-type page — where dropping focus on a stray press is the wrong
 answer.
 
+### A press elsewhere
+
+The host also tells whatever is watching of every press, wherever it lands,
+which is how a swipe row left showing its actions closes and a chart's
+selection lets go when the reader taps somewhere else. `Modifier.onPressOutside`
+is the same for anything of an app's own:
+
+```kotlin
+Box(Modifier.onPressOutside(enabled = picked != null) { picked = null }) { Board(picked) }
+```
+
+The press is watched and never taken, so it goes on to press what it was aimed
+at. With no host round the app, only presses on the node itself are seen.
+
 ---
 
 ## The queue
