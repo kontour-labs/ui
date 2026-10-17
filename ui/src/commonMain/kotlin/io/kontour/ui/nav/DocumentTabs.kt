@@ -304,13 +304,15 @@ fun <T : Any> DocumentTabs(
         BoxWithConstraints(
             Modifier
                 .fillMaxWidth()
-                // The line every tab but the selected one stands on, at the high
-                // contrast tier: the selected one's ground covers it, so its
-                // edge runs on round the tab unbroken.
+                // The strip's edge at the high contrast tier, all round it, as any
+                // ground on the page has one there. Its foot is the line every tab
+                // but the selected one stands on: the selected one's ground covers
+                // it, so the tab's own edge runs on round the tab unbroken, open
+                // to its page.
                 .drawBehind {
                     if (edge != null) {
                         val w = edge.width.toPx()
-                        drawLine(edge.brush, Offset(0f, size.height - w / 2), Offset(size.width, size.height - w / 2), w)
+                        drawRect(edge.brush, topLeft = Offset(w / 2, w / 2), size = Size(size.width - w, size.height - w), style = Stroke(w))
                     }
                 }
                 // Closing by mouse holds every tab at its width until the
@@ -350,7 +352,7 @@ fun <T : Any> DocumentTabs(
                             ) {
                                 TabFace(
                                     label = state.itemLabel(gone),
-                                    colour = colours.content,
+                                    colour = if (enabled) colours.content else Theme.colours.contentDisabled,
                                     foot = foot,
                                     leading = leading?.let { slot -> @Composable { slot(gone) } },
                                     close = null,
@@ -375,7 +377,10 @@ fun <T : Any> DocumentTabs(
                             .fadingEdges(state.listState, Orientation.Horizontal)
                             .selectableGroup()
                             .semantics { collectionInfo = CollectionInfo(rowCount = 1, columnCount = keys.size) }
-                            .onFocusChanged { if (!it.hasFocus) strip.roving = null },
+                            // Focus leaving the strip gives the stop back to the selected
+                            // tab; not focus on its way from one tab to the next, which
+                            // goes as the old tab stops being the stop.
+                            .onFocusChanged { if (!it.hasFocus && strip.pendingFocus == null) strip.roving = null },
                         contentPadding = PaddingValues(horizontal = foot),
                         verticalAlignment = Alignment.Bottom,
                         flingBehavior = ScrollDefaults.flingBehavior(),
@@ -500,7 +505,11 @@ private fun DragItemScope.DocumentTab(
     }
     val inset = Theme.spacing.xs
     val hairline = Theme.sizing.borderWidth
-    val colour = if (selected) colours.selectedContent else colours.content
+    val colour = when {
+        !enabled -> Theme.colours.contentDisabled
+        selected -> colours.selectedContent
+        else -> colours.content
+    }
     val showsClose = selected || hovered || showsCloseAt.value
 
     Box(

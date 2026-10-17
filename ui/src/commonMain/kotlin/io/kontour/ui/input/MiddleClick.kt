@@ -1,5 +1,8 @@
 package io.kontour.ui.input
 
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
@@ -15,8 +18,14 @@ import androidx.compose.ui.input.pointer.pointerInput
  *
  * A mouse alone has the button; nothing else is told of anything.
  */
-internal fun Modifier.middleClick(enabled: Boolean = true, onClick: () -> Unit): Modifier =
-    if (!enabled) this else pointerInput(onClick) {
+@Composable
+internal fun Modifier.middleClick(enabled: Boolean = true, onClick: () -> Unit): Modifier {
+    // Read as it is when the button comes up, and the gesture never restarted
+    // for a new one: keyed on the lambda, the hover a press brings recomposed
+    // the tab, restarted the gesture between the press and the release, and
+    // the release closed nothing.
+    val latest by rememberUpdatedState(onClick)
+    return if (!enabled) this else pointerInput(Unit) {
         awaitPointerEventScope {
             var pressed = false
             while (true) {
@@ -29,8 +38,9 @@ internal fun Modifier.middleClick(enabled: Boolean = true, onClick: () -> Unit):
                     pressed = false
                     change.consume()
                     val at = change.position
-                    if (at.x in 0f..size.width.toFloat() && at.y in 0f..size.height.toFloat()) onClick()
+                    if (at.x in 0f..size.width.toFloat() && at.y in 0f..size.height.toFloat()) latest()
                 }
             }
         }
     }
+}
