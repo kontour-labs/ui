@@ -886,8 +886,6 @@ internal interface GhostRows {
     fun height(): Float
 }
 
-/** The day an event's last minute is on. */
-
 /**
  * A piece of the copy a carry by days draws: one a row it is in.
  *

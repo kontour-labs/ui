@@ -1242,8 +1242,6 @@ private fun Modifier.fillHeightOr(unbounded: Dp): Modifier = layout { measurable
     layout(placeable.width, placeable.height) { placeable.place(0, 0) }
 }
 
-/** The day an event's last minute is on. */
-
 /** The days of an event between [pageStart] and [pageEnd]: each day's column and its minutes, from its start or midnight to its end or midnight. */
 private fun timedPieces(start: LocalDateTime, end: LocalDateTime, pageStart: LocalDate, pageEnd: LocalDate): List<Triple<Int, Int, Int>> = buildList {
     val lastDay = lastDayOf(start, end)
