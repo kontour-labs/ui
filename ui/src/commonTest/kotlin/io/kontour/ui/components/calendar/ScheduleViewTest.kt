@@ -204,7 +204,7 @@ class ScheduleViewTest {
                     probe.formats = Theme.formats
                     probe.strings = Theme.strings
                     probe.dayLines = with(LocalDensity.current) {
-                        (Theme.typography.labelSmall.lineHeight + Theme.typography.titleMedium.lineHeight).toPx()
+                        Theme.typography.labelSmall.lineHeight.toPx() + Theme.typography.titleMedium.lineHeight.toPx()
                     }
                     probe.state = rememberEventCalendarState(today, CalendarView.Schedule, LocalTime(8, 0), DayOfWeek.MONDAY)
                     EventCalendar(
