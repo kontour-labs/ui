@@ -91,6 +91,15 @@ class FlaredTabShapeTest {
         assertTrue(differ <= Rounding, "the feet differ at $differ pixels")
     }
 
+    /** Asked for less than no room, as a tab carried between strips once was, it is nothing rather than a throw. */
+    @Test
+    fun withNoRoomItIsNothing() {
+        for (size in listOf(Size(W.toFloat(), -16f), Size(0f, H.toFloat()), Size.Zero)) {
+            val bounds = shape.createOutline(size, LayoutDirection.Ltr, density).bounds
+            assertTrue(bounds.isEmpty, "a tab of $size drew $bounds")
+        }
+    }
+
     private companion object {
         const val W = 136
         const val H = 40

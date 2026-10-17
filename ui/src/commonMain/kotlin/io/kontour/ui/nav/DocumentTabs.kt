@@ -528,7 +528,7 @@ private fun DragItemScope.DocumentTab(
                     val middle = top + (size.height - top) / 2
                     drawLine(colours.separator, Offset(x, middle - reach / 2), Offset(x, middle + reach / 2), line)
                 }
-                if (selected) {
+                if (selected && size.height > top) {
                     val reach = foot.toPx()
                     val ground = Size(size.width + reach * 2, size.height - top)
                     val outline = flared.createOutline(ground, layoutDirection, this)
