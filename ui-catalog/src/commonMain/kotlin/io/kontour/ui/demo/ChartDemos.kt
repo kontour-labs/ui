@@ -1,6 +1,8 @@
 package io.kontour.ui.demo
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -153,9 +155,15 @@ internal val ChartDemo = ComponentDemo(
             )
         }
 
-        Row(horizontalArrangement = Arrangement.spacedBy(spacing.lg), verticalAlignment = Alignment.CenterVertically) {
+        // Side by side where there is room, and the sparklines under the
+        // circle on a phone, where beside it they left it 40dp across.
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(spacing.lg),
+            verticalArrangement = Arrangement.spacedBy(spacing.md),
+            itemVerticalAlignment = Alignment.CenterVertically,
+        ) {
             SectorChart(
-                modifier = Modifier.weight(1f).height(180.dp),
+                modifier = Modifier.widthIn(min = 260.dp).weight(1f).height(180.dp),
                 innerRadius = if (donut) 0.6f else 0f,
                 contentDescription = "Riders in August, by route",
                 showPatterns = patterns,

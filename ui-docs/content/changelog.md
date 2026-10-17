@@ -93,9 +93,6 @@ On `main`, and in the next release.
   written in Arabic-Indic digits or with a thousands separator, so it fell back
   to fading the whole sentence. `AnimatedCounter`'s cells were measured from
   Western digits and clipped wider ones.
-- **A normalised chart says shares, not raw values as percents.** A bar of 40
-  in a place whose whole was 50 was said and shown in its tooltip as "4,000%";
-  it is "80%", as the axis it is read against is.
 - **A calendar's weekdays are whole at large type and in long-name languages.**
   A month and a week went to a weekday's letter only below a fixed column
   width, which held English at 100% and nothing else, so a longer name was cut
@@ -129,6 +126,18 @@ On `main`, and in the next release.
   that anything with a control in it waits for them, and its clock stops while
   keyboard focus is on its action or its close, as it does under a finger or a
   pointer.
+- **A side sheet comes in from its own side right to left.** An end sheet in a
+  right-to-left layout came in at the start, across the content it was meant
+  to sit beside, rounded on the wrong edge and sliding the wrong way: its edge
+  was worked out for the direction and then flipped again by the alignment
+  and the slide. [`SideSheet`](components/side-sheet.md) and
+  [`ModalSideSheet`](components/modal-side-sheet.md) are placed by the
+  physical edge now.
+- **A dialog's buttons stack rather than break a word.** At large type in a
+  narrow window, "Cancel" came out "Cance / l" and "Remove" "Remo / ve" in
+  their halves of the row. Where one of them cannot fit its longest word, the
+  buttons are a column, the answer first and the way out last; a label that
+  wraps between its words stays in the row as before.
 - **A selection is drawn over code and highlights.** Dragged across a sentence
   with `code` in it, a selection lit up the words either side and left the code
   looking unselected, though it was selected and copied. A span's background

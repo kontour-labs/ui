@@ -70,6 +70,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -199,6 +200,9 @@ import io.kontour.ui.nav.NavScope
 import io.kontour.ui.nav.Tab
 import io.kontour.ui.nav.TabBar
 import io.kontour.ui.overlay.OverlayHost
+import io.kontour.ui.overlay.OverlayAlignment
+import io.kontour.ui.a11y.contrastEdge
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.ui.unit.Dp
 import androidx.compose.foundation.layout.BoxScope
 import io.kontour.ui.sheet.SideSheet
@@ -2325,7 +2329,10 @@ val componentRegistry: List<ComponentSpec> = buildList {
                     duration = 60_000.milliseconds,
                 )
             }
-            Box(modifier.fillMaxWidth().height(88.dp)) {
+            // Taller with the type, so at 200% a message wrapped to three lines
+            // still has the room a window would give it: at a fixed 88dp the
+            // host clipped the card to its first word.
+            Box(modifier.fillMaxWidth().height(growsWithType(88.dp))) {
                 // Its own host, so the toast is drawn inside the box this
                 // specimen was handed rather than wherever the surrounding
                 // harness happens to have mounted one. Every other specimen
@@ -2354,11 +2361,13 @@ val componentRegistry: List<ComponentSpec> = buildList {
     // what a specimen is.
 
     add(
-        ComponentSpec(name = "DropdownMenu", role = null, underContract = false, renderHeight = 212) { modifier, _, _ ->
-            OverlaySpecimen(modifier, height = 180.dp) {
-                Box(Modifier.align(Alignment.TopStart)) {
+        ComponentSpec(name = "DropdownMenu", role = null, underContract = false, renderHeight = 232) { modifier, _, _ ->
+            OverlaySpecimen(modifier, height = 200.dp) {
+                // In the middle and centred on its anchor, so the menu's shadow
+                // has room on every side inside the window.
+                Box(Modifier.align(Alignment.TopCenter).padding(top = Theme.spacing.xs)) {
                     IconButton(icon = Tabler.Outline.DotsVertical, contentDescription = "More", onClick = {})
-                    DropdownMenu(visible = true, onDismissRequest = {}) {
+                    DropdownMenu(visible = true, onDismissRequest = {}, alignment = OverlayAlignment.Centre) {
                         item("Share") {}
                         item("Copy stop ID") {}
                         item("Remove favourite", destructive = true) {}
@@ -2417,8 +2426,8 @@ val componentRegistry: List<ComponentSpec> = buildList {
     )
 
     add(
-        ComponentSpec(name = "AlertDialog", role = null, underContract = false, renderHeight = 292) { modifier, _, _ ->
-            OverlaySpecimen(modifier, height = 260.dp) {
+        ComponentSpec(name = "AlertDialog", role = null, underContract = false, renderHeight = 372) { modifier, _, _ ->
+            OverlaySpecimen(modifier, height = 340.dp) {
                 AlertDialog(
                     visible = true,
                     onDismissRequest = {},
@@ -2434,8 +2443,8 @@ val componentRegistry: List<ComponentSpec> = buildList {
     )
 
     add(
-        ComponentSpec(name = "CommandPalette", role = null, underContract = false, renderHeight = 312) { modifier, _, _ ->
-            OverlaySpecimen(modifier, height = 280.dp) {
+        ComponentSpec(name = "CommandPalette", role = null, underContract = false, renderHeight = 352) { modifier, _, _ ->
+            OverlaySpecimen(modifier, height = 320.dp) {
                 CommandPalette(
                     visible = true,
                     onDismissRequest = {},
@@ -2443,7 +2452,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
                     // Sized for the box rather than for a window, which is what
                     // these three are for: the defaults would spend a third of
                     // the box on the inset and clip the list.
-                    maxHeight = 248.dp,
+                    maxHeight = 288.dp,
                     topInset = Theme.spacing.md,
                 )
             }
@@ -2453,7 +2462,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
     add(
         ComponentSpec(name = "SideSheet", role = null, underContract = false, renderHeight = 212) { modifier, _, _ ->
             OverlaySpecimen(modifier, height = 180.dp) {
-                Text("Departures", modifier = Modifier.padding(Theme.spacing.md))
+                Text("Stops", modifier = Modifier.padding(Theme.spacing.md))
                 SideSheet(visible = true, width = 180.dp, paneTitle = "Filters") {
                     SheetHeader { +"Filters" }
                     Text(
@@ -3209,17 +3218,32 @@ private fun SplitButtonSpecimen(
  * everyone to re-record without looking.
  */
 /**
- * An overlay's specimen: a box of [height] with a host of its own, so what is
- * raised in it is drawn in the box the sweep handed over, as `Toast`'s is.
+ * An overlay's specimen: a small window of [height] with a host of its own, so
+ * what is raised in it is drawn in the box the sweep handed over, as `Toast`'s
+ * is.
+ *
+ * A window rather than a bare box because a host clips its overlays to its
+ * bounds, as it should at the root of an app, where those bounds are the
+ * screen's. In a box on a page the same cut was a hard edge of shadow in the
+ * middle of the page, and read as a bug; at a window's edge it is what it is.
  */
 @Composable
 private fun OverlaySpecimen(modifier: Modifier, height: Dp, content: @Composable BoxScope.() -> Unit) {
-    Box(modifier.fillMaxWidth().height(height)) {
+    Surface(
+        modifier = modifier.fillMaxWidth().height(growsWithType(height)),
+        shape = Theme.shapes.large,
+        containerColour = Theme.colours.surface,
+        border = contrastEdge() ?: BorderStroke(1.dp, Theme.colours.outlineSubtle),
+    ) {
         OverlayHost(Modifier.fillMaxSize()) {
             Box(Modifier.fillMaxSize(), content = content)
         }
     }
 }
+
+/** [height], and more of it at a type size over 100%, as a window of text would be. */
+@Composable
+private fun growsWithType(height: Dp): Dp = height * LocalDensity.current.fontScale.coerceAtLeast(1f)
 
 /** Four of a transit app's commands, two with shortcuts, in two groups. */
 private val SpecimenCommands = listOf(
