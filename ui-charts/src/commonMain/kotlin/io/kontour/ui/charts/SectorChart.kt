@@ -2,29 +2,23 @@ package io.kontour.ui.charts
 
 import io.kontour.ui.foundation.FillPatternDefaults
 import io.kontour.ui.foundation.PatternBrushes
-import io.kontour.ui.input.onPressOutside
-import androidx.compose.ui.layout.positionInWindow
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
-import androidx.compose.foundation.focusable
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.LayoutScopeMarker
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -32,14 +26,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.input.key.Key
-import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
-import androidx.compose.ui.input.key.onKeyEvent
-import androidx.compose.ui.input.key.type
-import androidx.compose.ui.input.pointer.PointerEventType
-import androidx.compose.ui.input.pointer.PointerType
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -52,15 +39,12 @@ import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.foundation.ContentScope
-import io.kontour.ui.input.focusRing
 import io.kontour.ui.interaction.rememberDetentTicker
-import io.kontour.ui.overlay.Tooltip
 import io.kontour.ui.theme.Theme
 import kotlin.math.PI
 import kotlin.math.abs
@@ -176,10 +160,7 @@ fun SectorChart(
         previous.clear()
         previous += parts.map { it.series }.zip(fractions)
     }
-    val fade = remember { Animatable(if (animateData && motion.reduceMotion) 0f else 1f) }
-    LaunchedEffect(Unit) {
-        if (fade.value < 1f) fade.animateTo(1f, motion.tweenFast())
-    }
+    val fade = rememberChartFade(animateData)
 
     val shares = remember(parts, strings, formats) {
         parts.mapIndexed { index, part ->
@@ -266,69 +247,24 @@ fun SectorChart(
     var box by remember { mutableStateOf(IntSize.Zero) }
     val geometry = remember(fractions, innerRadius, direction) { SectorGeometry(fractions, innerRadius, direction) }
     val chooseAt: (Offset) -> Unit = { offset -> geometry.partAt(offset, box.width.toFloat(), box.height.toFloat())?.let(choose) }
-    // Keyed on nothing that changes, as a `Chart`'s gestures are: the geometry
-    // is made again whenever the caller recomposes, and a drag keyed on it
-    // stopped at its first step.
-    val latestChooseAt by rememberUpdatedState(chooseAt)
-    var tooltipAway by remember(chosen) { mutableStateOf(false) }
-    val placed = remember { Placed() }
-    val source = interactionSource ?: remember { MutableInteractionSource() }
-    val input = if (interactive) {
-        Modifier
-            .onPressOutside(enabled = chosen != null) { currentSelection?.clear() }
-            .onGloballyPositioned { coordinates ->
-                val now = coordinates.positionInWindow()
-                val before = placed.at
-                placed.at = now
-                if (before != null && (now - before).getDistance() > placed.slop) tooltipAway = true
-            }
-            .pointerInput(Unit) { detectTapGestures { latestChooseAt(it) } }
-            // Round the circle with a finger: held first, so that a drag that
-            // starts upright is still the page's scroll.
-            .pointerInput(Unit) {
-                detectDragGesturesAfterLongPress(onDragStart = { latestChooseAt(it) }) { change, _ ->
-                    change.consume()
-                    latestChooseAt(change.position)
-                }
-            }
-            .pointerInput(Unit) {
-                awaitPointerEventScope {
-                    while (true) {
-                        val event = awaitPointerEvent()
-                        val change = event.changes.firstOrNull() ?: continue
-                        if (event.type == PointerEventType.Move && change.type == PointerType.Mouse) latestChooseAt(change.position)
-                    }
-                }
-            }
-            .onKeyEvent { event ->
-                if (event.type != KeyEventType.KeyDown) return@onKeyEvent false
-                val index = chosen ?: -1
-                val last = parts.lastIndex
-                // Round the circle the way it is drawn: clockwise is on, and
-                // a right-to-left circle is drawn the other way round.
-                val next = when (event.key) {
-                    Key.DirectionRight -> if (rtl) index - 1 else index + 1
-                    Key.DirectionLeft -> if (rtl) index + 1 else if (index < 0) last else index - 1
-                    Key.DirectionDown -> index + 1
-                    Key.DirectionUp -> if (index < 0) last else index - 1
-                    Key.MoveHome -> 0
-                    Key.MoveEnd -> last
-                    Key.Escape -> {
-                        if (index < 0) return@onKeyEvent false
-                        selection.clear()
-                        return@onKeyEvent true
-                    }
-                    else -> return@onKeyEvent false
-                }
-                choose(if (next < 0) last else next % (last + 1))
-                true
-            }
-            .focusRing(source, shape = Theme.shapes.small)
-            .focusable(enabled = true, interactionSource = source)
-            .semantics { if (chosen != null) stateDescription = shares[chosen] }
-    } else {
-        Modifier
-    }
+    val tip = rememberChartTip()
+    // Round the circle with a finger after a hold, so that a drag that starts
+    // upright is still the page's scroll; round it with the keys the way it is
+    // drawn, clockwise on, and the other way round right to left.
+    val input = Modifier.chartSelectionInput(
+        enabled = interactive,
+        tip = tip,
+        chosen = chosen,
+        index = chosen,
+        count = parts.size,
+        steps = ChartSteps.Round,
+        dragsAcross = false,
+        said = chosen?.let { shares[it] },
+        interactionSource = interactionSource,
+        pickAt = chooseAt,
+        pick = choose,
+        clear = { currentSelection?.clear() },
+    )
 
     SectorLayout(
         modifier = modifier.semantics {
@@ -390,7 +326,7 @@ fun SectorChart(
             if (centre != null && innerRadius > 0f) centre()
             // One node a sector, over its middle, so a screen reader moves
             // round the parts and its focus is drawn on the one it reads.
-            val showProbe = interactive && showSelectionTooltip && chosen != null && !tooltipAway
+            val showProbe = interactive && showSelectionTooltip && tip.shownFor(chosen)
             Layout(
                 content = {
                     parts.forEachIndexed { index, _ ->
@@ -408,7 +344,7 @@ fun SectorChart(
                             },
                         )
                     }
-                    if (showProbe) {
+                    if (showProbe && chosen != null) {
                         val part = parts[chosen]
                         val shown = ChartSelection(
                             x = part.series,
@@ -421,15 +357,9 @@ fun SectorChart(
                                 ),
                             ),
                         )
-                        Box {
-                            Tooltip(visible = true) {
-                                if (tooltip != null) {
-                                    tooltip(shown)
-                                } else {
-                                    val look = lookOf(series.indexOf(part.series), colours.series, patterns, part.style, part.series.style)
-                                    ChartTooltipBody(title = null, rows = listOf(TooltipRow(look.colour, part.series.name, shown.values[0].label)))
-                                }
-                            }
+                        ChartTooltipProbe(shown, tooltip, onDismissRequest = { tip.putAway(chosen) }) {
+                            val look = lookOf(series.indexOf(part.series), colours.series, patterns, part.style, part.series.style)
+                            ChartTooltipBody(title = null, rows = listOf(TooltipRow({ FillSwatch(look, colours) }, part.series.name, shown.values[0].label)))
                         }
                     }
                 },

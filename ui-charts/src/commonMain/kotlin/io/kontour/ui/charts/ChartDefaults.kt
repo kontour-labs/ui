@@ -4,11 +4,13 @@ import io.kontour.ui.foundation.FillPattern
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.differentiateWithoutColour
 import io.kontour.ui.a11y.highContrast
 import io.kontour.ui.locale.LocalPseudoLocale
+import io.kontour.ui.foundation.LocalContainerColour
 import io.kontour.ui.theme.Theme
 
 /** What [Chart], [SectorChart] and [Sparkline] are drawn with unless told otherwise. */
@@ -19,6 +21,11 @@ object ChartDefaults {
      * and contrast tier (or [LocalSeriesColours]), the gridlines in the faintest
      * rule the scheme has, labels in its muted ink, and patterns in a wash of the
      * page's own ground.
+     *
+     * The [ground] is what the chart sits on: the nearest surface's colour, or
+     * the page's. It was the surface colour always, so on a card or the page a
+     * sector's gaps, a point's halo and a pin's fill were a different shade
+     * from the ground around them.
      */
     @Composable
     @ReadOnlyComposable
@@ -29,7 +36,7 @@ object ChartDefaults {
         label: Color = Theme.colours.contentMuted,
         selection: Color = Theme.colours.contentMuted,
         patternInk: Color = Theme.colours.background.copy(alpha = PatternInkAlpha),
-        ground: Color = Theme.colours.surface,
+        ground: Color = LocalContainerColour.current.takeOrElse { Theme.colours.background },
     ): ChartColours = ChartColours(series, grid, axis, label, selection, patternInk, ground)
 
     /**

@@ -1,8 +1,11 @@
 package io.kontour.ui.charts
 
+import io.kontour.ui.theme.trailingCornersOnly
+import io.kontour.ui.theme.topCornersOnly
+import io.kontour.ui.theme.leadingCornersOnly
+import io.kontour.ui.theme.bottomCornersOnly
 import io.kontour.ui.foundation.PatternBrushes
 import androidx.compose.foundation.shape.CornerBasedShape
-import androidx.compose.foundation.shape.ZeroCornerSize
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
@@ -47,11 +50,10 @@ internal class DrawConfig(
  * left to right whatever the language: a bar's far end is worked out already.
  */
 internal class Corners(base: CornerBasedShape) {
-    private val none = ZeroCornerSize
-    val up: Shape = base.copy(bottomEnd = none, bottomStart = none)
-    val down: Shape = base.copy(topStart = none, topEnd = none)
-    val right: Shape = base.copy(topStart = none, bottomStart = none)
-    val left: Shape = base.copy(topEnd = none, bottomEnd = none)
+    val up: Shape = base.topCornersOnly()
+    val down: Shape = base.bottomCornersOnly()
+    val right: Shape = base.trailingCornersOnly()
+    val left: Shape = base.leadingCornersOnly()
     val all: Shape = base
 }
 

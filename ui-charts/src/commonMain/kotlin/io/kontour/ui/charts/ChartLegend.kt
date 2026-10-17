@@ -1,26 +1,27 @@
 package io.kontour.ui.charts
 
-import io.kontour.ui.foundation.PatternBrushes
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.foundation.Text
+import io.kontour.ui.foundation.fillPattern
 import io.kontour.ui.theme.Theme
 
 /**
@@ -42,8 +43,8 @@ internal fun ChartLegend(
     val spacing = Theme.spacing
     val item: @Composable (ChartSeries) -> Unit = { series ->
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(spacing.xxs)) {
-            LegendSwatch(model, series, colours, patterns)
-            Text(series.name, style = Theme.typography.labelMedium, colour = Theme.colours.content)
+            SeriesSwatch(model, series, colours, patterns)
+            Text(series.name, style = Theme.typography.labelMedium)
         }
     }
     val hidden = Modifier.clearAndSetSemantics { }
@@ -60,44 +61,61 @@ internal fun ChartLegend(
     }
 }
 
+/**
+ * A series' key, drawn the way the series is — a dash of its line with its
+ * symbol, or a square of its fill — for the legend and a tooltip's rows alike,
+ * so that a series is told by the same mark wherever it is named.
+ */
 @Composable
-private fun LegendSwatch(model: ChartModel, series: ChartSeries, colours: ChartColours, patterns: Boolean) {
+internal fun SeriesSwatch(model: ChartModel, series: ChartSeries, colours: ChartColours, patterns: Boolean) {
     val mark = model.marks.firstOrNull { mark -> mark.runs.any { it.series == series } }
     val look = lookOf(model.slotOf(series), colours.series, patterns, mark?.style, series.style)
-    val tiles = remember { PatternBrushes() }
-    val sizing = Theme.sizing
     // Read once: a series with no mark yet has a square swatch, as a bar's.
     val kind = mark?.kind
-    val markSymbol = mark?.symbol
-    val markShowsPoints = mark?.showPoints == true
-    val lineLike = kind == MarkKind.Line || kind == MarkKind.Point
-    val symbolShown = kind == MarkKind.Point || (lineLike && (markShowsPoints || patterns))
+    if (mark == null || (kind != MarkKind.Line && kind != MarkKind.Point)) {
+        FillSwatch(look, colours)
+        return
+    }
+    val markSymbol = mark.symbol
+    val symbolShown = kind == MarkKind.Point || mark.showPoints || patterns
+    val sizing = Theme.sizing
     Spacer(
         Modifier
-            .size(width = if (lineLike) LineSwatchWidth else SwatchSize, height = SwatchSize)
+            .size(width = LineSwatchWidth, height = SwatchSize)
             .drawBehind {
-                if (lineLike) {
-                    if (kind == MarkKind.Line) {
-                        val width = sizing.borderWidthStrong.toPx()
-                        val path = Path().apply {
-                            moveTo(0f, size.height / 2)
-                            lineTo(size.width, size.height / 2)
-                        }
-                        drawPath(path, look.colour, style = Stroke(width, cap = StrokeCap.Round, pathEffect = look.line.effect(width)))
+                if (kind == MarkKind.Line) {
+                    val width = sizing.borderWidthStrong.toPx()
+                    val path = Path().apply {
+                        moveTo(0f, size.height / 2)
+                        lineTo(size.width, size.height / 2)
                     }
-                    if (symbolShown) {
-                        val symbol = Path()
-                        addSymbol(symbol, markSymbol ?: look.symbol, Offset(size.width / 2, size.height / 2), ChartDefaults.PointSize.toPx())
-                        drawPath(symbol, look.colour)
-                    }
-                } else {
-                    val swatch = Path().apply {
-                        addRoundRect(RoundRect(0f, 0f, size.width, size.height, CornerRadius(size.minDimension / 4)))
-                    }
-                    drawPath(swatch, look.colour)
-                    tiles.brush(look.fill, colours.patternInk, SwatchTile.roundToPx(), sizing.borderWidth.toPx())?.let { drawPath(swatch, it) }
+                    drawPath(path, look.colour, style = Stroke(width, cap = StrokeCap.Round, pathEffect = look.line.effect(width)))
+                }
+                if (symbolShown) {
+                    val symbol = Path()
+                    addSymbol(symbol, markSymbol ?: look.symbol, Offset(size.width / 2, size.height / 2), ChartDefaults.PointSize.toPx())
+                    drawPath(symbol, look.colour)
                 }
             },
+    )
+}
+
+/**
+ * A square of [look]'s fill, its pattern over its colour: a bar's, an area's
+ * or a sector's key. The library's own [fillPattern] and [contrastEdge], so a
+ * swatch is hatched as an event on a calendar is, and edged at the high
+ * contrast tier as an activity calendar's key is.
+ */
+@Composable
+internal fun FillSwatch(look: SeriesLook, colours: ChartColours) {
+    val shape = Theme.shapes.extraSmall
+    val edge = contrastEdge()
+    Box(
+        Modifier
+            .size(SwatchSize)
+            .background(look.colour, shape)
+            .fillPattern(look.fill, colours.patternInk, shape, SwatchTile)
+            .then(if (edge != null) Modifier.border(edge, shape) else Modifier),
     )
 }
 

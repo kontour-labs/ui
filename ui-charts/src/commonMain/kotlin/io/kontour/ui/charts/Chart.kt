@@ -2,37 +2,21 @@ package io.kontour.ui.charts
 
 import io.kontour.ui.foundation.FillPatternDefaults
 import io.kontour.ui.foundation.PatternBrushes
-import io.kontour.ui.input.onPressOutside
-import androidx.compose.ui.layout.positionInWindow
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationSpec
-import androidx.compose.foundation.focusable
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.input.key.Key
-import androidx.compose.ui.input.key.KeyEventType
-import androidx.compose.ui.input.key.key
-import androidx.compose.ui.input.key.onKeyEvent
-import androidx.compose.ui.input.key.type
-import androidx.compose.ui.input.pointer.PointerEventType
-import androidx.compose.ui.input.pointer.PointerType
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -45,15 +29,11 @@ import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Constraints
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.foundation.ContentScope
-import io.kontour.ui.input.focusRing
 import io.kontour.ui.interaction.rememberDetentTicker
-import io.kontour.ui.overlay.Tooltip
 import io.kontour.ui.theme.Theme
 import kotlin.math.abs
 import kotlin.math.max
@@ -157,10 +137,7 @@ fun <X : Any, Y : Any> Chart(
     }
     // Under reduced motion nothing moves: a chart appearing fades in, and a
     // change of data is the new chart at once.
-    val fade = remember { Animatable(if (animateData && motion.reduceMotion) 0f else 1f) }
-    LaunchedEffect(Unit) {
-        if (fade.value < 1f) fade.animateTo(1f, motion.tweenFast())
-    }
+    val fade = rememberChartFade(animateData)
 
     val sentences = Theme.strings.sentences
     val summary = remember(chart, strings, formats, sentences, contentDescription) {
@@ -413,10 +390,6 @@ private fun <X : Any> ChartPlot(
     val selectedPlace = selectedX?.let { nearestPlace(chart.places, encode(it)) }
     val ticker = rememberDetentTicker()
     val currentSelection by rememberUpdatedState(selection)
-    // The gestures are keyed on nothing that changes, and read the chart as it
-    // is now. Keyed on the chart, a gesture was torn down whenever it was
-    // resolved again, which a recomposition of the caller does: a selection
-    // made during a drag recomposed it, and the drag stopped at its first step.
     val currentChart by rememberUpdatedState(chart)
     val currentDecode by rememberUpdatedState(decode)
     val select: (Double) -> Unit = { place ->
@@ -425,84 +398,31 @@ private fun <X : Any> ChartPlot(
             currentSelection?.select(x)
         }
     }
-    val selectAt: (Offset) -> Unit = { offset ->
-        frame?.let { current ->
-            val now = currentChart
-            nearestPlace(now.places, Mapper(current, now.x, now.y).xAt(offset))?.let(select)
-        }
-    }
-    val latestSelectAt by rememberUpdatedState(selectAt)
-    // Put away while the chart is moved, by a scroll or anything else, until
-    // the next place is chosen: a tooltip left where its place was is pointing
-    // at nothing.
-    var tooltipAway by remember(selectedPlace) { mutableStateOf(false) }
-    val placed = remember { Placed() }
-    val source = interactionSource ?: remember { MutableInteractionSource() }
-    val rtl = layoutDirection == LayoutDirection.Rtl
+    val tip = rememberChartTip()
+    val selectedIndex = selectedPlace?.let { place -> chart.places.indexOfFirst { it == place } }?.takeIf { it >= 0 }
     val selectedDescription = selectedPlace?.let { place -> places.firstOrNull { group -> group.places.any { it == place } }?.text }
 
-    val input = if (interactive) {
-        Modifier
-            // A tap elsewhere lets go, as a tap elsewhere puts any tooltip
-            // away; it still presses whatever it was aimed at.
-            .onPressOutside(enabled = selectedPlace != null) { currentSelection?.clear() }
-            .onGloballyPositioned { coordinates ->
-                val now = coordinates.positionInWindow()
-                val before = placed.at
-                placed.at = now
-                if (before != null && (now - before).getDistance() > placed.slop) tooltipAway = true
+    val input = Modifier.chartSelectionInput(
+        enabled = interactive,
+        tip = tip,
+        chosen = selectedPlace,
+        index = selectedIndex,
+        count = chart.places.size,
+        steps = ChartSteps.Along,
+        dragsAcross = true,
+        said = selectedDescription,
+        interactionSource = interactionSource,
+        pickAt = { offset ->
+            frame?.let { current ->
+                val now = currentChart
+                nearestPlace(now.places, Mapper(current, now.x, now.y).xAt(offset))?.let(select)
             }
-            .pointerInput(Unit) { detectTapGestures { latestSelectAt(it) } }
-            .pointerInput(Unit) {
-                detectHorizontalDragGestures(onDragStart = { latestSelectAt(it) }) { change, _ ->
-                    change.consume()
-                    latestSelectAt(change.position)
-                }
-            }
-            // Held, then dragged any way: a drag that starts upright is the
-            // page's scroll, so this is the one that can wander off the line.
-            .pointerInput(Unit) {
-                detectDragGesturesAfterLongPress(onDragStart = { latestSelectAt(it) }) { change, _ ->
-                    change.consume()
-                    latestSelectAt(change.position)
-                }
-            }
-            .pointerInput(Unit) {
-                awaitPointerEventScope {
-                    while (true) {
-                        val event = awaitPointerEvent()
-                        val change = event.changes.firstOrNull() ?: continue
-                        if (event.type == PointerEventType.Move && change.type == PointerType.Mouse) latestSelectAt(change.position)
-                    }
-                }
-            }
-            .onKeyEvent { event ->
-                if (event.type != KeyEventType.KeyDown) return@onKeyEvent false
-                val index = selectedPlace?.let { place -> chart.places.indexOfFirst { it == place } } ?: -1
-                val last = chart.places.lastIndex
-                val next = when (event.key) {
-                    Key.DirectionRight -> if (rtl) index - 1 else index + 1
-                    Key.DirectionLeft -> if (rtl) index + 1 else if (index < 0) last else index - 1
-                    Key.MoveHome -> 0
-                    Key.MoveEnd -> last
-                    Key.Escape -> {
-                        if (index < 0) return@onKeyEvent false
-                        selection.clear()
-                        return@onKeyEvent true
-                    }
-                    else -> return@onKeyEvent false
-                }
-                select(chart.places[next.coerceIn(0, last)])
-                true
-            }
-            .focusRing(source, shape = Theme.shapes.small)
-            .focusable(enabled = true, interactionSource = source)
-            .semantics { if (selectedDescription != null) stateDescription = selectedDescription }
-    } else {
-        Modifier
-    }
+        },
+        pick = { index -> select(currentChart.places[index]) },
+        clear = { currentSelection?.clear() },
+    )
 
-    val showProbe = interactive && showSelectionTooltip && selectedPlace != null && !tooltipAway
+    val showProbe = interactive && showSelectionTooltip && tip.shownFor(selectedPlace)
     Layout(
         content = {
             places.forEachIndexed { index, place ->
@@ -523,19 +443,13 @@ private fun <X : Any> ChartPlot(
             if (showProbe) {
                 val shown = selectionAt(chart, selectedPlace, decode, strings)
                 if (shown != null) {
-                    Box {
-                        Tooltip(visible = true) {
-                            if (tooltip != null) {
-                                tooltip(shown)
-                            } else {
-                                ChartTooltipBody(
-                                    title = shown.label,
-                                    rows = shown.values.map { value ->
-                                        TooltipRow(seriesColour(chart, value.series, colours, patterns), value.series.name, value.label)
-                                    },
-                                )
-                            }
-                        }
+                    ChartTooltipProbe(shown, tooltip, onDismissRequest = { tip.putAway(selectedPlace) }) {
+                        ChartTooltipBody(
+                            title = shown.label,
+                            rows = shown.values.map { value ->
+                                TooltipRow({ SeriesSwatch(chart.model, value.series, colours, patterns) }, value.series.name, value.label)
+                            },
+                        )
                     }
                 }
             }
@@ -633,11 +547,3 @@ private fun placeExtent(all: DoubleArray, group: DoubleArray): Pair<Double, Doub
 
 /** A chart's width when nothing gives it one: a phone's, so it is not a sliver in a row. */
 private val DefaultWidth = 320.dp
-
-/** Where a chart was last placed in its window, to see it move. Not state: written in layout, read in layout. */
-internal class Placed {
-    var at: Offset? = null
-
-    /** How far it may move before it has moved: past a pixel's rounding. */
-    val slop = 2f
-}
