@@ -443,16 +443,20 @@ fun <T : Any> DocumentTabs(
                     )
                 }
                 if (onAdd != null) {
-                    // Level with the tabs' labels, which sit below the gap at
-                    // the strip's top, not with the strip's middle.
-                    IconButton(
-                        onClick = onAdd,
-                        icon = addIcon,
-                        contentDescription = addLabel,
-                        modifier = Modifier.padding(top = Theme.spacing.xs),
-                        enabled = enabled,
-                        size = ButtonSize.Small,
-                    )
+                    // In the square the tabs' share leaves it, in the middle of
+                    // it: flush with the strip's end, its edge at high contrast
+                    // ran into the strip's. Level with the tabs' labels, which sit
+                    // below the gap at the strip's top, not with the strip's middle.
+                    Box(Modifier.width(addRoom), contentAlignment = Alignment.Center) {
+                        IconButton(
+                            onClick = onAdd,
+                            icon = addIcon,
+                            contentDescription = addLabel,
+                            modifier = Modifier.padding(top = Theme.spacing.xs),
+                            enabled = enabled,
+                            size = ButtonSize.Small,
+                        )
+                    }
                 }
             }
         }
