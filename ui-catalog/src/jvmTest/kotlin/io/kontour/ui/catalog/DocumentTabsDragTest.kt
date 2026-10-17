@@ -110,9 +110,11 @@ class DocumentTabsDragTest {
             note("picked up")
             scene.carry(down, clear)
             pointer = clear
+            keep(scene.frame(), "pulled-clear")
             note("pulled clear")
             scene.carry(clear, drop)
             pointer = drop
+            keep(scene.frame(), "over-the-second-strip")
             note("over the second strip")
             scene.release(drop, PointerType.Mouse)
             scene.frames(2)
@@ -207,6 +209,13 @@ class DocumentTabsDragTest {
                 leading = { tab -> Box(Modifier.size(16.dp).reportBounds { glyphs[name to tab] = it }) },
             )
         }
+    }
+
+    /** For now, frames of the carry where CI uploads them, to be looked at. */
+    private fun keep(frame: java.awt.image.BufferedImage, stage: String) {
+        val dir = java.io.File(System.getProperty("kontour.screenshots.diffDir") ?: "build/screenshot-diffs", "renders")
+        dir.mkdirs()
+        javax.imageio.ImageIO.write(frame, "png", java.io.File(dir, "documenttabs-$stage.png"))
     }
 
     /** A mouse pressed on [at], as a mouse picks up: once it has moved. */
