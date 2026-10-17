@@ -386,7 +386,7 @@ private fun TooltipBubble(content: @Composable ContentScope.() -> Unit, modifier
                             val placeable = measurable.measure(constraints.copy(maxHeight = Constraints.Infinity))
                             if (constraints.hasBoundedHeight && placeable.height > constraints.maxHeight) overflows = true
                             val height = if (constraints.hasBoundedHeight) min(placeable.height, constraints.maxHeight) else placeable.height
-                            layout(placeable.width, height) { placeable.place(0, 0) }
+                            layout(placeable.width, height) { placeable.placeRelative(0, 0) }
                         }
                     }
                 )
