@@ -140,6 +140,7 @@ internal val ChartDemo = ComponentDemo(
             // as the number it is.
             val formats = Theme.formats
             val people = remember(formats) { ChartAxis.number(title = "People", label = { formats.decimal(abs(it), 0) }) }
+            val cohorts = remember(seed) { cohortsFor(seed) }
             Chart(
                 xAxis = people,
                 yAxis = ChartAxis.category(ageGroups),
@@ -150,7 +151,7 @@ internal val ChartDemo = ComponentDemo(
                 showPatterns = patterns,
                 animateData = animated,
             ) {
-                bar(remember(seed) { cohortsFor(seed) }, x = { it.people }, y = { it.ages }, series = { ChartSeries(it.sex) }, stacking = stacking)
+                bar(cohorts, x = { it.people }, y = { it.ages }, series = { ChartSeries(it.sex) }, stacking = stacking)
             }
         } else if (kind == ChartKindDemo.Boxes) {
             // A month's trip times on two routes, side by side: the box the

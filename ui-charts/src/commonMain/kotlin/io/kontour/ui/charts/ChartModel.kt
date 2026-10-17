@@ -395,9 +395,11 @@ internal class ChartRecorder<X : Any, Y : Any>(
                 xEnds = null,
                 yEnds = DoubleArray(ordered.size) { maxOf(ordered[it].second.lowerQuartile, ordered[it].second.upperQuartile) },
                 box = BoxRun(
-                    low = DoubleArray(ordered.size) { ordered[it].second.low },
+                    // A whisker given as nothing ends at the box rather than
+                    // at NaN, which was drawn off the plot and read aloud.
+                    low = DoubleArray(ordered.size) { ordered[it].second.let { box -> box.low.takeUnless { it.isNaN() } ?: minOf(box.lowerQuartile, box.upperQuartile) } },
                     median = DoubleArray(ordered.size) { ordered[it].second.median },
-                    high = DoubleArray(ordered.size) { ordered[it].second.high },
+                    high = DoubleArray(ordered.size) { ordered[it].second.let { box -> box.high.takeUnless { it.isNaN() } ?: maxOf(box.lowerQuartile, box.upperQuartile) } },
                     outliers = Array(ordered.size) { ordered[it].second.outliers },
                 ),
             )

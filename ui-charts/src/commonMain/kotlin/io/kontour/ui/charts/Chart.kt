@@ -448,7 +448,7 @@ private fun <X : Any> ChartPlot(
                     },
                 )
             }
-            if (showProbe) {
+            if (showProbe && selectedPlace != null) {
                 val shown = selectionAt(chart, selectedPlace, decode, strings, Theme.formats)
                 if (shown != null) {
                     ChartTooltipProbe(shown, tooltip, onDismissRequest = { tip.putAway(selectedPlace) }) {

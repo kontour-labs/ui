@@ -26,7 +26,7 @@ class BoxStatisticsTest {
     @Test
     fun aSampleFarPastTheBoxIsAnOutlierAndTheWhiskerStopsShortOfIt() {
         val box = boxOf(doubleArrayOf(41.0, 10.0, 12.0, 11.0, 13.0, 14.0, 12.0, 3.0))!!
-        // The box is 11 to 13.25, so a whisker reaches 3.375 past it either way.
+        // The box is 10.75 to 13.25, so a whisker reaches 3.75 past it either way.
         assertEquals(10.0, box.low, "the whisker should end at the least sample inside the fence")
         assertEquals(14.0, box.high)
         assertContentEquals(doubleArrayOf(3.0, 41.0), box.outliers)
