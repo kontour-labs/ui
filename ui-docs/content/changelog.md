@@ -44,6 +44,16 @@ On `main`, and in the next release.
   a picture does not serve. **`SectorChart` takes a selection**, chosen by tap,
   pointer, arrow keys or a screen reader on each sector's own node.
   **`ChartAxis.instant()`** plots moments, ticked on a time zone's clock.
+- **`FillPattern` for any surface**: the hatching, dots and cross-hatch a
+  chart's series take as a second cue beside colour are in `:ui` now, with
+  `Modifier.fillPattern` to draw one over any background and `PatternBrushes`
+  for a canvas of an app's own. A `CalendarEvent` takes one as its `pattern`,
+  drawn over its block and its bar.
+- **`Modifier.onPressOutside`**: told of a press anywhere but on its node,
+  without taking it, for a selection that lets go when the reader taps
+  elsewhere. A chart's selection does.
+- **`Modifier.tooltip { … }`**: a tooltip's slots, an icon or a painter beside
+  its words, from the modifier as well as the component.
 - **A chart's references beside its data**: `region` shades and names a span,
   a launch's fortnight or everything after today; `band` fills a forecast's or
   a day's range between two values at each place; and a `rule` up the plot is
@@ -132,6 +142,11 @@ On `main`, and in the next release.
   that anything with a control in it waits for them, and its clock stops while
   keyboard focus is on its action or its close, as it does under a finger or a
   pointer.
+- **An arrow at the end of its bubble meets it.** A tooltip's or a popover's
+  arrow was kept one arrow's width from its panel's ends, and the panel's
+  squircle corner curves away for further than that, so an arrow pushed to the
+  end — a chart's tooltip at the edge of its plot — floated off its bubble. It
+  is kept past the corner's whole curve now.
 - **A tooltip never takes a tap.** Its bubble scrolls, for text too long for
   its side at a large type size, and the scroller took every tap on the bubble
   whether it had anywhere to scroll or not, so a tap on whatever was under a

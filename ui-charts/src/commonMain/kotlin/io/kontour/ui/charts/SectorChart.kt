@@ -1,5 +1,10 @@
 package io.kontour.ui.charts
 
+import io.kontour.ui.foundation.PatternBrushes
+import io.kontour.ui.input.onPressOutside
+import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
@@ -148,10 +153,21 @@ fun SectorChart(
     val sweep = remember { Animatable(if (animate) 0f else 1f) }
     val fractions = parts.map { if (total > 0) (it.value.coerceAtLeast(0.0) / total).toFloat() else 0f }
     val previous = remember { mutableListOf<Pair<ChartSeries, Float>>() }
-    val from = remember(parts) { previous.toList() }
-    LaunchedEffect(parts, animate) {
+    // Keyed on what the parts are rather than on the list: recorded again for
+    // a recomposition that changed nothing, they are a new list and the same
+    // chart, and swept round again for it — a selection made in the first
+    // sweep started it over.
+    val shape = parts.map { it.series to it.value }
+    val from = remember(shape) { previous.toList() }
+    // Drawn from the start until the sweep has been put back to it. New parts
+    // and their `from` arrive in the composition, the sweep's reset only once
+    // the effect runs, and a frame between them drew the new shares at the
+    // old sweep's end: where they were going, then back, then the move.
+    val restarting = remember(shape) { mutableStateOf(animate) }
+    LaunchedEffect(shape, animate) {
         if (animate) {
             sweep.snapTo(0f)
+            restarting.value = false
             sweep.animateTo(1f, motion.springOrTween(motion.springGentle))
         } else {
             sweep.snapTo(1f)
@@ -181,7 +197,7 @@ fun SectorChart(
 
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val direction = if (rtl) -1f else 1f
-    val tiles = remember { PatternTiles() }
+    val tiles = remember { PatternBrushes() }
     val sizing = Theme.sizing
     val legendModel = remember(parts) {
         ChartModel(
@@ -233,6 +249,9 @@ fun SectorChart(
     val pullOut = Theme.spacing.xxs
     // Each sector's corners, where its edges meet its arcs: the theme's small
     // shape's, as a bar's end is.
+    //
+    // A fraction of it: the whole of the theme's corner on a sector's four was
+    // a slice of soap, and a sector is a slice. Enough to take the edge off.
     val corner = Theme.shapes.extraSmall.topStart
     val ticker = rememberDetentTicker()
     val currentSelection by rememberUpdatedState(selection)
@@ -245,16 +264,37 @@ fun SectorChart(
     var box by remember { mutableStateOf(IntSize.Zero) }
     val geometry = remember(fractions, innerRadius, direction) { SectorGeometry(fractions, innerRadius, direction) }
     val chooseAt: (Offset) -> Unit = { offset -> geometry.partAt(offset, box.width.toFloat(), box.height.toFloat())?.let(choose) }
+    // Keyed on nothing that changes, as a `Chart`'s gestures are: the geometry
+    // is made again whenever the caller recomposes, and a drag keyed on it
+    // stopped at its first step.
+    val latestChooseAt by rememberUpdatedState(chooseAt)
+    var tooltipAway by remember(chosen) { mutableStateOf(false) }
+    val placed = remember { Placed() }
     val source = interactionSource ?: remember { MutableInteractionSource() }
     val input = if (interactive) {
         Modifier
-            .pointerInput(geometry) { detectTapGestures { chooseAt(it) } }
-            .pointerInput(geometry) {
+            .onPressOutside(enabled = chosen != null) { currentSelection?.clear() }
+            .onGloballyPositioned { coordinates ->
+                val now = coordinates.positionInWindow()
+                val before = placed.at
+                placed.at = now
+                if (before != null && (now - before).getDistance() > placed.slop) tooltipAway = true
+            }
+            .pointerInput(Unit) { detectTapGestures { latestChooseAt(it) } }
+            // Round the circle with a finger: held first, so that a drag that
+            // starts upright is still the page's scroll.
+            .pointerInput(Unit) {
+                detectDragGesturesAfterLongPress(onDragStart = { latestChooseAt(it) }) { change, _ ->
+                    change.consume()
+                    latestChooseAt(change.position)
+                }
+            }
+            .pointerInput(Unit) {
                 awaitPointerEventScope {
                     while (true) {
                         val event = awaitPointerEvent()
                         val change = event.changes.firstOrNull() ?: continue
-                        if (event.type == PointerEventType.Move && change.type == PointerType.Mouse) chooseAt(change.position)
+                        if (event.type == PointerEventType.Move && change.type == PointerType.Mouse) latestChooseAt(change.position)
                     }
                 }
             }
@@ -306,7 +346,7 @@ fun SectorChart(
                     val hole = radius * innerRadius.coerceIn(0f, 0.95f)
                     val circle = Offset(size.width / 2, size.height / 2)
                     val gap = ChartDefaults.SectorGap.toPx()
-                    val t = sweep.value
+                    val t = if (restarting.value) 0f else sweep.value
                     var angle = -90f
                     parts.forEachIndexed { index, part ->
                         val start = from.firstOrNull { it.first == part.series }?.second ?: 0f
@@ -318,7 +358,7 @@ fun SectorChart(
                         val middle = radians(angle + extent * direction / 2)
                         val out = pullOut.toPx() * pulls[index].value
                         val origin = Offset(circle.x + out * cos(middle), circle.y + out * sin(middle))
-                        val path = sectorPath(origin, radius, hole, angle, extent * direction, corner.toPx(size, this))
+                        val path = sectorPath(origin, radius, hole, angle, extent * direction, corner.toPx(size, this) * SectorCornerShare)
                         drawPath(path, look.colour, alpha = fade.value)
                         tiles.brush(look.fill, colours.patternInk, PatternTileSize.roundToPx(), (sizing.borderWidth * 1.5f).toPx())
                             ?.let { drawPath(path, it, alpha = fade.value) }
@@ -348,7 +388,7 @@ fun SectorChart(
             if (centre != null && innerRadius > 0f) centre()
             // One node a sector, over its middle, so a screen reader moves
             // round the parts and its focus is drawn on the one it reads.
-            val showProbe = interactive && showSelectionTooltip && chosen != null
+            val showProbe = interactive && showSelectionTooltip && chosen != null && !tooltipAway
             Layout(
                 content = {
                     parts.forEachIndexed { index, _ ->
@@ -381,7 +421,12 @@ fun SectorChart(
                         )
                         Box {
                             Tooltip(visible = true) {
-                                if (tooltip != null) tooltip(shown) else +shares[chosen]
+                                if (tooltip != null) {
+                                    tooltip(shown)
+                                } else {
+                                    val look = lookOf(series.indexOf(part.series), colours.series, patterns, part.style, part.series.style)
+                                    ChartTooltipBody(title = null, rows = listOf(TooltipRow(look.colour, part.series.name, shown.values[0].label)))
+                                }
                             }
                         }
                     }
@@ -556,6 +601,9 @@ private fun fillet(path: Path, centre: Offset, r: Float, from: Offset, to: Offse
     while (turn <= -180f) turn += 360f
     path.arcTo(Rect(centre, r), a, turn, forceMoveTo = false)
 }
+
+/** How much of the theme's small corner a sector's corners take. */
+private const val SectorCornerShare = 0.4f
 
 private fun radians(degrees: Float): Float = (degrees * PI / 180.0).toFloat()
 

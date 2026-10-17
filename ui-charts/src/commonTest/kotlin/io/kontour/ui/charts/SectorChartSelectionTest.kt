@@ -16,6 +16,7 @@ import androidx.compose.ui.test.click
 import androidx.compose.ui.test.isFocusable
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.performTouchInput
@@ -102,6 +103,18 @@ class SectorChartSelectionTest {
         assertEquals(ChartSeries("Food"), selection.x)
         onNodeWithTag("pie").performTouchInput { click(Offset(center.x + 4f, center.y - height / 4)) }
         assertEquals(ChartSeries("Fun"), selection.x)
+    }
+
+    /** A tap off the chart lets the sector go, as a tap elsewhere puts any tooltip away. */
+    @Test
+    fun aTapElsewhereLetsGo() = runComposeUiTest {
+        val selection = ChartSelectionState<ChartSeries>(null)
+        pie(selection)
+        onNodeWithContentDescription("Food, 30%").performClick()
+        assertEquals(ChartSeries("Food"), selection.x)
+        // Below the 200dp chart, in the host round it.
+        onRoot().performTouchInput { click(Offset(width / 2f, height - 4f)) }
+        assertNull(selection.x)
     }
 
     @Test

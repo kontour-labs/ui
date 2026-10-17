@@ -1,5 +1,10 @@
 package io.kontour.ui.charts
 
+import io.kontour.ui.foundation.PatternBrushes
+import io.kontour.ui.input.onPressOutside
+import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.foundation.focusable
@@ -217,14 +222,34 @@ internal class ChartTransition(initial: ResolvedChart, animate: Boolean) {
         private set
     val progress = Animatable(if (animate) 0f else 1f)
 
+    /**
+     * Set with [from] and [to], in the same frame, and cleared once [progress]
+     * has been put back: between the two, a frame is drawn from the start.
+     *
+     * `snapTo` suspends, and the new [to] used to be set before it: a frame
+     * drawn in between read the new chart at the old progress, the end of the
+     * last move, and so showed where the data was going, then jumped back to
+     * where it came from and moved there.
+     */
+    private var restarting by mutableStateOf(false)
+
     /** This frame's chart. Read while drawing, so a frame redraws without recomposing. */
-    fun frame(): ResolvedChart = interpolate(from, to, progress.value)
+    fun frame(): ResolvedChart = interpolate(from, to, if (restarting) 0f else progress.value)
 
     suspend fun settleOn(next: ResolvedChart, animate: Boolean, spec: AnimationSpec<Float>) {
         if (next !== to) {
-            from = if (animate) frame() else next
-            to = next
-            progress.snapTo(if (animate) 0f else 1f)
+            if (animate && next.sameAs(to)) {
+                // The same numbers again, from content recorded anew for a
+                // recomposition that changed nothing: taken without a move of
+                // its own, and whatever move was under way carries on to it.
+                to = next
+            } else {
+                from = if (animate) frame() else next
+                to = next
+                restarting = animate
+                progress.snapTo(if (animate) 0f else 1f)
+                restarting = false
+            }
         }
         if (animate) progress.animateTo(1f, spec) else progress.snapTo(1f)
     }
@@ -344,7 +369,7 @@ private fun <X : Any> ChartPlot(
     val titleStyle = typography.labelMedium
     val gap = Theme.spacing.xs
     var frame by remember { mutableStateOf<ChartFrame?>(null) }
-    val tiles = remember { PatternTiles() }
+    val tiles = remember { PatternBrushes() }
     // Every stroke from the theme's sizing, so that lines thicken with the
     // rest of the library at the high contrast tier.
     val sizing = Theme.sizing
@@ -371,39 +396,66 @@ private fun <X : Any> ChartPlot(
     val selectedPlace = selectedX?.let { nearestPlace(chart.places, encode(it)) }
     val ticker = rememberDetentTicker()
     val currentSelection by rememberUpdatedState(selection)
-    val select: (Double) -> Unit = remember(chart) {
-        { place ->
-            decode(place)?.let { x ->
-                ticker.at(chart.places.indexOfFirst { it == place })
-                currentSelection?.select(x)
-            }
+    // The gestures are keyed on nothing that changes, and read the chart as it
+    // is now. Keyed on the chart, a gesture was torn down whenever it was
+    // resolved again, which a recomposition of the caller does: a selection
+    // made during a drag recomposed it, and the drag stopped at its first step.
+    val currentChart by rememberUpdatedState(chart)
+    val currentDecode by rememberUpdatedState(decode)
+    val select: (Double) -> Unit = { place ->
+        currentDecode(place)?.let { x ->
+            ticker.at(currentChart.places.indexOfFirst { it == place })
+            currentSelection?.select(x)
         }
     }
     val selectAt: (Offset) -> Unit = { offset ->
         frame?.let { current ->
-            val mapper = Mapper(current, chart.x, chart.y)
-            nearestPlace(chart.places, mapper.xAt(offset))?.let(select)
+            val now = currentChart
+            nearestPlace(now.places, Mapper(current, now.x, now.y).xAt(offset))?.let(select)
         }
     }
+    val latestSelectAt by rememberUpdatedState(selectAt)
+    // Put away while the chart is moved, by a scroll or anything else, until
+    // the next place is chosen: a tooltip left where its place was is pointing
+    // at nothing.
+    var tooltipAway by remember(selectedPlace) { mutableStateOf(false) }
+    val placed = remember { Placed() }
     val source = interactionSource ?: remember { MutableInteractionSource() }
     val rtl = layoutDirection == LayoutDirection.Rtl
     val selectedDescription = selectedPlace?.let { place -> places.firstOrNull { group -> group.places.any { it == place } }?.text }
 
     val input = if (interactive) {
         Modifier
-            .pointerInput(chart) { detectTapGestures { selectAt(it) } }
-            .pointerInput(chart) {
-                detectHorizontalDragGestures(onDragStart = { selectAt(it) }) { change, _ ->
+            // A tap elsewhere lets go, as a tap elsewhere puts any tooltip
+            // away; it still presses whatever it was aimed at.
+            .onPressOutside(enabled = selectedPlace != null) { currentSelection?.clear() }
+            .onGloballyPositioned { coordinates ->
+                val now = coordinates.positionInWindow()
+                val before = placed.at
+                placed.at = now
+                if (before != null && (now - before).getDistance() > placed.slop) tooltipAway = true
+            }
+            .pointerInput(Unit) { detectTapGestures { latestSelectAt(it) } }
+            .pointerInput(Unit) {
+                detectHorizontalDragGestures(onDragStart = { latestSelectAt(it) }) { change, _ ->
                     change.consume()
-                    selectAt(change.position)
+                    latestSelectAt(change.position)
                 }
             }
-            .pointerInput(chart) {
+            // Held, then dragged any way: a drag that starts upright is the
+            // page's scroll, so this is the one that can wander off the line.
+            .pointerInput(Unit) {
+                detectDragGesturesAfterLongPress(onDragStart = { latestSelectAt(it) }) { change, _ ->
+                    change.consume()
+                    latestSelectAt(change.position)
+                }
+            }
+            .pointerInput(Unit) {
                 awaitPointerEventScope {
                     while (true) {
                         val event = awaitPointerEvent()
                         val change = event.changes.firstOrNull() ?: continue
-                        if (event.type == PointerEventType.Move && change.type == PointerType.Mouse) selectAt(change.position)
+                        if (event.type == PointerEventType.Move && change.type == PointerType.Mouse) latestSelectAt(change.position)
                     }
                 }
             }
@@ -433,7 +485,7 @@ private fun <X : Any> ChartPlot(
         Modifier
     }
 
-    val showProbe = interactive && showSelectionTooltip && selectedPlace != null
+    val showProbe = interactive && showSelectionTooltip && selectedPlace != null && !tooltipAway
     Layout(
         content = {
             places.forEachIndexed { index, place ->
@@ -459,10 +511,12 @@ private fun <X : Any> ChartPlot(
                             if (tooltip != null) {
                                 tooltip(shown)
                             } else {
-                                val lines = listOf(shown.label) + shown.values.map { value ->
-                                    if (value.series.name.isBlank()) value.label else strings.seriesValue(value.series.name, value.label)
-                                }
-                                +lines.joinToString("\n")
+                                ChartTooltipBody(
+                                    title = shown.label,
+                                    rows = shown.values.map { value ->
+                                        TooltipRow(seriesColour(chart, value.series, colours, patterns), value.series.name, value.label)
+                                    },
+                                )
                             }
                         }
                     }
@@ -561,3 +615,11 @@ private val PatternTile = 7.dp
 
 /** A chart's width when nothing gives it one: a phone's, so it is not a sliver in a row. */
 private val DefaultWidth = 320.dp
+
+/** Where a chart was last placed in its window, to see it move. Not state: written in layout, read in layout. */
+internal class Placed {
+    var at: Offset? = null
+
+    /** How far it may move before it has moved: past a pixel's rounding. */
+    val slop = 2f
+}

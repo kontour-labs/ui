@@ -40,6 +40,22 @@ internal class ResolvedChart(
     /** The axis values are read off. */
     val valueAxis: ResolvedAxis get() = if (horizontal) x else y
 
+    /**
+     * Whether [other] draws the same: the same axes and the same values at the
+     * same places. A chart recorded again for a recomposition that changed
+     * nothing is a new object and the same chart, and is not animated to.
+     */
+    fun sameAs(other: ResolvedChart): Boolean =
+        horizontal == other.horizontal &&
+            x.low == other.x.low && x.high == other.x.high && y.low == other.y.low && y.high == other.y.high &&
+            places.contentEquals(other.places) &&
+            layers.size == other.layers.size &&
+            layers.zip(other.layers).all { (a, b) ->
+                a.series == b.series && a.mark.kind == b.mark.kind &&
+                    a.across.contentEquals(b.across) && a.up.contentEquals(b.up) &&
+                    (a.base?.contentEquals(b.base) ?: (b.base == null))
+            }
+
     /** A copy with these axes' spans and these layers, for a frame between two charts. */
     fun with(x: ResolvedAxis, y: ResolvedAxis, layers: List<Layer>): ResolvedChart =
         ResolvedChart(model, horizontal, x, y, layers, rules, places)

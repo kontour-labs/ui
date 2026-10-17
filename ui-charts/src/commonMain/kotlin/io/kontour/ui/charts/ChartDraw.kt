@@ -1,9 +1,11 @@
 package io.kontour.ui.charts
 
+import io.kontour.ui.foundation.PatternBrushes
 import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.foundation.shape.ZeroCornerSize
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -32,7 +34,7 @@ internal class DrawConfig(
     val hairline: Float,
     val tileSize: Int,
     val tileStroke: Float,
-    val tiles: PatternTiles,
+    val tiles: PatternBrushes,
 ) {
     /** The squircles a bar's end, a rectangle and a region are cut from, made once. */
     val corners = Corners(cornerShape)
@@ -113,10 +115,10 @@ internal fun DrawScope.drawChart(
     }
 
     // Regions behind everything drawn from data, each in its selection-coloured
-    // wash with its label in its top corner, on the reading side.
-    chart.model.regions.forEachIndexed { index, region ->
+    // wash; their labels are drawn after the marks, where they are clear of them.
+    chart.model.regions.forEach { region ->
         val rect = regionRect(region, m, chart)
-        if (rect.width <= 0f || rect.height <= 0f) return@forEachIndexed
+        if (rect.width <= 0f || rect.height <= 0f) return@forEach
         val colour = region.style?.colour?.takeIf { it != Color.Unspecified } ?: colours.selection
         val path = Path()
         addShape(path, rect, config.corners.all)
@@ -124,10 +126,33 @@ internal fun DrawScope.drawChart(
         // At the high tier its edge is drawn too, so it is a shape and not
         // only a tint.
         if (config.patterns) drawPath(path, colour, style = Stroke(config.hairline))
-        frame.regionLabels.getOrNull(index)?.let { label ->
-            val gap = frame.gap / 2
-            val left = if (frame.rtl) rect.right - gap - label.size.width else rect.left + gap
-            drawText(label, colours.label, Offset(left, rect.top + gap / 2))
+    }
+
+    // Rules' lines under the marks they are a reference for, so a point on a
+    // target is the point and not the dash through it; their labels and pins
+    // come after the marks, below.
+    val inset = frame.gap / 2
+    val pins = mutableListOf<Triple<Rect, RulePin, Color>>()
+    chart.rules.forEachIndexed { index, rule ->
+        val colour = rule.style?.colour?.takeIf { it != Color.Unspecified } ?: colours.axis
+        val effect = (rule.style?.line ?: LinePattern.Dashed).effect(config.hairline * 2)
+        val stroke = config.hairline * 1.5f
+        rule.y?.let { value ->
+            val y = m.py(value)
+            drawLine(colour, Offset(plot.left, y), Offset(plot.right, y), stroke, pathEffect = effect)
+        }
+        rule.x?.let { value ->
+            val x = m.px(value)
+            drawLine(colour, Offset(x, plot.top), Offset(x, plot.bottom), stroke, pathEffect = effect)
+            frame.rulePins.getOrNull(index)?.let { pin ->
+                val width = pin.layout.size.width + inset * 2
+                val bottom = plot.top - inset - pin.row * (frame.pinHeight + inset)
+                val left = pinStart(x, width, plot.left, frame.width)
+                val rect = Rect(left, bottom - frame.pinHeight, left + width, bottom)
+                // Its stem, from the pin to the plot.
+                drawLine(colour, Offset(x, rect.bottom), Offset(x, plot.top), stroke, pathEffect = effect)
+                pins += Triple(rect, pin, colour)
+            }
         }
     }
 
@@ -152,46 +177,50 @@ internal fun DrawScope.drawChart(
         }
     }
 
-    // Rules, over the marks they are a reference for: every line first, then
-    // the pins, so a stem that rises past a lower pin goes behind it.
-    val inset = frame.gap / 2
-    val pins = mutableListOf<Pair<Rect, RulePin>>()
-    chart.rules.forEachIndexed { index, rule ->
-        val colour = rule.style?.colour?.takeIf { it != Color.Unspecified } ?: colours.axis
-        val effect = (rule.style?.line ?: LinePattern.Dashed).effect(config.hairline * 2)
-        val stroke = config.hairline * 1.5f
-        rule.y?.let { value ->
-            val y = m.py(value)
-            drawLine(colour, Offset(plot.left, y), Offset(plot.right, y), stroke, pathEffect = effect)
-            frame.ruleLabels.getOrNull(index)?.let { label ->
-                val left = if (frame.rtl) plot.left + inset else plot.right - label.size.width - inset
-                val top = y - label.size.height - config.hairline * 2
-                // On the page's ground, so it is read over a line it crosses.
-                val backing = Path()
-                addShape(backing, Rect(left - inset / 2, top, left + label.size.width + inset / 2, top + label.size.height), config.corners.all)
-                drawPath(backing, colours.ground, alpha = 0.85f)
-                drawText(label, colours.label, Offset(left, top))
-            }
-        }
-        rule.x?.let { value ->
-            val x = m.px(value)
-            drawLine(colour, Offset(x, plot.top), Offset(x, plot.bottom), stroke, pathEffect = effect)
-            frame.rulePins.getOrNull(index)?.let { pin ->
-                val width = pin.layout.size.width + inset * 2
-                val bottom = plot.top - inset - pin.row * (frame.pinHeight + inset)
-                val left = pinStart(x, width, plot.left, frame.width)
-                val rect = Rect(left, bottom - frame.pinHeight, left + width, bottom)
-                // Its stem, from the pin to the plot.
-                drawLine(colour, Offset(x, rect.bottom), Offset(x, plot.top), stroke, pathEffect = effect)
-                pins += rect to pin
-            }
-        }
+    // The words over the marks, each where it is clear of them: a region's in
+    // the first of its corners with no data under it, a rule's at the first
+    // end of its line, above it or below, that has none. They sat at one
+    // place whatever was there, and a line through "Capacity" crossed it out.
+    val needed = frame.regionLabels.any { it != null } || frame.ruleLabels.any { it != null }
+    val data = if (needed) obstaclesOf(chart, m, config) else null
+    chart.model.regions.forEachIndexed { index, region ->
+        val label = frame.regionLabels.getOrNull(index) ?: return@forEachIndexed
+        val rect = regionRect(region, m, chart)
+        val w = label.size.width.toFloat()
+        val h = label.size.height.toFloat()
+        val start = if (frame.rtl) rect.right - inset - w else rect.left + inset
+        val end = if (frame.rtl) rect.left + inset else rect.right - inset - w
+        val top = rect.top + inset / 2
+        val foot = rect.bottom - inset / 2 - h
+        val spots = listOf(Offset(start, top), Offset(end, top), Offset(start, foot), Offset(end, foot))
+        val at = spots.firstOrNull { data?.hit(Rect(it, Size(w, h))) != true } ?: spots[0]
+        drawText(label, colours.label, at)
     }
-    pins.forEach { (rect, pin) ->
+    chart.rules.forEachIndexed { index, rule ->
+        val label = frame.ruleLabels.getOrNull(index) ?: return@forEachIndexed
+        val value = rule.y ?: return@forEachIndexed
+        val y = m.py(value)
+        val w = label.size.width.toFloat()
+        val h = label.size.height.toFloat()
+        val lift = config.hairline * 2
+        val end = if (frame.rtl) plot.left + inset else plot.right - w - inset
+        val start = if (frame.rtl) plot.right - w - inset else plot.left + inset
+        val spots = listOf(
+            Offset(end, y - h - lift), Offset(end, y + lift), Offset(start, y - h - lift), Offset(start, y + lift),
+        ).filter { it.y >= plot.top - h / 2 && it.y + h <= plot.bottom + h / 2 }.ifEmpty { listOf(Offset(end, y - h - lift)) }
+        val at = spots.firstOrNull { data?.hit(Rect(it, Size(w, h))) != true } ?: spots[0]
+        // On the page's ground, so it is read over whatever it could not miss.
+        val backing = Path()
+        addShape(backing, Rect(at.x - inset / 2, at.y, at.x + w + inset / 2, at.y + h), config.corners.all)
+        drawPath(backing, colours.ground, alpha = 0.85f)
+        drawText(label, colours.label, at)
+    }
+    pins.forEach { (rect, pin, colour) ->
         val capsule = Path()
         addShape(capsule, rect, config.pinShape)
         drawPath(capsule, colours.ground)
-        drawPath(capsule, colours.axis, style = Stroke(config.hairline))
+        // Edged in its rule's colour, so a pin is told by the line it heads.
+        drawPath(capsule, colour, style = Stroke(config.hairline))
         drawText(pin.layout, colours.label, Offset(rect.left + inset, rect.top + (rect.height - pin.layout.size.height) / 2))
     }
 
@@ -416,4 +445,74 @@ private fun DrawScope.drawLabels(frame: ChartFrame, m: Mapper, colours: ChartCol
         val left = (plot.center.x - title.size.width / 2).coerceIn(0f, max(0f, frame.width - title.size.width))
         drawText(title, colours.label, Offset(left, frame.height - title.size.height))
     }
+}
+
+/**
+ * Where a chart's data is drawn, for a label to keep clear of: each point of a
+ * line, an area's or a band's top and every few pixels between, each symbol,
+ * and each bar's box.
+ */
+private class Obstacles(private val points: List<Offset>, private val boxes: List<Rect>) {
+    fun hit(rect: Rect): Boolean = points.any { rect.contains(it) } || boxes.any { it.overlaps(rect) }
+}
+
+private fun obstaclesOf(chart: ResolvedChart, m: Mapper, config: DrawConfig): Obstacles {
+    val points = ArrayList<Offset>()
+    val boxes = ArrayList<Rect>()
+    val step = config.pointSize
+    chart.layers.forEach { layer ->
+        when (layer.mark.kind) {
+            MarkKind.Bar -> {
+                val lying = chart.horizontal
+                val places = if (lying) layer.up else layer.across
+                val tops = if (lying) layer.across else layer.up
+                val base = layer.base ?: DoubleArray(layer.size)
+                val unit = if (lying) m.unitY else m.unitX
+                val band = if (chart.placeAxis.kind == AxisKind.Category) unit else unit * smallestStep(places).toFloat()
+                val half = band * ChartDefaults.BarFraction / 2
+                for (i in 0 until layer.size) {
+                    if (tops[i].isNaN()) continue
+                    boxes += if (lying) {
+                        val c = m.py(places[i])
+                        Rect(min(m.px(base[i]), m.px(tops[i])), c - half, max(m.px(base[i]), m.px(tops[i])), c + half)
+                    } else {
+                        val c = m.px(places[i])
+                        Rect(c - half, min(m.py(base[i]), m.py(tops[i])), c + half, max(m.py(base[i]), m.py(tops[i])))
+                    }
+                }
+            }
+            MarkKind.Rectangle -> {
+                val ends = layer.acrossEnd
+                val tops = layer.upEnd
+                if (ends != null && tops != null) {
+                    for (i in 0 until layer.size) {
+                        val x0 = m.px(layer.across[i])
+                        val x1 = m.px(ends[i])
+                        val y0 = m.py(layer.up[i])
+                        val y1 = m.py(tops[i])
+                        boxes += Rect(min(x0, x1), min(y0, y1), max(x0, x1), max(y0, y1))
+                    }
+                }
+            }
+            else -> {
+                var last: Offset? = null
+                for (i in 0 until layer.size) {
+                    val up = layer.up[i]
+                    if (up.isNaN() || layer.across[i].isNaN()) {
+                        last = null
+                        continue
+                    }
+                    val at = Offset(m.px(layer.across[i]), m.py(up))
+                    val from = last
+                    if (from != null && layer.mark.kind != MarkKind.Point) {
+                        val gaps = ((at - from).getDistance() / step).toInt()
+                        for (k in 1 until gaps) points += from + (at - from) * (k / gaps.toFloat())
+                    }
+                    points += at
+                    last = at
+                }
+            }
+        }
+    }
+    return Obstacles(points, boxes)
 }
