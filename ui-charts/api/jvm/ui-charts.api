@@ -68,7 +68,6 @@ public final class io/kontour/ui/charts/ChartDefaults {
 	public static final field MaxAccessiblePlaces I
 	public static final field PatternInkAlpha F
 	public final fun colours-dPtIKUs (Ljava/util/List;JJJJJJLandroidx/compose/runtime/Composer;II)Lio/kontour/ui/charts/ChartColours;
-	public final fun getBarCornerRadius-D9Ej5fM ()F
 	public final fun getHeight-D9Ej5fM ()F
 	public final fun getPointSize-D9Ej5fM ()F
 	public final fun getSectorGap-D9Ej5fM ()F
@@ -105,6 +104,8 @@ public final class io/kontour/ui/charts/ChartLegendPosition : java/lang/Enum {
 public abstract interface class io/kontour/ui/charts/ChartScope {
 	public abstract fun area (Ljava/util/List;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lio/kontour/ui/charts/ChartStacking;Lio/kontour/ui/charts/ChartInterpolation;Lio/kontour/ui/charts/SeriesStyle;)V
 	public static synthetic fun area$default (Lio/kontour/ui/charts/ChartScope;Ljava/util/List;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lio/kontour/ui/charts/ChartStacking;Lio/kontour/ui/charts/ChartInterpolation;Lio/kontour/ui/charts/SeriesStyle;ILjava/lang/Object;)V
+	public abstract fun band (Ljava/util/List;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lio/kontour/ui/charts/ChartInterpolation;Lio/kontour/ui/charts/SeriesStyle;)V
+	public static synthetic fun band$default (Lio/kontour/ui/charts/ChartScope;Ljava/util/List;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lio/kontour/ui/charts/ChartInterpolation;Lio/kontour/ui/charts/SeriesStyle;ILjava/lang/Object;)V
 	public abstract fun bar (Ljava/util/List;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lio/kontour/ui/charts/ChartStacking;Lio/kontour/ui/charts/SeriesStyle;)V
 	public static synthetic fun bar$default (Lio/kontour/ui/charts/ChartScope;Ljava/util/List;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lio/kontour/ui/charts/ChartStacking;Lio/kontour/ui/charts/SeriesStyle;ILjava/lang/Object;)V
 	public abstract fun line (Ljava/util/List;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lio/kontour/ui/charts/ChartInterpolation;ZLio/kontour/ui/charts/SeriesStyle;)V
@@ -113,16 +114,20 @@ public abstract interface class io/kontour/ui/charts/ChartScope {
 	public static synthetic fun point$default (Lio/kontour/ui/charts/ChartScope;Ljava/util/List;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lio/kontour/ui/charts/PointSymbol;Lio/kontour/ui/charts/SeriesStyle;ILjava/lang/Object;)V
 	public abstract fun rectangle (Ljava/util/List;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lio/kontour/ui/charts/SeriesStyle;)V
 	public static synthetic fun rectangle$default (Lio/kontour/ui/charts/ChartScope;Ljava/util/List;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lio/kontour/ui/charts/SeriesStyle;ILjava/lang/Object;)V
+	public abstract fun region (Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/String;Lio/kontour/ui/charts/SeriesStyle;)V
+	public static synthetic fun region$default (Lio/kontour/ui/charts/ChartScope;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/String;Lio/kontour/ui/charts/SeriesStyle;ILjava/lang/Object;)V
 	public abstract fun rule (Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/String;Lio/kontour/ui/charts/SeriesStyle;)V
 	public static synthetic fun rule$default (Lio/kontour/ui/charts/ChartScope;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/String;Lio/kontour/ui/charts/SeriesStyle;ILjava/lang/Object;)V
 }
 
 public final class io/kontour/ui/charts/ChartScope$DefaultImpls {
 	public static synthetic fun area$default (Lio/kontour/ui/charts/ChartScope;Ljava/util/List;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lio/kontour/ui/charts/ChartStacking;Lio/kontour/ui/charts/ChartInterpolation;Lio/kontour/ui/charts/SeriesStyle;ILjava/lang/Object;)V
+	public static synthetic fun band$default (Lio/kontour/ui/charts/ChartScope;Ljava/util/List;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lio/kontour/ui/charts/ChartInterpolation;Lio/kontour/ui/charts/SeriesStyle;ILjava/lang/Object;)V
 	public static synthetic fun bar$default (Lio/kontour/ui/charts/ChartScope;Ljava/util/List;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lio/kontour/ui/charts/ChartStacking;Lio/kontour/ui/charts/SeriesStyle;ILjava/lang/Object;)V
 	public static synthetic fun line$default (Lio/kontour/ui/charts/ChartScope;Ljava/util/List;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lio/kontour/ui/charts/ChartInterpolation;ZLio/kontour/ui/charts/SeriesStyle;ILjava/lang/Object;)V
 	public static synthetic fun point$default (Lio/kontour/ui/charts/ChartScope;Ljava/util/List;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lio/kontour/ui/charts/PointSymbol;Lio/kontour/ui/charts/SeriesStyle;ILjava/lang/Object;)V
 	public static synthetic fun rectangle$default (Lio/kontour/ui/charts/ChartScope;Ljava/util/List;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lio/kontour/ui/charts/SeriesStyle;ILjava/lang/Object;)V
+	public static synthetic fun region$default (Lio/kontour/ui/charts/ChartScope;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/String;Lio/kontour/ui/charts/SeriesStyle;ILjava/lang/Object;)V
 	public static synthetic fun rule$default (Lio/kontour/ui/charts/ChartScope;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/String;Lio/kontour/ui/charts/SeriesStyle;ILjava/lang/Object;)V
 }
 
