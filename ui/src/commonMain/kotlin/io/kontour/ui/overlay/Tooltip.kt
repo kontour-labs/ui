@@ -331,9 +331,15 @@ private fun TooltipBubble(content: @Composable ContentScope.() -> Unit, modifier
         // bounded to the room on its own side now, and a bound without a scroller is
         // a bound that loses text. A tooltip is two lines and will almost never use
         // it — almost never is not never, at 200% type against a short side.
+        //
+        // Scrollable only while it overflows. A scroller takes the pointer
+        // wherever it is, enabled, so the bubble swallowed taps aimed at what
+        // was under it — another sector of a chart, the next bar — when it is
+        // the one overlay meant never to block. Disabled, it lets them through.
+        val scroll = rememberScrollState()
         Box(
             Modifier
-                .verticalScroll(rememberScrollState(), flingBehavior = ScrollDefaults.flingBehavior())
+                .verticalScroll(scroll, enabled = scroll.maxValue > 0, flingBehavior = ScrollDefaults.flingBehavior())
                 .padding(
                     horizontal = Theme.spacing.sm,
                     vertical = Theme.spacing.xxs,
