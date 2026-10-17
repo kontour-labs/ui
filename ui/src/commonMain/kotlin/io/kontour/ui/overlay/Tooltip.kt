@@ -1,5 +1,8 @@
 package io.kontour.ui.overlay
 
+import kotlin.math.min
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.layout.layout
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -365,14 +368,28 @@ private fun TooltipBubble(content: @Composable ContentScope.() -> Unit, modifier
         // a bound that loses text. A tooltip is two lines and will almost never use
         // it — almost never is not never, at 200% type against a short side.
         //
-        // Scrollable only while it overflows. A scroller takes the pointer
-        // wherever it is, enabled, so the bubble swallowed taps aimed at what
-        // was under it — another sector of a chart, the next bar — when it is
-        // the one overlay meant never to block. Disabled, it lets them through.
+        // A scroller only once its words overflow. A scroller is a pointer
+        // target wherever it is, and disabled still is one, so the bubble
+        // swallowed taps aimed at what was under it — another sector of a
+        // chart, the next bar — when it is the one overlay meant never to
+        // block. Until then its words are measured as tall as they are, and
+        // the bubble is no target at all.
         val scroll = rememberScrollState()
+        var overflows by remember { mutableStateOf(false) }
         Box(
             Modifier
-                .verticalScroll(scroll, enabled = scroll.maxValue > 0, flingBehavior = ScrollDefaults.flingBehavior())
+                .then(
+                    if (overflows) {
+                        Modifier.verticalScroll(scroll, flingBehavior = ScrollDefaults.flingBehavior())
+                    } else {
+                        Modifier.layout { measurable, constraints ->
+                            val placeable = measurable.measure(constraints.copy(maxHeight = Constraints.Infinity))
+                            if (constraints.hasBoundedHeight && placeable.height > constraints.maxHeight) overflows = true
+                            val height = if (constraints.hasBoundedHeight) min(placeable.height, constraints.maxHeight) else placeable.height
+                            layout(placeable.width, height) { placeable.place(0, 0) }
+                        }
+                    }
+                )
                 .padding(
                     horizontal = Theme.spacing.sm,
                     vertical = Theme.spacing.xxs,

@@ -538,9 +538,8 @@ private class SectorRecorder : SectorChartScope {
     }
 }
 
-/** A sector of a ring from [hole] to [radius] round [centre], from [start] degrees for [sweep] degrees. */
 /**
- * A sector from [start] through [sweep] degrees, between [hole] and [radius],
+ * A sector of a ring round [centre], from [start] through [sweep] degrees, between [hole] and [radius],
  * each corner where an edge meets an arc rounded by [corner] — less where the
  * sector is too thin or the ring too narrow to take it, and square at the
  * centre of a pie, where its edges meet each other.
