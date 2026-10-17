@@ -98,34 +98,19 @@ import kotlinx.coroutines.launch
  */
 @Composable
 private fun Stage(height: Dp = 400.dp, content: @Composable BoxScope.() -> Unit) {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(height)
-            .border(
-                width = Theme.sizing.borderWidth,
-                color = Theme.colours.outline,
-                shape = Theme.shapes.medium,
+    DemoWindow(Modifier.fillMaxWidth().height(height)) {
+        Column(
+            modifier = Modifier.padding(Theme.spacing.md),
+            verticalArrangement = Arrangement.spacedBy(Theme.spacing.xxs),
+        ) {
+            Text("Perth Underground", style = Theme.typography.titleSmall)
+            Text(
+                "Platform 2 · Joondalup line",
+                style = Theme.typography.bodySmall,
+                colour = Theme.colours.contentMuted,
             )
-            .clip(Theme.shapes.medium),
-        containerColour = Theme.colours.surface,
-    ) {
-        OverlayHost(Modifier.fillMaxSize()) {
-            Box(Modifier.fillMaxSize()) {
-                Column(
-                    modifier = Modifier.padding(Theme.spacing.md),
-                    verticalArrangement = Arrangement.spacedBy(Theme.spacing.xxs),
-                ) {
-                    Text("Perth Underground", style = Theme.typography.titleSmall)
-                    Text(
-                        "Platform 2 · Joondalup line",
-                        style = Theme.typography.bodySmall,
-                        colour = Theme.colours.contentMuted,
-                    )
-                }
-                content()
-            }
         }
+        content()
     }
 }
 

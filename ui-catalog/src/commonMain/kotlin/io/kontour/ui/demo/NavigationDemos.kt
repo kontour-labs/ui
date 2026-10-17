@@ -106,24 +106,7 @@ import io.kontour.ui.components.list.listSection
  */
 @Composable
 private fun Frame(height: Dp, content: @Composable () -> Unit) {
-    Box(
-        Modifier
-            .fillMaxWidth()
-            .height(height)
-            .border(
-                width = Theme.sizing.borderWidth,
-                color = Theme.colours.outline,
-                shape = Theme.shapes.medium,
-            )
-            .clip(Theme.shapes.medium)
-            .background(Theme.colours.surfaceSunken),
-    ) {
-        // The ground a floating bar fades its page into, as a `Surface` would
-        // say: painted rather than a surface, the frame has to say it itself.
-        CompositionLocalProvider(LocalContainerColour provides Theme.colours.surfaceSunken) {
-            OverlayHost(Modifier.fillMaxSize()) { content() }
-        }
-    }
+    DemoWindow(Modifier.fillMaxWidth().height(height), ground = Theme.colours.surfaceSunken) { content() }
 }
 
 /** One demo destination. */

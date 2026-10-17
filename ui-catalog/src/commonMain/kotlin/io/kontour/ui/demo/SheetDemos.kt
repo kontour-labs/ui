@@ -99,26 +99,11 @@ import io.kontour.ui.theme.Theme
  */
 @Composable
 private fun Screen(content: @Composable BoxScope.() -> Unit) {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            // Tall enough that a sheet at `Half` still leaves the page behind it
-            // readable, and a modal sheet's content is not cut off on a phone.
-            .height(520.dp)
-            .border(
-                width = Theme.sizing.borderWidth,
-                color = Theme.colours.outline,
-                shape = Theme.shapes.medium,
-            )
-            .clip(Theme.shapes.medium),
-        containerColour = Theme.colours.surface,
-    ) {
-        OverlayHost(Modifier.fillMaxSize()) {
-            Box(Modifier.fillMaxSize()) {
-                MapGround()
-                content()
-            }
-        }
+    // Tall enough that a sheet at `Half` still leaves the page behind it
+    // readable, and a modal sheet's content is not cut off on a phone.
+    DemoWindow(Modifier.fillMaxWidth().height(520.dp)) {
+        MapGround()
+        content()
     }
 }
 

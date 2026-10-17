@@ -1,5 +1,6 @@
 package io.kontour.ui.contract
 
+import io.kontour.ui.demo.DemoWindow
 import io.kontour.ui.demo.demoCalendarEvents
 import io.kontour.ui.components.calendar.rememberEventCalendarState
 import io.kontour.ui.components.calendar.EventCalendar
@@ -3276,16 +3277,12 @@ private fun SplitButtonSpecimen(
  */
 @Composable
 private fun OverlaySpecimen(modifier: Modifier, height: Dp, content: @Composable BoxScope.() -> Unit) {
-    Surface(
+    DemoWindow(
         modifier = modifier.fillMaxWidth().height(growsWithType(height)),
+        edge = Theme.colours.outlineSubtle,
         shape = Theme.shapes.large,
-        containerColour = Theme.colours.surface,
-        border = contrastEdge() ?: BorderStroke(1.dp, Theme.colours.outlineSubtle),
-    ) {
-        OverlayHost(Modifier.fillMaxSize()) {
-            Box(Modifier.fillMaxSize(), content = content)
-        }
-    }
+        content = content,
+    )
 }
 
 /** [height], and more of it at a type size over 100%, as a window of text would be. */

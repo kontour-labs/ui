@@ -45,6 +45,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.docs.CopyButton
 import io.kontour.icons.tabler.Tabler
 import io.kontour.icons.tabler.outline.Check
 import io.kontour.icons.tabler.outline.Copy
@@ -486,13 +487,6 @@ private fun IconDetail(
 /** A line of code, scrolling sideways if it has to, with a Copy button that says it copied. */
 @Composable
 private fun CodeLine(code: String, label: String) {
-    var copied by remember(code) { mutableStateOf(false) }
-    LaunchedEffect(copied) {
-        if (copied) {
-            delay(2_000)
-            copied = false
-        }
-    }
     Row(
         modifier = Modifier.fillMaxWidth().background(Theme.colours.surfaceSunken, Theme.shapes.small),
         verticalAlignment = Alignment.CenterVertically,
@@ -500,15 +494,7 @@ private fun CodeLine(code: String, label: String) {
         Box(Modifier.weight(1f).horizontalScroll(rememberScrollState()).padding(horizontal = Theme.spacing.sm, vertical = Theme.spacing.xs)) {
             Text(code, style = Theme.typography.bodySmall.mono(), colour = Theme.colours.code.plain, softWrap = false)
         }
-        IconButton(
-            icon = if (copied) Tabler.Outline.Check else Tabler.Outline.Copy,
-            contentDescription = if (copied) "Copied" else label,
-            onClick = {
-                copyText(code)
-                copied = true
-            },
-            size = ButtonSize.Small,
-        )
+        CopyButton(code, label)
     }
 }
 

@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.snapshots.SnapshotStateList
+import io.kontour.ui.catalog.apps.transit.dollars
 import io.kontour.ui.components.action.TextButton
 import io.kontour.ui.dragdrop.DragType
 import io.kontour.ui.dragdrop.DropListState
@@ -831,13 +832,11 @@ internal val TableDemo = ComponentDemo(
         column("Departs", numeric = true, sortable = false, footer = if (footer) ({ +"${rows.size} services" }) else null) {
             +it.departs
         }
-        column("Fare", numeric = true, footer = if (footer) ({ +dollars(rows.sumOf { it.fare }) }) else null) {
-            +dollars(it.fare)
+        column("Fare", numeric = true, footer = if (footer) ({ +dollars(rows.sumOf { it.fare } / 100f) }) else null) {
+            +dollars(it.fare / 100f)
         }
     }
 }
-
-private fun dollars(cents: Int): String = "$${cents / 100}.${(cents % 100).toString().padStart(2, '0')}"
 
 /** A card on the drag and drop demo's board. */
 private data class DemoTask(val id: Int, val title: String)
