@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -25,6 +24,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.contrastEdge
+import io.kontour.ui.components.datetime.ActivityCalendarDefaults
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.foundation.fillPattern
 import io.kontour.ui.theme.Theme
@@ -137,8 +137,8 @@ internal fun SeriesSwatch(model: ChartModel, series: ChartSeries, colours: Chart
  *
  * No edge at the high contrast tier: the series' colours hold 4.5:1 against
  * the ground there already, and a 12dp swatch given one was mostly edge, its
- * colour and its pattern a speck inside a grey ring. Its corners a quarter of
- * its side, as the legend's were; the theme's smallest shape made it a circle.
+ * colour and its pattern a speck inside a grey ring. A square, as the
+ * legend's were; the theme's smallest shape made it a circle.
  */
 @Composable
 internal fun FillSwatch(look: SeriesLook, colours: ChartColours) {
@@ -175,8 +175,12 @@ internal fun ShadeSwatch(shade: Color) {
 private val SwatchSize = 12.dp
 private val LineSwatchWidth = 20.dp
 
-/** A swatch's corners, a quarter of its side, as the legend's always were: a square that reads as one. */
-private val SwatchShape = RoundedCornerShape(percent = 25)
+/**
+ * A swatch's shape: an activity calendar's cell, the library's corner curve at
+ * a fifth of its side, so it reads as a square, as a key's should, and a heat
+ * map's key is the shape of an activity calendar's.
+ */
+private val SwatchShape = ActivityCalendarDefaults.CellShape
 
 /** A heat map key's ramp: long enough to see its shades change, short enough to sit in a legend's line. */
 private val ScaleWidth = 72.dp
