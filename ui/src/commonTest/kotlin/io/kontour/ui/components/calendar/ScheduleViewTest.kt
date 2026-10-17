@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.ui.Modifier
 import io.kontour.ui.locale.DateStyle
 import androidx.compose.ui.unit.Density
-import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.runtime.CompositionLocalProvider
@@ -190,6 +189,8 @@ class ScheduleViewTest {
         lateinit var state: EventCalendarState
         lateinit var formats: LocaleFormats
         lateinit var strings: Strings
+        /** A weekday's line over a number's, in pixels at the test's type size: what a day's gutter has to hold. */
+        var dayLines = 0f
         val clicked = mutableListOf<CalendarEvent>()
     }
 
@@ -202,6 +203,9 @@ class ScheduleViewTest {
                 OverlayHost(Modifier.size(400.dp, 700.dp)) {
                     probe.formats = Theme.formats
                     probe.strings = Theme.strings
+                    probe.dayLines = with(LocalDensity.current) {
+                        (Theme.typography.labelSmall.lineHeight + Theme.typography.titleMedium.lineHeight).toPx()
+                    }
                     probe.state = rememberEventCalendarState(today, CalendarView.Schedule, LocalTime(8, 0), DayOfWeek.MONDAY)
                     EventCalendar(
                         state = probe.state,
@@ -231,14 +235,19 @@ class ScheduleViewTest {
         assertEquals(probe.strings.showDay, day.fetchSemanticsNode().config[SemanticsActions.OnClick].label)
     }
 
-    /** At 200% type a day's number has the room its line needs, where its 32dp ring cut it. */
+    /**
+     * At 200% type a day's weekday and number have the room their lines need,
+     * where a 48dp gutter and a 32dp ring cut them. Measured on the day's own
+     * node, since the two lines inside it are silent: the day says its date.
+     */
     @Test
     fun aDaysNumberFitsAtLargeType() = runComposeUiTest {
-        schedule(fontScale = 2f)
-        val number = onNode(hasText("14"), useUnmergedTree = true)
-        val layouts = mutableListOf<TextLayoutResult>()
-        number.fetchSemanticsNode().config[SemanticsActions.GetTextLayoutResult].action?.invoke(layouts)
-        assertTrue(layouts.isNotEmpty() && !layouts[0].didOverflowHeight, "today's number is cut at 200% type")
+        val probe = schedule(fontScale = 2f)
+        val day = onNode(hasContentDescription(probe.formats.date(today, DateStyle.Full))).fetchSemanticsNode()
+        assertTrue(
+            day.size.height >= probe.dayLines,
+            "today's gutter is ${day.size.height}px tall at 200% type, under the ${probe.dayLines}px its two lines need",
+        )
     }
 
     @Test

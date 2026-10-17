@@ -303,7 +303,9 @@ private fun <V : Any> resolveAxis(
         }
         val write: (Double) -> String = when {
             label != null -> label
-            percent -> { value -> formats.percent(value, max(0, ticks.fractionDigits - 1)) }
+            // As many digits as the share needs, and one at most: 80% is "80%"
+            // whatever the ticks are stepped in, and a third is "33.3%".
+            percent -> { value -> formats.percent(value, min(precisionOf(value * 100, 0), 1)) }
             else -> { value -> formats.decimal(value, precisionOf(value, ticks.fractionDigits)) }
         }
         ResolvedAxis(

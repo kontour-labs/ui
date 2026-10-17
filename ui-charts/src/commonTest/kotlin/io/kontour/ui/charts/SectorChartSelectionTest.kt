@@ -1,5 +1,6 @@
 package io.kontour.ui.charts
 
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
@@ -23,6 +24,7 @@ import androidx.compose.ui.test.requestFocus
 import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.theme.KontourTheme
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -46,14 +48,17 @@ class SectorChartSelectionTest {
     ) {
         setContent {
             KontourTheme(reduceMotion = true) {
+                // A host for the chosen sector's tooltip, as an app has one.
                 CompositionLocalProvider(LocalLayoutDirection provides direction) {
-                    SectorChart(
-                        modifier = Modifier.size(200.dp).testTag("pie"),
-                        selection = selection,
-                        showLegend = false,
-                        animateData = false,
-                    ) {
-                        sectors(month, value = { it.amount }, series = { ChartSeries(it.category) })
+                    OverlayHost(Modifier.fillMaxSize()) {
+                        SectorChart(
+                            modifier = Modifier.size(200.dp).testTag("pie"),
+                            selection = selection,
+                            showLegend = false,
+                            animateData = false,
+                        ) {
+                            sectors(month, value = { it.amount }, series = { ChartSeries(it.category) })
+                        }
                     }
                 }
             }
@@ -84,12 +89,18 @@ class SectorChartSelectionTest {
         assertEquals(ChartSeries("Fun"), selection.x)
     }
 
-    /** Right to left, the circle is drawn anticlockwise, so its right is the end of the way round. */
+    /**
+     * Right to left, the circle is drawn anticlockwise from the top, so its
+     * right is three quarters of the way round, in food, and just right of the
+     * top is the end of the way round, fun.
+     */
     @Test
     fun rightToLeftTheSectorsRunTheOtherWay() = runComposeUiTest {
         val selection = ChartSelectionState<ChartSeries>(null)
         pie(selection, LayoutDirection.Rtl)
         onNodeWithTag("pie").performTouchInput { click(Offset(center.x + width / 4, center.y)) }
+        assertEquals(ChartSeries("Food"), selection.x)
+        onNodeWithTag("pie").performTouchInput { click(Offset(center.x + 4f, center.y - height / 4)) }
         assertEquals(ChartSeries("Fun"), selection.x)
     }
 
