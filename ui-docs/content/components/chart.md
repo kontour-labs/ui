@@ -168,7 +168,9 @@ A chart rises into place when it first appears: bars and areas from their
 baseline, lines from the bottom. A change of data moves from the old chart to
 the new one. A bar for March becomes the new bar for March, and a line of
 twelve points becomes one of thirty by being read at the new places, so
-nothing jumps. `animateData = false` draws each chart at once.
+nothing jumps. The plot's edges move with it: when the axis's labels grow a
+digit, the plot narrows over the same move rather than jumping across.
+`animateData = false` draws each chart at once.
 
 ## `SectorChart`
 

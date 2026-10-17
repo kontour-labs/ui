@@ -30,6 +30,11 @@ internal class RulePin(val layout: TextLayoutResult, val row: Int)
  * through labels of different widths. Labels that would touch are left out,
  * every other one, then every third: at 200% text a chart keeps fewer labels
  * rather than overlapping ones, and never turns them on their side.
+ *
+ * The plot's edges then ease from where they were drawn to where this puts
+ * them, over the same move as the data: see [PlotInsets]. Raised 2026-10-17:
+ * new data whose labels gained a digit moved the plot across in one frame,
+ * under data that was still easing to its new height.
  */
 internal class ChartFrame(
     val width: Float,
@@ -53,6 +58,41 @@ internal class ChartFrame(
     val xAxisAtBottom: Boolean,
     val yAxisAtStart: Boolean,
 )
+
+/**
+ * How far in from each edge of the chart its plot sits, in pixels on the
+ * screen: what a move eases between, so the plot narrows as a wider label
+ * arrives rather than jumping. Every label is placed from the plot, so it
+ * comes along.
+ */
+internal class PlotInsets(val left: Float, val top: Float, val right: Float, val bottom: Float)
+
+internal val ChartFrame.insets: PlotInsets
+    get() = PlotInsets(plot.left, plot.top, width - plot.right, height - plot.bottom)
+
+/** This frame with its plot at [insets]: the labels are its own, placed from wherever the plot is. */
+internal fun ChartFrame.withInsets(insets: PlotInsets): ChartFrame {
+    val left = insets.left
+    val top = insets.top
+    val moved = Rect(left, top, max(left + 1f, width - insets.right), max(top + 1f, height - insets.bottom))
+    if (moved == plot) return this
+    return ChartFrame(
+        width, height, moved, rtl, xLabels, yLabels, xTitle, yTitle,
+        ruleLabels, rulePins, regionLabels, pinHeight, pinBand, gap, xAxisAtBottom, yAxisAtStart,
+    )
+}
+
+/**
+ * [from] eased to [to] by [fraction] of a move: [to] itself with nowhere to
+ * come from. Held to the move's ends, as the data is, so a spring that
+ * overshoots does not push the plot past where it settles.
+ */
+internal fun blendInsets(from: PlotInsets?, to: PlotInsets, fraction: Float): PlotInsets {
+    if (from == null || fraction >= 1f) return to
+    val f = fraction.coerceAtLeast(0f)
+    fun mix(a: Float, b: Float) = a + (b - a) * f
+    return PlotInsets(mix(from.left, to.left), mix(from.top, to.top), mix(from.right, to.right), mix(from.bottom, to.bottom))
+}
 
 /** Maps the chart's units onto [frame]'s plot, for one frame's axes. */
 internal class Mapper(val frame: ChartFrame, val x: ResolvedAxis, val y: ResolvedAxis) {

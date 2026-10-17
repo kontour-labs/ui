@@ -237,6 +237,20 @@ internal class ChartTransition(initial: ResolvedChart, animate: Boolean) {
     /** This frame's chart. Read while drawing, so a frame redraws without recomposing. */
     fun frame(): ResolvedChart = interpolate(from, to, if (restarting) 0f else progress.value)
 
+    /** Where the plot's edges were drawn when this move began; `null` for a move that jumps. */
+    private var startInsets: PlotInsets? = null
+
+    /** The edges drawn last. Written while drawing and read as a move begins, so not state. */
+    var drawnInsets: PlotInsets? = null
+
+    /**
+     * This frame's plot edges, eased towards [target] by the move's progress.
+     * From where they were drawn rather than from where the last move meant to
+     * leave them, so a move taken up halfway through goes on from where the
+     * plot is.
+     */
+    fun insets(target: PlotInsets): PlotInsets = blendInsets(startInsets, target, if (restarting) 0f else progress.value)
+
     suspend fun settleOn(next: ResolvedChart, animate: Boolean, spec: AnimationSpec<Float>) {
         if (next !== to) {
             if (animate && next.sameAs(to)) {
@@ -246,6 +260,7 @@ internal class ChartTransition(initial: ResolvedChart, animate: Boolean) {
                 to = next
             } else {
                 from = if (animate) frame() else next
+                startInsets = if (animate) drawnInsets else null
                 to = next
                 restarting = animate
                 progress.snapTo(if (animate) 0f else 1f)
@@ -527,7 +542,11 @@ private fun <X : Any> ChartPlot(
         },
         modifier = Modifier
             .drawBehind {
-                frame?.let { drawChart(it, transition.frame(), config, fade(), selectedPlace) }
+                frame?.let { target ->
+                    val insets = transition.insets(target.insets)
+                    transition.drawnInsets = insets
+                    drawChart(target.withInsets(insets), transition.frame(), config, fade(), selectedPlace)
+                }
             }
             .then(input),
     ) { measurables, constraints ->
@@ -541,8 +560,11 @@ private fun <X : Any> ChartPlot(
         }
         val width = constraints.maxWidth
         val height = constraints.maxHeight
+        // Laid out for where the chart is going once its move has begun, and
+        // until then for where it is: measured from the new chart before its
+        // move started, a frame drew the old data in the new plot.
         val laidOut = layOutFrame(
-            chart = chart,
+            chart = transition.to,
             width = width.toFloat(),
             height = height.toFloat(),
             measurer = measurer,
