@@ -83,7 +83,7 @@ fun Surface(
     content: @Composable () -> Unit,
 ) = SurfaceBox(
     modifier, shape, containerColour, contentColour, border, shadow,
-    contentAlignment, propagateMinConstraints, keepsPresses = false, content,
+    contentAlignment, propagateMinConstraints, Presses.Stopped, content,
 )
 
 /**
@@ -120,8 +120,39 @@ internal fun BarSurface(
     content: @Composable () -> Unit,
 ) = SurfaceBox(
     modifier, shape, containerColour, contentColour, border, shadow,
-    contentAlignment, propagateMinConstraints, keepsPresses = true, content,
+    contentAlignment, propagateMinConstraints, Presses.Kept, content,
 )
+
+/**
+ * A [Surface] that a press goes straight through, to whatever is beneath it.
+ *
+ * For a tooltip's bubble, and nothing else: an overlay that only says what is
+ * under the pointer, and is meant never to block. As a plain surface it took
+ * every tap on it, and a chart's tooltip swallowed the tap on the next sector.
+ */
+@Composable
+internal fun PassThroughSurface(
+    modifier: Modifier,
+    shape: Shape,
+    containerColour: Color,
+    contentColour: Color,
+    content: @Composable () -> Unit,
+) = SurfaceBox(
+    modifier, shape, containerColour, contentColour, border = null, shadow = Shadow.None,
+    contentAlignment = Alignment.TopStart, propagateMinConstraints = false, Presses.PassedThrough, content,
+)
+
+/** What a surface does with a press nothing in it took. */
+private enum class Presses {
+    /** Stops it reaching what is beneath, and lets the container round it have it: a plain [Surface]. */
+    Stopped,
+
+    /** Keeps it from the container too: a [BarSurface]. */
+    Kept,
+
+    /** Lets it through to what is beneath: a [PassThroughSurface]. */
+    PassedThrough,
+}
 
 @Composable
 private fun SurfaceBox(
@@ -133,7 +164,7 @@ private fun SurfaceBox(
     shadow: Shadow,
     contentAlignment: Alignment,
     propagateMinConstraints: Boolean,
-    keepsPresses: Boolean,
+    presses: Presses,
     content: @Composable () -> Unit,
 ) {
     // Remembered, and this is the one line in this file that is about the frame
@@ -186,7 +217,13 @@ private fun SurfaceBox(
                 // After the clip, so it is the shape that stops a tap and not
                 // its box: just off a capsule's rounded end is still the page.
                 // See "A tap on a surface is the surface's" above.
-                .then(if (keepsPresses) Modifier.keepsPresses() else HitTarget)
+                .then(
+                    when (presses) {
+                        Presses.Kept -> Modifier.keepsPresses()
+                        Presses.Stopped -> HitTarget
+                        Presses.PassedThrough -> Modifier
+                    }
+                )
                 .background(color = containerColour, shape = shape)
                 .then(if (border != null) Modifier.border(border, shape) else Modifier),
             contentAlignment = contentAlignment,

@@ -41,6 +41,7 @@ import io.kontour.ui.foundation.ContentScope
 import io.kontour.ui.foundation.ContentSlot
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.ProvideTextStyle
+import io.kontour.ui.foundation.PassThroughSurface
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.LocalInputModality
@@ -318,7 +319,9 @@ internal fun TooltipOverlay(
 
 @Composable
 private fun TooltipBubble(content: @Composable ContentScope.() -> Unit, modifier: Modifier) {
-    Surface(
+    // A surface a press goes through: the bubble only says what is under the
+    // pointer, and a tap on it is a tap on what it is over.
+    PassThroughSurface(
         // The caller's modifier first, so a `widthIn` of their own wins the
         // constraint rather than being clamped by the default behind it.
         modifier = modifier
