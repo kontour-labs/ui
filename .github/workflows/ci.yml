@@ -538,10 +538,12 @@ jobs:
           retention-days: 1
 
       # The failures themselves, written into the run's summary, where they
-      # can be read without downloading anything and cost no storage.
+      # can be read without downloading anything and cost no storage, and
+      # into the log, which is what the API hands to anything reading a run
+      # without a browser: the summary page has no endpoint.
       - name: Say what failed
         if: failure()
-        run: python3 .github/failed-tests.py >> "$GITHUB_STEP_SUMMARY"
+        run: python3 .github/failed-tests.py | tee -a "$GITHUB_STEP_SUMMARY"
 
   targets:
     name: Compile every target
@@ -647,7 +649,7 @@ jobs:
 
       - name: Say what failed
         if: failure()
-        run: python3 .github/failed-tests.py >> "$GITHUB_STEP_SUMMARY"
+        run: python3 .github/failed-tests.py | tee -a "$GITHUB_STEP_SUMMARY"
 
   # Contact sheets, when somebody asks for them.
   #
