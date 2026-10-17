@@ -58,6 +58,12 @@ On `main`, and in the next release.
   a launch's fortnight or everything after today; `band` fills a forecast's or
   a day's range between two values at each place; and a `rule` up the plot is
   an event, its label in a pin above the plot, stacked where pins would touch.
+- **More kinds of chart**: a `bar` from `yStart` to `yEnd` for a range;
+  `stem` for dumbbells, lollipops and error bars; `box` for box plots, from
+  samples or from five numbers; `ChartStacking.Centred` for a streamgraph; and
+  `cell` for a heat map, shaded along `ChartColours.ramp`, with a scale and,
+  with patterns on, its numbers written in its cells. Each is said, tabled and
+  animated as the others are.
   Each is said to a screen reader by its label and where it is. Bars, rectangles
   and sectors are cut with the library's squircle corners.
 - **`KeyValueList(compact = true)`**, for a small container of its own: the

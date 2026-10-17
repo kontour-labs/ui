@@ -35,6 +35,8 @@ internal class ResolvedChart(
     val regions: List<Region>,
     /** Every place a reader can select or move to, along the bucket axis, in order. */
     val places: DoubleArray,
+    /** The values a heat map's cells run between, for their shades; `null` for a chart with none. */
+    val cells: CellScale? = null,
 ) {
     /** The axis places run along: across, or up for lying bars. */
     val placeAxis: ResolvedAxis get() = if (horizontal) y else x
@@ -55,12 +57,16 @@ internal class ResolvedChart(
             layers.zip(other.layers).all { (a, b) ->
                 a.series == b.series && a.mark.kind == b.mark.kind &&
                     a.across.contentEquals(b.across) && a.up.contentEquals(b.up) &&
-                    (a.base?.contentEquals(b.base) ?: (b.base == null))
+                    (a.base?.contentEquals(b.base) ?: (b.base == null)) &&
+                    // A heat map whose shades change and whose cells stay put,
+                    // or a box whose whiskers move, is a new chart too.
+                    a.values.contentEquals(b.values) &&
+                    (a.box?.let { box -> b.box != null && box.low.contentEquals(b.box.low) && box.high.contentEquals(b.box.high) } ?: (b.box == null))
             }
 
     /** A copy with these axes' spans and these layers, for a frame between two charts. */
     fun with(x: ResolvedAxis, y: ResolvedAxis, layers: List<Layer>): ResolvedChart =
-        ResolvedChart(model, horizontal, x, y, layers, rules, regions, places)
+        ResolvedChart(model, horizontal, x, y, layers, rules, regions, places, cells)
 }
 
 /**
@@ -81,11 +87,13 @@ internal class ResolvedAxis(
     val position: ChartAxisPosition,
     /** Any value on this axis as a reader reads it: in the tooltip, and to a screen reader. */
     val write: (Double) -> String,
+    /** Whether a stream is stacked about its middle, where a position up it measures nothing: no ticks, no baseline. */
+    val centred: Boolean = false,
 ) {
     val span: Double get() = (high - low).takeIf { it > 0 } ?: 1.0
 
     fun spanning(low: Double, high: Double): ResolvedAxis =
-        ResolvedAxis(kind, low, high, ticks, tickLabels, title, showGridlines, showLabels, position, write)
+        ResolvedAxis(kind, low, high, ticks, tickLabels, title, showGridlines, showLabels, position, write, centred)
 }
 
 /**
@@ -110,11 +118,24 @@ internal class Layer(
     /** Which of [groupCount] bars side by side at one place this is. */
     val groupIndex: Int,
     val groupCount: Int,
+    /** A box plot's whiskers, median and outliers; its box is [base] to [up]. */
+    val box: BoxRun? = null,
 ) {
     val size: Int get() = across.size
 
-    fun copy(across: DoubleArray = this.across, up: DoubleArray = this.up, base: DoubleArray? = this.base): Layer =
-        Layer(markIndex, mark, series, slot, across, up, base, acrossEnd, upEnd, values, groupIndex, groupCount)
+    /** Whether each value is a range, from [values] to [upEnd]: a band, a floating bar, a stem, a box. */
+    val spans: Boolean get() = mark.kind == MarkKind.Band || mark.kind == MarkKind.Stem || mark.floating
+
+    /** Where the value at [i] runs to, for a [range][spans]; `null` for a value. */
+    fun endAt(i: Int): Double? = if (spans) upEnd?.getOrNull(i)?.takeUnless { it.isNaN() } else null
+
+    fun copy(
+        across: DoubleArray = this.across,
+        up: DoubleArray = this.up,
+        base: DoubleArray? = this.base,
+        values: DoubleArray = this.values,
+        box: BoxRun? = this.box,
+    ): Layer = Layer(markIndex, mark, series, slot, across, up, base, acrossEnd, upEnd, values, groupIndex, groupCount, box)
 }
 
 /**
@@ -153,6 +174,13 @@ internal fun <X : Any, Y : Any> resolve(
             if (values || !horizontal) layer.acrossEnd?.let { xs += it[i] }
             if (values || horizontal) layer.upEnd?.let { ys += it[i] }
             if (values) layer.base?.let { base -> if (horizontal) xs += base[i] else ys += base[i] }
+            // A box reaches past itself, to its whiskers and its outliers.
+            if (values) layer.box?.let { box ->
+                val reach = if (horizontal) xs else ys
+                reach += box.low[i]
+                reach += box.high[i]
+                box.outliers[i].forEach { reach += it }
+            }
         }
     }
     model.rules.forEach { rule ->
@@ -171,19 +199,22 @@ internal fun <X : Any, Y : Any> resolve(
             region.yEnd?.let { ys += it }
         }
     }
-    val measured = layers.any { it.mark.kind == MarkKind.Bar || it.mark.kind == MarkKind.Area }
+    // A floating bar is measured from its start, not from zero.
+    val measured = layers.any { (it.mark.kind == MarkKind.Bar && !it.mark.floating) || it.mark.kind == MarkKind.Area }
+    val centred = layers.any { it.mark.kind == MarkKind.Area && it.mark.stacking == ChartStacking.Centred }
     if (measured) {
         if (horizontal) xs += 0.0 else ys += 0.0
     }
 
     // Bars across a number or date axis stand on their value, so half a bar's
     // width either side of the first and the last is part of the domain.
+    val standing = setOf(MarkKind.Bar, MarkKind.Box, MarkKind.Cell)
     val barsAcrossContinuous = !horizontal && xAxis.kind != AxisKind.Category &&
-        layers.any { it.mark.kind == MarkKind.Bar }
-    val barPad = if (barsAcrossContinuous) smallestGap(layers.filter { it.mark.kind == MarkKind.Bar }) / 2 else 0.0
+        layers.any { it.mark.kind in standing }
+    val barPad = if (barsAcrossContinuous) smallestGap(layers.filter { it.mark.kind in standing }) / 2 else 0.0
 
     val x = resolveAxis(xAxis, xs, model.xCategories, formats, padding = barPad, percent = normalised && horizontal)
-    val y = resolveAxis(yAxis, ys, model.yCategories, formats, padding = 0.0, percent = normalised && !horizontal)
+    val y = resolveAxis(yAxis, ys, model.yCategories, formats, padding = 0.0, percent = normalised && !horizontal, centred = centred && !horizontal)
 
     val places = when {
         horizontal -> DoubleArray(model.yCategories.size) { it.toDouble() }
@@ -200,7 +231,27 @@ internal fun <X : Any, Y : Any> resolve(
         rules = model.rules.filter { rule -> rule.x.within(x) && rule.y.within(y) },
         regions = model.regions.mapNotNull { it.clampedTo(x, y) },
         places = places,
+        cells = cellScaleOf(layers, formats),
     )
+}
+
+/**
+ * What a heat map's shades run between: the least and the most of its cells,
+ * and how one is written, to as many places as the span between them needs.
+ */
+internal class CellScale(val low: Double, val high: Double, val write: (Double) -> String) {
+    /** How far along the ramp [value] is, from 0 at [low] to 1 at [high]. */
+    fun fraction(value: Double): Float =
+        if (high <= low) 1f else ((value - low) / (high - low)).toFloat().coerceIn(0f, 1f)
+}
+
+private fun cellScaleOf(layers: List<Layer>, formats: LocaleFormats): CellScale? {
+    val amounts = layers.filter { it.mark.kind == MarkKind.Cell }.flatMap { layer -> layer.values.filter { !it.isNaN() } }
+    if (amounts.isEmpty()) return null
+    val low = amounts.min()
+    val high = amounts.max()
+    val digits = niceTicks(low, high, ChartAxisDefaults.TickCount).fractionDigits
+    return CellScale(low, high) { value -> formats.decimal(value, precisionOf(value, digits)) }
 }
 
 /**
@@ -238,9 +289,12 @@ private fun layersOf(markIndex: Int, mark: Mark, model: ChartModel, horizontal: 
     val runs = mark.runs
     val lying = horizontal && mark.kind == MarkKind.Bar
     val stacks = (mark.kind == MarkKind.Bar || mark.kind == MarkKind.Area) &&
-        (mark.stacking == ChartStacking.Stacked || mark.stacking == ChartStacking.Normalised)
-    val grouped = mark.kind == MarkKind.Bar && !stacks && runs.size > 1
+        (mark.stacking == ChartStacking.Stacked || mark.stacking == ChartStacking.Normalised || mark.stacking == ChartStacking.Centred)
+    val grouped = (mark.kind == MarkKind.Bar || mark.kind == MarkKind.Box) && !stacks && runs.size > 1
     val normalised = stacks && mark.stacking == ChartStacking.Normalised
+    // A stream: each place's stack starts half its whole below the middle.
+    // Bars take `Centred` as `Stacked`, as the enum says.
+    val centred = mark.kind == MarkKind.Area && mark.stacking == ChartStacking.Centred
 
     // Place → running totals above and below zero, and the whole for a normalised stack.
     val above = HashMap<Double, Double>()
@@ -263,11 +317,27 @@ private fun layersOf(markIndex: Int, mark: Mark, model: ChartModel, horizontal: 
         }
     }
 
-    if (mark.kind == MarkKind.Band) {
-        // Drawn as an area between its edges, its base the low one, so it
-        // animates and rises as an area does; read as the range from low to high.
-        return runs.map { run ->
+    if (centred) {
+        // A negative value has no thickness in a stream: it is drawn as
+        // nothing, and still said as itself.
+        runs.forEach { run ->
+            for (i in 0 until run.size) {
+                val value = run.ys[i]
+                if (!value.isNaN()) whole[run.xs[i]] = (whole[run.xs[i]] ?: 0.0) + max(value, 0.0)
+            }
+        }
+        whole.forEach { (place, total) -> above[place] = -total / 2 }
+    }
+
+    if (mark.kind == MarkKind.Band || mark.kind == MarkKind.Stem || mark.floating || mark.kind == MarkKind.Box) {
+        // A range: a band drawn as an area between its edges, a stem as a line
+        // between its ends, a floating bar as a bar between them, and a box from
+        // its lower quartile to its upper. Each has its foot as its base, so it
+        // animates and rises as the others do. A band, a stem and a floating bar
+        // are read as the range from foot to top; a box by its median.
+        return runs.mapIndexed { runIndex, run ->
             val high = run.yEnds ?: DoubleArray(run.size) { run.ys[it] }
+            val sideBySide = grouped
             Layer(
                 markIndex = markIndex,
                 mark = mark,
@@ -278,7 +348,28 @@ private fun layersOf(markIndex: Int, mark: Mark, model: ChartModel, horizontal: 
                 base = run.ys.copyOf(),
                 acrossEnd = null,
                 upEnd = high,
-                values = run.ys.copyOf(),
+                values = run.box?.median?.copyOf() ?: run.ys.copyOf(),
+                groupIndex = if (sideBySide) runIndex else 0,
+                groupCount = if (sideBySide) runs.size else 1,
+                box = run.box,
+            )
+        }
+    }
+
+    if (mark.kind == MarkKind.Cell) {
+        // A cell is where it is, across and up, and its value is its shade.
+        return runs.map { run ->
+            Layer(
+                markIndex = markIndex,
+                mark = mark,
+                series = run.series,
+                slot = model.slotOf(run.series),
+                across = run.xs.copyOf(),
+                up = run.ys.copyOf(),
+                base = null,
+                acrossEnd = null,
+                upEnd = null,
+                values = run.amounts?.copyOf() ?: DoubleArray(run.size) { Double.NaN },
                 groupIndex = 0,
                 groupCount = 1,
             )
@@ -307,7 +398,7 @@ private fun layersOf(markIndex: Int, mark: Mark, model: ChartModel, horizontal: 
             for (i in 0 until n) {
                 val place = if (lying) run.ys[i] else run.xs[i]
                 // Already a share, for a normalised stack: see `values`.
-                val value = values[i]
+                val value = if (centred) max(values[i], 0.0) else values[i]
                 if (value.isNaN()) continue
                 val totals = if (value >= 0) above else below
                 val start = totals[place] ?: 0.0
@@ -362,6 +453,7 @@ private fun <V : Any> resolveAxis(
     formats: LocaleFormats,
     padding: Double,
     percent: Boolean,
+    centred: Boolean = false,
 ): ResolvedAxis = when (axis.kind) {
     AxisKind.Category -> {
         @Suppress("UNCHECKED_CAST")
@@ -390,7 +482,7 @@ private fun <V : Any> resolveAxis(
         )
     }
 
-    AxisKind.Number -> {
+    AxisKind.Number -> if (centred && axis.domain == null) centredAxis(axis, extent, formats) else {
         var low = axis.domain?.start ?: extent.low
         var high = axis.domain?.endInclusive ?: extent.high
         if (axis.domain == null && axis.includeZero) {
@@ -522,6 +614,32 @@ private fun dateTickLabel(date: LocalDate, unit: DateUnit, first: Boolean, forma
         if (first || date.month == Month.JANUARY) formats.monthAndYear(date)
         else formats.monthName(date.month, NameWidth.Abbreviated)
     DateUnit.Year -> formats.digits(date.year.toLong())
+}
+
+/**
+ * A stream's value axis: as far below its middle as above, so the middle is
+ * the middle of the plot, and no ticks, since where a stream sits up it
+ * measures nothing; only how thick each series is does. Its values are still
+ * written, as plain numbers, for the tooltip and the table.
+ */
+private fun <V : Any> centredAxis(axis: ChartAxis<V>, extent: Extent, formats: LocaleFormats): ResolvedAxis {
+    val reach = max(abs(extent.low.takeUnless { it.isNaN() } ?: 0.0), abs(extent.high.takeUnless { it.isNaN() } ?: 0.0))
+        .takeIf { it > 0 } ?: 1.0
+    val digits = niceTicks(0.0, reach, axis.tickCount).fractionDigits
+    val label = axis.numberLabel
+    return ResolvedAxis(
+        kind = AxisKind.Number,
+        low = -reach,
+        high = reach,
+        ticks = DoubleArray(0),
+        tickLabels = emptyList(),
+        title = axis.title,
+        showGridlines = false,
+        showLabels = false,
+        position = axis.position,
+        write = label ?: { value -> formats.decimal(value, precisionOf(value, digits)) },
+        centred = true,
+    )
 }
 
 /**

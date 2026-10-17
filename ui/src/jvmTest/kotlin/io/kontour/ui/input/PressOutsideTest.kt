@@ -23,6 +23,9 @@ import kotlin.test.assertEquals
 /**
  * A press elsewhere is seen, and still does what it was aimed at; a press on
  * the node itself is not elsewhere; and switched off, nothing is seen.
+ *
+ * On the desktop beside the other input tests: CI runs this package's tests
+ * on Android's host as well, where a composition cannot be set up.
  */
 @OptIn(ExperimentalTestApi::class)
 class PressOutsideTest {

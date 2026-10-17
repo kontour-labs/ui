@@ -1,5 +1,8 @@
 package io.kontour.ui.charts
 
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -14,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -38,6 +42,7 @@ internal fun ChartLegend(
     colours: ChartColours,
     patterns: Boolean,
     stacked: Boolean,
+    scale: CellScale? = null,
 ) {
     val named = model.series.filter { it.name.isNotBlank() }
     val spacing = Theme.spacing
@@ -49,7 +54,10 @@ internal fun ChartLegend(
     }
     val hidden = Modifier.clearAndSetSemantics { }
     if (stacked) {
-        Column(hidden, verticalArrangement = Arrangement.spacedBy(spacing.xxs)) { named.forEach { item(it) } }
+        Column(hidden, verticalArrangement = Arrangement.spacedBy(spacing.xxs)) {
+            named.forEach { item(it) }
+            scale?.let { ScaleKey(it, colours.ramp) }
+        }
     } else {
         FlowRow(
             modifier = hidden,
@@ -57,7 +65,28 @@ internal fun ChartLegend(
             verticalArrangement = Arrangement.spacedBy(spacing.xxs),
         ) {
             named.forEach { item(it) }
+            scale?.let { ScaleKey(it, colours.ramp) }
         }
+    }
+}
+
+/**
+ * A heat map's key: its least value, the ramp, and its most, the ramp running
+ * the way the line reads, so in a right-to-left language its least is on the
+ * right, beside the number that names it.
+ */
+@Composable
+private fun ScaleKey(scale: CellScale, ramp: List<Color>) {
+    val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+    val style = Theme.typography.labelMedium
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xxs)) {
+        Text(scale.write(scale.low), style = style)
+        Box(
+            Modifier
+                .size(width = ScaleWidth, height = SwatchSize)
+                .background(Brush.horizontalGradient(if (rtl) ramp.reversed() else ramp), Theme.shapes.extraSmall),
+        )
+        Text(scale.write(scale.high), style = style)
     }
 }
 
@@ -119,6 +148,19 @@ internal fun FillSwatch(look: SeriesLook, colours: ChartColours) {
     )
 }
 
+/** A square of one [shade]: a heat map cell's key, in its tooltip. */
+@Composable
+internal fun ShadeSwatch(shade: Color) {
+    val shape = Theme.shapes.extraSmall
+    val edge = contrastEdge()
+    Box(
+        Modifier
+            .size(SwatchSize)
+            .background(shade, shape)
+            .then(if (edge != null) Modifier.border(edge, shape) else Modifier),
+    )
+}
+
 /**
  * A legend's swatch: the size of a small label's capital letters, so it sits
  * in the line of text it introduces. A line's is longer, to have room for its
@@ -126,6 +168,9 @@ internal fun FillSwatch(look: SeriesLook, colours: ChartColours) {
  */
 private val SwatchSize = 12.dp
 private val LineSwatchWidth = 20.dp
+
+/** A heat map key's ramp: long enough to see its shades change, short enough to sit in a legend's line. */
+private val ScaleWidth = 72.dp
 
 /** A swatch's pattern, finer than the plot's, so that two repeats fit in it. */
 private val SwatchTile = 6.dp

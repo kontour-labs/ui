@@ -3,6 +3,7 @@ package io.kontour.ui.charts
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 
 /**
  * What a chart is drawn in, besides its series' own colours.
@@ -20,6 +21,8 @@ import androidx.compose.ui.graphics.Color
  * @property patternInk What a fill pattern is drawn in, over a series' colour.
  * @property ground The page under the chart: the ring around a selected point,
  *   and the gap between a sector chart's sectors.
+ * @property ramp A heat map's shades, from its least value to its most, blended
+ *   between: at least two.
  */
 @Immutable
 data class ChartColours(
@@ -30,10 +33,19 @@ data class ChartColours(
     val selection: Color,
     val patternInk: Color,
     val ground: Color,
+    val ramp: List<Color>,
 ) {
     init {
         require(series.isNotEmpty()) { "A chart needs at least one series colour" }
+        require(ramp.size >= 2) { "A heat map's ramp needs at least two colours" }
     }
+}
+
+/** The shade [fraction] of the way along [ramp], blended between its two nearest stops. */
+internal fun rampAt(ramp: List<Color>, fraction: Float): Color {
+    val along = fraction.coerceIn(0f, 1f) * (ramp.size - 1)
+    val below = along.toInt().coerceAtMost(ramp.size - 2)
+    return lerp(ramp[below], ramp[below + 1], along - below)
 }
 
 /**

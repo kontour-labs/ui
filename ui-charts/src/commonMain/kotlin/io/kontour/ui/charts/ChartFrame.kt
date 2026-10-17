@@ -57,6 +57,8 @@ internal class ChartFrame(
     val gap: Float,
     val xAxisAtBottom: Boolean,
     val yAxisAtStart: Boolean,
+    /** A heat map's values, measured to be written in their cells, by cell; empty unless they are written. */
+    val cellLabels: List<TextLayoutResult?> = emptyList(),
 )
 
 /**
@@ -78,7 +80,7 @@ internal fun ChartFrame.withInsets(insets: PlotInsets): ChartFrame {
     if (moved == plot) return this
     return ChartFrame(
         width, height, moved, rtl, xLabels, yLabels, xTitle, yTitle,
-        ruleLabels, rulePins, regionLabels, pinHeight, pinBand, gap, xAxisAtBottom, yAxisAtStart,
+        ruleLabels, rulePins, regionLabels, pinHeight, pinBand, gap, xAxisAtBottom, yAxisAtStart, cellLabels,
     )
 }
 
@@ -143,6 +145,8 @@ internal fun layOutFrame(
     gap: Float,
     density: Density,
     layoutDirection: LayoutDirection,
+    /** Whether a heat map's values are written in its cells: with patterns on, so it is read by more than its shades. */
+    writeCells: Boolean = false,
 ): ChartFrame {
     val rtl = layoutDirection == LayoutDirection.Rtl
     val x = chart.x
@@ -265,7 +269,19 @@ internal fun layOutFrame(
         gap = gap,
         xAxisAtBottom = xAtBottom,
         yAxisAtStart = yAtStart,
+        cellLabels = if (writeCells) cellLabelsOf(chart) { measure(it, labelStyle) } else emptyList(),
     )
+}
+
+/**
+ * Each of a heat map's cells' values, measured as its scale writes them; empty
+ * for a chart with no cells. Measured from the chart it will settle on, as its
+ * labels are, so the words do not change as the shades move.
+ */
+private fun cellLabelsOf(chart: ResolvedChart, measure: (String) -> TextLayoutResult): List<TextLayoutResult?> {
+    val scale = chart.cells ?: return emptyList()
+    val layer = chart.layers.firstOrNull { it.mark.kind == MarkKind.Cell } ?: return emptyList()
+    return layer.values.map { value -> if (value.isNaN()) null else measure(scale.write(value)) }
 }
 
 /** A frame with only its plot, for mapping before the labels are in. */

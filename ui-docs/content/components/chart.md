@@ -86,7 +86,9 @@ Chart(
 `stacking` sets how the series at one place share it. `Stacked`, the default for
 bars, piles them into one, with negative values hanging below zero.
 `Grouped` puts them side by side. `Normalised` scales each place to the same
-whole, so the axis reads as shares of it. Areas stack the same way.
+whole, so the axis reads as shares of it. Areas stack the same way, and
+`Centred` stacks them about the middle of the plot as a stream does (bars take
+it as `Stacked`).
 
 A normalised chart's value axis is shares from 0 to 100%, and everything else
 along it is a share too: `rule(y = 0.5)` is the halfway line, and a rule in the
@@ -152,6 +154,144 @@ Regions and rules are references, not data: each is said after the chart's
 summary by its label and where it is ("Capacity, 800"; "School holidays, 13 Oct
 to 14 Oct"), and none is in the legend. One with no label is decoration, and
 is not said at all.
+
+## Ranges
+
+A bar given `yStart` and `yEnd` runs from one to the other rather than from
+zero: a day's coldest and warmest, a shift's start and end. It is rounded at
+both ends, several series stand side by side, and a reader hears each as its
+range, "Mar: 17 to 25".
+
+<!--sample:ChartRangeBars-->
+```kotlin
+// Each month from its coldest to its warmest, a bar from one to the other.
+Chart(
+    xAxis = ChartAxis.category<String>(),
+    yAxis = ChartAxis.number(title = "°C"),
+    modifier = Modifier.fillMaxWidth().height(200.dp),
+    contentDescription = "Temperatures in autumn",
+) {
+    bar(autumn, x = { it.month }, yStart = { it.low }, yEnd = { it.high })
+}
+```
+
+`stem` draws a thin line between two values. With a `point` at each end it is
+a dumbbell; from zero with one at its top, a lollipop; over a bar, its margin
+of error. A stem whose ends the points already say is drawn and not said again.
+
+<!--sample:ChartDumbbells-->
+```kotlin
+// Each route's two fares, joined by a stem: a dumbbell.
+val offPeak = ChartSeries("Off-peak")
+val peak = ChartSeries("Peak")
+Chart(
+    xAxis = ChartAxis.category<String>(),
+    yAxis = ChartAxis.number(title = "Fare"),
+    modifier = Modifier.fillMaxWidth().height(200.dp),
+    contentDescription = "Fares by route",
+) {
+    stem(fares, x = { it.route }, yStart = { it.offPeak }, yEnd = { it.peak }, style = SeriesStyle(colour = Theme.colours.outlineStrong))
+    point(fares, x = { it.route }, y = { it.offPeak }, series = { offPeak })
+    point(fares, x = { it.route }, y = { it.peak }, series = { peak })
+}
+```
+
+## Box plots
+
+`box` draws the spread of many values at each place: a box over the middle half
+of them with a line at the median, whiskers out to the rest, and anything far
+past them as a dot of its own. Give it each place's `samples` and it works the
+numbers out as a spreadsheet's `QUARTILE` does, with whiskers out to one and a
+half box lengths. Or give it the five numbers and the `outliers` yourself. A
+reader hears "median 28, quartiles 27 to 31, range 24 to 33, outliers 52", and
+`ChartDataTable` gives each number a column.
+
+<!--sample:ChartBoxPlot-->
+```kotlin
+// How long a trip takes on each route: the box is the middle half of the
+// trips, and the slow one on the 950 is a dot past its whisker.
+Chart(
+    xAxis = ChartAxis.category<String>(),
+    yAxis = ChartAxis.number(title = "Minutes"),
+    modifier = Modifier.fillMaxWidth().height(220.dp),
+    contentDescription = "Trip times by route",
+) {
+    box(journeys, x = { it.route }, samples = { it.minutes })
+}
+```
+
+## Streams
+
+`ChartStacking.Centred` stacks areas about the middle of the plot rather than on
+zero. Where a stream sits up the plot measures nothing; only how thick each
+series is matters. So its value axis has no ticks or gridlines, and isn't read
+out, and each series' values are said as themselves.
+
+<!--sample:ChartStreamgraph-->
+```kotlin
+// The week's riders by route, stacked about the middle: how thick each
+// route is says how many it carried.
+Chart(
+    xAxis = ChartAxis.date(),
+    yAxis = ChartAxis.number(title = "Riders"),
+    modifier = Modifier.fillMaxWidth().height(200.dp),
+    contentDescription = "Riders this week, by route",
+) {
+    area(
+        week,
+        x = { it.day },
+        y = { it.riders },
+        series = { ChartSeries("Route ${it.route}") },
+        stacking = ChartStacking.Centred,
+        interpolation = ChartInterpolation.Monotone,
+    )
+}
+```
+
+## Heat maps
+
+`cell` puts a cell at each place of two category axes and shades it by its
+`value`: from `ChartColours.ramp`'s pale end at the least of them to its deep
+end at the most, with a scale under the plot. With `showPatterns`, the default,
+each cell has its number written in it too, so it isn't read by its shade
+alone. A reader hears a column at a time, "Mon: 6am, 120, 7am, 340 and 8am,
+410", and `ChartDataTable` has a row for each column.
+
+<!--sample:ChartHeatMap-->
+```kotlin
+// Riders by day and hour, each cell shaded by how many, with the scale
+// under the plot.
+Chart(
+    xAxis = ChartAxis.category<String>(),
+    yAxis = ChartAxis.category<String>(),
+    modifier = Modifier.fillMaxWidth().height(200.dp),
+    contentDescription = "Morning riders by day and hour",
+) {
+    cell(mornings, x = { it.day }, y = { it.hour }, value = { it.riders })
+}
+```
+
+## Bars both ways
+
+Negative values in a stack hang below zero, or to the left of it when the bars
+lie down, so a population pyramid is lying bars with one side negative. An axis
+`label` that drops the sign writes both sides as the numbers they are, and the
+tooltip and a reader use it too.
+
+<!--sample:ChartPopulationPyramid-->
+```kotlin
+// Men to the left as negatives and women to the right, both written as
+// the number of people they are.
+val formats = Theme.formats
+Chart(
+    xAxis = ChartAxis.number(title = "People", label = { formats.decimal(abs(it), 0) }),
+    yAxis = ChartAxis.category<String>(),
+    modifier = Modifier.fillMaxWidth().height(200.dp),
+    contentDescription = "Population by age and sex",
+) {
+    bar(cohorts, x = { it.people }, y = { it.ages }, series = { ChartSeries(it.sex) })
+}
+```
 
 ## Selection
 

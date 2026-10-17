@@ -22,6 +22,7 @@ import io.kontour.ui.charts.rememberChartSelectionState
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.theme.Theme
 import kotlinx.datetime.LocalDate
+import kotlin.math.abs
 
 private class Trip(val day: LocalDate, val route: String, val riders: Int)
 
@@ -121,6 +122,130 @@ fun ChartStackedBars() {
             series = { ChartSeries(it.category) },
             stacking = ChartStacking.Stacked,
         )
+    }
+}
+
+private class Weather(val month: String, val low: Int, val high: Int)
+
+private val autumn = listOf(Weather("Mar", 17, 25), Weather("Apr", 14, 23), Weather("May", 11, 20), Weather("Jun", 9, 17))
+
+@Composable
+fun ChartRangeBars() {
+    // Each month from its coldest to its warmest, a bar from one to the other.
+    Chart(
+        xAxis = ChartAxis.category<String>(),
+        yAxis = ChartAxis.number(title = "°C"),
+        modifier = Modifier.fillMaxWidth().height(200.dp),
+        contentDescription = "Temperatures in autumn",
+    ) {
+        bar(autumn, x = { it.month }, yStart = { it.low }, yEnd = { it.high })
+    }
+}
+
+private class Fare(val route: String, val offPeak: Double, val peak: Double)
+
+private val fares = listOf(Fare("950", 3.10, 4.40), Fare("951", 2.80, 3.90), Fare("T1", 4.20, 6.10))
+
+@Composable
+fun ChartDumbbells() {
+    // Each route's two fares, joined by a stem: a dumbbell.
+    val offPeak = ChartSeries("Off-peak")
+    val peak = ChartSeries("Peak")
+    Chart(
+        xAxis = ChartAxis.category<String>(),
+        yAxis = ChartAxis.number(title = "Fare"),
+        modifier = Modifier.fillMaxWidth().height(200.dp),
+        contentDescription = "Fares by route",
+    ) {
+        stem(fares, x = { it.route }, yStart = { it.offPeak }, yEnd = { it.peak }, style = SeriesStyle(colour = Theme.colours.outlineStrong))
+        point(fares, x = { it.route }, y = { it.offPeak }, series = { offPeak })
+        point(fares, x = { it.route }, y = { it.peak }, series = { peak })
+    }
+}
+
+private class Journeys(val route: String, val minutes: List<Int>)
+
+private val journeys = listOf(
+    Journeys("950", listOf(24, 26, 27, 27, 28, 29, 31, 33, 52)),
+    Journeys("951", listOf(30, 31, 33, 34, 36, 36, 38, 41, 43)),
+    Journeys("T1", listOf(18, 18, 19, 19, 20, 20, 21, 22, 23)),
+)
+
+@Composable
+fun ChartBoxPlot() {
+    // How long a trip takes on each route: the box is the middle half of the
+    // trips, and the slow one on the 950 is a dot past its whisker.
+    Chart(
+        xAxis = ChartAxis.category<String>(),
+        yAxis = ChartAxis.number(title = "Minutes"),
+        modifier = Modifier.fillMaxWidth().height(220.dp),
+        contentDescription = "Trip times by route",
+    ) {
+        box(journeys, x = { it.route }, samples = { it.minutes })
+    }
+}
+
+@Composable
+fun ChartStreamgraph() {
+    // The week's riders by route, stacked about the middle: how thick each
+    // route is says how many it carried.
+    Chart(
+        xAxis = ChartAxis.date(),
+        yAxis = ChartAxis.number(title = "Riders"),
+        modifier = Modifier.fillMaxWidth().height(200.dp),
+        contentDescription = "Riders this week, by route",
+    ) {
+        area(
+            week,
+            x = { it.day },
+            y = { it.riders },
+            series = { ChartSeries("Route ${it.route}") },
+            stacking = ChartStacking.Centred,
+            interpolation = ChartInterpolation.Monotone,
+        )
+    }
+}
+
+private class Busy(val day: String, val hour: String, val riders: Int)
+
+private val mornings = listOf("Mon", "Tue", "Wed").flatMapIndexed { d, day ->
+    listOf("6am" to 120, "7am" to 340, "8am" to 410).map { (hour, riders) -> Busy(day, hour, riders + d * 25) }
+}
+
+@Composable
+fun ChartHeatMap() {
+    // Riders by day and hour, each cell shaded by how many, with the scale
+    // under the plot.
+    Chart(
+        xAxis = ChartAxis.category<String>(),
+        yAxis = ChartAxis.category<String>(),
+        modifier = Modifier.fillMaxWidth().height(200.dp),
+        contentDescription = "Morning riders by day and hour",
+    ) {
+        cell(mornings, x = { it.day }, y = { it.hour }, value = { it.riders })
+    }
+}
+
+private class Cohort(val ages: String, val sex: String, val people: Int)
+
+private val cohorts = listOf(
+    Cohort("60+", "Men", -410), Cohort("60+", "Women", 470),
+    Cohort("30–59", "Men", -820), Cohort("30–59", "Women", 800),
+    Cohort("0–29", "Men", -900), Cohort("0–29", "Women", 870),
+)
+
+@Composable
+fun ChartPopulationPyramid() {
+    // Men to the left as negatives and women to the right, both written as
+    // the number of people they are.
+    val formats = Theme.formats
+    Chart(
+        xAxis = ChartAxis.number(title = "People", label = { formats.decimal(abs(it), 0) }),
+        yAxis = ChartAxis.category<String>(),
+        modifier = Modifier.fillMaxWidth().height(200.dp),
+        contentDescription = "Population by age and sex",
+    ) {
+        bar(cohorts, x = { it.people }, y = { it.ages }, series = { ChartSeries(it.sex) })
     }
 }
 

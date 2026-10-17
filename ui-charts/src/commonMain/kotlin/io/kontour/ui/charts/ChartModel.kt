@@ -25,7 +25,7 @@ internal class ChartModel(
     fun slotOf(series: ChartSeries): Int = this.series.indexOf(series).coerceAtLeast(0)
 }
 
-internal enum class MarkKind { Line, Area, Bar, Point, Rectangle, Band }
+internal enum class MarkKind { Line, Area, Bar, Point, Rectangle, Band, Stem, Box, Cell }
 
 /**
  * One mark: one call in the content. Its items are split into one run per
@@ -39,6 +39,8 @@ internal class Mark(
     val showPoints: Boolean,
     val symbol: PointSymbol?,
     val style: SeriesStyle?,
+    /** A bar from a start to an end rather than from zero: a day's range. */
+    val floating: Boolean = false,
 )
 
 /**
@@ -53,11 +55,26 @@ internal class Run(
     val ys: DoubleArray,
     /** A rectangle's other corner across; `null` for every other mark. */
     val xEnds: DoubleArray?,
-    /** A rectangle's other corner up, or a band's top; `null` for every other mark. */
+    /** A rectangle's other corner up, or a band's, a floating bar's or a stem's top; `null` for every other mark. */
     val yEnds: DoubleArray?,
+    /** A box's whiskers, median and outliers; `null` for every other mark. */
+    val box: BoxRun? = null,
+    /** Each heat map cell's amount; `null` for every other mark. */
+    val amounts: DoubleArray? = null,
 ) {
     val size: Int get() = xs.size
 }
+
+/**
+ * A box run's numbers beside its box, in the chart's own units: the box itself
+ * is the run's [Run.ys] to [Run.yEnds], its quartiles.
+ */
+internal class BoxRun(
+    val low: DoubleArray,
+    val median: DoubleArray,
+    val high: DoubleArray,
+    val outliers: Array<DoubleArray>,
+)
 
 /** A [ChartScope.rule], in the chart's own units. */
 internal class Rule(
@@ -257,6 +274,163 @@ internal class ChartRecorder<X : Any, Y : Any>(
             )
         }
         marks += Mark(MarkKind.Band, runs, ChartStacking.None, interpolation, false, null, style)
+    }
+
+    override fun <T> bar(
+        items: List<T>,
+        x: (T) -> X,
+        yStart: (T) -> Y?,
+        yEnd: (T) -> Y?,
+        series: (T) -> ChartSeries,
+        style: SeriesStyle?,
+    ) {
+        // Side by side, as grouped bars are: a range is not a part of a whole.
+        marks += Mark(
+            MarkKind.Bar, rangesOf(items, x, yStart, yEnd, series), ChartStacking.Grouped, ChartInterpolation.Linear,
+            false, null, style, floating = true,
+        )
+    }
+
+    override fun <T> stem(
+        items: List<T>,
+        x: (T) -> X,
+        yStart: (T) -> Y?,
+        yEnd: (T) -> Y?,
+        series: (T) -> ChartSeries,
+        style: SeriesStyle?,
+    ) {
+        marks += Mark(MarkKind.Stem, rangesOf(items, x, yStart, yEnd, series), ChartStacking.None, ChartInterpolation.Linear, false, null, style)
+    }
+
+    /**
+     * One run a series of ranges at places, each from its lower end to its
+     * higher, by place: a missing end is a gap, and ends given the wrong way
+     * round are the same range.
+     */
+    private fun <T> rangesOf(
+        items: List<T>,
+        x: (T) -> X,
+        yStart: (T) -> Y?,
+        yEnd: (T) -> Y?,
+        seriesOf: (T) -> ChartSeries,
+    ): List<Run> {
+        val bySeries = LinkedHashMap<ChartSeries, MutableList<DoubleArray>>()
+        items.forEach { item ->
+            val across = xOf(x(item))
+            if (across.isNaN()) return@forEach
+            val start = yOf(yStart(item))
+            val end = yOf(yEnd(item))
+            val owner = seriesOf(item)
+            series += owner
+            val gap = start.isNaN() || end.isNaN()
+            bySeries.getOrPut(owner) { mutableListOf() } += doubleArrayOf(
+                across,
+                if (gap) Double.NaN else minOf(start, end),
+                if (gap) Double.NaN else maxOf(start, end),
+            )
+        }
+        return bySeries.map { (owner, ranges) ->
+            val ordered = ranges.sortedBy { it[0] }
+            Run(
+                series = owner,
+                xs = DoubleArray(ordered.size) { ordered[it][0] },
+                ys = DoubleArray(ordered.size) { ordered[it][1] },
+                xEnds = null,
+                yEnds = DoubleArray(ordered.size) { ordered[it][2] },
+            )
+        }
+    }
+
+    override fun <T> box(
+        items: List<T>,
+        x: (T) -> X,
+        low: (T) -> Y,
+        lowerQuartile: (T) -> Y,
+        median: (T) -> Y,
+        upperQuartile: (T) -> Y,
+        high: (T) -> Y,
+        outliers: (T) -> List<Y>,
+        series: (T) -> ChartSeries,
+        style: SeriesStyle?,
+    ) {
+        boxesOf(items, x, series, style) { item ->
+            BoxNumbers(
+                low = yOf(low(item)),
+                lowerQuartile = yOf(lowerQuartile(item)),
+                median = yOf(median(item)),
+                upperQuartile = yOf(upperQuartile(item)),
+                high = yOf(high(item)),
+                outliers = outliers(item).map { yOf(it) }.filter { !it.isNaN() }.toDoubleArray(),
+            )
+        }
+    }
+
+    override fun <T> box(
+        items: List<T>,
+        x: (T) -> X,
+        samples: (T) -> List<Y>,
+        series: (T) -> ChartSeries,
+        style: SeriesStyle?,
+    ) {
+        boxesOf(items, x, series, style) { item -> boxOf(samples(item).map { yOf(it) }.toDoubleArray()) }
+    }
+
+    private fun <T> boxesOf(items: List<T>, x: (T) -> X, seriesOf: (T) -> ChartSeries, style: SeriesStyle?, numbers: (T) -> BoxNumbers?) {
+        val bySeries = LinkedHashMap<ChartSeries, MutableList<Pair<Double, BoxNumbers>>>()
+        items.forEach { item ->
+            val across = xOf(x(item))
+            if (across.isNaN()) return@forEach
+            val box = numbers(item) ?: return@forEach
+            if (box.lowerQuartile.isNaN() || box.upperQuartile.isNaN() || box.median.isNaN()) return@forEach
+            val owner = seriesOf(item)
+            series += owner
+            bySeries.getOrPut(owner) { mutableListOf() } += across to box
+        }
+        val runs = bySeries.map { (owner, boxes) ->
+            val ordered = boxes.sortedBy { it.first }
+            Run(
+                series = owner,
+                xs = DoubleArray(ordered.size) { ordered[it].first },
+                ys = DoubleArray(ordered.size) { minOf(ordered[it].second.lowerQuartile, ordered[it].second.upperQuartile) },
+                xEnds = null,
+                yEnds = DoubleArray(ordered.size) { maxOf(ordered[it].second.lowerQuartile, ordered[it].second.upperQuartile) },
+                box = BoxRun(
+                    low = DoubleArray(ordered.size) { ordered[it].second.low },
+                    median = DoubleArray(ordered.size) { ordered[it].second.median },
+                    high = DoubleArray(ordered.size) { ordered[it].second.high },
+                    outliers = Array(ordered.size) { ordered[it].second.outliers },
+                ),
+            )
+        }
+        marks += Mark(MarkKind.Box, runs, ChartStacking.Grouped, ChartInterpolation.Linear, false, null, style)
+    }
+
+    override fun <T> cell(
+        items: List<T>,
+        x: (T) -> X,
+        y: (T) -> Y,
+        value: (T) -> Number?,
+    ) {
+        val cells = items.mapNotNull { item ->
+            val across = xOf(x(item))
+            val up = yOf(y(item))
+            if (across.isNaN() || up.isNaN()) null else doubleArrayOf(across, up, value(item)?.toDouble() ?: Double.NaN)
+        }
+        if (cells.isNotEmpty()) series += ChartSeries.Default
+        marks += Mark(
+            MarkKind.Cell,
+            listOf(
+                Run(
+                    series = ChartSeries.Default,
+                    xs = DoubleArray(cells.size) { cells[it][0] },
+                    ys = DoubleArray(cells.size) { cells[it][1] },
+                    xEnds = null,
+                    yEnds = null,
+                    amounts = DoubleArray(cells.size) { cells[it][2] },
+                ),
+            ),
+            ChartStacking.None, ChartInterpolation.Linear, false, null, null,
+        )
     }
 
     override fun region(xStart: X?, xEnd: X?, yStart: Y?, yEnd: Y?, label: String?, style: SeriesStyle?) {

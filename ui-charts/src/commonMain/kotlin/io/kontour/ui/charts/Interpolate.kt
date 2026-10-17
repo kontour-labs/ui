@@ -36,12 +36,29 @@ internal fun interpolate(from: ResolvedChart, to: ResolvedChart, fraction: Float
 internal fun collapsed(chart: ResolvedChart): ResolvedChart {
     val valueLow = if (chart.horizontal) chart.x.low else chart.y.low
     val layers = chart.layers.map { layer ->
+        // A stream swells out of its middle, top and foot together.
+        if (layer.mark.kind == MarkKind.Area && layer.mark.stacking == ChartStacking.Centred) {
+            val middle = DoubleArray(layer.size)
+            return@map layer.copy(up = middle, base = middle.copyOf())
+        }
         when (layer.mark.kind) {
-            // A band rises from its low edge, as an area does from its base.
-            MarkKind.Bar, MarkKind.Area, MarkKind.Line, MarkKind.Band -> {
+            // A band rises from its low edge, as an area does from its base,
+            // and a stem and a floating bar from their feet.
+            MarkKind.Bar, MarkKind.Area, MarkKind.Line, MarkKind.Band, MarkKind.Stem -> {
                 val lying = chart.horizontal && layer.mark.kind == MarkKind.Bar
                 val floor = DoubleArray(layer.size) { layer.base?.get(it) ?: valueLow }
                 if (lying) layer.copy(across = floor) else layer.copy(up = floor)
+            }
+            // A box opens out from its median line.
+            MarkKind.Box -> {
+                val median = layer.values
+                val box = layer.box?.let { BoxRun(median.copyOf(), median.copyOf(), median.copyOf(), it.outliers) }
+                layer.copy(up = median.copyOf(), base = median.copyOf(), box = box)
+            }
+            // A heat map warms in from its palest.
+            MarkKind.Cell -> {
+                val palest = layer.values.filter { !it.isNaN() }.minOrNull() ?: 0.0
+                layer.copy(values = DoubleArray(layer.size) { if (layer.values[it].isNaN()) Double.NaN else palest })
             }
             MarkKind.Point, MarkKind.Rectangle -> layer
         }
@@ -72,25 +89,40 @@ private fun blendLayer(from: Layer, to: Layer, t: Double, horizontal: Boolean): 
             to.copy(up = up, base = base)
         }
 
-        MarkKind.Bar -> {
-            // Matched by place: the bar for March becomes the bar for March.
-            val oldPlaces = if (lying) from.up else from.across
-            val oldTops = if (lying) from.across else from.up
-            val newPlaces = if (lying) to.up else to.across
-            val newTops = if (lying) to.across else to.up
-            val tops = DoubleArray(to.size) { i ->
-                val match = oldPlaces.indexOfFirst { it == newPlaces[i] }
-                val start = if (match >= 0) oldTops[match] else (to.base?.get(i) ?: 0.0)
-                lerp(start, newTops[i], t)
+        MarkKind.Bar -> blendByPlace(from, to, t, lying)
+
+        MarkKind.Stem -> blendByPlace(from, to, t, lying = false)
+
+        MarkKind.Box -> {
+            // Matched by place, all five numbers at once; the outliers are the
+            // new ones, which have nowhere to move from.
+            val moved = blendByPlace(from, to, t, lying = false)
+            val oldBox = from.box
+            val newBox = to.box ?: return moved
+            fun blend(old: DoubleArray?, new: DoubleArray): DoubleArray = DoubleArray(to.size) { i ->
+                val match = from.across.indexOfFirst { it == to.across[i] }
+                lerp(if (match >= 0 && old != null) old[match] else to.values[i], new[i], t)
             }
-            val base = to.base?.let { newBase ->
-                DoubleArray(to.size) { i ->
-                    val match = oldPlaces.indexOfFirst { it == newPlaces[i] }
-                    val start = if (match >= 0) from.base?.get(match) ?: newBase[i] else newBase[i]
-                    lerp(start, newBase[i], t)
+            val median = blend(from.values, to.values)
+            moved.copy(
+                values = median,
+                box = BoxRun(blend(oldBox?.low, newBox.low), median, blend(oldBox?.high, newBox.high), newBox.outliers),
+            )
+        }
+
+        MarkKind.Cell -> {
+            // Matched by where the cell is: its shade moves, it does not.
+            val values = DoubleArray(to.size) { i ->
+                var match = -1
+                for (j in 0 until from.size) {
+                    if (from.across[j] == to.across[i] && from.up[j] == to.up[i]) {
+                        match = j
+                        break
+                    }
                 }
+                lerp(if (match >= 0) from.values[match] else to.values[i], to.values[i], t)
             }
-            if (lying) to.copy(across = tops, base = base) else to.copy(up = tops, base = base)
+            to.copy(values = values)
         }
 
         MarkKind.Point, MarkKind.Rectangle -> {
@@ -99,6 +131,31 @@ private fun blendLayer(from: Layer, to: Layer, t: Double, horizontal: Boolean): 
             to.copy(across = across, up = up)
         }
     }
+}
+
+/**
+ * [to] as [t] of the way from [from], each value matched by its place: the bar
+ * for March becomes the bar for March, top and foot. One with nothing to come
+ * from grows from its foot.
+ */
+private fun blendByPlace(from: Layer, to: Layer, t: Double, lying: Boolean): Layer {
+    val oldPlaces = if (lying) from.up else from.across
+    val oldTops = if (lying) from.across else from.up
+    val newPlaces = if (lying) to.up else to.across
+    val newTops = if (lying) to.across else to.up
+    val tops = DoubleArray(to.size) { i ->
+        val match = oldPlaces.indexOfFirst { it == newPlaces[i] }
+        val start = if (match >= 0) oldTops[match] else (to.base?.get(i) ?: 0.0)
+        lerp(start, newTops[i], t)
+    }
+    val base = to.base?.let { newBase ->
+        DoubleArray(to.size) { i ->
+            val match = oldPlaces.indexOfFirst { it == newPlaces[i] }
+            val start = if (match >= 0) from.base?.get(match) ?: newBase[i] else newBase[i]
+            lerp(start, newBase[i], t)
+        }
+    }
+    return if (lying) to.copy(across = tops, base = base) else to.copy(up = tops, base = base)
 }
 
 /** The value of the line through [places] and [values] at [place], held flat beyond its ends. */

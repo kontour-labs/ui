@@ -228,3 +228,19 @@ internal fun decimate(points: List<Offset?>, width: Float): List<Offset?> {
     emit()
     return result
 }
+
+/**
+ * A stem from [from] to [to] at [centre] across, added to [path]: [thickness]
+ * wide and round at its ends, as a line is, and capped across its [to] end, as
+ * a whisker is, when [capHalf] reaches past it. A filled shape rather than a
+ * stroke, so a thousand stems are one path.
+ */
+internal fun addStem(path: Path, centre: Float, from: Float, to: Float, thickness: Float, capHalf: Float) {
+    val half = thickness / 2
+    val top = minOf(from, to)
+    val bottom = maxOf(from, to)
+    path.addRoundRect(RoundRect(Rect(centre - half, top - half, centre + half, bottom + half), CornerRadius(half)))
+    if (capHalf > half) {
+        path.addRoundRect(RoundRect(Rect(centre - capHalf, to - half, centre + capHalf, to + half), CornerRadius(half)))
+    }
+}

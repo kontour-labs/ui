@@ -81,6 +81,29 @@ interface ChartScope<X : Any, Y : Any> {
     )
 
     /**
+     * A bar for each of [items] from [yStart] to [yEnd] rather than from zero:
+     * a day's least and most, a shift's start and end, a fare's range.
+     *
+     * ```kotlin
+     * bar(days, x = { it.day }, yStart = { it.low }, yEnd = { it.high })
+     * ```
+     *
+     * Rounded at both ends, since neither stands on anything. Several series
+     * stand side by side at a place, as grouped bars do. A reader hears each as
+     * its range, "Monday: 12 to 25", and a tooltip and a [ChartDataTable] write
+     * it so. Either end `null` leaves the place empty; ends given the wrong way
+     * round are the same bar.
+     */
+    fun <T> bar(
+        items: List<T>,
+        x: (T) -> X,
+        yStart: (T) -> Y?,
+        yEnd: (T) -> Y?,
+        series: (T) -> ChartSeries = { ChartSeries.Default },
+        style: SeriesStyle? = null,
+    )
+
+    /**
      * A symbol at each of [items]: a scatter chart, or the points on a line.
      *
      * @param symbol The symbol, for every series of this mark. Left out, each
@@ -133,6 +156,99 @@ interface ChartScope<X : Any, Y : Any> {
         series: (T) -> ChartSeries = { ChartSeries.Default },
         interpolation: ChartInterpolation = ChartInterpolation.Linear,
         style: SeriesStyle? = null,
+    )
+
+    /**
+     * A thin stem from [yStart] to [yEnd] at each of [items]: with a [point]
+     * at each end, a dumbbell, a day's low and high; from zero with one at its
+     * top, a lollipop; over a bar, its margin of error.
+     *
+     * ```kotlin
+     * stem(days, x = { it.day }, yStart = { it.low }, yEnd = { it.high }, style = SeriesStyle(colour = Theme.colours.outlineStrong))
+     * point(days, x = { it.day }, y = { it.low }, series = { low })
+     * point(days, x = { it.day }, y = { it.high }, series = { high })
+     * ```
+     *
+     * A stem is said as its range where nothing else at its place says its
+     * ends: a dumbbell's two points already say the low and the high, and the
+     * stem between them is said again by nobody.
+     */
+    fun <T> stem(
+        items: List<T>,
+        x: (T) -> X,
+        yStart: (T) -> Y?,
+        yEnd: (T) -> Y?,
+        series: (T) -> ChartSeries = { ChartSeries.Default },
+        style: SeriesStyle? = null,
+    )
+
+    /**
+     * A box plot at each of [items], from five numbers worked out already: a
+     * box from [lowerQuartile] to [upperQuartile] with a line at the [median],
+     * whiskers out to [low] and [high], and any [outliers] beyond them as
+     * points. Several series stand side by side at a place, as grouped bars do.
+     *
+     * ```kotlin
+     * box(trips, x = { it.route }, low = { it.p0 }, lowerQuartile = { it.p25 }, median = { it.p50 },
+     *     upperQuartile = { it.p75 }, high = { it.p100 })
+     * ```
+     *
+     * A reader hears each as "Route 950: median 18, quartiles 15 to 21, range
+     * 10 to 30", and a [ChartDataTable] gives each number its own column.
+     */
+    fun <T> box(
+        items: List<T>,
+        x: (T) -> X,
+        low: (T) -> Y,
+        lowerQuartile: (T) -> Y,
+        median: (T) -> Y,
+        upperQuartile: (T) -> Y,
+        high: (T) -> Y,
+        outliers: (T) -> List<Y> = { emptyList() },
+        series: (T) -> ChartSeries = { ChartSeries.Default },
+        style: SeriesStyle? = null,
+    )
+
+    /**
+     * A box plot of each of [items]' [samples], its numbers worked out here:
+     * quartiles as a spreadsheet's `QUARTILE` has them, whiskers out to the
+     * furthest sample within one and a half box lengths of the box, and every
+     * sample past that an outlier. For whiskers to the least and the most, work
+     * the five numbers out and give them to the other `box`.
+     *
+     * ```kotlin
+     * box(routes, x = { it.name }, samples = { it.tripMinutes })
+     * ```
+     */
+    fun <T> box(
+        items: List<T>,
+        x: (T) -> X,
+        samples: (T) -> List<Y>,
+        series: (T) -> ChartSeries = { ChartSeries.Default },
+        style: SeriesStyle? = null,
+    )
+
+    /**
+     * A heat map's cell at each of [items]: its [x] and [y] place, coloured by
+     * its [value] along the chart's [ramp][ChartColours.ramp], the least value
+     * at its pale end and the most at its deep one, with a scale under the
+     * plot that says which is which.
+     *
+     * ```kotlin
+     * cell(riders, x = { it.day }, y = { it.hour }, value = { it.count })
+     * ```
+     *
+     * With patterns on, each cell's value is written in it as well, so it is
+     * read by more than its shade. A reader hears a column at a time, "Monday:
+     * 6am, 12 and 7am, 30", and a [ChartDataTable] has a row for each column of
+     * the map and a column for each of its rows. A `null` value leaves the
+     * cell empty.
+     */
+    fun <T> cell(
+        items: List<T>,
+        x: (T) -> X,
+        y: (T) -> Y,
+        value: (T) -> Number?,
     )
 
     /**
@@ -209,6 +325,15 @@ enum class ChartStacking {
      * units.
      */
     Normalised,
+
+    /**
+     * Stacked about a centre line rather than on zero, half of each place's
+     * whole either side of it: a streamgraph, where what matters is how thick
+     * each series is and how that changes, not where it sits. The value axis
+     * has no ticks, since a height up it measures nothing, and a reader hears
+     * each series' own values. For areas; bars stack as with [Stacked].
+     */
+    Centred,
 }
 
 /** How a line or an area goes from one point to the next. */

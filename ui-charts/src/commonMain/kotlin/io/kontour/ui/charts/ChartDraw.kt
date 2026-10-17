@@ -11,6 +11,7 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.addOutline
@@ -38,6 +39,10 @@ internal class DrawConfig(
     val tileSize: Int,
     val tileStroke: Float,
     val tiles: PatternBrushes,
+    /** The ground left between a heat map's cells, as between a sector chart's sectors. */
+    val cellGap: Float = 0f,
+    /** The two inks a heat map's value can be written in: whichever stands out more from its cell. */
+    val cellInks: Pair<Color, Color> = Color.Black to Color.White,
 ) {
     /** The squircles a bar's end, a rectangle and a region are cut from, made once. */
     val corners = Corners(cornerShape)
@@ -108,7 +113,12 @@ internal fun DrawScope.drawChart(
 
     // The baseline: zero on the value axis where zero is on it, and otherwise
     // the edge values are read from.
-    if (chart.horizontal) {
+    // None under a stream, whose middle is no zero, or a heat map, which
+    // stands on nothing.
+    val grounded = !chart.y.centred && chart.layers.none { it.mark.kind == MarkKind.Cell }
+    if (!grounded) {
+        Unit
+    } else if (chart.horizontal) {
         val zero = if (chart.x.low <= 0.0 && chart.x.high >= 0.0) m.px(0.0) else if (frame.rtl) plot.right else plot.left
         drawLine(colours.axis, Offset(zero, plot.top), Offset(zero, plot.bottom), config.hairline)
     } else {
@@ -175,6 +185,9 @@ internal fun DrawScope.drawChart(
                 MarkKind.Bar -> drawBars(layer, look, chart, m, config, alpha)
                 MarkKind.Point -> drawSymbols(layer, layer.mark.symbol ?: look.symbol, look.colour, m, config, alpha)
                 MarkKind.Rectangle -> drawRectangles(layer, look, m, config, alpha)
+                MarkKind.Stem -> drawStems(layer, look, m, config, alpha)
+                MarkKind.Box -> drawBoxes(layer, look, chart, m, config, alpha)
+                MarkKind.Cell -> drawCells(layer, frame, chart, m, config, alpha)
             }
         }
     }
@@ -230,7 +243,16 @@ internal fun DrawScope.drawChart(
     // line's value there.
     if (selected != null) {
         val stroke = config.hairline * 1.5f
-        if (chart.horizontal) {
+        if (chart.cells != null && !chart.horizontal) {
+            // A heat map's column, outlined round its cells: a line down the
+            // middle of them crossed out the values written in them.
+            val band = cellBand(chart.placeAxis, chart.places, m.unitX)
+            val x = m.px(selected)
+            val ring = Path()
+            addShape(ring, Rect(x - band / 2, plot.top, x + band / 2, plot.bottom), config.corners.all)
+            drawPath(ring, colours.ground, style = Stroke(stroke * 3))
+            drawPath(ring, colours.selection, style = Stroke(stroke * 2))
+        } else if (chart.horizontal) {
             val y = m.py(selected)
             drawLine(colours.selection, Offset(plot.left, y), Offset(plot.right, y), stroke)
         } else {
@@ -277,7 +299,8 @@ private fun DrawScope.drawLineMark(layer: Layer, look: SeriesLook, m: Mapper, co
 
 private fun DrawScope.drawArea(layer: Layer, look: SeriesLook, m: Mapper, config: DrawConfig, alpha: Float, band: Boolean = false) {
     val base = layer.base ?: DoubleArray(layer.size)
-    val stacked = layer.mark.stacking == ChartStacking.Stacked || layer.mark.stacking == ChartStacking.Normalised
+    val stacked = layer.mark.stacking == ChartStacking.Stacked || layer.mark.stacking == ChartStacking.Normalised ||
+        layer.mark.stacking == ChartStacking.Centred
     val fillPath = Path()
     val outline = Path()
     // One closed shape per unbroken run of values.
@@ -318,12 +341,14 @@ private fun DrawScope.drawBars(layer: Layer, look: SeriesLook, chart: ResolvedCh
     val band = if (placeAxis.kind == AxisKind.Category) unit else unit * smallestStep(places).toFloat()
     val thickness = band * ChartDefaults.BarFraction / layer.groupCount
     val offset = (layer.groupIndex - (layer.groupCount - 1) / 2f) * thickness
-    val stacked = layer.mark.stacking == ChartStacking.Stacked || layer.mark.stacking == ChartStacking.Normalised
+    val stacked = layer.mark.stacking == ChartStacking.Stacked || layer.mark.stacking == ChartStacking.Normalised ||
+        layer.mark.stacking == ChartStacking.Centred
     // A stack is one bar, so only its outermost part each way is rounded: the
     // top of what stands above zero and the foot of what hangs below. Every
     // stack had square ends, and stacking is a bar's default, so nearly every
     // bar in a chart was square.
-    val outer = if (stacked) outermostOf(layer, chart) else null
+    // A floating bar stands on nothing, so both its ends are rounded.
+    val outer = if (stacked && !layer.mark.floating) outermostOf(layer, chart) else null
     val corners = config.corners
     val path = Path()
     for (i in 0 until layer.size) {
@@ -345,7 +370,12 @@ private fun DrawScope.drawBars(layer: Layer, look: SeriesLook, chart: ResolvedCh
             val from = m.py(base[i])
             val to = m.py(tops[i])
             val rect = Rect(centre - thickness / 2, min(from, to), centre + thickness / 2, max(from, to))
-            val shape = if (!rounded) null else if (positive) corners.up else corners.down
+            val shape = when {
+                layer.mark.floating -> corners.all
+                !rounded -> null
+                positive -> corners.up
+                else -> corners.down
+            }
             if (shape == null) path.addRect(rect) else addShape(path, rect, shape)
         }
     }
@@ -416,6 +446,103 @@ private fun DrawScope.drawRectangles(layer: Layer, look: SeriesLook, m: Mapper, 
     }
     fill(path, look, config, alpha, opacity = 0.85f)
 }
+
+/** Each of [layer]'s stems: a line from its foot to its top, as wide as a line and as round at its ends. */
+private fun DrawScope.drawStems(layer: Layer, look: SeriesLook, m: Mapper, config: DrawConfig, alpha: Float) {
+    val base = layer.base ?: return
+    val path = Path()
+    for (i in 0 until layer.size) {
+        if (layer.up[i].isNaN() || base[i].isNaN()) continue
+        addStem(path, m.px(layer.across[i]), m.py(base[i]), m.py(layer.up[i]), config.lineWidth, capHalf = 0f)
+    }
+    drawPath(path, look.colour, alpha = alpha)
+}
+
+/**
+ * Each of [layer]'s boxes: its whiskers, capped, out to its low and high; the
+ * box from its lower quartile to its upper, filled as a bar is; its median
+ * across it in the page's ground, which reads on a hatched box and at the high
+ * tier alike; and its outliers as the series' points.
+ */
+private fun DrawScope.drawBoxes(layer: Layer, look: SeriesLook, chart: ResolvedChart, m: Mapper, config: DrawConfig, alpha: Float) {
+    val base = layer.base ?: return
+    val box = layer.box ?: return
+    val band = cellBand(chart.placeAxis, layer.across, m.unitX)
+    val thickness = band * ChartDefaults.BarFraction / layer.groupCount
+    val direction = if (m.frame.rtl) -1f else 1f
+    val offset = (layer.groupIndex - (layer.groupCount - 1) / 2f) * thickness * direction
+    val whiskers = Path()
+    val boxes = Path()
+    val medians = Path()
+    val halo = Path()
+    val outliers = Path()
+    for (i in 0 until layer.size) {
+        if (layer.up[i].isNaN() || base[i].isNaN()) continue
+        val centre = m.px(layer.across[i]) + offset
+        val top = m.py(layer.up[i])
+        val foot = m.py(base[i])
+        addStem(whiskers, centre, top, m.py(box.high[i]), config.lineWidth, capHalf = thickness * WhiskerCapShare / 2)
+        addStem(whiskers, centre, foot, m.py(box.low[i]), config.lineWidth, capHalf = thickness * WhiskerCapShare / 2)
+        addShape(boxes, Rect(centre - thickness / 2, min(top, foot), centre + thickness / 2, max(top, foot)), config.corners.all)
+        val median = m.py(layer.values[i])
+        medians.addRect(Rect(centre - thickness / 2, median - config.lineWidth / 2, centre + thickness / 2, median + config.lineWidth / 2))
+        box.outliers[i].forEach { value ->
+            val at = Offset(centre, m.py(value))
+            addSymbol(halo, look.symbol, at, config.pointSize + config.hairline * 3)
+            addSymbol(outliers, look.symbol, at, config.pointSize)
+        }
+    }
+    drawPath(whiskers, look.colour, alpha = alpha)
+    fill(boxes, look, config, alpha, opacity = 0.85f)
+    drawPath(medians, config.colours.ground, alpha = alpha)
+    drawPath(halo, config.colours.ground, alpha = alpha)
+    drawPath(outliers, look.colour, alpha = alpha)
+}
+
+/**
+ * Each of [layer]'s cells, a full band each way less the ground between them,
+ * shaded along the ramp by its value; with patterns on, edged and with its
+ * value written in it, where it fits, so it is read by more than its shade.
+ */
+private fun DrawScope.drawCells(layer: Layer, frame: ChartFrame, chart: ResolvedChart, m: Mapper, config: DrawConfig, alpha: Float) {
+    val scale = chart.cells ?: return
+    val width = cellBand(chart.x, layer.across, m.unitX) - config.cellGap
+    val height = cellBand(chart.y, layer.up, m.unitY) - config.cellGap
+    if (width <= 0f || height <= 0f) return
+    val labels = frame.cellLabels
+    for (i in 0 until layer.size) {
+        val value = layer.values[i]
+        if (value.isNaN()) continue
+        val centre = Offset(m.px(layer.across[i]), m.py(layer.up[i]))
+        val rect = Rect(centre.x - width / 2, centre.y - height / 2, centre.x + width / 2, centre.y + height / 2)
+        val shade = rampAt(config.colours.ramp, scale.fraction(value))
+        val path = Path()
+        addShape(path, rect, config.corners.all)
+        drawPath(path, shade, alpha = alpha)
+        if (config.patterns) {
+            drawPath(path, config.colours.axis, alpha = alpha, style = Stroke(config.hairline))
+            val label = labels.getOrNull(i) ?: continue
+            if (label.size.width > width || label.size.height > height) continue
+            val (first, second) = config.cellInks
+            val ink = if (contrastOf(first, shade) >= contrastOf(second, shade)) first else second
+            drawText(label, ink, Offset(centre.x - label.size.width / 2f, centre.y - label.size.height / 2f), alpha = alpha)
+        }
+    }
+}
+
+/** How far apart two colours' luminances are, as WCAG measures it. */
+private fun contrastOf(a: Color, b: Color): Float {
+    val la = a.luminance()
+    val lb = b.luminance()
+    return (max(la, lb) + 0.05f) / (min(la, lb) + 0.05f)
+}
+
+/** The band a cell or a box at [places] takes along [axis]: a category's whole, or the smallest step between places. */
+private fun cellBand(axis: ResolvedAxis, places: DoubleArray, unit: Float): Float =
+    if (axis.kind == AxisKind.Category) unit else unit * smallestStep(places).toFloat()
+
+/** How wide a whisker's cap is, as a share of its box's width. */
+private const val WhiskerCapShare = 0.5f
 
 private fun DrawScope.drawLabels(frame: ChartFrame, m: Mapper, colours: ChartColours) {
     val plot = frame.plot

@@ -28,9 +28,10 @@ import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.theme.Theme
+import kotlin.math.abs
 
 /** What the chart demo draws, one kind of mark at a time and a mix. */
-internal enum class ChartKindDemo { Lines, Areas, Bars, LyingBars, Points, Mixed }
+internal enum class ChartKindDemo { Lines, Areas, Bars, LyingBars, Points, Mixed, Ranges, Dumbbells, Boxes, HeatMap, Pyramid }
 
 private val chartKind = Knob.Choice("Marks", ChartKindDemo.entries)
 private val chartStacking = Knob.Choice("Stacking", ChartStacking.entries, initial = ChartStacking.Stacked)
@@ -60,6 +61,27 @@ private fun ridersFor(seed: Int): List<Riders> = months.flatMapIndexed { m, mont
         val swing = ((m * 37 + r * 53 + seed * 71) % 160) - 60
         Riders(month, route, base + swing + m * 18)
     }
+}
+
+/**
+ * A month's trip times on one route, in minutes, for a box of them: a spread
+ * about its middle, wider for the night bus, with now and then a trip held up.
+ */
+private fun tripsFor(month: Int, route: Int, seed: Int): List<Int> = List(24) { k ->
+    val middle = listOf(28, 34, 22)[route] + (month * 3 + seed * 5) % 7
+    val spread = listOf(6, 8, 12)[route]
+    val wobble = ((k * 41 + month * 13 + route * 29 + seed * 17) % (spread * 2 + 1)) - spread
+    middle + wobble + if ((k + month + seed) % 11 == 0) spread * 3 else 0
+}
+
+/** People by age group and sex, for a population pyramid: men drawn to the left as negatives. */
+private class Cohort(val ages: String, val sex: String, val people: Int)
+
+private val ageGroups = listOf("80+", "70–79", "60–69", "50–59", "40–49", "30–39", "20–29", "10–19", "0–9")
+
+private fun cohortsFor(seed: Int): List<Cohort> = ageGroups.flatMapIndexed { i, ages ->
+    val size = 300 + i * 160 + (i * 37 + seed * 53) % 90
+    listOf(Cohort(ages, "Men", -(size - (i * 23 + seed * 7) % 70)), Cohort(ages, "Women", size))
 }
 
 internal val ChartDemo = ComponentDemo(
@@ -96,7 +118,64 @@ internal val ChartDemo = ComponentDemo(
 
     Column(verticalArrangement = Arrangement.spacedBy(spacing.lg)) {
         val chartModifier = Modifier.fillMaxWidth().height(260.dp)
-        if (kind == ChartKindDemo.LyingBars) {
+        if (kind == ChartKindDemo.HeatMap) {
+            // Each route's riders a month, its shade the number: a heat map's
+            // rows down, its columns across, both categories.
+            Chart(
+                xAxis = ChartAxis.category(months),
+                yAxis = ChartAxis.category(routes),
+                modifier = chartModifier,
+                contentDescription = "Riders by route and month",
+                showLegend = showLegend,
+                legendPosition = legendPosition,
+                showPatterns = patterns,
+                showSelectionTooltip = tooltip,
+                animateData = animated,
+                selection = selection,
+            ) {
+                cell(data, x = { it.month }, y = { it.route }, value = { it.riders })
+            }
+        } else if (kind == ChartKindDemo.Pyramid) {
+            // Men to the left as negatives, women to the right, each written
+            // as the number it is.
+            val formats = Theme.formats
+            val people = remember(formats) { ChartAxis.number(title = "People", label = { formats.decimal(abs(it), 0) }) }
+            Chart(
+                xAxis = people,
+                yAxis = ChartAxis.category(ageGroups),
+                modifier = chartModifier,
+                contentDescription = "Population by age and sex",
+                legendPosition = legendPosition,
+                showLegend = showLegend,
+                showPatterns = patterns,
+                animateData = animated,
+            ) {
+                bar(remember(seed) { cohortsFor(seed) }, x = { it.people }, y = { it.ages }, series = { ChartSeries(it.sex) }, stacking = stacking)
+            }
+        } else if (kind == ChartKindDemo.Boxes) {
+            // A month's trip times on two routes, side by side: the box the
+            // middle half of them, the whiskers the rest, and a trip held up
+            // far past them a dot of its own.
+            Chart(
+                xAxis = ChartAxis.category(months),
+                yAxis = ChartAxis.number(title = "Trip, minutes"),
+                modifier = chartModifier,
+                selection = selection,
+                contentDescription = "Trip times by month",
+                legendPosition = legendPosition,
+                showLegend = showLegend,
+                showPatterns = patterns,
+                showSelectionTooltip = tooltip,
+                animateData = animated,
+            ) {
+                box(
+                    data.filter { it.route != routes[2] },
+                    x = { it.month },
+                    samples = { tripsFor(months.indexOf(it.month), routes.indexOf(it.route), seed) },
+                    series = { ChartSeries(it.route) },
+                )
+            }
+        } else if (kind == ChartKindDemo.LyingBars) {
             Chart(
                 xAxis = ChartAxis.number(title = "Riders in August"),
                 yAxis = ChartAxis.category<String>(),
@@ -155,12 +234,33 @@ internal val ChartDemo = ComponentDemo(
                             showPoints = points,
                         )
                     }
-                    ChartKindDemo.LyingBars -> Unit
+                    ChartKindDemo.Ranges ->
+                        // Each route's quietest and busiest day of the month.
+                        bar(
+                            data.filter { it.route != routes[2] },
+                            x = { it.month },
+                            yStart = { it.riders - 90 },
+                            yEnd = { it.riders + 70 },
+                            series = series,
+                        )
+                    ChartKindDemo.Dumbbells -> {
+                        // The first route's quietest and busiest days, joined.
+                        val first = data.filter { it.route == routes[0] }
+                        stem(first, x = { it.month }, yStart = { it.riders - 140 }, yEnd = { it.riders + 90 })
+                        point(first, x = { it.month }, y = { it.riders - 140 }, series = { ChartSeries("Quietest") })
+                        point(first, x = { it.month }, y = { it.riders + 90 }, series = { ChartSeries("Busiest") })
+                    }
+                    ChartKindDemo.LyingBars, ChartKindDemo.Boxes, ChartKindDemo.HeatMap, ChartKindDemo.Pyramid -> Unit
                 }
                 // A normalised chart reads in shares, and so do its rules: the
-                // capacity in riders would be far off its end.
-                val shares = stacking == ChartStacking.Normalised && (kind == ChartKindDemo.Bars || kind == ChartKindDemo.Areas)
-                if (shares) rule(y = 0.5, label = "Half") else rule(y = 700, label = "Capacity")
+                // capacity in riders would be far off its end. A centred one
+                // has no level to rule a line at, only thicknesses.
+                val stacks = kind == ChartKindDemo.Bars || kind == ChartKindDemo.Areas
+                when {
+                    stacks && stacking == ChartStacking.Normalised -> rule(y = 0.5, label = "Half")
+                    stacks && stacking == ChartStacking.Centred && kind == ChartKindDemo.Areas -> Unit
+                    else -> rule(y = 700, label = "Capacity")
+                }
                 if (references) {
                     // A school holiday shaded, and three events pinned, the
                     // last two close enough that one pin stands on the other.

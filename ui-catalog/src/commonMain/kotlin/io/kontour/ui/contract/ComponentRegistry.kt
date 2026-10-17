@@ -32,6 +32,7 @@ import io.kontour.ui.components.display.BranchTimeline
 import io.kontour.ui.charts.Chart
 import io.kontour.ui.charts.ChartAxis
 import io.kontour.ui.charts.ChartSeries
+import io.kontour.ui.charts.ChartStacking
 import io.kontour.ui.charts.LinePattern
 import io.kontour.ui.charts.SeriesStyle
 import io.kontour.ui.charts.SectorChart
@@ -223,6 +224,7 @@ import io.kontour.ui.overlay.ToastHost
 import io.kontour.ui.overlay.rememberToastHostState
 import io.kontour.ui.sheet.DragHandle
 import io.kontour.ui.theme.Theme
+import kotlin.math.abs
 import kotlin.time.Duration.Companion.minutes
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
@@ -1253,6 +1255,111 @@ val componentRegistry: List<ComponentSpec> = buildList {
                         rule(x = 9, label = "v1.2")
                         rule(x = 10, label = "Outage")
                         rule(y = 700, label = "Target")
+                    }
+                },
+                // A month's coldest and warmest days, a bar from one to the
+                // other, rounded at both ends.
+                RenderState("ranges") { modifier ->
+                    val months = listOf("Jan", "Feb", "Mar", "Apr", "May")
+                    val lows = listOf(19, 19, 17, 14, 11)
+                    val highs = listOf(27, 26, 25, 23, 20)
+                    Chart(
+                        xAxis = ChartAxis.category(months),
+                        yAxis = ChartAxis.number(title = "°C"),
+                        modifier = modifier.fillMaxWidth().height(220.dp),
+                        contentDescription = "Temperatures by month",
+                        animateData = false,
+                    ) {
+                        bar(months.indices.toList(), x = { months[it] }, yStart = { lows[it] }, yEnd = { highs[it] })
+                    }
+                },
+                // Off-peak and peak fares, a stem between each pair: the stem
+                // is drawn and not said, since its points say its ends.
+                RenderState("dumbbells") { modifier ->
+                    val routes = listOf("950", "951", "952", "T1")
+                    val offPeak = listOf(310, 280, 350, 420)
+                    val peak = listOf(440, 390, 500, 610)
+                    val outline = Theme.colours.outlineStrong
+                    Chart(
+                        xAxis = ChartAxis.category(routes),
+                        yAxis = ChartAxis.number(title = "Cents"),
+                        modifier = modifier.fillMaxWidth().height(220.dp),
+                        contentDescription = "Fares by route",
+                        animateData = false,
+                    ) {
+                        stem(routes.indices.toList(), x = { routes[it] }, yStart = { offPeak[it] }, yEnd = { peak[it] }, style = SeriesStyle(colour = outline))
+                        point(routes.indices.toList(), x = { routes[it] }, y = { offPeak[it] }, series = { ChartSeries("Off-peak") })
+                        point(routes.indices.toList(), x = { routes[it] }, y = { peak[it] }, series = { ChartSeries("Peak") })
+                    }
+                },
+                // Trip times on two routes, side by side, one of them with a
+                // trip held up past its whisker.
+                RenderState("boxes") { modifier ->
+                    val days = listOf("Mon", "Tue", "Wed")
+                    val trips = days.flatMap { day -> listOf(day to "950", day to "951") }
+                    Chart(
+                        xAxis = ChartAxis.category(days),
+                        yAxis = ChartAxis.number(title = "Minutes"),
+                        modifier = modifier.fillMaxWidth().height(220.dp),
+                        contentDescription = "Trip times by day",
+                        animateData = false,
+                    ) {
+                        box(
+                            trips,
+                            x = { it.first },
+                            samples = { (day, route) ->
+                                val middle = (if (route == "950") 28 else 34) + days.indexOf(day) * 2
+                                listOf(-6, -4, -3, -1, 0, 1, 2, 4, 5, 7).map { middle + it } + if (route == "951") listOf(middle + 25) else emptyList()
+                            },
+                            series = { ChartSeries(it.second) },
+                        )
+                    }
+                },
+                // Three routes' riders stacked about the middle: a stream.
+                RenderState("stream") { modifier ->
+                    val weeks = (1..8).toList()
+                    val routes = listOf("950" to 300, "951" to 180, "952" to 90)
+                    val riders = routes.flatMap { (route, base) -> weeks.map { week -> Triple(route, week, base + (week * 37 + base) % 120) } }
+                    Chart(
+                        xAxis = ChartAxis.number(title = "Week"),
+                        yAxis = ChartAxis.number(title = "Riders"),
+                        modifier = modifier.fillMaxWidth().height(220.dp),
+                        contentDescription = "Riders by week, by route",
+                        animateData = false,
+                    ) {
+                        area(riders, x = { it.second }, y = { it.third }, series = { ChartSeries(it.first) }, stacking = ChartStacking.Centred)
+                    }
+                },
+                // Riders by day and hour, each cell shaded by its count, with
+                // the scale under it.
+                RenderState("heatmap") { modifier ->
+                    val days = listOf("Mon", "Tue", "Wed", "Thu", "Fri")
+                    val hours = listOf("6am", "7am", "8am", "9am")
+                    val cells = days.indices.flatMap { d -> hours.indices.map { h -> Triple(days[d], hours[h], 20 + (d * 13 + h * 29) % 70) } }
+                    Chart(
+                        xAxis = ChartAxis.category(days),
+                        yAxis = ChartAxis.category(hours),
+                        modifier = modifier.fillMaxWidth().height(220.dp),
+                        contentDescription = "Riders by day and hour",
+                        animateData = false,
+                    ) {
+                        cell(cells, x = { it.first }, y = { it.second }, value = { it.third })
+                    }
+                },
+                // People by age, men to the left as negatives and written
+                // without their sign.
+                RenderState("pyramid") { modifier ->
+                    val ages = listOf("60+", "40–59", "20–39", "0–19")
+                    val people = ages.indices.flatMap { i -> listOf(Triple(ages[i], "Men", -(300 + i * 120)), Triple(ages[i], "Women", 320 + i * 110)) }
+                    val formats = Theme.formats
+                    Chart(
+                        xAxis = ChartAxis.number(title = "People", label = { formats.decimal(abs(it), 0) }),
+                        yAxis = ChartAxis.category(ages),
+                        modifier = modifier.fillMaxWidth().height(220.dp),
+                        contentDescription = "Population by age and sex",
+                        animateData = false,
+                    ) {
+                        bar(people, x = { it.third }, y = { it.first }, series = { ChartSeries(it.second) })
                     }
                 },
             ),

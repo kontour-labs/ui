@@ -1,5 +1,6 @@
 package io.kontour.ui.charts
 
+import io.kontour.ui.locale.LocaleFormats
 import io.kontour.ui.foundation.FillPatternDefaults
 import io.kontour.ui.foundation.PatternBrushes
 import androidx.compose.animation.core.Animatable
@@ -145,14 +146,16 @@ fun <X : Any, Y : Any> Chart(
     }
     val places = remember(chart, strings, formats) { placeDescriptions(chart, strings, formats) }
 
+    // A heat map's legend is its scale, which it needs however many series.
     val legend: (@Composable () -> Unit)? =
-        if (showLegend && model.series.count { it.name.isNotBlank() } > 1) {
+        if (showLegend && (model.series.count { it.name.isNotBlank() } > 1 || chart.cells != null)) {
             {
                 ChartLegend(
                     model = model,
                     colours = colours,
                     patterns = patterns,
                     stacked = legendPosition == ChartLegendPosition.Start || legendPosition == ChartLegendPosition.End,
+                    scale = chart.cells,
                 )
             }
         } else {
@@ -368,7 +371,10 @@ private fun <X : Any> ChartPlot(
     val sizing = Theme.sizing
     val shapes = Theme.shapes
     val patternStroke = FillPatternDefaults.Stroke
-    val config = remember(colours, patterns, density, sizing, shapes, patternStroke) {
+    // A heat map's value is written in its cell in whichever of the page's
+    // ink and the page itself stands out more from the cell's shade.
+    val inks = Theme.colours.content to Theme.colours.background
+    val config = remember(colours, patterns, density, sizing, shapes, patternStroke, inks) {
         with(density) {
             DrawConfig(
                 colours = colours,
@@ -381,6 +387,8 @@ private fun <X : Any> ChartPlot(
                 tileSize = FillPatternDefaults.Tile.roundToPx(),
                 tileStroke = patternStroke.toPx(),
                 tiles = tiles,
+                cellGap = ChartDefaults.SectorGap.toPx(),
+                cellInks = inks,
             )
         }
     }
@@ -441,13 +449,20 @@ private fun <X : Any> ChartPlot(
                 )
             }
             if (showProbe) {
-                val shown = selectionAt(chart, selectedPlace, decode, strings)
+                val shown = selectionAt(chart, selectedPlace, decode, strings, Theme.formats)
                 if (shown != null) {
                     ChartTooltipProbe(shown, tooltip, onDismissRequest = { tip.putAway(selectedPlace) }) {
                         ChartTooltipBody(
                             title = shown.label,
                             rows = shown.values.map { value ->
-                                TooltipRow({ SeriesSwatch(chart.model, value.series, colours, patterns) }, value.series.name, value.label)
+                                val scale = chart.cells
+                                // A heat map's row is keyed by its own shade.
+                                val swatch: @Composable () -> Unit = if (scale != null) {
+                                    { ShadeSwatch(rampAt(colours.ramp, scale.fraction(value.value))) }
+                                } else {
+                                    { SeriesSwatch(chart.model, value.series, colours, patterns) }
+                                }
+                                TooltipRow(swatch, value.series.name, value.label)
                             },
                         )
                     }
@@ -487,6 +502,7 @@ private fun <X : Any> ChartPlot(
             gap = gap.toPx(),
             density = this,
             layoutDirection = layoutDirection,
+            writeCells = patterns,
         )
         frame = laidOut
         val mapper = Mapper(laidOut, chart.x, chart.y)
@@ -519,18 +535,40 @@ private fun <X : Any> ChartPlot(
 }
 
 /** What is at [place], for the tooltip. */
-private fun <X : Any> selectionAt(chart: ResolvedChart, place: Double, decode: (Double) -> X?, strings: ChartStrings): ChartSelection<X>? {
+private fun <X : Any> selectionAt(
+    chart: ResolvedChart,
+    place: Double,
+    decode: (Double) -> X?,
+    strings: ChartStrings,
+    formats: LocaleFormats,
+): ChartSelection<X>? {
     val x = decode(place) ?: return null
     val write = chart.valueAxis.write
-    val values = chart.layers.mapNotNull { layer ->
-        val index = layer.across.indexOfFirst { it == place }
-        if (index < 0) return@mapNotNull null
-        val value = layer.values[index]
-        if (value.isNaN()) return@mapNotNull null
-        // A band's value is its foot, and what it shows is its range.
-        val top = if (layer.mark.kind == MarkKind.Band) layer.upEnd?.get(index) else null
-        val label = if (top != null && top != value) strings.valueRange(write(value), write(top)) else write(value)
-        ChartSelectedValue(layer.series, value, label)
+    val values = chart.layers.flatMap { layer ->
+        when (layer.mark.kind) {
+            // A heat map's column: each of its cells, named by its row.
+            MarkKind.Cell -> {
+                val scale = chart.cells
+                layer.across.indices.filter { layer.across[it] == place && !layer.values[it].isNaN() }.map { i ->
+                    val value = layer.values[i]
+                    ChartSelectedValue(ChartSeries(chart.y.write(layer.up[i])), value, scale?.write?.invoke(value) ?: write(value))
+                }
+            }
+            else -> {
+                val index = layer.across.indexOfFirst { it == place }
+                if (index < 0 || layer.values[index].isNaN() || stemSilentAt(chart, layer, index)) return@flatMap emptyList()
+                val value = layer.values[index]
+                // A range's value is its foot, and what it shows is its range;
+                // a box's is its median, and what it shows is its five numbers.
+                val top = layer.endAt(index)
+                val label = when {
+                    layer.box != null -> boxSaid(layer, index, write, strings, formats)
+                    top != null && top != value -> strings.valueRange(write(value), write(top))
+                    else -> write(value)
+                }
+                listOf(ChartSelectedValue(layer.series, value, label))
+            }
+        }
     }
     return ChartSelection(x, chart.placeAxis.write(place), values)
 }

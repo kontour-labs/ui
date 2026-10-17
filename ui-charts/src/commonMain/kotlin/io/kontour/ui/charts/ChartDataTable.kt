@@ -88,35 +88,82 @@ internal class ChartTableRow(val place: Double, val label: String, val cells: Li
 internal fun chartTable(chart: ResolvedChart, strings: ChartStrings, formats: LocaleFormats): ChartTable {
     val placeAxis = chart.placeAxis
     val valueAxis = chart.valueAxis
-    val series = chart.layers.map { it.series }.distinct()
     val placeTitle = placeAxis.title?.takeIf { it.isNotBlank() } ?: when (placeAxis.kind) {
         AxisKind.Date, AxisKind.Instant -> strings.dateColumn
         AxisKind.Category -> strings.categoryColumn
         AxisKind.Number -> strings.valueColumn
     }
-    val columns = series.map { it.name.takeIf { name -> name.isNotBlank() } ?: valueAxis.title ?: strings.valueColumn }
-    val rows = chart.places.map { place ->
-        val cells = series.map { one ->
-            val written = chart.layers.filter { it.series == one }.flatMap { layer ->
-                val places = if (chart.horizontal && layer.mark.kind == MarkKind.Bar) layer.up else layer.across
-                places.indices.filter { places[it] == place && !layer.values[it].isNaN() }.map { i ->
-                    val value = layer.values[i]
-                    val end = (if (chart.horizontal) layer.acrossEnd else layer.upEnd)?.getOrNull(i)
-                    if (end != null && !end.isNaN() && end != value) {
-                        strings.valueRange(valueAxis.write(value), valueAxis.write(end))
-                    } else {
-                        valueAxis.write(value)
+    chart.cells?.let { scale -> return heatMapTable(chart, scale, placeTitle) }
+
+    // A column a value a series has at each place, or a box's five numbers and
+    // its outliers, each a column of its own. A stem that only joins what other
+    // marks say has none.
+    class Column(val title: String, val cell: (Double) -> String)
+    val series = chart.layers.filterNot { it.isSilent(chart) }.map { it.series }.distinct()
+    val columns = series.flatMap { one ->
+        val layers = chart.layers.filter { it.series == one && !it.isSilent(chart) }
+        val named = one.name.takeIf { it.isNotBlank() }
+        val boxes = layers.firstOrNull { it.box != null }
+        if (boxes != null) {
+            val box = boxes.box!!
+            fun at(place: Double, read: (Int) -> String): String {
+                val i = boxes.across.indexOfFirst { it == place }
+                return if (i < 0 || boxes.values[i].isNaN()) "" else read(i)
+            }
+            val base = boxes.base ?: boxes.values
+            listOf(
+                strings.lowColumn to { place: Double -> at(place) { valueAxis.write(box.low[it]) } },
+                strings.lowerQuartileColumn to { place: Double -> at(place) { valueAxis.write(base[it]) } },
+                strings.medianColumn to { place: Double -> at(place) { valueAxis.write(boxes.values[it]) } },
+                strings.upperQuartileColumn to { place: Double -> at(place) { valueAxis.write(boxes.up[it]) } },
+                strings.highColumn to { place: Double -> at(place) { valueAxis.write(box.high[it]) } },
+                strings.outliersColumn to { place: Double -> at(place) { formats.list(box.outliers[it].map(valueAxis.write), ListStyle.Unit) } },
+            ).map { (title, cell) -> Column(if (named != null) strings.seriesColumn(named, title) else title, cell) }
+        } else {
+            listOf(
+                Column(named ?: valueAxis.title ?: strings.valueColumn) { place ->
+                    val written = layers.flatMap { layer ->
+                        val places = if (chart.horizontal && layer.mark.kind == MarkKind.Bar) layer.up else layer.across
+                        places.indices.filter { places[it] == place && !layer.values[it].isNaN() }.map { i ->
+                            val value = layer.values[i]
+                            val end = layer.endAt(i) ?: (if (chart.horizontal) layer.acrossEnd else layer.upEnd)?.getOrNull(i)
+                            if (end != null && !end.isNaN() && end != value) {
+                                strings.valueRange(valueAxis.write(value), valueAxis.write(end))
+                            } else {
+                                valueAxis.write(value)
+                            }
+                        }
                     }
-                }
-            }
-            // A scatter can put several points of one series at one place.
-            when (written.size) {
-                0 -> ""
-                1 -> written[0]
-                else -> formats.list(written, ListStyle.Unit)
-            }
+                    // A scatter can put several points of one series at one place.
+                    when (written.size) {
+                        0 -> ""
+                        1 -> written[0]
+                        else -> formats.list(written, ListStyle.Unit)
+                    }
+                },
+            )
         }
-        ChartTableRow(place, placeAxis.write(place), cells)
     }
-    return ChartTable(placeTitle, placeAxis.kind == AxisKind.Number, columns, rows)
+    val rows = chart.places.map { place -> ChartTableRow(place, placeAxis.write(place), columns.map { it.cell(place) }) }
+    return ChartTable(placeTitle, placeAxis.kind == AxisKind.Number, columns.map { it.title }, rows)
+}
+
+/**
+ * A heat map as a table: a row for each of its columns and a column for each
+ * of its rows, as its places run across and its rows are its series would be.
+ */
+private fun heatMapTable(chart: ResolvedChart, scale: CellScale, placeTitle: String): ChartTable {
+    val layer = chart.layers.first { it.mark.kind == MarkKind.Cell }
+    val rowsUp = layer.up.filter { !it.isNaN() }.distinct().sorted()
+    val rows = chart.places.map { place ->
+        ChartTableRow(
+            place,
+            chart.placeAxis.write(place),
+            rowsUp.map { up ->
+                val i = layer.across.indices.firstOrNull { layer.across[it] == place && layer.up[it] == up }
+                if (i == null || layer.values[i].isNaN()) "" else scale.write(layer.values[i])
+            },
+        )
+    }
+    return ChartTable(placeTitle, chart.placeAxis.kind == AxisKind.Number, rowsUp.map { chart.y.write(it) }, rows)
 }

@@ -62,6 +62,15 @@ import io.kontour.ui.theme.phrase
  * @property categoryColumn The same, over categories.
  * @property valueColumn The heading of a column of values that has no name of
  *   its own: a chart of one unnamed series, or numbers along the place axis.
+ * @property boxPlot What a chart of boxes is.
+ * @property heatMap What a chart of cells is.
+ * @property boxSummary One box in a phrase: "median 18, quartiles 15 to 21,
+ *   range 10 to 30".
+ * @property boxOutliers A box's outliers, after its summary: "outliers 3 and 41".
+ * @property lowColumn A [ChartDataTable]'s column of the low ends of boxes'
+ *   whiskers; the rest of a box's columns likewise.
+ * @property seriesColumn A column of one of a series' numbers, where a series has
+ *   several: "Route 950, Median".
  */
 @Immutable
 data class ChartStrings(
@@ -95,6 +104,20 @@ data class ChartStrings(
     val dateColumn: String = "Date",
     val categoryColumn: String = "Category",
     val valueColumn: String = "Value",
+    val boxPlot: String = "Box plot",
+    val heatMap: String = "Heat map",
+    val boxSummary: (low: String, lowerQuartile: String, median: String, upperQuartile: String, high: String) -> String =
+        { low, lowerQuartile, median, upperQuartile, high ->
+            "median $median, quartiles $lowerQuartile to $upperQuartile, range $low to $high"
+        },
+    val boxOutliers: (values: String) -> String = { values -> "outliers $values" },
+    val lowColumn: String = "Low",
+    val lowerQuartileColumn: String = "Lower quartile",
+    val medianColumn: String = "Median",
+    val upperQuartileColumn: String = "Upper quartile",
+    val highColumn: String = "High",
+    val outliersColumn: String = "Outliers",
+    val seriesColumn: (series: String, column: String) -> String = { series, column -> "$series, $column" },
 ) {
     companion object {
         /**
@@ -147,6 +170,22 @@ data class ChartStrings(
             dateColumn = lookup.text("dateColumn") ?: fallback.dateColumn,
             categoryColumn = lookup.text("categoryColumn") ?: fallback.categoryColumn,
             valueColumn = lookup.text("valueColumn") ?: fallback.valueColumn,
+            boxPlot = lookup.text("boxPlot") ?: fallback.boxPlot,
+            heatMap = lookup.text("heatMap") ?: fallback.heatMap,
+            boxSummary = { low, lowerQuartile, median, upperQuartile, high ->
+                lookup.phrase("boxSummary", null, low, lowerQuartile, median, upperQuartile, high)
+                    ?: fallback.boxSummary(low, lowerQuartile, median, upperQuartile, high)
+            },
+            boxOutliers = { values -> lookup.phrase("boxOutliers", null, values) ?: fallback.boxOutliers(values) },
+            lowColumn = lookup.text("lowColumn") ?: fallback.lowColumn,
+            lowerQuartileColumn = lookup.text("lowerQuartileColumn") ?: fallback.lowerQuartileColumn,
+            medianColumn = lookup.text("medianColumn") ?: fallback.medianColumn,
+            upperQuartileColumn = lookup.text("upperQuartileColumn") ?: fallback.upperQuartileColumn,
+            highColumn = lookup.text("highColumn") ?: fallback.highColumn,
+            outliersColumn = lookup.text("outliersColumn") ?: fallback.outliersColumn,
+            seriesColumn = { series, column ->
+                lookup.phrase("seriesColumn", null, series, column) ?: fallback.seriesColumn(series, column)
+            },
         )
     }
 }
@@ -188,4 +227,15 @@ internal fun ChartStrings.mapped(transform: (String) -> String): ChartStrings = 
     dateColumn = transform(dateColumn),
     categoryColumn = transform(categoryColumn),
     valueColumn = transform(valueColumn),
+    boxPlot = transform(boxPlot),
+    heatMap = transform(heatMap),
+    boxSummary = { a0, a1, a2, a3, a4 -> transform(boxSummary(a0, a1, a2, a3, a4)) },
+    boxOutliers = { a0 -> transform(boxOutliers(a0)) },
+    lowColumn = transform(lowColumn),
+    lowerQuartileColumn = transform(lowerQuartileColumn),
+    medianColumn = transform(medianColumn),
+    upperQuartileColumn = transform(upperQuartileColumn),
+    highColumn = transform(highColumn),
+    outliersColumn = transform(outliersColumn),
+    seriesColumn = { a0, a1 -> transform(seriesColumn(a0, a1)) },
 )

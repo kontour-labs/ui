@@ -11,6 +11,7 @@ import io.kontour.ui.a11y.differentiateWithoutColour
 import io.kontour.ui.a11y.highContrast
 import io.kontour.ui.locale.LocalPseudoLocale
 import io.kontour.ui.foundation.LocalContainerColour
+import io.kontour.ui.components.datetime.ActivityCalendarDefaults
 import io.kontour.ui.theme.Theme
 
 /** What [Chart], [SectorChart] and [Sparkline] are drawn with unless told otherwise. */
@@ -37,7 +38,21 @@ object ChartDefaults {
         selection: Color = Theme.colours.contentMuted,
         patternInk: Color = Theme.colours.background.copy(alpha = PatternInkAlpha),
         ground: Color = LocalContainerColour.current.takeOrElse { Theme.colours.background },
-    ): ChartColours = ChartColours(series, grid, axis, label, selection, patternInk, ground)
+        ramp: List<Color> = ramp(),
+    ): ChartColours = ChartColours(series, grid, axis, label, selection, patternInk, ground, ramp)
+
+    /**
+     * A heat map's shades, from [empty] to [full]: an activity calendar's, its
+     * first a step clear of [empty] so the least value is plainly a value, and
+     * from the theme, so it follows dark mode and the contrast tier. A heat map
+     * and an activity calendar on one screen shade alike.
+     */
+    @Composable
+    @ReadOnlyComposable
+    fun ramp(
+        empty: Color = Theme.colours.surfaceSunken,
+        full: Color = Theme.colours.primary,
+    ): List<Color> = withoutEmpty(ActivityCalendarDefaults.colours(levels = RampStops, empty = empty, full = full).levels)
 
     /**
      * The series palette for the scheme and contrast tier in use, or the app's
@@ -131,3 +146,9 @@ internal fun lookOf(
         fill = override.firstNotNullOfOrNull { it.fill } ?: pick(FillPattern.entries, FillPattern.Solid),
     )
 }
+
+/** How many shades a heat map's ramp is blended through: an activity calendar's levels. */
+private const val RampStops = 4
+
+/** An activity calendar's levels past its first, which is a day with nothing: a heat map's least cell is still a value. */
+private fun withoutEmpty(levels: List<Color>): List<Color> = levels.drop(1)
