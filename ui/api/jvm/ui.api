@@ -378,12 +378,12 @@ public final class io/kontour/ui/components/calendar/CalendarDaysStyle : java/la
 
 public final class io/kontour/ui/components/calendar/CalendarEvent {
 	public static final field $stable I
-	public fun <init> (Ljava/lang/Object;Ljava/lang/String;Lkotlinx/datetime/LocalDate;Lkotlinx/datetime/LocalDate;Lio/kontour/ui/theme/Tone;Ljava/lang/String;Ljava/lang/String;ZLandroidx/compose/ui/graphics/vector/ImageVector;)V
-	public synthetic fun <init> (Ljava/lang/Object;Ljava/lang/String;Lkotlinx/datetime/LocalDate;Lkotlinx/datetime/LocalDate;Lio/kontour/ui/theme/Tone;Ljava/lang/String;Ljava/lang/String;ZLandroidx/compose/ui/graphics/vector/ImageVector;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public fun <init> (Ljava/lang/Object;Ljava/lang/String;Lkotlinx/datetime/LocalDateTime;Lkotlinx/datetime/LocalDateTime;ZLio/kontour/ui/theme/Tone;Ljava/lang/String;Ljava/lang/String;ZLandroidx/compose/ui/graphics/vector/ImageVector;)V
-	public synthetic fun <init> (Ljava/lang/Object;Ljava/lang/String;Lkotlinx/datetime/LocalDateTime;Lkotlinx/datetime/LocalDateTime;ZLio/kontour/ui/theme/Tone;Ljava/lang/String;Ljava/lang/String;ZLandroidx/compose/ui/graphics/vector/ImageVector;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public final fun copy (Ljava/lang/Object;Ljava/lang/String;Lkotlinx/datetime/LocalDateTime;Lkotlinx/datetime/LocalDateTime;ZLio/kontour/ui/theme/Tone;Ljava/lang/String;Ljava/lang/String;ZLandroidx/compose/ui/graphics/vector/ImageVector;)Lio/kontour/ui/components/calendar/CalendarEvent;
-	public static synthetic fun copy$default (Lio/kontour/ui/components/calendar/CalendarEvent;Ljava/lang/Object;Ljava/lang/String;Lkotlinx/datetime/LocalDateTime;Lkotlinx/datetime/LocalDateTime;ZLio/kontour/ui/theme/Tone;Ljava/lang/String;Ljava/lang/String;ZLandroidx/compose/ui/graphics/vector/ImageVector;ILjava/lang/Object;)Lio/kontour/ui/components/calendar/CalendarEvent;
+	public fun <init> (Ljava/lang/Object;Ljava/lang/String;Lkotlinx/datetime/LocalDate;Lkotlinx/datetime/LocalDate;Lio/kontour/ui/theme/Tone;Ljava/lang/String;Ljava/lang/String;ZLandroidx/compose/ui/graphics/vector/ImageVector;Lio/kontour/ui/foundation/FillPattern;)V
+	public synthetic fun <init> (Ljava/lang/Object;Ljava/lang/String;Lkotlinx/datetime/LocalDate;Lkotlinx/datetime/LocalDate;Lio/kontour/ui/theme/Tone;Ljava/lang/String;Ljava/lang/String;ZLandroidx/compose/ui/graphics/vector/ImageVector;Lio/kontour/ui/foundation/FillPattern;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Ljava/lang/Object;Ljava/lang/String;Lkotlinx/datetime/LocalDateTime;Lkotlinx/datetime/LocalDateTime;ZLio/kontour/ui/theme/Tone;Ljava/lang/String;Ljava/lang/String;ZLandroidx/compose/ui/graphics/vector/ImageVector;Lio/kontour/ui/foundation/FillPattern;)V
+	public synthetic fun <init> (Ljava/lang/Object;Ljava/lang/String;Lkotlinx/datetime/LocalDateTime;Lkotlinx/datetime/LocalDateTime;ZLio/kontour/ui/theme/Tone;Ljava/lang/String;Ljava/lang/String;ZLandroidx/compose/ui/graphics/vector/ImageVector;Lio/kontour/ui/foundation/FillPattern;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun copy (Ljava/lang/Object;Ljava/lang/String;Lkotlinx/datetime/LocalDateTime;Lkotlinx/datetime/LocalDateTime;ZLio/kontour/ui/theme/Tone;Ljava/lang/String;Ljava/lang/String;ZLandroidx/compose/ui/graphics/vector/ImageVector;Lio/kontour/ui/foundation/FillPattern;)Lio/kontour/ui/components/calendar/CalendarEvent;
+	public static synthetic fun copy$default (Lio/kontour/ui/components/calendar/CalendarEvent;Ljava/lang/Object;Ljava/lang/String;Lkotlinx/datetime/LocalDateTime;Lkotlinx/datetime/LocalDateTime;ZLio/kontour/ui/theme/Tone;Ljava/lang/String;Ljava/lang/String;ZLandroidx/compose/ui/graphics/vector/ImageVector;Lio/kontour/ui/foundation/FillPattern;ILjava/lang/Object;)Lio/kontour/ui/components/calendar/CalendarEvent;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getAllDay ()Z
 	public final fun getEditable ()Z
@@ -391,6 +391,7 @@ public final class io/kontour/ui/components/calendar/CalendarEvent {
 	public final fun getIcon ()Landroidx/compose/ui/graphics/vector/ImageVector;
 	public final fun getId ()Ljava/lang/Object;
 	public final fun getLocation ()Ljava/lang/String;
+	public final fun getPattern ()Lio/kontour/ui/foundation/FillPattern;
 	public final fun getStart ()Lkotlinx/datetime/LocalDateTime;
 	public final fun getSupporting ()Ljava/lang/String;
 	public final fun getTitle ()Ljava/lang/String;
@@ -2315,6 +2316,23 @@ public final class io/kontour/ui/foundation/DividerKt {
 	public static final fun VerticalDivider-orn9Ti0 (Landroidx/compose/ui/Modifier;FJFFLandroidx/compose/runtime/Composer;II)V
 }
 
+public final class io/kontour/ui/foundation/FillPattern : java/lang/Enum {
+	public static final field CrossHatch Lio/kontour/ui/foundation/FillPattern;
+	public static final field Diagonal Lio/kontour/ui/foundation/FillPattern;
+	public static final field Dots Lio/kontour/ui/foundation/FillPattern;
+	public static final field Horizontal Lio/kontour/ui/foundation/FillPattern;
+	public static final field ReverseDiagonal Lio/kontour/ui/foundation/FillPattern;
+	public static final field Solid Lio/kontour/ui/foundation/FillPattern;
+	public static final field Vertical Lio/kontour/ui/foundation/FillPattern;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/kontour/ui/foundation/FillPattern;
+	public static fun values ()[Lio/kontour/ui/foundation/FillPattern;
+}
+
+public final class io/kontour/ui/foundation/FillPatternKt {
+	public static final fun fillPattern-u4SGt0E (Landroidx/compose/ui/Modifier;Lio/kontour/ui/foundation/FillPattern;JLandroidx/compose/ui/graphics/Shape;FLandroidx/compose/runtime/Composer;II)Landroidx/compose/ui/Modifier;
+}
+
 public final class io/kontour/ui/foundation/GroupPosition : java/lang/Enum {
 	public static final field Companion Lio/kontour/ui/foundation/GroupPosition$Companion;
 	public static final field First Lio/kontour/ui/foundation/GroupPosition;
@@ -2454,6 +2472,12 @@ public final class io/kontour/ui/foundation/LocalContentKt {
 	public static final fun getLocalContainerColour ()Landroidx/compose/runtime/ProvidableCompositionLocal;
 	public static final fun getLocalContentColour ()Landroidx/compose/runtime/ProvidableCompositionLocal;
 	public static final fun getLocalTextStyle ()Landroidx/compose/runtime/ProvidableCompositionLocal;
+}
+
+public final class io/kontour/ui/foundation/PatternBrushes {
+	public static final field $stable I
+	public fun <init> ()V
+	public final fun brush-RPmYEkk (Lio/kontour/ui/foundation/FillPattern;JIF)Landroidx/compose/ui/graphics/Brush;
 }
 
 public final class io/kontour/ui/foundation/RedactionKt {
@@ -2661,6 +2685,10 @@ public final class io/kontour/ui/input/InputModalityState {
 
 public final class io/kontour/ui/input/PointerCursorKt {
 	public static final fun pointerCursor (Landroidx/compose/ui/Modifier;Lio/kontour/ui/input/Cursor;ZLandroidx/compose/runtime/Composer;II)Landroidx/compose/ui/Modifier;
+}
+
+public final class io/kontour/ui/input/PressOutsideKt {
+	public static final fun onPressOutside (Landroidx/compose/ui/Modifier;ZLkotlin/jvm/functions/Function0;Landroidx/compose/runtime/Composer;II)Landroidx/compose/ui/Modifier;
 }
 
 public final class io/kontour/ui/interaction/DetentTicker {
@@ -3925,6 +3953,7 @@ public final class io/kontour/ui/overlay/TooltipDefaults {
 public final class io/kontour/ui/overlay/TooltipKt {
 	public static final fun Tooltip (ZLandroidx/compose/ui/Modifier;Lio/kontour/ui/overlay/OverlaySide;Lio/kontour/ui/overlay/OverlayAlignment;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
 	public static final fun coachmark (Landroidx/compose/ui/Modifier;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Landroidx/compose/ui/graphics/vector/ImageVector;Lio/kontour/ui/overlay/OverlaySide;Lio/kontour/ui/overlay/OverlayAlignment;Lio/kontour/ui/theme/Tone;IILjava/util/Set;Ljava/lang/String;ZLandroidx/compose/runtime/Composer;III)Landroidx/compose/ui/Modifier;
+	public static final fun tooltip (Landroidx/compose/ui/Modifier;Lio/kontour/ui/overlay/OverlaySide;Lio/kontour/ui/overlay/OverlayAlignment;ZLandroidx/compose/foundation/interaction/MutableInteractionSource;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)Landroidx/compose/ui/Modifier;
 	public static final fun tooltip (Landroidx/compose/ui/Modifier;Ljava/lang/String;Lio/kontour/ui/overlay/OverlaySide;Lio/kontour/ui/overlay/OverlayAlignment;ZLandroidx/compose/foundation/interaction/MutableInteractionSource;Landroidx/compose/runtime/Composer;II)Landroidx/compose/ui/Modifier;
 }
 

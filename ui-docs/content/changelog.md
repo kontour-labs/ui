@@ -94,6 +94,9 @@ On `main`, and in the next release.
   so an app that builds its own with named arguments needs nothing; one that
   passes them by position, or overrides `Strings.from`'s keys, recompiles. See
   [Migrating](migrating.md#045-to-050).
+- **`CalendarEvent` has a new parameter**, `pattern`, defaulted and last, so
+  anything built against 0.4.5 recompiles; every call site still compiles as it
+  is.
 
 ### Fixed
 

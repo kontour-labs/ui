@@ -18,7 +18,8 @@ from the version the app is on.
 ## 0.4.5 to 0.5.0
 
 Unreleased, and growing. `SystemIcons` is the theme's now, so code that named
-one of its glyphs changes; `Strings` has new fields, defaulted and last.
+one of its glyphs changes; `Strings` has new fields and `CalendarEvent` a
+new parameter, each defaulted and last.
 Charts are a new module, which an app takes only if it wants them.
 
 ### `SystemIcons.Close` is `Theme.icons.close`
