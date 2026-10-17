@@ -561,6 +561,30 @@ private fun DialogActionRow(
             row.maxOfOrNull { it.maxIntrinsicWidth(constraints.maxHeight) }?.let { it * row.size + gapPx * (row.size - 1) } ?: 0
         }
         val shares = equalShares(width - gapPx * (row.size - 1), row.size)
+
+        // Stacked, a button a line, when one of the library's own cannot fit
+        // its longest word in its share: at 200% type on a narrow phone
+        // "Cancel" broke as "Cance / l" and "Remove" as "Remo / ve". A label
+        // that wraps between its words still fits, and stays in the row. The
+        // answers go first and the way out last, as the three-way row keeps
+        // cancel apart.
+        val cramped = row.withIndex().any { (index, measurable) ->
+            measurable.layoutId is DialogActionRole && measurable.minIntrinsicWidth(constraints.maxHeight) > shares[index]
+        }
+        if (cramped) {
+            val stack = listOfNotNull(confirm, neutral) + others + listOfNotNull(cancel)
+            val buttons = stack.map {
+                it.measure(Constraints(minWidth = width, maxWidth = width, maxHeight = constraints.maxHeight))
+            }
+            val height = buttons.sumOf { it.height } + gapPx * (buttons.size - 1).coerceAtLeast(0)
+            return@Layout layout(width, height) {
+                var y = 0
+                buttons.forEach {
+                    it.placeRelative(0, y)
+                    y += it.height + gapPx
+                }
+            }
+        }
         // One height for the row, the tallest answer's: at a large type size
         // "Don't save" wraps in its half and "Save" does not, and a short button
         // beside a tall one reads as two unrelated things. Asked of the
