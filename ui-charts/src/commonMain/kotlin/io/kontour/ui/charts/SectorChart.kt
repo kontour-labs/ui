@@ -15,7 +15,7 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
-import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
@@ -48,6 +48,7 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.foundation.ContentScope
@@ -235,9 +236,9 @@ fun SectorChart(
             currentSelection?.select(part.series)
         }
     }
-    var side by remember { mutableIntStateOf(0) }
+    var box by remember { mutableStateOf(IntSize.Zero) }
     val geometry = remember(fractions, innerRadius, direction) { SectorGeometry(fractions, innerRadius, direction) }
-    val chooseAt: (Offset) -> Unit = { offset -> geometry.partAt(offset, side.toFloat())?.let(choose) }
+    val chooseAt: (Offset) -> Unit = { offset -> geometry.partAt(offset, box.width.toFloat(), box.height.toFloat())?.let(choose) }
     val source = interactionSource ?: remember { MutableInteractionSource() }
     val input = if (interactive) {
         Modifier
@@ -293,7 +294,7 @@ fun SectorChart(
         Box(
             Modifier
                 .fillMaxSize()
-                .onSizeChanged { side = min(it.width, it.height) }
+                .onSizeChanged { box = it }
                 .drawBehind {
                     val radius = min(size.width, size.height) / 2 - pullOut.toPx()
                     val hole = radius * innerRadius.coerceIn(0f, 0.95f)
@@ -409,17 +410,22 @@ fun SectorChart(
  * anticlockwise. The target shares, not the animated ones, since a tap is
  * aimed at where a sector is going.
  */
-private class SectorGeometry(
+internal class SectorGeometry(
     private val fractions: List<Float>,
     private val innerRadius: Float,
     private val direction: Float,
 ) {
-    /** The part under [offset] in a square of [side], or `null` for the hole or outside. */
-    fun partAt(offset: Offset, side: Float): Int? {
-        if (side <= 0f) return null
-        val radius = side / 2
-        val dx = offset.x - radius
-        val dy = offset.y - radius
+    /**
+     * The part under [offset] in a box of [width] by [height], or `null` for
+     * the hole or outside. The circle is in the middle of the box, as it is
+     * drawn: this took the middle of a square in its top corner, so in a wide
+     * box a tap chose the sector of a circle that was not there.
+     */
+    fun partAt(offset: Offset, width: Float, height: Float): Int? {
+        if (width <= 0f || height <= 0f) return null
+        val radius = min(width, height) / 2
+        val dx = offset.x - width / 2
+        val dy = offset.y - height / 2
         val distance = sqrt(dx * dx + dy * dy)
         if (distance > radius || distance < radius * innerRadius.coerceIn(0f, 0.95f)) return null
         val degrees = atan2(dy, dx) * 180f / PI.toFloat()
@@ -516,7 +522,13 @@ private fun SectorLayout(
         val fallback = DefaultSize.roundToPx()
         val width = if (constraints.hasBoundedWidth) constraints.maxWidth else fallback
         val legendMeasurable = measurables.getOrNull(1)
-        val across = legendPosition == ChartLegendPosition.Start || legendPosition == ChartLegendPosition.End
+        val beside = legendPosition == ChartLegendPosition.Start || legendPosition == ChartLegendPosition.End
+        // Beside the circle only while the legend keeps its names whole in half
+        // the width. In a narrow chart they broke word by word, "Route / 950",
+        // and the circle shrank to what was left; there it goes under the
+        // circle instead, or over it for a legend at the start.
+        val across = beside && (legendMeasurable?.maxIntrinsicWidth(Constraints.Infinity) ?: 0) <= width / 2
+        val above = legendPosition == ChartLegendPosition.Top || legendPosition == ChartLegendPosition.Start
         if (across) {
             val legendPlaceable = legendMeasurable?.measure(Constraints(maxWidth = width / 2))
             val legendBand = legendPlaceable?.let { it.width + gapPx } ?: 0
@@ -543,12 +555,15 @@ private fun SectorLayout(
             val circle = measurables[0].measure(Constraints.fixed(side, side))
             layout(width, height) {
                 val circleLeft = (width - side) / 2
-                if (legendPosition == ChartLegendPosition.Top) {
-                    legendPlaceable?.placeRelative(0, 0)
+                // A legend that was meant to stand beside is a column, and is
+                // centred under the circle it moved below.
+                val legendLeft = if (beside) legendPlaceable?.let { (width - it.width) / 2 } ?: 0 else 0
+                if (above) {
+                    legendPlaceable?.placeRelative(legendLeft, 0)
                     circle.placeRelative(circleLeft, legendBand)
                 } else {
                     circle.placeRelative(circleLeft, 0)
-                    legendPlaceable?.placeRelative(0, side + gapPx)
+                    legendPlaceable?.placeRelative(legendLeft, side + gapPx)
                 }
             }
         }
