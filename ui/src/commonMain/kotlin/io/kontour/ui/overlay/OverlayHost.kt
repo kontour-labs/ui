@@ -24,6 +24,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
@@ -694,14 +695,52 @@ private fun EntryHost(
         ) {
             if (backOwner != null) {
                 CompositionLocalProvider(LocalNavigationEventDispatcherOwner provides backOwner) {
-                    entry.content()
+                    Recaught(entry.content)
                 }
             } else {
-                entry.content()
+                Recaught(entry.content)
             }
         }
     }
 }
+
+/**
+ * [content], composed once more without skipping in the frame after it first
+ * is, so a change its caller made while it was being added is not lost.
+ *
+ * An overlay's content is the caller's lambda, drawn here at the root. When the
+ * caller's values change, Compose updates that lambda in place and tells the
+ * places that invoked it to recompose; this is one of them. But the caller is
+ * usually in a subcomposition of its own — a `Scaffold`'s body, a lazy item —
+ * which recomposes after the root in a frame. In the frame an overlay first
+ * appears, then, the root has drawn its content from the lambda as it was, and
+ * has not yet applied it, when the caller updates the lambda; Compose finds the
+ * place it should tell is not in the composition yet, and forgets it. The
+ * content stays as it opened until something inside it changes for itself.
+ *
+ * Reported from an admin as a rollback dialog stuck on "Comparing…", its button
+ * disabled, about one time in three: whenever the comparison came back in the
+ * frame the dialog appeared. A change to [LocalRecaught] a frame later makes
+ * everything under it recompose without skipping, once, from the lambdas as
+ * they are; after that the root holds it and is told of changes as it should
+ * be. Here, so it holds for every overlay, and around both of `EntryHost`'s
+ * calls, so content moved from one to the other is caught again too.
+ */
+@Composable
+private fun Recaught(content: @Composable () -> Unit) {
+    var caught by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        withFrameNanos { }
+        caught = true
+    }
+    CompositionLocalProvider(LocalRecaught provides caught, content = content)
+}
+
+/**
+ * Read by nothing: its change is what makes [Recaught]'s content recompose
+ * without skipping, which a static local's does to everything it provides to.
+ */
+private val LocalRecaught = staticCompositionLocalOf { false }
 
 /**
  * How far this overlay is through appearing, or how far back through leaving.

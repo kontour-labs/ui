@@ -100,6 +100,13 @@ On `main`, and in the next release.
 
 ### Fixed
 
+- **An overlay shows content that changed as it opened.** A dialog, sheet,
+  popover, menu or tooltip whose content changed in the frame it appeared could
+  keep the content it opened with, from a caller in a `Scaffold`'s body or a
+  lazy list, which is most screens: a rollback dialog stayed on "Comparing…"
+  with its button disabled about one time in three. The host draws an
+  overlay's content once more, a frame after it appears, from what it has been
+  given since.
 - **What the library says is joined the reader's way.** A key-value row was
   read "label, value" with a comma written into the component, and a stat's
   supporting line and trend, and an activity day's meaning, were joined with an
