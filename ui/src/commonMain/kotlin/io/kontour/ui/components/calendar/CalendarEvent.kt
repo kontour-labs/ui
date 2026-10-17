@@ -1,5 +1,6 @@
 package io.kontour.ui.components.calendar
 
+import io.kontour.ui.foundation.FillPattern
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.vector.ImageVector
 import io.kontour.ui.theme.Tone
@@ -52,6 +53,11 @@ import kotlinx.datetime.plus
  *   cake for a birthday. In a line, in place of its tone's dot; dropped, as the
  *   dot is, where a day is too narrow for it and the title. Decorative: say
  *   what matters in the title.
+ * @property pattern Hatching over its colour, as a second cue beside it: a
+ *   tentative meeting beside the confirmed ones, a busy hold beside a meeting,
+ *   for a reader who cannot tell the tones apart. Drawn on a block and a bar,
+ *   in a wash of the event's ink; a line in a month's day keeps its dot.
+ *   Decorative as [icon] is: what it means belongs in the title too.
  */
 @Immutable
 class CalendarEvent(
@@ -65,6 +71,7 @@ class CalendarEvent(
     val supporting: String? = null,
     val editable: Boolean = true,
     val icon: ImageVector? = null,
+    val pattern: FillPattern = FillPattern.Solid,
 ) {
     /**
      * An all-day event from [startDate] to [endDate], both days included — as
@@ -79,6 +86,7 @@ class CalendarEvent(
      * @param supporting A line more about it, shown where there is room.
      * @param editable Whether a drag or a keyboard can move it or change its length.
      * @param icon A glyph before its title.
+     * @param pattern Hatching over its colour.
      */
     constructor(
         id: Any,
@@ -90,6 +98,7 @@ class CalendarEvent(
         supporting: String? = null,
         editable: Boolean = true,
         icon: ImageVector? = null,
+        pattern: FillPattern = FillPattern.Solid,
     ) : this(
         id = id,
         title = title,
@@ -101,6 +110,7 @@ class CalendarEvent(
         supporting = supporting,
         editable = editable,
         icon = icon,
+        pattern = pattern,
     )
 
     init {
@@ -122,13 +132,15 @@ class CalendarEvent(
         supporting: String? = this.supporting,
         editable: Boolean = this.editable,
         icon: ImageVector? = this.icon,
-    ): CalendarEvent = CalendarEvent(id, title, start, end, allDay, tone, location, supporting, editable, icon)
+        pattern: FillPattern = this.pattern,
+    ): CalendarEvent = CalendarEvent(id, title, start, end, allDay, tone, location, supporting, editable, icon, pattern)
 
     override fun equals(other: Any?): Boolean =
         other is CalendarEvent &&
             id == other.id && title == other.title && start == other.start && end == other.end &&
             allDay == other.allDay && tone == other.tone && location == other.location &&
-            supporting == other.supporting && editable == other.editable && icon == other.icon
+            supporting == other.supporting && editable == other.editable && icon == other.icon &&
+            pattern == other.pattern
 
     override fun hashCode(): Int {
         var result = id.hashCode()
@@ -141,6 +153,7 @@ class CalendarEvent(
         result = 31 * result + (supporting?.hashCode() ?: 0)
         result = 31 * result + editable.hashCode()
         result = 31 * result + (icon?.hashCode() ?: 0)
+        result = 31 * result + pattern.hashCode()
         return result
     }
 

@@ -1,5 +1,6 @@
 package io.kontour.ui.components.calendar
 
+import io.kontour.ui.foundation.fillPattern
 import io.kontour.ui.theme.clipProxy
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.draw.drawBehind
@@ -201,6 +202,16 @@ internal fun EventChip(
                 .then(if (stacked) Modifier.drawBehind { drawRing(shape, ring, ringWidth.toPx()) } else Modifier)
                 .clip(shape.clipProxy())
                 .background(fill)
+                // Its pattern on its ground, under its words, in a wash of its
+                // ink: on a pale block or a solid bar alike, the hatching is
+                // there and the title over it still reads.
+                .then(
+                    if (presentation == EventPresentation.Line) {
+                        Modifier
+                    } else {
+                        Modifier.fillPattern(event.pattern, ink.copy(alpha = EventPatternInk))
+                    }
+                )
                 .then(if (edge != null) Modifier.border(edge, shape) else Modifier),
             // A block's text from its top, as time runs; a bar's and a line's level
             // in its row, as a chip's label is.
@@ -794,3 +805,6 @@ internal fun Modifier.secondaryClick(onClick: (Offset) -> Unit): Modifier = poin
         }
     }
 }
+
+/** How strongly an event's pattern is drawn in its ink: enough to see, not enough to cross out its title. */
+private const val EventPatternInk = 0.22f

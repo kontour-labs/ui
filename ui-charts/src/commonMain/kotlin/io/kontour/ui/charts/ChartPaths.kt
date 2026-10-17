@@ -22,58 +22,6 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sqrt
 
-/**
- * The tiles a [FillPattern] is drawn with, made once per pattern, ink and
- * density and then repeated by a shader.
- *
- * A shader rather than a clip and a loop of lines: a large area costs one fill
- * however many lines would cross it, and because the shader is laid in the
- * canvas's own space, the hatching of neighbouring bars lines up, so a stack
- * reads as one surface with lines across it rather than as bricks.
- */
-internal class PatternTiles {
-    private val tiles = HashMap<Triple<FillPattern, Color, Int>, Brush>()
-
-    /** [pattern] in [ink], with a tile [size] pixels square; `null` for [FillPattern.Solid]. */
-    fun brush(pattern: FillPattern, ink: Color, size: Int, stroke: Float): Brush? {
-        if (pattern == FillPattern.Solid || size <= 0) return null
-        return tiles.getOrPut(Triple(pattern, ink, size)) { ShaderBrush(ImageShader(tile(pattern, ink, size, stroke), TileMode.Repeated, TileMode.Repeated)) }
-    }
-
-    private fun tile(pattern: FillPattern, ink: Color, size: Int, stroke: Float): ImageBitmap {
-        val image = ImageBitmap(size, size)
-        val canvas = Canvas(image)
-        val paint = Paint().apply {
-            color = ink
-            strokeWidth = stroke
-            isAntiAlias = true
-            style = PaintingStyle.Stroke
-            strokeCap = StrokeCap.Square
-        }
-        val s = size.toFloat()
-        // Each diagonal is drawn three times, a tile apart, so that the part
-        // of a line that leaves one edge comes back in at the opposite one and
-        // the repeat has no seam.
-        fun rising() = listOf(-s, 0f, s).forEach { o -> canvas.drawLine(Offset(o, s), Offset(o + s, 0f), paint) }
-        fun falling() = listOf(-s, 0f, s).forEach { o -> canvas.drawLine(Offset(o, 0f), Offset(o + s, s), paint) }
-        when (pattern) {
-            FillPattern.Solid -> Unit
-            FillPattern.Diagonal -> rising()
-            FillPattern.ReverseDiagonal -> falling()
-            FillPattern.CrossHatch -> {
-                rising()
-                falling()
-            }
-            FillPattern.Horizontal -> canvas.drawLine(Offset(0f, s / 2), Offset(s, s / 2), paint)
-            FillPattern.Vertical -> canvas.drawLine(Offset(s / 2, 0f), Offset(s / 2, s), paint)
-            FillPattern.Dots -> {
-                paint.style = PaintingStyle.Fill
-                canvas.drawCircle(Offset(s / 2, s / 2), stroke * 1.1f, paint)
-            }
-        }
-        return image
-    }
-}
 
 /** A line's dashes, in multiples of its width, as a path effect; `null` for a solid one. */
 internal fun LinePattern.effect(width: Float): PathEffect? = when (this) {

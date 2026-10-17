@@ -211,6 +211,25 @@ colour — which matters because a golden ignores a channel that moves by eight 
 less, and never draws the scrim, the overlay washes, the code colours,
 `contentDisabled`, `outlineSubtle` or any status border at all.
 
+### Colour, and a pattern beside it
+
+Where two things of one kind are told apart by colour — two series in a chart,
+a tentative meeting and a confirmed one — a `FillPattern` can say it again:
+hatching, dots or a cross-hatch drawn over the colour in a wash of the
+content's own ink, so it reads on any colour and in either scheme. A chart
+draws one per series by itself at the high tier and wherever the reader has
+asked for colour not to be relied on (`differentiateWithoutColour()`); an
+`EventCalendar`'s event takes one as its `pattern`. `Modifier.fillPattern` is
+the same for any surface of an app's own, after its background:
+
+```kotlin
+Box(Modifier.background(colours.container, shape).fillPattern(FillPattern.Diagonal, colours.onContainer.copy(alpha = 0.25f), shape))
+```
+
+`PatternBrushes` is the cache of tiles behind both, for a canvas of an app's
+own: one brush for each pattern, ink and size, laid in the canvas's space so
+neighbouring shapes' hatching lines up.
+
 ---
 
 ## Touch targets

@@ -1,5 +1,6 @@
 package io.kontour.ui.charts
 
+import io.kontour.ui.foundation.FillPattern
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.Color
 
@@ -107,20 +108,3 @@ enum class PointSymbol {
     Plus,
 }
 
-/**
- * How a bar, an area, a rectangle or a sector is filled, as a second cue beside
- * its colour.
- *
- * The pattern is drawn over the series' colour in a wash of the page's ground,
- * so it reads on any colour and in either scheme. In a chart with patterns on,
- * series take these in this order, so the first is always solid.
- */
-enum class FillPattern {
-    Solid,
-    Diagonal,
-    Dots,
-    CrossHatch,
-    Horizontal,
-    ReverseDiagonal,
-    Vertical,
-}

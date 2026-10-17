@@ -1,5 +1,6 @@
 package io.kontour.ui.charts
 
+import io.kontour.ui.foundation.FillPattern
 import io.kontour.ui.locale.LocaleFormats
 import kotlin.math.abs
 import kotlin.test.Test

@@ -1,5 +1,6 @@
 package io.kontour.ui.charts
 
+import io.kontour.ui.foundation.FillPattern
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.graphics.Color

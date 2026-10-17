@@ -1,5 +1,6 @@
 package io.kontour.ui.charts
 
+import io.kontour.ui.foundation.PatternBrushes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -63,7 +64,7 @@ internal fun ChartLegend(
 private fun LegendSwatch(model: ChartModel, series: ChartSeries, colours: ChartColours, patterns: Boolean) {
     val mark = model.marks.firstOrNull { mark -> mark.runs.any { it.series == series } }
     val look = lookOf(model.slotOf(series), colours.series, patterns, mark?.style, series.style)
-    val tiles = remember { PatternTiles() }
+    val tiles = remember { PatternBrushes() }
     val sizing = Theme.sizing
     // Read once: a series with no mark yet has a square swatch, as a bar's.
     val kind = mark?.kind

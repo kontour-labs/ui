@@ -53,6 +53,12 @@ hands over, not a composable it writes.
   endDate = 16 Oct)` covers the 13th to the 16th.
 - **An event ending before it starts is refused** with a message naming the
   field, rather than drawn somewhere odd.
+- **A `pattern` says it again without colour.** A tentative meeting among
+  confirmed ones, a hold beside a meeting: `pattern = FillPattern.Diagonal`
+  hatches its block and its bar over its tone, in a wash of its own ink, for a
+  reader who cannot tell the tones apart. The same patterns a chart's series
+  take. Say what it means in the title as well, "Planning (tentative)", since a
+  screen reader hears the title and not the hatching.
 
 **The app keeps the events.** The calendar never changes `events`; it draws
 them and reports what was pressed. Either load what
