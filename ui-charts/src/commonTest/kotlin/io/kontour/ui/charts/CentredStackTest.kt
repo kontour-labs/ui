@@ -4,6 +4,7 @@ import io.kontour.ui.locale.LocaleFormats
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
@@ -37,12 +38,14 @@ class CentredStackTest {
     fun eachPlaceIsStackedAboutTheMiddle() {
         val resolved = stream()
         val (first, second) = resolved.layers
+        val firstBase = assertNotNull(first.base)
+        val secondBase = assertNotNull(second.base)
         // January's whole is 40, so it runs from -20 to 20; February's 100.
-        assertEquals(-20.0, first.base!![0])
+        assertEquals(-20.0, firstBase[0])
         assertEquals(10.0, first.up[0])
-        assertEquals(10.0, second.base!![0])
+        assertEquals(10.0, secondBase[0])
         assertEquals(20.0, second.up[0])
-        assertEquals(-50.0, first.base!![1])
+        assertEquals(-50.0, firstBase[1])
         assertEquals(50.0, second.up[1])
         // Values stay the riders each carried.
         assertEquals(30.0, first.values[0])
