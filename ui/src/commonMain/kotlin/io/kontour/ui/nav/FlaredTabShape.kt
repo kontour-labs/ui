@@ -59,9 +59,10 @@ internal class FlaredTabShape(
     private fun outline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline {
         val w = size.width
         val h = size.height
-        // A tab with no room is nothing. A tab carried from one strip to
-        // another was drawn for a frame at no height, and a body of less than
-        // none is not a shape its corners can be fitted to: asking threw.
+        // A tab with no room is nothing. A strip squeezed to no height — the
+        // second of two in a column, when the first took all its room — drew
+        // its selected tab's ground at less than none, which is not a shape
+        // corners can be fitted to: asking threw.
         if (w <= 0f || h <= 0f) return Outline.Rectangle(Rect.Zero)
         // No wider than a third of the whole, and no taller than half of it, so
         // a tab shrunk to nothing as it closes is a body still.

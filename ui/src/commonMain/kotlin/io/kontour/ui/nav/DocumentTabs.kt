@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -348,12 +347,15 @@ fun <T : Any> DocumentTabs(
                                     .tabWidth(width, ghost.fraction)
                                     .heightIn(min = height)
                                     .graphicsLayer { clip = true }
-                                    .clearAndSetSemantics {},
+                                    .clearAndSetSemantics {}
+                                    // Below the gap at the strip's top, as the tab it was.
+                                    .padding(top = Theme.spacing.xs),
                             ) {
                                 TabFace(
                                     label = state.itemLabel(gone),
                                     colour = if (enabled) colours.content else Theme.colours.contentDisabled,
                                     foot = foot,
+                                    height = height - Theme.spacing.xs,
                                     leading = leading?.let { slot -> @Composable { slot(gone) } },
                                     close = null,
                                 )
@@ -547,9 +549,13 @@ private fun DragItemScope.DocumentTab(
             // A tab growing or shrinking shows as much of itself as it has room for.
             .graphicsLayer { clip = grow.value < 1f; shape = RectangleShape },
     ) {
+        // As tall as the strip's tabs are, and no taller: a lazy row offers its
+        // items all the height it was given, and a tab that filled it took
+        // every pixel below the strip in a column with it.
         Box(
             Modifier
-                .fillMaxSize()
+                .fillMaxWidth()
+                .heightIn(min = height)
                 .padding(top = inset)
                 .minimumTouchTarget()
                 .focusRequester(focus)
@@ -583,6 +589,7 @@ private fun DragItemScope.DocumentTab(
                 label = label,
                 colour = colour,
                 foot = foot,
+                height = height - inset,
                 leading = leading,
                 close = if (showsClose && onClose != null) {
                     {
@@ -612,12 +619,13 @@ private fun TabFace(
     label: String,
     colour: Color,
     foot: Dp,
+    height: Dp,
     leading: (@Composable () -> Unit)?,
     close: (@Composable () -> Unit)?,
 ) {
     val spacing = Theme.spacing
     Row(
-        Modifier.fillMaxSize().padding(start = foot + spacing.xxs, end = spacing.xxs),
+        Modifier.fillMaxWidth().heightIn(min = height).padding(start = foot + spacing.xxs, end = spacing.xxs),
         horizontalArrangement = Arrangement.spacedBy(spacing.xs),
         verticalAlignment = Alignment.CenterVertically,
     ) {

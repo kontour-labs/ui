@@ -1,11 +1,15 @@
 package io.kontour.ui.nav
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
@@ -14,6 +18,7 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.MouseButton
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performKeyInput
@@ -44,7 +49,7 @@ class DocumentTabsTest {
     private val closed = mutableListOf<String>()
     private var chosen: String? = "Timetable"
 
-    private fun ComposeUiTest.strip(width: Int = 600, reduceMotion: Boolean = false) {
+    private fun ComposeUiTest.strip(width: Int = 600, reduceMotion: Boolean = false, below: Boolean = false) {
         setContent {
             KontourTheme(reduceMotion = reduceMotion) {
                 OverlayHost {
@@ -57,7 +62,7 @@ class DocumentTabsTest {
                         itemLabel = { it },
                         onDrop = {},
                     )
-                    Box(Modifier.width(width.dp)) {
+                    Column(Modifier.width(width.dp).height(400.dp)) {
                         DocumentTabs(
                             state = state,
                             value = chosen,
@@ -67,7 +72,9 @@ class DocumentTabsTest {
                                 documents.remove(closing)
                             },
                             onAdd = { documents.add("Untitled") },
+                            modifier = Modifier.testTag("strip"),
                         )
+                        if (below) Box(Modifier.fillMaxWidth().weight(1f).testTag("page"))
                     }
                 }
             }
@@ -86,6 +93,21 @@ class DocumentTabsTest {
         val share = with(density) { ((600.dp - 48.dp - 8.dp * 2) / 3).toPx() }
         assertEquals(share, leftOf("Fares") - leftOf("Timetable"), 1.5f, "the tabs do not share the strip")
         assertEquals(share, leftOf("Route map") - leftOf("Fares"), 1.5f, "the tabs do not share the strip")
+    }
+
+    /**
+     * A lazy row offers its items all the height it is given, and a tab that
+     * filled it took the whole of a column's room: the page under the strip
+     * had none, and a tab carried off the strip never left it.
+     */
+    @Test
+    fun theStripIsAsTallAsItsTabsAndThePageBelowHasTheRest() = runComposeUiTest {
+        strip(below = true)
+        val strip = onNodeWithTag("strip").fetchSemanticsNode().boundsInRoot
+        val page = onNodeWithTag("page").fetchSemanticsNode().boundsInRoot
+        val tall = with(density) { (DocumentTabsDefaults.Height * 2).toPx() }
+        assertTrue(strip.height < tall, "the strip took ${strip.height}px of the column's room")
+        assertEquals(strip.bottom, page.top, 0.5f, "the page should start where the strip ends")
     }
 
     @Test
