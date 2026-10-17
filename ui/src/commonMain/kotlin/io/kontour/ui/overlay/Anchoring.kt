@@ -1,5 +1,8 @@
 package io.kontour.ui.overlay
 
+import androidx.compose.ui.unit.Density
+import io.kontour.ui.theme.SquircleShape
+import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.runtime.Composable
@@ -744,6 +747,7 @@ internal fun AnchoredOverlayLayout(
 
         geometry.path = arrow?.let {
             val shape = it.panelShape
+            val inset = arrowInset(shape, contentSize, arrowWidthPx, this)
             if (shape == null) {
                 arrowPath(
                     placement = placement,
@@ -752,6 +756,7 @@ internal fun AnchoredOverlayLayout(
                     width = arrowWidthPx,
                     height = arrowHeightPx,
                     overlap = arrowOverlapPx,
+                    inset = inset,
                 )
             } else {
                 arrowMeetingPanel(
@@ -761,6 +766,7 @@ internal fun AnchoredOverlayLayout(
                     width = arrowWidthPx,
                     height = arrowHeightPx,
                     overlap = arrowOverlapPx,
+                    inset = inset,
                     panel = shape.createOutline(
                         Size(
                             (contentSize.width - 2 * arrowOverlapPx).coerceAtLeast(0f),
@@ -816,12 +822,12 @@ private fun arrowPath(
     width: Float,
     height: Float,
     overlap: Float,
+    inset: Float = width,
     bury: Float = overlap,
 ): Path {
     // The flanks run from the tip through the base's corners as [overlap] puts
     // them; buried further, they carry on at the same slope.
     val half = width / 2f * (height + bury) / (height + overlap)
-    val inset = width
 
     fun centre(target: Float, lo: Float, hi: Float): Float =
         if (hi < lo) (lo + hi) / 2f else target.coerceIn(lo, hi)
@@ -900,9 +906,10 @@ private fun arrowMeetingPanel(
     width: Float,
     height: Float,
     overlap: Float,
+    inset: Float,
     panel: Outline,
 ): Path {
-    val arrow = arrowPath(placement, contentSize, anchor, width, height, overlap, bury = height)
+    val arrow = arrowPath(placement, contentSize, anchor, width, height, overlap, inset, bury = height)
     val inside = Path().apply {
         addOutline(panel)
         translate(Offset(placement.x + overlap, placement.y + overlap))
@@ -922,6 +929,31 @@ private fun arrowMeetingPanel(
     }
     val banded = Path.combine(PathOperation.Intersect, arrow, band)
     return Path.combine(PathOperation.Difference, banded, inside)
+}
+
+/**
+ * How far from a panel's ends an arrow's centre is kept: past the whole curve
+ * of the panel's corner and half the arrow again, so its base is always on a
+ * straight run of the side.
+ *
+ * It was one arrow's width, whatever the corner. A tooltip's corner is a
+ * squircle a good deal larger, whose curve runs on along the side past its
+ * radius, so an arrow pushed to the end of its bubble — a chart's tooltip at
+ * the edge of the plot — sat where the side had already curved away, and
+ * floated off it.
+ */
+private fun arrowInset(shape: Shape?, contentSize: IntSize, width: Float, density: Density): Float {
+    val corners = shape as? CornerBasedShape ?: return width
+    val size = Size(contentSize.width.toFloat(), contentSize.height.toFloat())
+    val radius = maxOf(
+        corners.topStart.toPx(size, density),
+        corners.topEnd.toPx(size, density),
+        corners.bottomEnd.toPx(size, density),
+        corners.bottomStart.toPx(size, density),
+    ).coerceAtMost(size.minDimension / 2)
+    // A squircle eases into its corner over more of the side than a circle.
+    val reach = radius * (1f + ((shape as? SquircleShape)?.smoothing ?: 0f))
+    return maxOf(width, reach + width / 2f)
 }
 
 /**

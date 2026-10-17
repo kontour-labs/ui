@@ -107,6 +107,36 @@ fun Modifier.tooltip(
     alignment: OverlayAlignment = OverlayAlignment.Centre,
     enabled: Boolean = true,
     interactionSource: MutableInteractionSource? = null,
+): Modifier = tooltip(side, alignment, enabled, interactionSource) { +text }
+
+/**
+ * Shows [content] when the user asks what this control is: the same triggers as
+ * the `text` form, with the bubble's own slots for what it says.
+ *
+ * ```kotlin
+ * IconButton(
+ *     onClick = ::openFilters,
+ *     icon = Tabler.Outline.Filter,
+ *     contentDescription = "Filter routes",
+ *     modifier = Modifier.tooltip {
+ *         +Tabler.Outline.Keyboard
+ *         +"Filter routes (F)"
+ *     },
+ * )
+ * ```
+ *
+ * The slots are a [Tooltip]'s: text with `+`, an icon or a painter beside it,
+ * set at the bubble's own size and ink. Like the `text` form it sets no
+ * semantics, and for the same reason: what the tooltip says, the control's own
+ * `contentDescription` must say already.
+ */
+@Composable
+fun Modifier.tooltip(
+    side: OverlaySide = OverlaySide.Top,
+    alignment: OverlayAlignment = OverlayAlignment.Centre,
+    enabled: Boolean = true,
+    interactionSource: MutableInteractionSource? = null,
+    content: @Composable ContentScope.() -> Unit,
 ): Modifier {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val hovered by interactions.collectIsHoveredAsState()
@@ -138,7 +168,7 @@ fun Modifier.tooltip(
     TooltipOverlay(
         visible = showing,
         anchor = { bounds },
-        content = { +text },
+        content = content,
         // Nothing to pass: this entry point is a modifier on the *trigger*, and
         // the bubble it shows is not addressable from the call site. Use the
         // `Tooltip` composable when the bubble itself needs one.

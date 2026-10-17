@@ -36,6 +36,16 @@ appears from a touch that was really a tap.
 Modifier.tooltip("Save this trip")
 ```
 
+Or with the bubble's slots, the same as the component's: words with `+`, and an
+icon or a painter beside them, set at the bubble's own size and ink.
+
+```kotlin
+Modifier.tooltip {
+    +Tabler.Outline.CurrentLocation
+    +"Bring the map back to you"
+}
+```
+
 A tooltip is **not** an accessible name. A screen reader reads the control's own
 `contentDescription`, so an icon button still needs one — the tooltip is for
 people who can see the icon and cannot name it.

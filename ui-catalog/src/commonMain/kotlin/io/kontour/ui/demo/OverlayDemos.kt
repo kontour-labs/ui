@@ -27,6 +27,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.kontour.icons.tabler.Tabler
+import io.kontour.icons.tabler.outline.CurrentLocation
 import io.kontour.icons.tabler.outline.Bell
 import io.kontour.icons.tabler.outline.Bookmark
 import io.kontour.icons.tabler.outline.Copy
@@ -399,7 +400,12 @@ internal val TooltipDemo = ComponentDemo(slug = "tooltip") {
                     contentDescription = "Save this trip",
                     onClick = { open = !open },
                 )
-                Tooltip(visible = open) { +"Save this trip" }
+                // The bubble's slots: an icon beside the words, sized and inked
+                // as the bubble's own.
+                Tooltip(visible = open) {
+                    +Tabler.Outline.Star
+                    +"Saved trips show on Home"
+                }
             }
             // The modifier is what a caller nearly always wants: it tracks hover
             // and focus itself and honours the input modality, so it never
@@ -408,7 +414,10 @@ internal val TooltipDemo = ComponentDemo(slug = "tooltip") {
                 onClick = { echo("Recentre") },
                 variant = ButtonVariant.Secondary,
                 size = ButtonSize.Small,
-                modifier = Modifier.tooltip("Bring the map back to you"),
+                modifier = Modifier.tooltip {
+                    +Tabler.Outline.CurrentLocation
+                    +"Bring the map back to you"
+                },
             ) { +"Hover me" }
         }
     }
