@@ -1,5 +1,6 @@
 package io.kontour.ui.charts
 
+import io.kontour.ui.foundation.FillPatternDefaults
 import io.kontour.ui.foundation.PatternBrushes
 import io.kontour.ui.input.onPressOutside
 import androidx.compose.ui.layout.positionInWindow
@@ -199,6 +200,7 @@ fun SectorChart(
     val direction = if (rtl) -1f else 1f
     val tiles = remember { PatternBrushes() }
     val sizing = Theme.sizing
+    val patternStroke = FillPatternDefaults.Stroke
     val legendModel = remember(parts) {
         ChartModel(
             marks = listOf(
@@ -360,7 +362,7 @@ fun SectorChart(
                         val origin = Offset(circle.x + out * cos(middle), circle.y + out * sin(middle))
                         val path = sectorPath(origin, radius, hole, angle, extent * direction, corner.toPx(size, this) * SectorCornerShare)
                         drawPath(path, look.colour, alpha = fade.value)
-                        tiles.brush(look.fill, colours.patternInk, PatternTileSize.roundToPx(), (sizing.borderWidth * 1.5f).toPx())
+                        tiles.brush(look.fill, colours.patternInk, FillPatternDefaults.Tile.roundToPx(), patternStroke.toPx())
                             ?.let { drawPath(path, it, alpha = fade.value) }
                         if (pulls[index].value > 0f) {
                             drawPath(
@@ -677,5 +679,3 @@ private fun SectorLayout(
 /** A sector chart's size when nothing gives it one. */
 private val DefaultSize = 200.dp
 
-/** The tile a sector's fill pattern repeats, as a [Chart]'s. */
-private val PatternTileSize = 7.dp

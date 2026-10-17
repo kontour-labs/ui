@@ -1,5 +1,6 @@
 package io.kontour.ui.charts
 
+import io.kontour.ui.foundation.FillPatternDefaults
 import io.kontour.ui.foundation.PatternBrushes
 import io.kontour.ui.input.onPressOutside
 import androidx.compose.ui.layout.positionInWindow
@@ -374,7 +375,8 @@ private fun <X : Any> ChartPlot(
     // rest of the library at the high contrast tier.
     val sizing = Theme.sizing
     val shapes = Theme.shapes
-    val config = remember(colours, patterns, density, sizing, shapes) {
+    val patternStroke = FillPatternDefaults.Stroke
+    val config = remember(colours, patterns, density, sizing, shapes, patternStroke) {
         with(density) {
             DrawConfig(
                 colours = colours,
@@ -384,8 +386,8 @@ private fun <X : Any> ChartPlot(
                 cornerShape = shapes.extraSmall,
                 pinShape = shapes.capsule,
                 hairline = sizing.dividerThickness.toPx(),
-                tileSize = PatternTile.roundToPx(),
-                tileStroke = (sizing.borderWidth * 1.5f).toPx(),
+                tileSize = FillPatternDefaults.Tile.roundToPx(),
+                tileStroke = patternStroke.toPx(),
                 tiles = tiles,
             )
         }
@@ -606,12 +608,6 @@ private fun placeExtent(all: DoubleArray, group: DoubleArray): Pair<Double, Doub
     val after = half(last, last + 1).takeUnless { it.isNaN() } ?: half(last - 1, last).takeUnless { it.isNaN() } ?: 0.5
     return group.first() - before to group.last() + after
 }
-
-/**
- * The tile a fill pattern repeats: small enough that a narrow bar still shows
- * two repeats of it, so it reads as a texture rather than as a stray line.
- */
-private val PatternTile = 7.dp
 
 /** A chart's width when nothing gives it one: a phone's, so it is not a sliver in a row. */
 private val DefaultWidth = 320.dp

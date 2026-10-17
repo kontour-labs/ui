@@ -1,6 +1,7 @@
 package io.kontour.ui.foundation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
@@ -63,11 +64,11 @@ fun Modifier.fillPattern(
     pattern: FillPattern,
     ink: Color,
     shape: Shape = RectangleShape,
-    tile: Dp = FillPatternTile,
+    tile: Dp = FillPatternDefaults.Tile,
 ): Modifier {
     if (pattern == FillPattern.Solid) return this
     val brushes = remember { PatternBrushes() }
-    val stroke = Theme.sizing.borderWidth * 1.5f
+    val stroke = FillPatternDefaults.Stroke
     return drawWithCache {
         val brush = brushes.brush(pattern, ink, tile.roundToPx(), stroke.toPx())
         val outline = shape.createOutline(size, layoutDirection, this)
@@ -78,8 +79,22 @@ fun Modifier.fillPattern(
     }
 }
 
-/** How far a [fillPattern] repeats by default: a chart's hatching's. */
-private val FillPatternTile = 7.dp
+/**
+ * The size of a [FillPattern]'s repeat and the weight of its lines, for
+ * [fillPattern] and for a canvas drawing its own with [PatternBrushes]: a
+ * chart's hatching and a calendar event's are one pattern, and stay so.
+ */
+object FillPatternDefaults {
+    /** How far a pattern repeats: tight enough to read on a sliver of a bar. */
+    val Tile: Dp = PatternTile
+
+    /** How heavy a pattern's lines are: half again a border, so it reads as texture rather than as an edge. */
+    val Stroke: Dp
+        @Composable @ReadOnlyComposable get() = Theme.sizing.borderWidth * PatternStrokeShare
+}
+
+private val PatternTile = 7.dp
+private const val PatternStrokeShare = 1.5f
 
 /**
  * The tiles a [FillPattern] is drawn from, one brush for each pattern, ink and

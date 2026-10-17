@@ -2329,6 +2329,13 @@ public final class io/kontour/ui/foundation/FillPattern : java/lang/Enum {
 	public static fun values ()[Lio/kontour/ui/foundation/FillPattern;
 }
 
+public final class io/kontour/ui/foundation/FillPatternDefaults {
+	public static final field $stable I
+	public static final field INSTANCE Lio/kontour/ui/foundation/FillPatternDefaults;
+	public final fun getStroke (Landroidx/compose/runtime/Composer;I)F
+	public final fun getTile-D9Ej5fM ()F
+}
+
 public final class io/kontour/ui/foundation/FillPatternKt {
 	public static final fun fillPattern-u4SGt0E (Landroidx/compose/ui/Modifier;Lio/kontour/ui/foundation/FillPattern;JLandroidx/compose/ui/graphics/Shape;FLandroidx/compose/runtime/Composer;II)Landroidx/compose/ui/Modifier;
 }
