@@ -447,6 +447,18 @@ fun CornerBasedShape.leadingCornersOnly(): CornerBasedShape = copy(
     bottomEnd = ZeroCornerSize,
 )
 
+/** Keeps the bottom two corners and squares off the top two: a bar hanging below its baseline. */
+fun CornerBasedShape.bottomCornersOnly(): CornerBasedShape = copy(
+    topStart = ZeroCornerSize,
+    topEnd = ZeroCornerSize,
+)
+
+/** Keeps the two corners on the trailing edge and squares off the leading pair. */
+fun CornerBasedShape.trailingCornersOnly(): CornerBasedShape = copy(
+    topStart = ZeroCornerSize,
+    bottomStart = ZeroCornerSize,
+)
+
 /**
  * The radius something nested [gap] inside this shape should use to stay
  * concentric with it.

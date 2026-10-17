@@ -4678,6 +4678,7 @@ public final class io/kontour/ui/theme/Shapes$Companion {
 
 public final class io/kontour/ui/theme/ShapesKt {
 	public static final fun atLeast-3F_vd3o (Landroidx/compose/foundation/shape/CornerBasedShape;Landroidx/compose/ui/unit/Dp;)Landroidx/compose/foundation/shape/CornerBasedShape;
+	public static final fun bottomCornersOnly (Landroidx/compose/foundation/shape/CornerBasedShape;)Landroidx/compose/foundation/shape/CornerBasedShape;
 	public static final fun inset-3ABfNKs (Landroidx/compose/foundation/shape/CornerBasedShape;F)Landroidx/compose/foundation/shape/CornerBasedShape;
 	public static final fun kontourShapes-cWfXhoU (FFFF)Lio/kontour/ui/theme/Shapes;
 	public static synthetic fun kontourShapes-cWfXhoU$default (FFFFILjava/lang/Object;)Lio/kontour/ui/theme/Shapes;
@@ -4686,6 +4687,7 @@ public final class io/kontour/ui/theme/ShapesKt {
 	public static final fun mirrorHorizontally (Landroidx/compose/foundation/shape/CornerBasedShape;)Landroidx/compose/foundation/shape/CornerBasedShape;
 	public static final fun outset-3ABfNKs (Landroidx/compose/foundation/shape/CornerBasedShape;F)Landroidx/compose/foundation/shape/CornerBasedShape;
 	public static final fun topCornersOnly (Landroidx/compose/foundation/shape/CornerBasedShape;)Landroidx/compose/foundation/shape/CornerBasedShape;
+	public static final fun trailingCornersOnly (Landroidx/compose/foundation/shape/CornerBasedShape;)Landroidx/compose/foundation/shape/CornerBasedShape;
 }
 
 public final class io/kontour/ui/theme/Sizing {

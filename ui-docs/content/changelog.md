@@ -60,6 +60,12 @@ On `main`, and in the next release.
   an event, its label in a pin above the plot, stacked where pins would touch.
   Each is said to a screen reader by its label and where it is. Bars, rectangles
   and sectors are cut with the library's squircle corners.
+- **`KeyValueList(compact = true)`**, for a small container of its own: the
+  rows take the style around them and the list is as wide as its rows. A
+  chart's tooltip is one now, rather than rows laid out by hand.
+- **`FillPatternDefaults`**, the tile and stroke a pattern is drawn with, and
+  **`bottomCornersOnly()`** and **`trailingCornersOnly()`** beside
+  `topCornersOnly()` and `leadingCornersOnly()`, which the charts' bars use.
 - **`Theme.icons`**: every glyph the library draws on its own behalf, Tabler's
   unless `KontourTheme(icons = SystemIcons(…))` replaces some. A select's
   chevron, a toast's close, a stepper's minus and plus, a sorted column's arrow

@@ -86,4 +86,28 @@ class KeyValueAlignmentTest {
         assertTrue(rows.size == 1, "a reader finds ${rows.size} rows for Fare")
         assertTrue(rows.single().boundsInRoot.width > 100f, "the row is ${rows.single().boundsInRoot.width}px wide")
     }
+
+    /**
+     * Compact, for a tooltip: as wide as its rows, not its container, and its
+     * values still one column. A chart's tooltip lists its series this way,
+     * and at full width every bubble stretched to its widest.
+     */
+    @Test
+    fun aCompactListIsAsWideAsItsRows() = runComposeUiTest {
+        setContent {
+            KontourTheme {
+                Box(Modifier.size(420.dp, 400.dp)) {
+                    KeyValueList(Modifier.testTag("list"), labelWidth = 0.dp, compact = true) {
+                        item("950", announcement = "12") { Box(Modifier.size(8.dp).testTag("short")) }
+                        item("Wheelchair-accessible", announcement = "30") { Box(Modifier.size(8.dp).testTag("long")) }
+                    }
+                }
+            }
+        }
+        waitForIdle()
+        val list = onNodeWithTag("list").fetchSemanticsNode().boundsInRoot
+        assertTrue(list.width < 300f, "a compact list took ${list.width}px of a 420dp box")
+        fun left(tag: String) = onNodeWithTag(tag, useUnmergedTree = true).fetchSemanticsNode().boundsInRoot.left
+        assertTrue(abs(left("short") - left("long")) < 1f, "a compact list's values are not one column")
+    }
 }

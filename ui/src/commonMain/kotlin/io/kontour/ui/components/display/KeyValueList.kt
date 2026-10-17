@@ -67,38 +67,65 @@ import io.kontour.ui.theme.Theme
  *   details panel look untidy. A longer label than that wraps, to two lines.
  * @param showDividers A hairline between rows. Off by default: the label column
  *   already aligns them, and a rule per row is a lot of lines for a short list.
+ * @param compact For a small container of its own — a tooltip, a popover: the
+ *   rows take the text style and colour around them rather than a page's, sit
+ *   closer, and the list is as wide as its rows rather than its container.
+ *   A chart's tooltip lists its series this way, each with its swatch.
  */
 @Composable
 inline fun KeyValueList(
     modifier: Modifier = Modifier,
     labelWidth: Dp = KeyValueListDefaults.LabelWidth,
     showDividers: Boolean = false,
+    compact: Boolean = false,
     content: @Composable KeyValueScope.() -> Unit,
 ) {
     // Inline, as `ListGroup` is and for its reason: the builder runs in the
     // caller's restart scope, so a value read in it is never collected into a
     // list nothing draws. See `ListGroupScope`.
-    KeyValueRows(KeyValueScope().apply { content() }, modifier, labelWidth, showDividers)
+    KeyValueRows(KeyValueScope().apply { content() }, modifier, labelWidth, showDividers, compact)
+}
+
+/**
+ * The call an app built against 0.4.5's inline [KeyValueList] has in it, kept
+ * so that it still links.
+ */
+@PublishedApi
+@Composable
+internal fun KeyValueRows(scope: KeyValueScope, modifier: Modifier, labelWidth: Dp, showDividers: Boolean) {
+    KeyValueRows(scope, modifier, labelWidth, showDividers, compact = false)
 }
 
 /** The rows [KeyValueList] collected, laid out. */
 @PublishedApi
 @Composable
-internal fun KeyValueRows(scope: KeyValueScope, modifier: Modifier, labelWidth: Dp, showDividers: Boolean) {
+internal fun KeyValueRows(scope: KeyValueScope, modifier: Modifier, labelWidth: Dp, showDividers: Boolean, compact: Boolean) {
     val rows = scope.rows
     val gap = Theme.spacing.sm
-    val minValue = KeyValueListDefaults.MinValueWidth
+    // A compact list is as wide as its rows, so a value always has the room
+    // its words take, and there is no column too narrow to be worth having.
+    val minValue = if (compact) 0.dp else KeyValueListDefaults.MinValueWidth
     val labelledValue = Theme.strings.labelledValue
+    val muted = Theme.colours.contentMuted
+    val body = Theme.typography.bodyMedium
+    val spacing = Theme.spacing
 
     val label: @Composable (KeyValueRow, Modifier) -> Unit = { row, slot ->
-        ProvideContentColour(Theme.colours.contentMuted) {
-            ProvideTextStyle(Theme.typography.bodyMedium) {
-                Row(slot) { ContentSlot(maxLines = 2, content = row.label) }
+        if (compact) {
+            // A swatch or an icon beside the words, centred on them.
+            Row(slot, horizontalArrangement = Arrangement.spacedBy(spacing.xs), verticalAlignment = Alignment.CenterVertically) {
+                ContentSlot(maxLines = 2, content = row.label)
+            }
+        } else {
+            ProvideContentColour(muted) {
+                ProvideTextStyle(body) {
+                    Row(slot) { ContentSlot(maxLines = 2, content = row.label) }
+                }
             }
         }
     }
     val value: @Composable (KeyValueRow, Modifier) -> Unit = { row, slot ->
-        ProvideTextStyle(Theme.typography.bodyMedium) {
+        val cell: @Composable () -> Unit = {
             Row(slot) {
                 ContentSlot(
                     iconSize = Theme.sizing.iconSmall,
@@ -107,22 +134,26 @@ internal fun KeyValueRows(scope: KeyValueScope, modifier: Modifier, labelWidth: 
                 )
             }
         }
+        if (compact) cell() else ProvideTextStyle(body, cell)
     }
 
-    SubcomposeLayout(modifier.fillMaxWidth()) { constraints ->
+    SubcomposeLayout(if (compact) modifier else modifier.fillMaxWidth()) { constraints ->
         val floor = labelWidth.roundToPx()
         val gapPx = gap.roundToPx()
-        // In a row that scrolls, or anything else with no width to give, as
-        // wide as its widest label and widest value side by side: laid out at
-        // an unbounded width, it threw.
-        val available = if (constraints.hasBoundedWidth) {
-            constraints.maxWidth
-        } else {
+        // As wide as its widest label and widest value side by side: what a
+        // compact list takes, and a list in a row that scrolls, or anything
+        // else with no width to give; laid out at an unbounded width, it threw.
+        fun natural(): Int {
             val labels = subcompose("natural labels") { rows.forEach { row -> label(row, Measured) } }
                 .maxOfOrNull { it.maxIntrinsicWidth(Constraints.Infinity) } ?: 0
             val values = subcompose("natural values") { rows.forEach { row -> value(row, Measured) } }
                 .maxOfOrNull { it.maxIntrinsicWidth(Constraints.Infinity) } ?: 0
-            maxOf(labels, floor) + gapPx + maxOf(values, minValue.roundToPx())
+            return maxOf(labels, floor) + gapPx + maxOf(values, minValue.roundToPx())
+        }
+        val available = when {
+            !constraints.hasBoundedWidth -> natural()
+            compact -> minOf(constraints.maxWidth, natural())
+            else -> constraints.maxWidth
         }
         /*
          * Two columns, or one above the other.
@@ -167,7 +198,7 @@ internal fun KeyValueRows(scope: KeyValueScope, modifier: Modifier, labelWidth: 
                         .semantics(mergeDescendants = true) {
                             row.spoken?.let { contentDescription = it.say(labelledValue) }
                         }
-                        .padding(vertical = Theme.spacing.xs)
+                        .padding(vertical = if (compact) spacing.xxs / 2 else spacing.xs)
 
                     if (stacked) {
                         Column(
