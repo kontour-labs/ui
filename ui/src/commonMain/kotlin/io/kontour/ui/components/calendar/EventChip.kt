@@ -1,5 +1,6 @@
 package io.kontour.ui.components.calendar
 
+import io.kontour.ui.foundation.FillPattern
 import io.kontour.ui.foundation.fillPattern
 import io.kontour.ui.theme.clipProxy
 import androidx.compose.ui.graphics.drawOutline
@@ -201,18 +202,7 @@ internal fun EventChip(
                 .graphicsLayer { alpha = fade.value }
                 .then(if (stacked) Modifier.drawBehind { drawRing(shape, ring, ringWidth.toPx()) } else Modifier)
                 .clip(shape.clipProxy())
-                .background(fill)
-                // Its pattern on its ground, under its words, in a wash of its
-                // ink: on a pale block or a solid bar alike, the hatching is
-                // there and the title over it still reads.
-                .then(
-                    if (presentation == EventPresentation.Line) {
-                        Modifier
-                    } else {
-                        Modifier.fillPattern(event.pattern, ink.copy(alpha = EventPatternInk))
-                    }
-                )
-                .then(if (edge != null) Modifier.border(edge, shape) else Modifier),
+                .eventGround(shape, fill, if (presentation == EventPresentation.Line) FillPattern.Solid else event.pattern, ink, edge),
             // A block's text from its top, as time runs; a bar's and a line's level
             // in its row, as a chip's label is.
             contentAlignment = if (presentation == EventPresentation.Block) Alignment.TopStart else Alignment.CenterStart,
@@ -808,3 +798,18 @@ internal fun Modifier.secondaryClick(onClick: (Offset) -> Unit): Modifier = poin
 
 /** How strongly an event's pattern is drawn in its ink: enough to see, not enough to cross out its title. */
 private const val EventPatternInk = 0.22f
+
+/**
+ * An event's ground: [fill], its [pattern] on it in a wash of its [ink], and
+ * its [edge]. A block's on a calendar and a row's in a schedule, so an event
+ * looks like itself wherever it is listed: the schedule drew its own, and a
+ * tentative meeting hatched in the week was plain in the schedule.
+ *
+ * The pattern under the words, in a wash of their ink: on a pale block or a
+ * solid bar alike, the hatching is there and the title over it still reads.
+ */
+@Composable
+internal fun Modifier.eventGround(shape: Shape, fill: Color, pattern: FillPattern, ink: Color, edge: BorderStroke?): Modifier =
+    background(fill, shape)
+        .fillPattern(pattern, ink.copy(alpha = EventPatternInk), shape)
+        .then(if (edge != null) Modifier.border(edge, shape) else Modifier)

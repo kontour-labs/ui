@@ -236,7 +236,7 @@ internal fun EventBar(event: CalendarEvent, lines: Int = 1) {
 
 /** An event's tone's dot, or its icon in the dot's colour where it has one: what leads a line. */
 @Composable
-private fun ToneMark(event: CalendarEvent, style: TextStyle, dotSize: Dp) {
+internal fun ToneMark(event: CalendarEvent, style: TextStyle, dotSize: Dp) {
     val colour = toneColours(event.tone).solid
     val icon = event.icon
     if (icon != null) {

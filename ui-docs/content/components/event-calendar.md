@@ -55,7 +55,8 @@ hands over, not a composable it writes.
   field, rather than drawn somewhere odd.
 - **A `pattern` says it again without colour.** A tentative meeting among
   confirmed ones, a hold beside a meeting: `pattern = FillPattern.Diagonal`
-  hatches its block and its bar over its tone, in a wash of its own ink, for a
+  hatches its block, its bar and its row in a schedule over its tone, in a wash
+  of its own ink, for a
   reader who cannot tell the tones apart. The same patterns a chart's series
   take. Say what it means in the title as well, "Planning (tentative)", since a
   screen reader hears the title and not the hatching.

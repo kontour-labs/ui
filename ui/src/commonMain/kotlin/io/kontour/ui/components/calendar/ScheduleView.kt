@@ -289,8 +289,8 @@ private fun ScheduleEventRow(scope: CalendarScope, event: CalendarEvent, day: Lo
         modifier = Modifier
             .fillMaxWidth()
             .onGloballyPositioned { placed.coordinates = it }
-            .background(colours.container, shape)
-            .border(BorderStroke(Theme.sizing.borderWidth, colours.border), shape)
+            // A block's ground, pattern and edge, as the week has it.
+            .eventGround(shape, colours.container, event.pattern, colours.onContainer, BorderStroke(Theme.sizing.borderWidth, colours.border))
             .pressable(
                 onClick = { click?.invoke(event) },
                 enabled = scope.enabled && (click != null || menus),
@@ -309,12 +309,7 @@ private fun ScheduleEventRow(scope: CalendarScope, event: CalendarEvent, day: Lo
             .padding(horizontal = Theme.spacing.sm, vertical = Theme.spacing.xs),
     ) {
         val style = Theme.typography.bodyMedium
-        val icon = event.icon
-        if (icon != null) {
-            ItemIcon(icon, style, tint = colours.solid)
-        } else {
-            Box(Modifier.size(Theme.spacing.sm).background(colours.solid, Theme.shapes.capsule))
-        }
+        ToneMark(event, style, Theme.spacing.sm)
         Column(Modifier.weight(1f).clearAndSetSemantics { }) {
             Text(event.title, style = style, colour = colours.onContainer, maxLines = 2, overflow = TextOverflow.Ellipsis)
             val time = scheduleTime(event, day, formats, strings)
