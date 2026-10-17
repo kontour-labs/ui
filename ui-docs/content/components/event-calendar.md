@@ -56,9 +56,8 @@ hands over, not a composable it writes.
 - **A `pattern` says it again without colour.** A tentative meeting among
   confirmed ones, a hold beside a meeting: `pattern = FillPattern.Diagonal`
   hatches its block, its bar and its row in a schedule over its tone, in a wash
-  of its own ink, for a
-  reader who cannot tell the tones apart. The same patterns a chart's series
-  take. Say what it means in the title as well, "Planning (tentative)", since a
+  of its own ink, for a reader who cannot tell the tones apart. The same
+  patterns a chart's series take. Say what it means in the title as well, "Planning (tentative)", since a
   screen reader hears the title and not the hatching.
 
 **The app keeps the events.** The calendar never changes `events`; it draws
