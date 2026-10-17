@@ -36,10 +36,10 @@ import kotlin.math.exp
  * Used by the sheet's overshoot, the wheel picker's, and the end stop of every
  * control a finger can push past the end of — `Slider`, `RangeSlider`, `Switch`
  * and `SegmentedControl`, each of which feeds [offset] into the deformation it
- * already had. `PullToRefresh` and `Toast` keep their own arithmetic on purpose:
- * one is unbounded by design, because its progress has to go on climbing past 1
- * to drive the arc, and the other is a stateless function of the whole
- * accumulated pull where this is incremental.
+ * already had. `PullToRefresh` keeps its own arithmetic on purpose: it is
+ * unbounded by design, because its progress has to go on climbing past 1 to
+ * drive the arc. `Toast` and a top bar's push are a stateless function of the
+ * whole accumulated pull where this is incremental, and share [banded].
  *
  * Purely visual by construction. Nothing here touches the scrollable it belongs
  * to: [offset] is applied at draw or layout by whoever owns it, so no anchor,
@@ -292,3 +292,14 @@ class RubberBand internal constructor() {
 /** A [RubberBand] that survives recomposition. */
 @Composable
 fun rememberRubberBand(): RubberBand = remember { RubberBand() }
+
+/**
+ * How far a band lets something go when it is pulled [distance] towards a
+ * [limit] it never quite reaches: UIKit's curve, `limit * (1 - 1 / (distance *
+ * rate / limit + 1))`, half of [limit] at a pull of one limit at the full rate.
+ * For a pull that is a function of the whole distance, as a toast dragged the
+ * wrong way and a top bar's push are, where [RubberBand] follows a pull
+ * delta by delta.
+ */
+internal fun banded(distance: Float, limit: Float, rate: Float = 1f): Float =
+    if (limit <= 0f || distance <= 0f) 0f else limit * (1f - 1f / (distance * rate / limit + 1f))

@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.union
 import androidx.compose.ui.layout.findRootCoordinates
 import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.unit.Density
+import io.kontour.ui.interaction.banded
 import io.kontour.ui.motion.sizeSpec
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -111,6 +112,7 @@ import io.kontour.ui.motion.exitOrFade
 import io.kontour.ui.theme.Motion
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.Tone
+import io.kontour.ui.theme.toneColours
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlin.time.TimeSource
@@ -965,7 +967,7 @@ private fun rubberBand(pull: Float, limit: Float, towardEdge: Boolean): Float {
     if (limit <= 0f) return pull
     val wrongWay = if (towardEdge) -pull else pull
     if (wrongWay <= 0f) return pull
-    val eased = limit * (1f - 1f / (wrongWay / limit + 1f))
+    val eased = banded(wrongWay, limit)
     return if (towardEdge) -eased else eased
 }
 
@@ -1723,23 +1725,11 @@ private fun ToastSurface(
     onClose: () -> Unit,
 ) {
     val motion = Theme.motion
-    val colours = Theme.colours
-    val container = when (toast.tone) {
-        Tone.Neutral -> colours.surfaceInverse
-        Tone.Info -> colours.info.solid
-        Tone.Success -> colours.success.solid
-        Tone.Warning -> colours.warning.solid
-        Tone.Danger -> colours.danger.solid
-        Tone.Accent -> colours.accent.solid
-    }
-    val content = when (toast.tone) {
-        Tone.Neutral -> colours.onSurfaceInverse
-        Tone.Info -> colours.info.onSolid
-        Tone.Success -> colours.success.onSolid
-        Tone.Warning -> colours.warning.onSolid
-        Tone.Danger -> colours.danger.onSolid
-        Tone.Accent -> colours.accent.onSolid
-    }
+    // The tone's solid, as a banner and a coach mark have it: one mapping, so a
+    // tone is the same colours wherever it is handed.
+    val tone = toneColours(toast.tone)
+    val container = tone.solid
+    val content = tone.onSolid
 
     Surface(
         modifier = modifier

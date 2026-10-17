@@ -1,7 +1,6 @@
 package io.kontour.ui.components.list
 
-import io.kontour.ui.input.PressWatchers
-import io.kontour.ui.input.reportsPresses
+import io.kontour.ui.input.onPressOutside
 import io.kontour.ui.theme.clipProxy
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.animation.AnimatedVisibility
@@ -37,10 +36,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.boundsInRoot
-import androidx.compose.ui.layout.LayoutCoordinates
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.derivedStateOf
@@ -57,7 +52,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathMeasure
@@ -779,35 +773,24 @@ fun SwipeActions(
     // Open from the moment it is on its way there, not only once it has
     // arrived: a second row swiped while the first was still sliding open
     // left the first open, until a third was swiped.
-    val placed = remember { RowPlace() }
     fun opening() = state.anchoredState.let { it.settledValue.isReveal() || it.targetValue.isReveal() } &&
         tapped == null && !fullSwipe
     val showing = opening()
-    DisposableEffect(showing, state) {
-        if (!showing) return@DisposableEffect onDispose { }
-        val key = Any()
-        PressWatchers.add(key) { root ->
-            // On the screen, as the press is: a press in a popup, or another
-            // window, is in a root of its own, and its root's coordinates
-            // compared with this row's said nothing.
-            val bounds = placed.coordinates?.takeIf { it.isAttached }?.let { c ->
-                Rect(c.localToScreen(Offset.Zero), c.localToScreen(Offset(c.size.width.toFloat(), c.size.height.toFloat())))
-            } ?: return@add
-            if (bounds.contains(root) || !opening()) return@add
-            settling?.cancel()
-            scope.launch { state.reset() }
-        }
-        onDispose { PressWatchers.remove(key) }
-    }
 
     Box(
         modifier = modifier
             .fillMaxWidth()
             .onSizeChanged { width = it.width.toFloat() }
-            .onGloballyPositioned { placed.coordinates = it }
-            // A press on this row closes any other that is open, with or
-            // without an `OverlayHost` round the app to see every press.
-            .reportsPresses()
+            // A press anywhere else closes it, and a press on this row closes
+            // any other that is open, with or without an `OverlayHost` round
+            // the app to see every press: `onPressOutside` reports this row's
+            // presses as well as watching for others'.
+            .onPressOutside(enabled = showing) {
+                if (opening()) {
+                    settling?.cancel()
+                    scope.launch { state.reset() }
+                }
+            }
             .semantics {
                 // The only route to these that does not require knowing the
                 // gesture exists. Withheld while disabled, as the gesture is: a
@@ -1741,11 +1724,6 @@ private const val SideScrollDecisionShare = 0.4f
 
 /** A scroll quiet for this long has ended, and the next is a new gesture to decide. */
 private const val SideScrollQuietMillis = 250L
-
-/** Where a row is, for a press elsewhere to be told from one on it. Not state: written in layout, read in input. */
-private class RowPlace {
-    var coordinates: LayoutCoordinates? = null
-}
 
 /** Whether this is a side's actions shown, waiting for a tap. */
 private fun SwipeValue.isReveal(): Boolean = this == SwipeValue.Start || this == SwipeValue.End

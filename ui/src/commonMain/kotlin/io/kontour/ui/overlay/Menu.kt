@@ -13,6 +13,7 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.util.lerp
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusTarget
@@ -865,8 +866,6 @@ internal val LocalMenuRowSizing = staticCompositionLocalOf { false }
 
 /** A row's place in a long list of options, or -1 for a row of an ordinary menu. */
 internal val LocalMenuRowPlace = compositionLocalOf { -1 }
-
-private fun lerp(from: Float, to: Float, fraction: Float): Float = from + (to - from) * fraction
 
 /**
  * One row in a menu.

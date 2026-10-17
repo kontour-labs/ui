@@ -1,5 +1,7 @@
 package io.kontour.ui.components.display
 
+import io.kontour.ui.theme.toneInk
+import io.kontour.ui.theme.toneColours
 import io.kontour.ui.theme.clipProxy
 import io.kontour.ui.locale.bidiIsolated
 import androidx.compose.foundation.BorderStroke
@@ -107,7 +109,7 @@ fun Tag(
     interactionSource: MutableInteractionSource? = null,
     content: @Composable RowContentScope.() -> Unit
 ) {
-    val container = if (containerColour != Color.Unspecified) containerColour else tagContainerFor(tone)
+    val container = if (containerColour != Color.Unspecified) containerColour else toneColours(tone).container
     val clickable = onClick != null
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val contentColour = if (clickable && !enabled) {
@@ -119,7 +121,7 @@ fun Tag(
             dark = Theme.colours.content.takeIf { !Theme.colours.isDark } ?: Theme.colours.onPrimary,
         )
     } else {
-        tagContentFor(tone)
+        Theme.colours.toneInk(tone)
     }
 
     Row(
@@ -342,17 +344,6 @@ object BadgeDefaults {
 
 @Composable
 @ReadOnlyComposable
-private fun tagContainerFor(tone: Tone): Color = when (tone) {
-    Tone.Neutral -> Theme.colours.surfaceSunken
-    Tone.Accent -> Theme.colours.accent.container
-    Tone.Success -> Theme.colours.success.container
-    Tone.Warning -> Theme.colours.warning.container
-    Tone.Danger -> Theme.colours.danger.container
-    Tone.Info -> Theme.colours.info.container
-}
-
-@Composable
-@ReadOnlyComposable
 private fun tagBorderFor(tone: Tone): Color = when (tone) {
     Tone.Neutral -> Theme.colours.outline
     Tone.Accent -> Theme.colours.accent.solid
@@ -362,13 +353,3 @@ private fun tagBorderFor(tone: Tone): Color = when (tone) {
     Tone.Info -> Theme.colours.info.border
 }
 
-@Composable
-@ReadOnlyComposable
-private fun tagContentFor(tone: Tone): Color = when (tone) {
-    Tone.Neutral -> Theme.colours.contentMuted
-    Tone.Accent -> Theme.colours.accent.onContainer
-    Tone.Success -> Theme.colours.success.onContainer
-    Tone.Warning -> Theme.colours.warning.onContainer
-    Tone.Danger -> Theme.colours.danger.onContainer
-    Tone.Info -> Theme.colours.info.onContainer
-}

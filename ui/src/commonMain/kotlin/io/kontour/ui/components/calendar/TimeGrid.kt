@@ -1243,7 +1243,6 @@ private fun Modifier.fillHeightOr(unbounded: Dp): Modifier = layout { measurable
 }
 
 /** The day an event's last minute is on. */
-private fun lastDayOf(start: LocalDateTime, end: LocalDateTime): LocalDate = if (end > start) end.plusMinutes(-1).date else start.date
 
 /** The days of an event between [pageStart] and [pageEnd]: each day's column and its minutes, from its start or midnight to its end or midnight. */
 private fun timedPieces(start: LocalDateTime, end: LocalDateTime, pageStart: LocalDate, pageEnd: LocalDate): List<Triple<Int, Int, Int>> = buildList {

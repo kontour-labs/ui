@@ -77,7 +77,7 @@ internal class ScheduleDay(val date: LocalDate, val events: List<CalendarEvent>)
 internal fun scheduleItems(events: List<CalendarEvent>, from: LocalDate, to: LocalDate, today: LocalDate?): List<ScheduleItem> {
     val byDay = HashMap<LocalDate, MutableList<CalendarEvent>>()
     for (event in events) {
-        val last = if (event.end > event.start) event.end.plusMinutes(-1).date else event.start.date
+        val last = lastDayOf(event.start, event.end)
         var day = maxOf(event.start.date, from)
         val end = minOf(last, to)
         while (day <= end) {
@@ -339,7 +339,7 @@ private fun ScheduleEventRow(scope: CalendarScope, event: CalendarEvent, day: Lo
  */
 internal fun scheduleTime(event: CalendarEvent, day: LocalDate, formats: LocaleFormats, strings: Strings): AnnotatedString {
     if (event.allDay) return AnnotatedString(strings.allDay)
-    val lastDay = if (event.end > event.start) event.end.plusMinutes(-1).date else event.start.date
+    val lastDay = lastDayOf(event.start, event.end)
     return when {
         day <= event.start.date -> eventTimes(event.start, event.end, formats, strings)
         day >= lastDay && event.end != day.plus(1, DateTimeUnit.DAY).atMidnight -> AnnotatedString(strings.untilTime(formats.time(event.end.time)))

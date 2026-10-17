@@ -26,6 +26,7 @@ import androidx.compose.ui.text.withLink
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.em
+import io.kontour.ui.theme.toneInk
 import io.kontour.ui.theme.ColourScheme
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.Tone
@@ -303,7 +304,7 @@ class RichTextScope internal constructor(
 
     /** Whatever [content] appends, in [tone]'s own text colour. */
     fun tone(tone: Tone, content: RichTextScope.() -> Unit) =
-        styled(SpanStyle(color = colours.textFor(tone)), content)
+        styled(SpanStyle(color = colours.toneInk(tone)), content)
 
     /**
      * [imageVector] in the line, wrapping with the words either side of it.
@@ -491,16 +492,6 @@ object RichTextDefaults {
         ),
         links: TextLinkStyles = LinkDefaults.styles(),
     ): RichTextStyles = RichTextStyles(bold, italic, strikethrough, code, links)
-}
-
-/** A tone's text colour: what a tag of that tone is lettered in. */
-private fun ColourScheme.textFor(tone: Tone): Color = when (tone) {
-    Tone.Neutral -> contentMuted
-    Tone.Info -> info.onContainer
-    Tone.Accent -> accent.onContainer
-    Tone.Success -> success.onContainer
-    Tone.Warning -> warning.onContainer
-    Tone.Danger -> danger.onContainer
 }
 
 /** How a link inside a sentence is drawn. */

@@ -228,7 +228,7 @@ private fun busyDays(scope: CalendarScope, year: Int): Map<LocalDate, Tone> {
     val marks = HashMap<LocalDate, Tone>()
     for (event in scope.eventsBetween(first, last).sortedBy { it.start }) {
         var day = maxOf(event.start.date, first)
-        val end = if (event.end > event.start) event.end.plusMinutes(-1).date else event.start.date
+        val end = lastDayOf(event.start, event.end)
         while (day <= end && day <= last) {
             marks.getOrPut(day) { event.tone }
             day = day.plus(1, DateTimeUnit.DAY)

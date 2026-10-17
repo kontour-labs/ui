@@ -887,7 +887,6 @@ internal interface GhostRows {
 }
 
 /** The day an event's last minute is on. */
-private fun lastDayOf(start: LocalDateTime, end: LocalDateTime): LocalDate = if (end > start) end.plusMinutes(-1).date else start.date
 
 /**
  * A piece of the copy a carry by days draws: one a row it is in.

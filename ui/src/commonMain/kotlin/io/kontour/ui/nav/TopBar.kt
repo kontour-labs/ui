@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
+import io.kontour.ui.interaction.banded
 import io.kontour.ui.components.display.Carousel
 import io.kontour.ui.components.display.CarouselState
 import io.kontour.ui.components.display.PageIndicator
@@ -1276,7 +1277,7 @@ class TopBarCollapseState internal constructor(initialProgress: Float) {
         } else {
             travel * (1f - own)
         }
-        return if (limit <= 0f) 0f else limit * (1f - 1f / (p * PushBand / limit + 1f))
+        return banded(p, limit, PushBand)
     }
 
     /** How far a push moves the content under a following bar: up, with the bar's foot. */

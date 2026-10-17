@@ -2,6 +2,7 @@ package io.kontour.ui.theme
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.ui.graphics.Color
 
 /**
  * What something is saying about itself, from routine to urgent.
@@ -63,4 +64,18 @@ internal fun toneColours(tone: Tone): StatusColours = when (tone) {
     Tone.Warning -> Theme.colours.warning
     Tone.Danger -> Theme.colours.danger
     Tone.Accent -> Theme.colours.accent
+}
+
+/**
+ * What text in [tone] is lettered in on its container: a tag's words, and a
+ * word a sentence marks in a tone. The neutral's is the muted ink, so it reads
+ * as a label rather than as something said.
+ */
+internal fun ColourScheme.toneInk(tone: Tone): Color = when (tone) {
+    Tone.Neutral -> contentMuted
+    Tone.Info -> info.onContainer
+    Tone.Accent -> accent.onContainer
+    Tone.Success -> success.onContainer
+    Tone.Warning -> warning.onContainer
+    Tone.Danger -> danger.onContainer
 }

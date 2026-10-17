@@ -651,7 +651,7 @@ internal fun eventDescription(event: CalendarEvent, formats: LocaleFormats, stri
  * moved, so the two say the same thing.
  */
 internal fun eventWhen(start: LocalDateTime, end: LocalDateTime, allDay: Boolean, formats: LocaleFormats, strings: Strings): List<String> {
-    val lastDay = if (end > start) end.plusMinutes(-1).date else start.date
+    val lastDay = lastDayOf(start, end)
     val days = if (lastDay == start.date) {
         formats.date(start.date, DateStyle.Full)
     } else {
