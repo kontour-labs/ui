@@ -179,6 +179,15 @@ class PseudoLocaleSweepTest {
         val templates = callerTemplates("""Text("Photo ${'$'}{page + 1}") ; Text("${'$'}a, ${'$'}b")""")
         assertEquals(null, strayIn("Photo 2", emptySet(), templates), "a specimen's templated words were taken for the component's")
         assertTrue(strayIn("4, 5", emptySet(), templates) != null, "a template of values alone hid a comma written between them")
+        // A template is found as whole words, not inside a longer one, so the
+        // literal it would have cut into is still taken out whole.
+        val minutes = callerTemplates("""Text("${'$'}it min")""")
+        assertEquals(
+            null,
+            strayIn("Every 15 minutes until 11pm", setOf("Every 15 minutes until 11pm"), minutes),
+            "a template cut into a specimen's own words",
+        )
+        assertEquals(null, strayIn("15 min", emptySet(), minutes), "a template no longer takes out its own words")
     }
 
     /**
@@ -224,7 +233,8 @@ class PseudoLocaleSweepTest {
      * The specimen's templated words, each as a pattern with its values left
      * open, so `"Photo ${page + 1}"` takes "Photo 2" out whole: the number is
      * the specimen's, not the component's. Only templates with a word of their
-     * own, so `"$a, $b"` hides no comma a component wrote between two values.
+     * own, so `"$a, $b"` hides no comma a component wrote between two values,
+     * and only whole words, so `"$it min"` is not found inside "15 minutes".
      */
     private fun callerTemplates(source: String): List<Regex> =
         Regex("""("(?:[^"\\]|\\.)*")""").findAll(source)
@@ -233,7 +243,9 @@ class PseudoLocaleSweepTest {
             .mapNotNull { literal ->
                 val parts = literal.split(Template)
                 if (parts.none { part -> part.any { it.isLetter() } }) return@mapNotNull null
-                Regex(parts.joinToString("""[^\s,.;:/]+""") { Regex.escape(it) })
+                // Whole words only: `"$it min"` took "15 min" out of "15
+                // minutes until 11pm", and left the "11" for a stray.
+                Regex(WordStart + parts.joinToString("""[^\s,.;:/]+""") { Regex.escape(it) } + WordEnd)
             }
             .toList()
 
@@ -281,5 +293,9 @@ class PseudoLocaleSweepTest {
 
         /** A string template's value, `$name` or `${expression}`. */
         val Template = Regex("""\$\{[^}]*}|\$[A-Za-z_][A-Za-z0-9_]*""")
+
+        /** Where a templated word may start and end: not inside another word. */
+        const val WordStart = """(?<![\p{L}\p{N}])"""
+        const val WordEnd = """(?![\p{L}\p{N}])"""
     }
 }

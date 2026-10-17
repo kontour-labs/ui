@@ -21,7 +21,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
  * chart or a row left showing its actions.
  *
  * ```kotlin
- * Chart(…, modifier = Modifier.onPressOutside(enabled = selection.x != null) { selection.clear() })
+ * Row(Modifier.onPressOutside(enabled = chosen != null) { chosen = null }) { … }
  * ```
  *
  * The press is only watched, never taken, so it goes on to do what it was
