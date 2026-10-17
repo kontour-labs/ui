@@ -192,6 +192,11 @@ On `main`, and in the next release.
 
 ### Changed
 
+- **A lone coach mark is a tour's bubble.** `Modifier.coachmark` and a tour's
+  steps drew their bubbles apart, and only the tour's way on was filled in the
+  bubble's ink, where a ghost button on the accent read as words. "Got it" is
+  filled now, and a tour's step scrolls when its words run past the room beside
+  what it points at, as a lone mark's did.
 - **An app on the web is about 18 KB smaller.** Six small regular expressions
   in the theme's formats, plurals and keyboard handling brought a
   regular-expression engine into every web app. Each is a loop now, with the

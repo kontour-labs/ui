@@ -581,53 +581,16 @@ private fun CoachMarkBubble(
     dismissLabel: String,
     onDismiss: () -> Unit,
 ) {
-    val announced = Theme.strings.sentences(listOf(title, message))
-    Surface(
-        modifier = Modifier
-            .widthIn(max = 320.dp)
-            .semantics(mergeDescendants = true) { contentDescription = announced },
-        shape = Theme.shapes.container,
-        containerColour = colours.container,
-        contentColour = colours.content,
-        shadow = Theme.elevation.overlay,
+    // The tour's bubble, with the one way on a lone mark has: acknowledging
+    // rather than ending, and filled, as the tour's is.
+    CoachmarkPanel(
+        title = title,
+        message = message,
+        icon = icon,
+        colours = colours,
+        said = Theme.strings.sentences(listOf(title, message)),
     ) {
-        // As `TooltipBubble` above: bounded to its side, so it needs somewhere for
-        // the overflow to go. A coach mark carries a title *and* a paragraph, so it
-        // is the likelier of the two to want it.
-        Column(
-            modifier = Modifier
-                .verticalScroll(rememberScrollState(), flingBehavior = ScrollDefaults.flingBehavior())
-                .padding(Theme.spacing.md),
-            verticalArrangement = Arrangement.spacedBy(Theme.spacing.xxs),
-        ) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                if (icon != null) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        size = Theme.sizing.iconMedium,
-                    )
-                }
-                Text(title, style = Theme.typography.titleSmall)
-            }
-            Text(message, style = Theme.typography.bodySmall)
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = Theme.spacing.xxs),
-                horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs, Alignment.End),
-            ) {
-                Button(
-                    onClick = onDismiss,
-                    variant = ButtonVariant.Ghost,
-                    // Ghost takes its label from LocalContentColour, which the
-                    // bubble's Surface has already set to the tone's ink.
-                    size = ButtonSize.Small,
-                ) { +dismissLabel }
-            }
-        }
+        Box(Modifier.weight(1f))
+        CoachmarkOnward(label = dismissLabel, colours = colours, onClick = onDismiss)
     }
 }
