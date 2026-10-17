@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -131,27 +132,32 @@ internal fun SeriesSwatch(model: ChartModel, series: ChartSeries, colours: Chart
 
 /**
  * A square of [look]'s fill, its pattern over its colour: a bar's, an area's
- * or a sector's key. The library's own [fillPattern] and [contrastEdge], so a
- * swatch is hatched as an event on a calendar is, and edged at the high
- * contrast tier as an activity calendar's key is.
+ * or a sector's key, hatched by the library's own [fillPattern] as an event on
+ * a calendar is.
+ *
+ * No edge at the high contrast tier: the series' colours hold 4.5:1 against
+ * the ground there already, and a 12dp swatch given one was mostly edge, its
+ * colour and its pattern a speck inside a grey ring. Its corners a quarter of
+ * its side, as the legend's were; the theme's smallest shape made it a circle.
  */
 @Composable
 internal fun FillSwatch(look: SeriesLook, colours: ChartColours) {
-    val shape = Theme.shapes.extraSmall
-    val edge = contrastEdge()
     Box(
         Modifier
             .size(SwatchSize)
-            .background(look.colour, shape)
-            .fillPattern(look.fill, colours.patternInk, shape, SwatchTile)
-            .then(if (edge != null) Modifier.border(edge, shape) else Modifier),
+            .background(look.colour, SwatchShape)
+            .fillPattern(look.fill, colours.patternInk, SwatchShape, SwatchTile),
     )
 }
 
-/** A square of one [shade]: a heat map cell's key, in its tooltip. */
+/**
+ * A square of one [shade]: a heat map cell's key, in its tooltip. Edged at the
+ * high contrast tier, unlike a series' swatch, since the pale end of the ramp
+ * does not hold contrast against the ground.
+ */
 @Composable
 internal fun ShadeSwatch(shade: Color) {
-    val shape = Theme.shapes.extraSmall
+    val shape = SwatchShape
     val edge = contrastEdge()
     Box(
         Modifier
@@ -168,6 +174,9 @@ internal fun ShadeSwatch(shade: Color) {
  */
 private val SwatchSize = 12.dp
 private val LineSwatchWidth = 20.dp
+
+/** A swatch's corners, a quarter of its side, as the legend's always were: a square that reads as one. */
+private val SwatchShape = RoundedCornerShape(percent = 25)
 
 /** A heat map key's ramp: long enough to see its shades change, short enough to sit in a legend's line. */
 private val ScaleWidth = 72.dp

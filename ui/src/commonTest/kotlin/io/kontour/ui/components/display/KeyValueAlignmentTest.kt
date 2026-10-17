@@ -6,6 +6,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.compose.ui.unit.dp
@@ -107,7 +108,12 @@ class KeyValueAlignmentTest {
         waitForIdle()
         val list = onNodeWithTag("list").fetchSemanticsNode().boundsInRoot
         assertTrue(list.width < 300f, "a compact list took ${list.width}px of a 420dp box")
-        fun left(tag: String) = onNodeWithTag(tag, useUnmergedTree = true).fetchSemanticsNode().boundsInRoot.left
+        // A compact list composes its values once more to measure them, a copy
+        // that is never placed and that a screen reader never hears (see
+        // `Measured`), but that the unmerged tree still holds. The one placed
+        // is the one on the screen.
+        fun left(tag: String) = onAllNodesWithTag(tag, useUnmergedTree = true).fetchSemanticsNodes()
+            .single { it.layoutInfo.isPlaced }.boundsInRoot.left
         assertTrue(abs(left("short") - left("long")) < 1f, "a compact list's values are not one column")
     }
 }

@@ -38,20 +38,23 @@ object ChartDefaults {
         selection: Color = Theme.colours.contentMuted,
         patternInk: Color = Theme.colours.background.copy(alpha = PatternInkAlpha),
         ground: Color = LocalContainerColour.current.takeOrElse { Theme.colours.background },
-        ramp: List<Color> = ramp(),
+        ramp: List<Color> = ramp(full = series.firstOrNull() ?: seriesColours().first()),
     ): ChartColours = ChartColours(series, grid, axis, label, selection, patternInk, ground, ramp)
 
     /**
-     * A heat map's shades, from [empty] to [full]: an activity calendar's, its
-     * first a step clear of [empty] so the least value is plainly a value, and
-     * from the theme, so it follows dark mode and the contrast tier. A heat map
-     * and an activity calendar on one screen shade alike.
+     * A heat map's shades, from [empty] to [full], blended as an activity
+     * calendar's are, the first a step clear of [empty] so the least value is
+     * plainly a value. [full] is the first series' colour, so a heat map is in
+     * the charts' colours beside them, and follows dark mode and the contrast
+     * tier with the palette. It was the theme's primary, an activity
+     * calendar's, which in the library's own theme is an ink near black: a heat
+     * map beside violet bars read as a different component.
      */
     @Composable
     @ReadOnlyComposable
     fun ramp(
         empty: Color = Theme.colours.surfaceSunken,
-        full: Color = Theme.colours.primary,
+        full: Color = seriesColours().first(),
     ): List<Color> = withoutEmpty(ActivityCalendarDefaults.colours(levels = RampStops, empty = empty, full = full).levels)
 
     /**
