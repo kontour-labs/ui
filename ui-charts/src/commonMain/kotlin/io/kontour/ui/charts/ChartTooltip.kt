@@ -32,15 +32,20 @@ internal class TooltipRow(val colour: Color, val name: String, val value: String
 @Composable
 internal fun ContentScope.ChartTooltipBody(title: String?, rows: List<TooltipRow>) {
     val spacing = Theme.spacing
+    // The bubble's slots, called on it by name: inside a row or a column of
+    // its own, its `+` is the bubble's and not the row's.
+    val slots = this
     Column(verticalArrangement = Arrangement.spacedBy(spacing.xxs)) {
-        if (!title.isNullOrBlank()) +AnnotatedString(title, SpanStyle(fontWeight = FontWeight.SemiBold))
+        if (!title.isNullOrBlank()) with(slots) { +AnnotatedString(title, SpanStyle(fontWeight = FontWeight.SemiBold)) }
         rows.forEach { row ->
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(spacing.xs)) {
                 // Not through `+`: a slot's painter takes the slot's ink, and
                 // this is the one mark here whose colour is the point.
                 Box(Modifier.size(Theme.sizing.iconSmall / 2).background(row.colour, Theme.shapes.extraSmall))
-                if (row.name.isNotBlank()) +row.name
-                +AnnotatedString(row.value, SpanStyle(fontWeight = FontWeight.SemiBold))
+                with(slots) {
+                    if (row.name.isNotBlank()) +row.name
+                    +AnnotatedString(row.value, SpanStyle(fontWeight = FontWeight.SemiBold))
+                }
             }
         }
     }
