@@ -7,9 +7,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.absoluteOffset
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -23,7 +23,7 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.ui.Alignment
+import androidx.compose.ui.AbsoluteAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.Color
@@ -360,9 +360,12 @@ private fun SideSheetPanel(
     val density = LocalDensity.current
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
 
-    // Physical edge, once the layout direction has been applied.
+    // Physical edge, once the layout direction has been applied, and so placed
+    // and slid by physical edges: `CenterEnd` and `offset` apply the direction
+    // a second time, and right to left an end sheet came in at the start,
+    // across the content it was meant to sit beside.
     val fromRight = (side == SheetSide.End) != isRtl
-    val alignment = if (fromRight) Alignment.CenterEnd else Alignment.CenterStart
+    val alignment = if (fromRight) AbsoluteAlignment.CenterRight else AbsoluteAlignment.CenterLeft
     val travel = with(density) { width.toPx() }
     // Under reduced motion the panel fades where it will rest instead of
     // sliding the width of itself across the window: the host's progress
@@ -415,7 +418,7 @@ private fun SideSheetPanel(
                 .fillMaxHeight()
                 // Read in placement, so opening and closing re-place the sheet
                 // without measuring or recomposing it.
-                .offset {
+                .absoluteOffset {
                     val slides = !fadeInPlace || dragged.value
                     val hidden = if (slides) travel * (1f - progress().coerceIn(0f, 1f)) else 0f
                     IntOffset(x = (if (fromRight) hidden else -hidden).roundToInt(), y = 0)
@@ -435,8 +438,9 @@ private fun SideSheetPanel(
                 }
         ) {
             // Mirrored for a start-side sheet, so the rounded edge is always the
-            // one facing the content rather than the window edge.
-            val panelShape = if (fromRight) shape else shape.mirrorHorizontally()
+            // one facing the content rather than the window edge. By side, not
+            // by physical edge: the shape's corners follow the direction already.
+            val panelShape = if (side == SheetSide.End) shape else shape.mirrorHorizontally()
             PanelGround(panelShape, containerColour, contentColour) {
                 CompositionLocalProvider(LocalSheetState provides null) {
                     Column(
