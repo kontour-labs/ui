@@ -108,6 +108,9 @@ class DocumentTabsTest {
     fun aMiddleClickClosesATab() = runComposeUiTest {
         strip()
         onNodeWithText("Route map").performMouseInput {
+            // A mouse starts where the last one left off, or at the window's
+            // corner: brought over the tab first, as a hand brings it.
+            moveTo(center)
             press(MouseButton.Tertiary)
             release(MouseButton.Tertiary)
         }

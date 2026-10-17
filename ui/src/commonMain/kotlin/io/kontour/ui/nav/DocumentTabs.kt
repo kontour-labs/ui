@@ -441,10 +441,13 @@ fun <T : Any> DocumentTabs(
                     )
                 }
                 if (onAdd != null) {
+                    // Level with the tabs' labels, which sit below the gap at
+                    // the strip's top, not with the strip's middle.
                     IconButton(
                         onClick = onAdd,
                         icon = addIcon,
                         contentDescription = addLabel,
+                        modifier = Modifier.padding(top = Theme.spacing.xs),
                         enabled = enabled,
                         size = ButtonSize.Small,
                     )
