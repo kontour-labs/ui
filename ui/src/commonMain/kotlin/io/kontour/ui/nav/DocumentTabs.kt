@@ -5,6 +5,7 @@ import androidx.compose.animation.core.AnimationVector1D
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.indication
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -576,26 +577,28 @@ private fun DragItemScope.DocumentTab(
         // As tall as the strip's tabs are, and no taller: a lazy row offers its
         // items all the height it was given, and a tab that filled it took
         // every pixel below the strip in a column with it.
+        //
+        // Pressed across the strip's whole height, the gap at its top
+        // included, which is already a finger's: the touch target reserves
+        // nothing more, and the tab is drawn at the same height on a phone as
+        // on a desktop. Under the gap, the tab it draws — its focus ring, its
+        // clip and its press — are the body's alone. Reserved below the gap,
+        // the target made a phone's tabs 8dp taller than a desktop's.
         Box(
             Modifier
                 .fillMaxWidth()
                 .heightIn(min = height)
-                .padding(top = inset)
                 .minimumTouchTarget()
                 .focusRequester(focus)
                 .focusProperties { canFocus = tabStop }
                 .onKeyEvent(onKey)
-                .focusRing(interactions, body)
-                .clip(body.clipProxy())
                 .pointerCursor(enabled = enabled)
                 .webRole(WebRole.Tab, selected)
                 .middleClick(enabled = enabled && onClose != null) { onClose?.invoke(true) }
                 .selectable(
                     selected = selected,
                     interactionSource = interactions,
-                    // No shrink: the tab rises into the page as it is chosen,
-                    // and a tab that also flinched would be two answers to one press.
-                    indication = kontourIndication(body, pressScale = 1f),
+                    indication = null,
                     enabled = enabled,
                     role = Role.Tab,
                     onClick = onSelect,
@@ -607,7 +610,13 @@ private fun DragItemScope.DocumentTab(
                             onClose?.let { close -> CustomAccessibilityAction(closeLabel) { close(false); true } },
                         )
                     }
-                },
+                }
+                .padding(top = inset)
+                .focusRing(interactions, body)
+                .clip(body.clipProxy())
+                // No shrink: the tab rises into the page as it is chosen, and a
+                // tab that also flinched would be two answers to one press.
+                .indication(interactions, kontourIndication(body, pressScale = 1f)),
         ) {
             TabFace(
                 label = label,
