@@ -116,12 +116,10 @@ internal fun DrawScope.drawChart(
     // None under a stream, whose middle is no zero, or a heat map, which
     // stands on nothing.
     val grounded = !chart.y.centred && chart.layers.none { it.mark.kind == MarkKind.Cell }
-    if (!grounded) {
-        Unit
-    } else if (chart.horizontal) {
+    if (grounded && chart.horizontal) {
         val zero = if (chart.x.low <= 0.0 && chart.x.high >= 0.0) m.px(0.0) else if (frame.rtl) plot.right else plot.left
         drawLine(colours.axis, Offset(zero, plot.top), Offset(zero, plot.bottom), config.hairline)
-    } else {
+    } else if (grounded) {
         val zero = if (chart.y.kind == AxisKind.Number && chart.y.low <= 0.0 && chart.y.high >= 0.0) m.py(0.0) else plot.bottom
         drawLine(colours.axis, Offset(plot.left, zero), Offset(plot.right, zero), config.hairline)
     }
