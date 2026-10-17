@@ -475,6 +475,14 @@ private fun <X : Any> ChartPlot(
             }
             .then(input),
     ) { measurables, constraints ->
+        // Its size is the one it is given. Asked for its intrinsic size, inside
+        // a `FlowRow` or under `IntrinsicSize`, it is measured unbounded, and it
+        // was as wide as `Int.MAX_VALUE`, which no layout may be. A drawing has
+        // no size of its own, so it answers with its least, and leaves the
+        // frame it draws alone: a frame laid out at nothing, kept, is a blank.
+        if (!constraints.hasBoundedWidth || !constraints.hasBoundedHeight) {
+            return@Layout layout(constraints.minWidth, constraints.minHeight) {}
+        }
         val width = constraints.maxWidth
         val height = constraints.maxHeight
         val laidOut = layOutFrame(

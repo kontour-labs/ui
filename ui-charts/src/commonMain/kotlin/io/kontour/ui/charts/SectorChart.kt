@@ -388,8 +388,12 @@ fun SectorChart(
                 },
                 modifier = Modifier.fillMaxSize(),
             ) { measurables, constraints ->
-                val width = constraints.maxWidth
-                val height = constraints.maxHeight
+                // Its size is the one it is given. Asked for its intrinsic
+                // size it is measured unbounded, inside a `FlowRow` or under
+                // `IntrinsicSize`, and was as wide as `Int.MAX_VALUE`, which no
+                // layout may be: a drawing has no size of its own to answer.
+                val width = if (constraints.hasBoundedWidth) constraints.maxWidth else constraints.minWidth
+                val height = if (constraints.hasBoundedHeight) constraints.maxHeight else constraints.minHeight
                 val boxes = geometry.boxes(width.toFloat(), height.toFloat())
                 val nodes = parts.indices.map { index ->
                     val box = boxes[index]
