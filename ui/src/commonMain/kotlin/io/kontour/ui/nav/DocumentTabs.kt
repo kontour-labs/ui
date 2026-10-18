@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -37,6 +38,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
@@ -252,7 +254,19 @@ fun <T : Any> DocumentTabs(
         known.mapIndexedNotNull { i, (key, item) ->
             if (key in keySet || key == held || strip.leaving.any { it.key == key }) return@mapIndexedNotNull null
             val after = known.drop(i + 1).firstOrNull { it.first in keySet }?.first
-            Leaving(key, item, after, Animatable(1f))
+            // As it was drawn last: chosen or not, with its × or not, and as
+            // wide. The strip's share grows as it goes, and a tab that grew with
+            // it, or lost its ×, moved its title as it shrank.
+            val wasSelected = key == strip.selectedWas
+            Leaving(
+                key = key,
+                item = item,
+                after = after,
+                whole = strip.widthWas,
+                selected = wasSelected,
+                showedClose = wasSelected || key == strip.hovered || strip.widthWas >= CloseShownFrom,
+                fraction = Animatable(1f),
+            )
         }
     }
     val knownKeys = known.mapTo(HashSet()) { it.first }
@@ -261,6 +275,7 @@ fun <T : Any> DocumentTabs(
         strip.leaving.addAll(goingNow)
         strip.leaving.removeAll { it.key in keySet }
         strip.known = keys.zip(items)
+        strip.selectedWas = selectedKey
         strip.seeded = true
     }
     val ghosts = strip.leaving.filter { it.key !in keySet } + goingNow
@@ -333,6 +348,7 @@ fun <T : Any> DocumentTabs(
             val share = ((maxWidth - addRoom - foot * 2) / keys.size.coerceAtLeast(1)).coerceIn(minTabWidth, maxTabWidth)
             val width = animateDpAsState(strip.frozen ?: share, motion.sizeSpec(), label = "documentTabWidth")
             val showsCloseAt = remember(width) { derivedStateOf { width.value >= CloseShownFrom } }
+            SideEffect { strip.widthWas = width.value }
 
             val options = DragItemOptions(
                 movesOnItem = false,
@@ -349,22 +365,56 @@ fun <T : Any> DocumentTabs(
                             }
                             @Suppress("UNCHECKED_CAST")
                             val gone = ghost.item as T
+                            val whole = remember(ghost) { mutableStateOf(ghost.whole) }
+                            val inset = Theme.spacing.xs
                             Box(
                                 Modifier
-                                    .tabWidth(width, ghost.fraction)
+                                    // Cut where it ends as it narrows. Clipped inside
+                                    // the narrowing, the clip was the tab's whole
+                                    // width, and its title spilled out over the next.
+                                    .clipToBounds()
+                                    .tabWidth(whole, ghost.fraction)
                                     .heightIn(min = height)
-                                    .graphicsLayer { clip = true }
+                                    // Fading as it goes, ground and all, so nothing
+                                    // of it is gone in a frame.
+                                    .graphicsLayer { alpha = ghost.fraction.value }
+                                    .drawBehind {
+                                        val top = inset.toPx()
+                                        if (ghost.selected && size.height > top) {
+                                            val ground = body.createOutline(Size(size.width, size.height - top), layoutDirection, this)
+                                            translate(top = top) { drawOutline(ground, colours.selectedContainer) }
+                                        }
+                                    }
                                     .clearAndSetSemantics {}
                                     // Below the gap at the strip's top, as the tab it was.
-                                    .padding(top = Theme.spacing.xs),
+                                    .padding(top = inset),
                             ) {
                                 TabFace(
                                     label = state.itemLabel(gone),
-                                    colour = if (enabled) colours.content else Theme.colours.contentDisabled,
+                                    colour = when {
+                                        !enabled -> Theme.colours.contentDisabled
+                                        ghost.selected -> colours.selectedContent
+                                        else -> colours.content
+                                    },
                                     foot = foot,
-                                    height = height - Theme.spacing.xs,
+                                    height = height - inset,
                                     leading = leading?.let { slot -> @Composable { slot(gone) } },
-                                    close = null,
+                                    // Its × stays, so its title keeps the room it had;
+                                    // pressed, it closes nothing, which has gone.
+                                    close = if (ghost.showedClose) {
+                                        {
+                                            IconButton(
+                                                onClick = {},
+                                                icon = closeIcon,
+                                                contentDescription = closeLabel(state.itemLabel(gone)),
+                                                enabled = enabled,
+                                                size = ButtonSize.XSmall,
+                                                modifier = Modifier.focusProperties { canFocus = false },
+                                            )
+                                        }
+                                    } else {
+                                        null
+                                    },
                                 )
                             }
                         }
@@ -455,15 +505,18 @@ fun <T : Any> DocumentTabs(
                 if (onAdd != null) {
                     // In the square the tabs' share leaves it, in the middle of
                     // it: flush with the strip's end, its edge at high contrast
-                    // ran into the strip's. Level with the tabs' labels, which sit
-                    // below the gap at the strip's top, not with the strip's middle.
-                    // And no taller than the strip, as the tabs' × are not.
-                    Box(Modifier.width(addRoom).heightIn(max = height), contentAlignment = Alignment.Center) {
+                    // ran into the strip's. And held as a tab's face holds its ×,
+                    // below the gap at the strip's top in a box the face's height,
+                    // so the two are level by construction, whatever a platform's
+                    // touch target makes of either button.
+                    Box(
+                        Modifier.width(addRoom).height(height).padding(top = Theme.spacing.xs),
+                        contentAlignment = Alignment.Center,
+                    ) {
                         IconButton(
                             onClick = onAdd,
                             icon = addIcon,
                             contentDescription = addLabel,
-                            modifier = Modifier.padding(top = Theme.spacing.xs),
                             enabled = enabled,
                             size = ButtonSize.Small,
                         )
@@ -534,23 +587,28 @@ private fun DragItemScope.DocumentTab(
 
     Box(
         Modifier
+            // A tab growing or shrinking shows as much of itself as it has room
+            // for: clipped outside the narrowing, where its bounds are that room.
+            .graphicsLayer { clip = grow.value < 1f; shape = RectangleShape }
             .tabWidth(width, grow)
             .heightIn(min = height)
             .drawBehind {
                 val top = inset.toPx()
                 val line = hairline.toPx()
-                // Carried, the tab is lifted off its strip: a tab on its own,
-                // grounded whether or not it was the selected one, and with
-                // neither the feet that join it to the page nor the hairline
-                // that parts it from the tab before. The host edges it at the
-                // high contrast tier, as it edges anything carried.
-                val lifted = isDragging
-                if (lifted && size.height > top) {
+                // Carried along its strip, the tab is still on it, and drawn as
+                // it is there, feet and all. Pulled clear, it is a tab on its
+                // own: a plain ground, with neither the feet that join it to the
+                // page nor an edge, which the host draws round anything carried.
+                // And grounded whenever it is carried, chosen or not, so it is
+                // never a title floating over the others.
+                val free = isDragging && host?.session?.riding == null
+                if (isDragging && (free || !selected) && size.height > top) {
                     val ground = body.createOutline(Size(size.width, size.height - top), layoutDirection, this)
                     translate(top = top) { drawOutline(ground, colours.selectedContainer) }
                     return@drawBehind
                 }
-                if (separates) {
+                // Nor does it bring the hairline that parted it from the tab before.
+                if (separates && !isDragging) {
                     val x = if (layoutDirection == LayoutDirection.Ltr) 0f else size.width
                     val reach = (size.height - top) * SeparatorShare
                     val middle = top + (size.height - top) / 2
@@ -571,9 +629,7 @@ private fun DragItemScope.DocumentTab(
                         }
                     }
                 }
-            }
-            // A tab growing or shrinking shows as much of itself as it has room for.
-            .graphicsLayer { clip = grow.value < 1f; shape = RectangleShape },
+            },
     ) {
         // As tall as the strip's tabs are, and no taller: a lazy row offers its
         // items all the height it was given, and a tab that filled it took
@@ -714,6 +770,10 @@ private class StripState {
 
     /** Each tab's key and item as the last composition applied them. */
     var known: List<Pair<Any, Any>> = emptyList()
+
+    /** The selected tab's key, and the tabs' width, as the last composition applied them: what a closing tab is drawn as. */
+    var selectedWas: Any? = null
+    var widthWas: Dp = 0.dp
     var seeded = false
     val leaving = mutableStateListOf<Leaving>()
     private val focus = HashMap<Any, FocusRequester>()
@@ -721,11 +781,18 @@ private class StripState {
     fun requester(key: Any): FocusRequester = focus.getOrPut(key) { FocusRequester() }
 }
 
-/** A closed tab, still drawn where it was, shrinking: [after] is the key of the tab it is before, or `null` at the end. */
+/**
+ * A closed tab, still drawn where it was, shrinking: [after] is the key of the
+ * tab it is before, or `null` at the end. [whole], [selected] and [showedClose]
+ * are how it was drawn as it went, which it keeps until it has gone.
+ */
 private class Leaving(
     val key: Any,
     val item: Any,
     val after: Any?,
+    val whole: Dp,
+    val selected: Boolean,
+    val showedClose: Boolean,
     val fraction: Animatable<Float, AnimationVector1D>,
 )
 

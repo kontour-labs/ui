@@ -61,6 +61,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.focusable
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
 import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.input.Cursor
 import io.kontour.ui.input.LocalInputModality
@@ -195,16 +196,53 @@ internal class DragHost {
         val bounds = list.target.boundsInRoot() ?: return at
         if (!bounds.inflate(reach).contains(at)) {
             current.riding = null
+            current.scrollProbe = null
             onTear(true)
             return at
         }
-        // Inside the list's own bounds, which are what is hit: right and bottom
-        // are its first pixels outside.
-        return if (list.orientation == Orientation.Horizontal) {
+        val horizontal = list.orientation == Orientation.Horizontal
+        // What scrolls the list is the pointer, held inside the list's own
+        // bounds — right and bottom are its first pixels outside — as it was
+        // when the pointer was what was held there.
+        current.scrollProbe = if (horizontal) {
             Offset(at.x.coerceIn(bounds.left, bounds.right - 1f), bounds.top + current.line)
         } else {
             Offset(bounds.left + current.line, at.y.coerceIn(bounds.top, bounds.bottom - 1f))
         }
+        // The thing itself, not the pointer, is kept between the list's ends:
+        // from where its first thing starts to where its last one ends. Held by
+        // the pointer, a tab grabbed at its start could be pushed its whole
+        // width past the end of its strip — over the "+" after the last tab.
+        val run = list.runAlong(if (horizontal) bounds.width else bounds.height)
+        val (lo, hi) = when {
+            !horizontal -> bounds.top + run.start to bounds.top + run.endInclusive
+            list.layoutDirection == LayoutDirection.Rtl -> bounds.right - run.endInclusive to bounds.right - run.start
+            else -> bounds.left + run.start to bounds.left + run.endInclusive
+        }
+        return if (horizontal) {
+            val left = (at.x - current.grab.x).coerceIn(lo, maxOf(lo, hi - current.size.width))
+            Offset(left + current.grab.x, bounds.top + current.line)
+        } else {
+            val top = (at.y - current.grab.y).coerceIn(lo, maxOf(lo, hi - current.size.height))
+            Offset(bounds.left + current.line, top + current.grab.y)
+        }
+    }
+
+    /**
+     * Where along this list its things run, from its start, in pixels of a list
+     * [length] long: from the first thing's start, past the padding before it,
+     * to the last one's end. Either end that has scrolled out of sight is the
+     * list's own.
+     */
+    private fun DropListState<*>.runAlong(length: Float): ClosedFloatingPointRange<Float> {
+        val info = listState.layoutInfo
+        val before = info.beforeContentPadding.toFloat()
+        val seen = info.visibleItemsInfo
+        val start = seen.firstOrNull()?.takeIf { it.index == 0 }?.let { before + it.offset } ?: 0f
+        val end = seen.lastOrNull()?.takeIf { it.index == info.totalItemsCount - 1 }
+            ?.let { before + seen.maxOf { item -> item.offset + item.size } } ?: length
+        val from = start.coerceIn(0f, length)
+        return from..end.coerceIn(from, length)
     }
 
     /** The list a free thing at [at] boards: one that rides its things, would take this one, and is under it. */
@@ -219,7 +257,8 @@ internal class DragHost {
         val current = session ?: return false
         // A keyboard carry moves by places, not by where a pointer is held.
         if (current.phase != DragPhase.Carrying || current.keyboard) return false
-        return regions.filter { it.enabled }.map { it.wantsToScroll(current.pointer, edge) }.any { it }
+        val probe = current.scrollProbe ?: current.pointer
+        return regions.filter { it.enabled }.map { it.wantsToScroll(probe, edge) }.any { it }
     }
 
     /**
@@ -229,12 +268,13 @@ internal class DragHost {
     fun autoScroll(now: Duration, frame: Duration, edge: Float, maxSpeed: Float, ramp: Duration): Boolean {
         val current = session ?: return false
         if (current.phase != DragPhase.Carrying) return false
+        val probe = current.scrollProbe ?: current.pointer
         val under = regions
             .filter { it.enabled }
-            .mapNotNull { region -> region.bounds()?.takeIf { it.contains(current.pointer) }?.let { region to it } }
+            .mapNotNull { region -> region.bounds()?.takeIf { it.contains(probe) }?.let { region to it } }
             .sortedBy { it.second.width * it.second.height }
         for ((region, _) in under) {
-            val step = region.step(current.pointer, edge, maxSpeed, ramp, now, frame)
+            val step = region.step(probe, edge, maxSpeed, ramp, now, frame)
             if (step == 0f) continue
             if (region.state.dispatchRawDelta(step) != 0f) {
                 retarget()
@@ -422,6 +462,14 @@ internal class DragSession(
 
     /** How far across [riding] the thing is held: from its top, or its start for a column. */
     var line: Float = 0f
+
+    /**
+     * Where what is under the thing is scrolled from, while it rides a list:
+     * the pointer, held inside the list. The thing is kept between the list's
+     * ends, and a tab held at its start would otherwise never come near the
+     * edge it is pushed against. `null` while it follows the pointer.
+     */
+    var scrollProbe: Offset? = null
     var phase: DragPhase by mutableStateOf(DragPhase.Carrying)
 
     /** Where in the target list it would land, counted without the source. */
@@ -919,8 +967,14 @@ internal fun DragLayer(host: DragHost) {
     // place, so it is flat by the time it gets there and the item it hands
     // over to, which casts no shadow, takes over without a step.
     val lift = remember(session) { Animatable(0f) }
+    // Not while it rides a list, as a tab rides its strip: there it is still on
+    // the page, flat and its own size, sliding along among the others, and it
+    // rises only as it comes away — and settles again boarding another.
     LaunchedEffect(session) {
-        lift.animateTo(1f, motion.springOrTween(motion.springSnappy))
+        snapshotFlow { session.phase to session.riding }.collectLatest { (phase, riding) ->
+            if (phase != DragPhase.Carrying) return@collectLatest
+            lift.animateTo(if (riding == null) 1f else 0f, motion.springOrTween(motion.springSnappy))
+        }
     }
 
     // Under the pointer while carried, with nothing between the two — or, carried
@@ -1038,7 +1092,8 @@ internal fun DragLayer(host: DragHost) {
                 shape = session.shape
                 clip = false
             }
-            .then(if (edge != null) Modifier.border(edge, session.shape) else Modifier)
+            // Riding a list, it is drawn as it is there, its own edge and all.
+            .then(if (edge != null && session.riding == null) Modifier.border(edge, session.shape) else Modifier)
             .drawWithContent { if (!session.source.gone) session.layer?.let { drawLayer(it) } },
     )
 }

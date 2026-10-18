@@ -79,7 +79,8 @@ the pointer and a row of tabs can be closed with one click after another.
 ### Opening and closing
 
 A tab grows in from nothing as it opens and shrinks away as it closes, the
-tabs after it sliding along with it. `onClose` is called at once: the tab is
+tabs after it sliding along with it. A closing tab keeps the look and the
+width it had, its × included, fading as it narrows and cut where it ends. `onClose` is called at once: the tab is
 drawn shrinking after it has gone from the caller's list, so the page under it
 can change straight away. Under reduced motion tabs appear and go at once.
 
@@ -89,8 +90,10 @@ Held and dragged along the strip, a tab slides the others aside, a detent felt
 as it passes each place, and lands where it is let go. A mouse picks it up as
 it moves; a finger holds it first, as a scrolling strip needs.
 
-A tab rides its strip, following the pointer along it but not off it, until
-the pointer is pulled clear of the strip, when it comes away and follows the
+A tab rides its strip, as a browser's does: it stays on the strip, flat and
+as it looks there, following the pointer along it, and goes no further than
+the first tab's start or the last tab's end, so never over the "+". Pulled
+clear of the strip, it comes away, lifting off the page, and follows the
 pointer anywhere. Carried into another strip of the same `DragType`, it rides
 that one, and dropped there, `onDrop` on that strip's state is told where it
 came from, as a card moved between a board's lists is. Two panes of a split

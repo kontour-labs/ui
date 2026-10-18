@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.key.Key
@@ -29,6 +30,8 @@ import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.dragdrop.DragType
 import io.kontour.ui.dragdrop.rememberDropListState
+import io.kontour.ui.input.InputModality
+import io.kontour.ui.input.LocalInputModality
 import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.theme.KontourTheme
 import kotlin.math.abs
@@ -49,32 +52,34 @@ class DocumentTabsTest {
     private val closed = mutableListOf<String>()
     private var chosen: String? = "Timetable"
 
-    private fun ComposeUiTest.strip(width: Int = 600, reduceMotion: Boolean = false, below: Boolean = false) {
+    private fun ComposeUiTest.strip(width: Int = 600, reduceMotion: Boolean = false, below: Boolean = false, touch: Boolean = false) {
         setContent {
             KontourTheme(reduceMotion = reduceMotion) {
-                OverlayHost {
-                    val state = rememberDropListState(
-                        listState = rememberLazyListState(),
-                        type = Document,
-                        items = documents,
-                        key = { it },
-                        label = "Open documents",
-                        itemLabel = { it },
-                        onDrop = {},
-                    )
-                    Column(Modifier.width(width.dp).height(400.dp)) {
-                        DocumentTabs(
-                            state = state,
-                            value = chosen,
-                            onValueChange = { chosen = it },
-                            onClose = { closing ->
-                                closed += closing
-                                documents.remove(closing)
-                            },
-                            onAdd = { documents.add("Untitled") },
-                            modifier = Modifier.testTag("strip"),
+                CompositionLocalProvider(LocalInputModality provides if (touch) InputModality.Touch else LocalInputModality.current) {
+                    OverlayHost {
+                        val state = rememberDropListState(
+                            listState = rememberLazyListState(),
+                            type = Document,
+                            items = documents,
+                            key = { it },
+                            label = "Open documents",
+                            itemLabel = { it },
+                            onDrop = {},
                         )
-                        if (below) Box(Modifier.fillMaxWidth().weight(1f).testTag("page"))
+                        Column(Modifier.width(width.dp).height(400.dp)) {
+                            DocumentTabs(
+                                state = state,
+                                value = chosen,
+                                onValueChange = { chosen = it },
+                                onClose = { closing ->
+                                    closed += closing
+                                    documents.remove(closing)
+                                },
+                                onAdd = { documents.add("Untitled") },
+                                modifier = Modifier.testTag("strip"),
+                            )
+                            if (below) Box(Modifier.fillMaxWidth().weight(1f).testTag("page"))
+                        }
                     }
                 }
             }
@@ -109,6 +114,29 @@ class DocumentTabsTest {
         val tall = with(density) { 100.dp.toPx() }
         assertTrue(strip.height < tall, "the strip took ${strip.height}px of the column's room")
         assertEquals(strip.bottom, page.top, 0.5f, "the page should start where the strip ends")
+    }
+
+    /**
+     * The "+" and a tab's × are level. On a touchscreen each icon button
+     * reserves a finger's 48dp, more than a tab's face has under the gap at
+     * the strip's top, and where each is held decides where that leaves it.
+     */
+    @Test
+    fun theAddButtonIsLevelWithTheCross() = runComposeUiTest {
+        strip()
+        assertAddLevelWithCross()
+    }
+
+    @Test
+    fun onATouchscreenTheAddButtonIsLevelWithTheCross() = runComposeUiTest {
+        strip(touch = true)
+        assertAddLevelWithCross()
+    }
+
+    private fun ComposeUiTest.assertAddLevelWithCross() {
+        val add = onNodeWithContentDescription("New tab").fetchSemanticsNode().boundsInRoot.center.y
+        val cross = onNodeWithContentDescription("Close Timetable").fetchSemanticsNode().boundsInRoot.center.y
+        assertEquals(cross, add, 0.5f, "the \"+\" is not level with the tabs' ×")
     }
 
     @Test

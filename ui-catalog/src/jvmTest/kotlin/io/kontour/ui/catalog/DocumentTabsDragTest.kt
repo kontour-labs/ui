@@ -28,6 +28,7 @@ import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.nav.DocumentTabs
 import io.kontour.ui.overlay.OverlayHost
+import java.awt.image.BufferedImage
 import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -139,6 +140,57 @@ class DocumentTabsDragTest {
         panes.assertEvenlySpaced("bottom")
     }
 
+    /**
+     * Carried along its strip towards the "+", a tab stops where the last tab
+     * ends and never covers it; and it is flat while it rides, as a browser's
+     * tab is, so nothing of a shadow falls on the page under the strip.
+     */
+    @Test
+    fun alongItsStripATabStaysBetweenItsEndsAndFlat() {
+        val panes = Panes(top = listOf("Timetable", "Fares", "Route map", "Lifts"), bottom = null, felt = mutableListOf(), adds = true)
+        panes.run { scene ->
+            val strip = panes.strips.getValue("top")
+            // The "+", in the square at the strip's end, and a band of the page under the strip.
+            val add = Rect(strip.right - strip.height, strip.top, strip.right, strip.bottom)
+            val under = Rect(strip.left, strip.bottom + 2f, strip.right, strip.bottom + 48f)
+            val before = scene.frame()
+            val grab = panes.glyph("top", "Lifts").center
+            // Towards the "+", the pointer just short of it.
+            val towards = Offset(add.left - 8f, grab.y)
+            scene.pickUp(grab)
+            scene.carry(grab, towards)
+            val during = scene.frame()
+            assertUnchanged(before, during, add, "the tab carried towards the end of its strip covered the \"+\"")
+            assertUnchanged(before, during, under, "the tab riding its strip cast a shadow on the page under it")
+            scene.release(towards, PointerType.Mouse)
+            scene.frames(40)
+        }
+        assertEquals(listOf("Timetable", "Fares", "Route map", "Lifts"), panes.top.items.toList())
+        assertTrue(panes.drops.isEmpty(), "let go in its own place, the tab was dropped: ${panes.drops.map { it.payload }}")
+    }
+
+    /**
+     * A closed tab shrinks away cut where it ends. Clipped inside its
+     * narrowing, it was clipped at its whole width, and its title spilled out
+     * over the start of the tab after it as that slid along into its place.
+     */
+    @Test
+    fun aClosedTabShrinksAwayCutWhereItEnds() {
+        val panes = Panes(top = listOf("Timetable", "Departures board", "Route map", "Lifts"), bottom = null, felt = mutableListOf())
+        panes.run { scene ->
+            onComposeUiThread { panes.top.items.remove("Departures board") }
+            repeat(16) { frame ->
+                val image = scene.frame()
+                val next = panes.glyph("top", "Route map")
+                // The start of the next tab, up to and over its glyph, which
+                // draws nothing: its own padding, where only a spill can be.
+                val start = Rect(next.left - 16f, next.top - 4f, next.right, next.bottom + 4f)
+                val spilt = image.inkIn(start)
+                assertEquals(0, spilt, "frame $frame: the closing tab's title spilled $spilt pixels onto the tab after it")
+            }
+        }
+    }
+
     // -----------------------------------------------------------------------
 
     private class Strip(initial: List<String>, val label: String) {
@@ -146,7 +198,12 @@ class DocumentTabsDragTest {
         var state: DropListState<String>? = null
     }
 
-    private inner class Panes(top: List<String>, bottom: List<String>?, val felt: MutableList<FeedbackIntent>) {
+    private inner class Panes(
+        top: List<String>,
+        bottom: List<String>?,
+        val felt: MutableList<FeedbackIntent>,
+        val adds: Boolean = false,
+    ) {
         val top = Strip(top, "Left pane")
         val bottom = bottom?.let { Strip(it, "Right pane") }
         val drops = mutableListOf<DropEvent<String>>()
@@ -204,6 +261,7 @@ class DocumentTabsDragTest {
                 value = strip.items.firstOrNull(),
                 onValueChange = {},
                 modifier = Modifier.fillMaxWidth().reportBounds { strips[name] = it },
+                onAdd = if (adds) ({}) else null,
                 leading = { tab -> Box(Modifier.size(16.dp).reportBounds { glyphs[name to tab] = it }) },
             )
         }
@@ -226,8 +284,46 @@ class DocumentTabsDragTest {
         frames(4)
     }
 
+    /** Fails with [message] if [area] of [after] is not as it was in [before], to the pixel or near it. */
+    private fun assertUnchanged(before: BufferedImage, after: BufferedImage, area: Rect, message: String) {
+        var differ = 0
+        area.pixels(before) { x, y ->
+            val a = before.getRGB(x, y)
+            val b = after.getRGB(x, y)
+            val most = maxOf(abs((a shr 16 and 0xff) - (b shr 16 and 0xff)), abs((a shr 8 and 0xff) - (b shr 8 and 0xff)), abs((a and 0xff) - (b and 0xff)))
+            if (most > ChannelSlack) differ++
+        }
+        assertTrue(differ <= PixelSlack, "$message: $differ pixels changed")
+    }
+
+    /** How many pixels of [area] are dark enough to be a title's ink on the strip's pale ground. */
+    private fun BufferedImage.inkIn(area: Rect): Int {
+        var ink = 0
+        area.pixels(this) { x, y ->
+            val rgb = getRGB(x, y)
+            val luma = 0.299f * (rgb shr 16 and 0xff) + 0.587f * (rgb shr 8 and 0xff) + 0.114f * (rgb and 0xff)
+            if (luma < InkLuma) ink++
+        }
+        return ink
+    }
+
+    private inline fun Rect.pixels(image: BufferedImage, each: (x: Int, y: Int) -> Unit) {
+        for (y in top.toInt().coerceAtLeast(0) until bottom.toInt().coerceAtMost(image.height)) {
+            for (x in left.toInt().coerceAtLeast(0) until right.toInt().coerceAtMost(image.width)) each(x, y)
+        }
+    }
+
     private companion object {
         val Document = DragType<String>("document")
+
+        /** A channel step that is rounding, not a change. */
+        const val ChannelSlack = 6
+
+        /** Pixels an edge may move by a subpixel. */
+        const val PixelSlack = 4
+
+        /** Darker than this is ink: a muted title is near 110, the strip's ground near 245. */
+        const val InkLuma = 170f
         const val Steps = 16
     }
 }

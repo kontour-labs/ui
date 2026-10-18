@@ -159,6 +159,37 @@ class DragTearOffTest {
         waitForIdle()
     }
 
+    /**
+     * Carried along its strip towards the end, the thing stops where the last
+     * one ends. It used to be the pointer that was kept on the strip, and a
+     * thing held at its start went its whole width past the end, over
+     * whatever came after: a document strip's "+".
+     */
+    @Test
+    fun carriedTowardsTheEndOfItsStripItStopsWhereTheLastEnds() = runComposeUiTest {
+        strips()
+        val strip = onNodeWithTag("top").fetchSemanticsNode().boundsInRoot
+        val end = strip.left + with(density) { (96.dp * 3).toPx() }
+        onNodeWithTag("A").performTouchInput {
+            down(center)
+            advanceEventTime(viewConfiguration.longPressTimeoutMillis + 100)
+            // Along to near the strip's own end, well past the last thing and
+            // still on the strip: the pointer, not the thing, inside it.
+            repeat(12) {
+                advanceEventTime(16)
+                moveBy(Offset(24.dp.toPx(), 0f))
+            }
+        }
+        waitForIdle()
+        val session = assertNotNull(host.session, "the hold did not pick the thing up, so this checks nothing")
+        assertSame(top, session.riding, "carried along its strip, the thing should still ride it")
+        val right = session.topLeft.x + session.size.width
+        assertTrue(right <= end + 0.5f, "the thing went past the end of the last one: it ends at $right, the last at $end")
+        assertTrue(session.topLeft.x >= strip.left - 0.5f, "the thing went before the strip's start")
+        onNodeWithTag("A").performTouchInput { up() }
+        waitForIdle()
+    }
+
     private companion object {
         val Tab = DragType<String>("tab")
         val TearOff = 32.dp
