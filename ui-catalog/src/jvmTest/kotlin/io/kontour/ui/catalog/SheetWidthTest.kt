@@ -294,9 +294,9 @@ class SheetWidthTest {
         } finally {
             scene.close()
         }
-        assertEquals((Wide * Density - Cap) / 2f, centred, "the modal sheet opened centred")
+        assertEquals((Wide * Density - ModalCap) / 2f, centred, "the modal sheet opened centred")
         assertEquals(
-            Wide * Density - Cap,
+            Wide * Density - ModalCap,
             sheetX,
             "the modal sheet stayed where it opened after its alignment changed to End — " +
                 "the parameter is being read from the entry captured when it was shown",
@@ -315,6 +315,9 @@ class SheetWidthTest {
 
         /** `BottomSheetDefaults.MaxWidth`, in this scene's pixels. */
         const val Cap = 480f * Density
+
+        /** `BottomSheetDefaults.ModalMaxWidth`, a modal sheet's wider cap, in this scene's pixels. */
+        const val ModalCap = 560f * Density
 
         /** Long enough for a reduced-motion open to come to rest. */
         const val Frames = 60
