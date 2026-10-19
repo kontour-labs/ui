@@ -158,6 +158,8 @@ private fun DragHost.placed(target: DropTarget) {
 internal fun DragHost.reachable(current: DragSession, layoutDirection: LayoutDirection): List<DropTarget> =
     targets
         .filter { it.enabled && it.type === current.type && it.layer >= blockedBelow && it.boundsInRoot() != null }
+        // A list that keeps its own is no way across, out of it or into it.
+        .filter { it.list === current.fromList || (current.fromList?.ownOnly != true && it.list?.ownOnly != true) }
         .sortedWith(
             compareBy<DropTarget> { (it.boundsInRoot() ?: Rect.Zero).top.toInt() / RowBand }
                 .thenBy { (it.boundsInRoot() ?: Rect.Zero).left.let { left -> if (layoutDirection == LayoutDirection.Rtl) -left else left } },
@@ -222,9 +224,11 @@ internal fun DragHost?.movesFor(
     // card's — or one that leaves offers the moves again. Read in composition
     // it did nothing, since the block it fed was the same block every time.
     host.attached.size
+    // A list that keeps its own offers its items no move out, and is offered none in.
+    if (list?.ownOnly == true) return@buildList
     val probe = DragSession.probe(spec)
     for (target in host.offered(probe, layoutDirection)) {
-        if (target === list?.target || !target.accepts(spec.payload)) continue
+        if (target === list?.target || target.list?.ownOnly == true || !target.accepts(spec.payload)) continue
         add(CustomAccessibilityAction(strings.moveTo(target.label)) { host.dropAt(spec, target, null) })
     }
 }

@@ -71,8 +71,8 @@ On `main`, and in the next release.
   page by feet that curve into it; the others sit flat, each with a ×, and a
   "+" opens another. Tabs grow in as they open and shrink away as they close,
   share the width down to a minimum and then scroll, and drag: along the strip
-  with a detent at each place, or pulled off it into another strip, as a split
-  view's panes exchange them. Middle click, Delete, the arrow keys and a screen
+  with a detent at each place, or, with `movesBetweenStrips`, pulled off it into
+  another strip, as a split view's panes exchange them. Middle click, Delete, the arrow keys and a screen
   reader's actions all work.
 - **`KeyValueList(compact = true)`**, for a small container of its own: the
   rows take the style around them and the list is as wide as its rows. A

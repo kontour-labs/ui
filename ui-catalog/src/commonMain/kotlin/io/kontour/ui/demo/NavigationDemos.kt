@@ -764,9 +764,9 @@ internal val DocumentTabsDemo = ComponentDemo(
     )
 
     Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.md)) {
-        DocumentPane(strips[0]!!, left, closes, adds, Modifier.weight(1f)) { OpenDocument(next++, "Untitled", Tabler.Outline.Plus) }
+        DocumentPane(strips[0]!!, left, closes, adds, split, Modifier.weight(1f)) { OpenDocument(next++, "Untitled", Tabler.Outline.Plus) }
         if (split) {
-            DocumentPane(strips[1]!!, right, closes, adds, Modifier.weight(1f)) { OpenDocument(next++, "Untitled", Tabler.Outline.Plus) }
+            DocumentPane(strips[1]!!, right, closes, adds, split, Modifier.weight(1f)) { OpenDocument(next++, "Untitled", Tabler.Outline.Plus) }
         }
     }
 }
@@ -778,6 +778,7 @@ private fun DocumentPane(
     documents: MutableList<OpenDocument>,
     closes: Boolean,
     adds: Boolean,
+    split: Boolean,
     modifier: Modifier,
     untitled: () -> OpenDocument,
 ) {
@@ -808,6 +809,8 @@ private fun DocumentPane(
             } else {
                 null
             },
+            // Between the two panes only when there are two.
+            movesBetweenStrips = split,
             leading = { document -> Icon(document.icon, contentDescription = null) },
         )
         Surface(Modifier.fillMaxWidth().height(160.dp), containerColour = Theme.colours.surface) {

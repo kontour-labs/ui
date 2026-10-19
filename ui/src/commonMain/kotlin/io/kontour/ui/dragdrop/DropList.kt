@@ -83,6 +83,15 @@ class DropListState<T : Any> internal constructor(
      */
     internal var tearOff: Float? = null
 
+    /**
+     * Whether this list's items stay in it and it takes no one else's: a
+     * strip of document tabs that only reorders, which is the default for
+     * one. Its items are offered no move to another list, carried by keys or
+     * by a reader, and it is offered none of another list's, nor boarded by a
+     * thing carried off one. With [tearOff] at infinity, it is never left.
+     */
+    internal var ownOnly: Boolean = false
+
     /** The host, for which of this list's own items is carried. */
     internal var host: DragHost? = null
 
@@ -199,7 +208,13 @@ class DropListState<T : Any> internal constructor(
 
     internal val target: DropTarget = object : DropTarget(type, label) {
         @Suppress("UNCHECKED_CAST")
-        override fun accepts(payload: Any): Boolean = accepting(payload as T)
+        override fun accepts(payload: Any): Boolean {
+            val from = host?.session?.fromList
+            // A list that keeps its own takes nothing from another, and gives
+            // nothing to one.
+            if (from != null && from !== this@DropListState && (ownOnly || from.ownOnly)) return false
+            return accepting(payload as T)
+        }
 
         override fun over(session: DragSession, pointerInRoot: Offset) = this@DropListState.over(session)
 
@@ -338,6 +353,33 @@ class DropListState<T : Any> internal constructor(
         val positions = HashMap<Any, Int>(items.size)
         items.forEachIndexed { index, item -> positions[key(item)] = index }
 
+        val count = count(session)
+        // A thing riding this list, as a tab rides its strip, is kept between
+        // the list's ends, so its centre never reaches the middle of the first
+        // item: a second tab could not be put before the first. It is judged by
+        // its edges instead, as a browser's tabs are: it takes a neighbour's
+        // place once it covers [EdgeShare] of it.
+        val gap = gapIndex
+        if (session.riding === this && gap != null) {
+            val size = if (vertical) session.size.height else session.size.width
+            val start = probe - size / 2f
+            val end = probe + size / 2f
+            var index = gap
+            for (item in info.visibleItemsInfo) {
+                val at = positions[item.key] ?: continue
+                if (at == from) continue
+                val place = if (from != null && at > from) at - 1 else at
+                if (place < gap) {
+                    if (start < item.offset + item.size * (1f - EdgeShare)) index = minOf(index, place)
+                } else if (end > item.offset + item.size * EdgeShare) {
+                    index = maxOf(index, place + 1)
+                }
+            }
+            gapIndex = index.coerceIn(0, count)
+            session.index = gapIndex
+            return
+        }
+
         var landing: Int? = null
         var lastSeen: Int? = null
         for (item in info.visibleItemsInfo) {
@@ -347,7 +389,6 @@ class DropListState<T : Any> internal constructor(
             lastSeen = place
             if (landing == null && probe < item.offset + item.size / 2f) landing = place
         }
-        val count = count(session)
         val index = (landing ?: lastSeen?.plus(1) ?: gapIndex ?: 0).coerceIn(0, count)
         gapIndex = index
         session.index = index
@@ -389,6 +430,14 @@ class DropListState<T : Any> internal constructor(
 
     private companion object {
         var nextListId = 0
+
+        /**
+         * How much of a neighbour a thing riding a list covers before it takes
+         * the neighbour's place: less than half, so a tab trades places a little
+         * sooner than its middle would say, and back again only once it has come
+         * a fifth of a tab back — a hand held still does not make the strip twitch.
+         */
+        const val EdgeShare = 0.4f
     }
 }
 

@@ -219,12 +219,19 @@ internal class DragHost {
             list.layoutDirection == LayoutDirection.Rtl -> bounds.right - run.endInclusive to bounds.right - run.start
             else -> bounds.left + run.start to bounds.left + run.endInclusive
         }
+        // Across, it gives a little to a pointer pulling it off, where it can
+        // come off: held dead on the line, it sat still while the finger went
+        // the whole tear-off, and then leapt. Never out of the list, which is
+        // what it is over until it comes away.
+        val give = if (reach.isFinite()) RideGive else 0f
         return if (horizontal) {
             val left = (at.x - current.grab.x).coerceIn(lo, maxOf(lo, hi - current.size.width))
-            Offset(left + current.grab.x, bounds.top + current.line)
+            val line = bounds.top + current.line
+            Offset(left + current.grab.x, (line + (at.y - line) * give).coerceIn(bounds.top, bounds.bottom - 1f))
         } else {
             val top = (at.y - current.grab.y).coerceIn(lo, maxOf(lo, hi - current.size.height))
-            Offset(bounds.left + current.line, top + current.grab.y)
+            val line = bounds.left + current.line
+            Offset((line + (at.x - line) * give).coerceIn(bounds.left, bounds.right - 1f), top + current.grab.y)
         }
     }
 
@@ -462,6 +469,13 @@ internal class DragSession(
 
     /** How far across [riding] the thing is held: from its top, or its start for a column. */
     var line: Float = 0f
+
+    /**
+     * How far off the page it is, 0 to 1: its shadow, the little it grows, and
+     * for a [LiftedShape] its shape. Here rather than in the layer that draws
+     * it, so what it was carried from can draw itself to match.
+     */
+    val lift = Animatable(0f)
 
     /**
      * Where what is under the thing is scrolled from, while it rides a list:
@@ -966,7 +980,7 @@ internal fun DragLayer(host: DragHost) {
     // than arriving with it, and comes back down as the thing goes to its
     // place, so it is flat by the time it gets there and the item it hands
     // over to, which casts no shadow, takes over without a step.
-    val lift = remember(session) { Animatable(0f) }
+    val lift = session.lift
     // Not while it rides a list, as a tab rides its strip: there it is still on
     // the page, flat and its own size, sliding along among the others, and it
     // rises only as it comes away — and settles again boarding another.
@@ -1089,11 +1103,11 @@ internal fun DragLayer(host: DragHost) {
                     else -> 1f
                 }
                 shadowElevation = DragLift.toPx() * up
-                shape = session.shape
+                shape = (session.shape as? LiftedShape)?.lifted(up) ?: session.shape
                 clip = false
             }
             // Riding a list, it is drawn as it is there, its own edge and all.
-            .then(if (edge != null && session.riding == null) Modifier.border(edge, session.shape) else Modifier)
+            .then(if (edge != null && session.riding == null) Modifier.border(edge, (session.shape as? LiftedShape)?.lifted(1f) ?: session.shape) else Modifier)
             .drawWithContent { if (!session.source.gone) session.layer?.let { drawLayer(it) } },
     )
 }
@@ -1130,6 +1144,22 @@ private suspend fun chase(
     }
     watch.cancel()
 }
+
+/**
+ * A carried thing's shape that changes as it lifts off the page, [lifted] by 0
+ * to 1: a document tab's bottom corners round as it comes away from its strip
+ * and square again as it lands, where it joins the page below.
+ */
+internal interface LiftedShape : Shape {
+    fun lifted(by: Float): Shape
+}
+
+/**
+ * How much of a pointer's pull across a list a thing riding it follows, before
+ * it comes away: half, so it starts towards the finger at once and the jump
+ * as it comes away is half what it was.
+ */
+private const val RideGive = 0.5f
 
 /**
  * How long a dropped thing waits, in its place, for the lists to show the drop

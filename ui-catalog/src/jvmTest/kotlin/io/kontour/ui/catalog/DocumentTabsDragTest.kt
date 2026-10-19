@@ -54,9 +54,10 @@ class DocumentTabsDragTest {
         panes.run { scene ->
             val grab = panes.glyph("top", "Timetable").center
             val pitch = panes.glyph("top", "Fares").center.x - grab.x
-            // Its centre past Fares' middle and short of Route map's, with a
-            // wobble down the strip well inside the tear-off.
-            val drop = grab + Offset(pitch * 1.5f, 12f)
+            // A tab's width and a little more: over 40% of Fares, which it
+            // takes the place of, and short of 40% of Route map; with a wobble
+            // down the strip well inside the tear-off.
+            val drop = grab + Offset(pitch * 1.1f, 12f)
             scene.pickUp(grab)
             scene.carry(grab, drop)
             assertTrue(panes.drops.isEmpty(), "nothing should have been dropped while it is still carried")
@@ -262,6 +263,7 @@ class DocumentTabsDragTest {
                 onValueChange = {},
                 modifier = Modifier.fillMaxWidth().reportBounds { strips[name] = it },
                 onAdd = if (adds) ({}) else null,
+                movesBetweenStrips = bottom != null,
                 leading = { tab -> Box(Modifier.size(16.dp).reportBounds { glyphs[name to tab] = it }) },
             )
         }

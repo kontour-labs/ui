@@ -87,17 +87,30 @@ can change straight away. Under reduced motion tabs appear and go at once.
 ### Dragging
 
 Held and dragged along the strip, a tab slides the others aside, a detent felt
-as it passes each place, and lands where it is let go. A mouse picks it up as
-it moves; a finger holds it first, as a scrolling strip needs.
+as it passes each place, and lands where it is let go. It takes a neighbour's
+place once it covers a little under half of it, so the second tab can be put
+before the first. A mouse picks it up as it moves; a finger holds it first, as
+a scrolling strip needs.
 
 A tab rides its strip, as a browser's does: it stays on the strip, flat and
 as it looks there, following the pointer along it, and goes no further than
-the first tab's start or the last tab's end, so never over the "+". Pulled
-clear of the strip, it comes away, lifting off the page, and follows the
-pointer anywhere. Carried into another strip of the same `DragType`, it rides
-that one, and dropped there, `onDrop` on that strip's state is told where it
-came from, as a card moved between a board's lists is. Two panes of a split
-view each with its own strip take each other's tabs this way.
+the first tab's start or the last tab's end, so never over the "+".
+
+### Between strips
+
+With `movesBetweenStrips`, a tab can also leave its strip. Pulled down, it gives
+a little towards the finger, then comes away, lifting off the page with its
+bottom corners rounding, and follows the pointer anywhere. Carried into another
+strip of the same `DragType` that has it on too, it settles onto that strip,
+square again, and rides it as one of its own; dropped there, `onDrop` on that
+strip's state is told where it came from, as a card moved between a board's
+lists is. Two panes of a split view each with its own strip take each other's
+tabs this way.
+
+It is off by default, and is worth turning on only where there is more than one
+strip. Off, a tab never leaves its strip however far it is pulled, a screen
+reader is offered no "Move to" another strip, and the strip takes no other
+strip's tabs.
 
 Picking a tab up by pointer selects it, as a browser does.
 
@@ -110,7 +123,8 @@ open and scroll, and move by keyboard and by screen reader.
 The tabs are `Role.Tab` in a `selectableGroup()` with their places in it, so a
 screen reader says "Fares, tab, 2 of 3" and which is selected. Each tab offers
 its moves as actions — "Move left" and "Move right", the other way round right
-to left, and "Move to" each other strip that would take it — and "Close" and
+to left, and, with `movesBetweenStrips`, "Move to" each other strip that would
+take it — and "Close" and
 its name.
 
 The strip is one stop for the Tab key, on the selected tab. The arrow keys move

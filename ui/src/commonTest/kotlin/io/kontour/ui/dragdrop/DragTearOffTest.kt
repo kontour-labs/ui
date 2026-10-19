@@ -111,7 +111,8 @@ class DragTearOffTest {
         }
         waitForIdle()
         assertSame(top, session.riding, "a wobble under the tear-off pulled the tab clear")
-        assertEquals(line, session.pointer.y, 0.5f, "the tab left its strip's line inside the tear-off")
+        // Giving half the pull across, so it starts towards the finger at once.
+        assertEquals(line + tearOff * 0.6f * 0.5f, session.pointer.y, 1f, "the tab did not give half the pull across its strip")
         assertTrue(FeedbackIntent.DragThreshold !in felt, "a threshold was felt without one being passed: $felt")
         onNodeWithTag("A").performTouchInput { up() }
         waitForIdle()

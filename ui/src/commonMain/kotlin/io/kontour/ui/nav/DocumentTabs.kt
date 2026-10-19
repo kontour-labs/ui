@@ -22,6 +22,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.shape.CornerBasedShape
+import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
@@ -93,6 +95,7 @@ import io.kontour.ui.dragdrop.DragHost
 import io.kontour.ui.dragdrop.DragItemOptions
 import io.kontour.ui.dragdrop.DragItemScope
 import io.kontour.ui.dragdrop.DropListState
+import io.kontour.ui.dragdrop.LiftedShape
 import io.kontour.ui.dragdrop.LocalDragHost
 import io.kontour.ui.dragdrop.dragItems
 import io.kontour.ui.dragdrop.dropList
@@ -184,10 +187,11 @@ data class DocumentTabsColours(
  *
  * The strip is a drop list, so its tabs move as anything in a drop list
  * does: held and dragged along the strip, they slide the others aside, a
- * detent felt at each place; pulled down off it they come free, and carried
- * into another strip, they ride that one and drop into it — a split view's
- * second pane. Without an `OverlayHost` round the app nothing is carried, and
- * a screen reader's moves, the keyboard's and every button still work.
+ * detent felt at each place. With [movesBetweenStrips], pulled down off it they
+ * come free, and carried into another strip, they ride that one and drop into
+ * it — a split view's second pane. Without an `OverlayHost` round the app
+ * nothing is carried, and a screen reader's moves, the keyboard's and every
+ * button still work.
  *
  * Tabs share the strip's width between [minTabWidth] and [maxTabWidth], and
  * past that many the strip scrolls, the selected tab kept in sight. A tab grows
@@ -203,6 +207,10 @@ data class DocumentTabsColours(
  * @param onClose Closes a tab: by its ×, a middle click, Delete, or a screen
  *   reader's "Close". `null` for tabs that cannot be closed.
  * @param onAdd Opens another, by the "+" after the last tab. `null` for no "+".
+ * @param movesBetweenStrips Whether a tab can be pulled off this strip and
+ *   carried into another of the same `DragType`, and this strip take another's.
+ *   Off, the default, a tab only moves along its own strip. Worth turning on
+ *   only where there is more than one strip, as in a split view.
  * @param closeLabel A tab's × as a screen reader names it, for the tab's label.
  * @param leading A tab's icon: a favicon, a file's glyph, a spinner while it loads.
  */
@@ -215,6 +223,7 @@ fun <T : Any> DocumentTabs(
     enabled: Boolean = true,
     onClose: ((T) -> Unit)? = null,
     onAdd: (() -> Unit)? = null,
+    movesBetweenStrips: Boolean = false,
     closeLabel: (tab: String) -> String = Theme.strings.closeTab,
     addLabel: String = Theme.strings.newTab,
     closeIcon: ImageVector = Theme.icons.close,
@@ -230,11 +239,16 @@ fun <T : Any> DocumentTabs(
     val height = DocumentTabsDefaults.Height
     val foot = Theme.spacing.xs
     val body = Theme.shapes.extraSmall.topCornersOnly()
+    val rounded = Theme.shapes.extraSmall
+    val gap = Theme.spacing.xs
+    val carried = remember(rounded, gap) { BelowGap(rounded, gap) }
     val flared = remember(body, foot) { FlaredTabShape(body, foot) }
     val edge = contrastEdge()
     val mouse = LocalInputModality.current == InputModality.Mouse
-    // A tab rides the strip until it is pulled clear, as a browser's does.
-    state.tearOff = with(density) { TearOff.toPx() }
+    // A tab rides the strip until it is pulled clear, as a browser's does —
+    // and where tabs do not move between strips, it is never pulled clear.
+    state.tearOff = if (movesBetweenStrips) with(density) { TearOff.toPx() } else Float.POSITIVE_INFINITY
+    state.ownOnly = !movesBetweenStrips
 
     val items = state.items
     val keys = items.map(state.key)
@@ -346,6 +360,12 @@ fun <T : Any> DocumentTabs(
         ) {
             val addRoom = if (onAdd != null) height else 0.dp
             val share = ((maxWidth - addRoom - foot * 2) / keys.size.coerceAtLeast(1)).coerceIn(minTabWidth, maxTabWidth)
+            // Whether the tabs, at rest, are past their narrowest and scroll.
+            // Read from the share and not from the list, which can scroll for a
+            // frame or two while a tab springs open past its width: a strip just
+            // the wrong width showed its scrollbar and its fades blink in and out.
+            val overflows = constraints.hasBoundedWidth &&
+                (maxWidth - addRoom - foot * 2) / keys.size.coerceAtLeast(1) < minTabWidth
             val width = animateDpAsState(strip.frozen ?: share, motion.sizeSpec(), label = "documentTabWidth")
             val showsCloseAt = remember(width) { derivedStateOf { width.value >= CloseShownFrom } }
             SideEffect { strip.widthWas = width.value }
@@ -354,7 +374,7 @@ fun <T : Any> DocumentTabs(
                 movesOnItem = false,
                 // The carried tab's shadow is its ground's, below the gap at the
                 // strip's top: the whole node's let the shadow show through the gap.
-                shape = BelowGap(body, Theme.spacing.xs),
+                shape = carried,
                 slides = false,
                 before = { next ->
                     ghosts.filter { it.after == next || (next == null && it.after !in keySet) }.forEach { ghost ->
@@ -433,7 +453,9 @@ fun <T : Any> DocumentTabs(
                         modifier = Modifier
                             .heightIn(min = height)
                             .dropList(state, enabled)
-                            .fadingEdges(state.listState, Orientation.Horizontal)
+                            // Faded only where the tabs are at their narrowest and
+                            // still do not fit: see the scrollbar below.
+                            .then(if (overflows) Modifier.fadingEdges(state.listState, Orientation.Horizontal) else Modifier)
                             .selectableGroup()
                             .semantics { collectionInfo = CollectionInfo(rowCount = 1, columnCount = keys.size) }
                             // Focus leaving the strip gives the stop back to the selected
@@ -464,6 +486,7 @@ fun <T : Any> DocumentTabs(
                                 separates = index > 0 && !selected && previous != selectedKey &&
                                     key != strip.hovered && previous != strip.hovered,
                                 body = body,
+                                carried = carried,
                                 flared = flared,
                                 foot = foot,
                                 height = height,
@@ -492,15 +515,17 @@ fun <T : Any> DocumentTabs(
                     }
                     // A strip that scrolls says so, along its top, where it
                     // never crosses the join with the page below.
-                    Scrollbar(
-                        state = state.listState,
-                        modifier = Modifier.align(Alignment.TopStart).fillMaxWidth(),
-                        orientation = Orientation.Horizontal,
-                        // Disabled, the strip still scrolls, but says so in the
-                        // disabled grey, as everything else on it does.
-                        colour = if (enabled) Theme.colours.outlineStrong else Theme.colours.contentDisabled,
-                        alwaysVisible = true,
-                    )
+                    if (overflows) {
+                        Scrollbar(
+                            state = state.listState,
+                            modifier = Modifier.align(Alignment.TopStart).fillMaxWidth(),
+                            orientation = Orientation.Horizontal,
+                            // Disabled, the strip still scrolls, but says so in the
+                            // disabled grey, as everything else on it does.
+                            colour = if (enabled) Theme.colours.outlineStrong else Theme.colours.contentDisabled,
+                            alwaysVisible = true,
+                        )
+                    }
                 }
                 if (onAdd != null) {
                     // In the square the tabs' share leaves it, in the middle of
@@ -542,6 +567,7 @@ private fun DragItemScope.DocumentTab(
     grow: Animatable<Float, AnimationVector1D>,
     separates: Boolean,
     body: Shape,
+    carried: LiftedShape,
     flared: Shape,
     foot: Dp,
     height: Dp,
@@ -601,10 +627,12 @@ private fun DragItemScope.DocumentTab(
                 // page nor an edge, which the host draws round anything carried.
                 // And grounded whenever it is carried, chosen or not, so it is
                 // never a title floating over the others.
-                val free = isDragging && host?.session?.riding == null
+                val session = host?.session
+                val free = isDragging && session?.riding == null
                 if (isDragging && (free || !selected) && size.height > top) {
-                    val ground = body.createOutline(Size(size.width, size.height - top), layoutDirection, this)
-                    translate(top = top) { drawOutline(ground, colours.selectedContainer) }
+                    // Its bottom corners rounding as it lifts and squaring as it lands.
+                    val ground = carried.lifted(session?.lift?.value ?: 0f).createOutline(size, layoutDirection, this)
+                    drawOutline(ground, colours.selectedContainer)
                     return@drawBehind
                 }
                 // Nor does it bring the hairline that parted it from the tab before.
@@ -745,19 +773,34 @@ private fun Modifier.tabWidth(width: State<Dp>, grow: Animatable<Float, Animatio
         layout(shown, placeable.height) { placeable.placeRelative(0, 0) }
     }
 
-/** [body] below the gap at the top of a strip: where a tab's ground is, and so where a carried tab's shadow is. */
-private class BelowGap(private val body: Shape, private val gap: Dp) : Shape {
+/**
+ * A tab's ground below the gap at the top of its strip, which is where a
+ * carried tab is drawn and its shadow cast: [rounded] at the top, and at the
+ * bottom rounded [by] how far the tab has lifted off the page. Square at the
+ * foot on its strip, where it joins the page below, its bottom corners round
+ * as it is pulled clear and square again as it lands.
+ */
+private class BelowGap(
+    private val rounded: CornerBasedShape,
+    private val gap: Dp,
+    private val by: Float = 0f,
+) : LiftedShape {
+    override fun lifted(by: Float): Shape = if (by == this.by) this else BelowGap(rounded, gap, by.coerceIn(0f, 1f))
+
     override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline {
         val top = with(density) { gap.toPx() }.coerceIn(0f, size.height.coerceAtLeast(0f))
+        val ground = Size(size.width, size.height - top)
+        val corner = CornerSize(rounded.bottomStart.toPx(ground, density) * by)
         val path = Path()
-        path.addOutline(body.createOutline(Size(size.width, size.height - top), layoutDirection, density))
+        path.addOutline(rounded.copy(bottomStart = corner, bottomEnd = corner).createOutline(ground, layoutDirection, density))
         path.translate(Offset(0f, top))
         return Outline.Generic(path)
     }
 
-    override fun equals(other: Any?): Boolean = other is BelowGap && other.body == body && other.gap == gap
+    override fun equals(other: Any?): Boolean =
+        other is BelowGap && other.rounded == rounded && other.gap == gap && other.by == by
 
-    override fun hashCode(): Int = 31 * body.hashCode() + gap.hashCode()
+    override fun hashCode(): Int = (31 * rounded.hashCode() + gap.hashCode()) * 31 + by.hashCode()
 }
 
 /** A strip's own memory: what it showed, what is leaving, and where its keyboard and pointer are. */
