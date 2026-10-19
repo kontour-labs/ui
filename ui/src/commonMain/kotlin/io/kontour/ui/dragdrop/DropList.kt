@@ -364,7 +364,7 @@ class DropListState<T : Any> internal constructor(
             val size = if (vertical) session.size.height else session.size.width
             val start = probe - size / 2f
             val end = probe + size / 2f
-            var index = gap
+            var index: Int = gap
             for (item in info.visibleItemsInfo) {
                 val at = positions[item.key] ?: continue
                 if (at == from) continue
