@@ -222,7 +222,15 @@ On `main`, and in the next release.
 - **Swipe actions let go of a trackpad's swipe as it ends**: carried to the edge
   past the point of no return, the row runs its action at once, and the scroll a
   trackpad coasts on after the fingers lift no longer holds it at the edge or
-  cancels the settle under way.
+  cancels the settle under way. And a sideways scroll keeps the whole of
+  itself: its ups and downs no longer scroll the list out from under the row
+  being swiped, until it has been let go of.
+- **A mouse on a reorderable row decides before it carries**: it goes a few dp
+  first, and mostly up or down, as a swipe decides. At a mouse's own slop a
+  pixel of jitter in a click picked the row up and lost the click, and a drag
+  sideways lifted the row before the swipe inside it could take it. A grip still
+  takes the mouse at once, and a mouse no longer waits for a hold because a
+  touch was the last input used.
 - **Charts' first data rises into place**: a `Chart` that had no data, loading
   say, raises its marks from their baseline as its first data arrives, as one
   with data from the start does; they used to appear at once and fall from above

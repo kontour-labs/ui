@@ -1,10 +1,14 @@
 package io.kontour.ui.catalog
 
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
@@ -151,6 +155,63 @@ class SwipeScrollTest {
         }
         assertEquals(1, whileCoasting, "carried to the edge past the point of no return, the row waited out the coasting")
         assertEquals(1, ran, "the coasting after a full swipe ran the action again")
+    }
+
+    /**
+     * Once a scroll is the row's, the rest of it is too, up and down included,
+     * until it is let go of. Reported as *"if you start side-scrolling the
+     * action horizontally, it won't scroll vertically"*, wanted, because a
+     * trackpad's fingers drift and the list scrolled out from under the row: an
+     * event that was only up or down went on to it. After a quiet spell the
+     * next scroll up or down is the list's again.
+     */
+    @Test
+    fun aSidewaysScrollKeepsItsUpsAndDownsFromTheList() {
+        lateinit var state: SwipeActionsState
+        lateinit var list: ScrollState
+        var bounds = Rect.Zero
+        Scene(width = 700, height = 400) {
+            state = rememberSwipeActionsState()
+            list = rememberScrollState()
+            Column(Modifier.fillMaxSize().background(Color.White).verticalScroll(list)) {
+                SwipeActions(
+                    state = state,
+                    modifier = Modifier.fillMaxWidth().height(72.dp).reportBounds { bounds = it },
+                    end = listOf(
+                        SwipeAction("Archive", Tabler.Outline.Archive, {}, Color.Blue),
+                        SwipeAction("Delete", Tabler.Outline.Trash, {}, Color.Red),
+                    ),
+                ) {
+                    Box(Modifier.fillMaxWidth().height(72.dp).background(Color.White))
+                }
+                Box(Modifier.fillMaxWidth().height(2000.dp))
+            }
+        }.use { scene ->
+            scene.frames(3)
+            val at = bounds.center
+            repeat(2) {
+                scene.scroll(at, Offset(1f, 0f))
+                scene.frame()
+            }
+            repeat(4) {
+                scene.scroll(at, Offset(0f, 1f))
+                scene.frame()
+                scene.scroll(at, Offset(0.5f, 0.5f))
+                scene.frame()
+            }
+            val moved = state.offset
+            assertEquals(0, list.value, "a sideways scroll's ups and downs scrolled the list out from under the row")
+            assertTrue(abs(moved) > 0f, "the sideways scroll did not move the row")
+            // Quiet, and the row let go of: the next scroll up or down is the list's.
+            Thread.sleep(300)
+            scene.frames(40)
+            repeat(3) {
+                scene.scroll(at, Offset(0f, 1f))
+                scene.frame()
+            }
+            scene.frames(10)
+            assertTrue(list.value > 0, "after a quiet spell a vertical scroll still did not reach the list")
+        }
     }
 
     @Test

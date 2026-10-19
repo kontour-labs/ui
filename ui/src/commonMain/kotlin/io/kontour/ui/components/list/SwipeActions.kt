@@ -882,7 +882,9 @@ fun SwipeActions(
              * a burst of scroll from the first event after a quiet spell — is
              * the row's if it begins mostly sideways, and the list's otherwise,
              * for the whole of it. A vertical scroll with a little drift in it
-             * used to move the row and swallow the scroll.
+             * used to move the row and swallow the scroll. And the other way: a
+             * sideways scroll's events that were only up or down went on to the
+             * list, which scrolled out from under the row being swiped.
              *
              * A pan ends with an event of its own and settles then, flicked by
              * how it was moving; a scroll has no end, and settles once it has
@@ -924,6 +926,16 @@ fun SwipeActions(
                             // settle this gesture ends in runs the action.
                             updateCommitting(state.anchoredState.offset)
                             dealt.at(state.anchoredState.offset)
+                        }
+
+                        // A scroll has no end: it is let go of once it has been quiet.
+                        fun settleWhenQuiet() {
+                            waiting = scope.launch {
+                                delay(SwipeActionsDefaults.SettleAfterScroll)
+                                dealt.reset()
+                                coasting = true
+                                settle(0f)
+                            }
                         }
 
                         fun decide(delta: Offset, threshold: Float): Boolean? {
@@ -993,8 +1005,20 @@ fun SwipeActions(
                                         }
                                         if (quiet) begin()
                                         // A notch is a whole decision on its own.
-                                        if (decide(delta, 0f) != true || delta.x == 0f) continue
+                                        if (decide(delta, 0f) != true) continue
+                                        // The row's, up and down included, until it
+                                        // is let go of. A trackpad's fingers drift,
+                                        // and an event that was only up or down went
+                                        // on to the list, which scrolled out from
+                                        // under a row held half open: *"it's
+                                        // difficult to hold it in position"*.
                                         changes.forEach { it.consume() }
+                                        if (delta.x == 0f) {
+                                            // Still the gesture: it is not let go of yet.
+                                            waiting?.cancel()
+                                            settleWhenQuiet()
+                                            continue
+                                        }
                                         move(-sideScrollDistance(delta.x, stepPx, dpPx, platformScrollDeltaInPixels))
                                         // Carried past the point of no return and on to
                                         // the edge, there is nowhere further to go: it is
@@ -1010,12 +1034,7 @@ fun SwipeActions(
                                             settle(0f)
                                             continue
                                         }
-                                        waiting = scope.launch {
-                                            delay(SwipeActionsDefaults.SettleAfterScroll)
-                                            dealt.reset()
-                                            coasting = true
-                                            settle(0f)
-                                        }
+                                        settleWhenQuiet()
                                     }
                                     else -> Unit
                                 }
