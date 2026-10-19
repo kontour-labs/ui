@@ -219,10 +219,12 @@ class DocumentTabsTest {
         documents.add(1, "Untitled")
         mainClock.advanceTimeByFrame()
         mainClock.advanceTimeByFrame()
-        val growing = leftOf("Fares") - leftOf("Untitled")
+        // The room it has, between its neighbours: the opening tab is clipped
+        // to what it shows, and at nearly nothing its own bounds read as none.
+        val growing = leftOf("Fares") - rightOf("Timetable")
         mainClock.autoAdvance = true
         waitForIdle()
-        val grown = leftOf("Fares") - leftOf("Untitled")
+        val grown = leftOf("Fares") - rightOf("Timetable")
         assertTrue(growing < grown - 4f, "an opened tab arrived at its full width: $growing of $grown")
     }
 
