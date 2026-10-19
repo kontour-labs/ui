@@ -41,12 +41,16 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.mandatorySystemGestures
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.systemGestures
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CornerBasedShape
@@ -625,6 +629,22 @@ fun BottomSheet(
     // float, the content's padding — so they cannot disagree. See `ContainerGaps`.
     val gaps = remember { ContainerGaps() }
     val insets = remember(windowInsets, gaps) { OverlapInsets(windowInsets, gaps) }
+    // Temporary: see `SheetDebug.kt`. Where the system keeps the top of the
+    // window for itself, against where a drag that it took began.
+    if (sheetDebug) {
+        val seen = LocalDensity.current
+        val statusTop = WindowInsets.statusBars.getTop(seen)
+        val gesturesTop = WindowInsets.systemGestures.getTop(seen)
+        val mandatoryTop = WindowInsets.mandatorySystemGestures.getTop(seen)
+        val cutoutTop = WindowInsets.displayCutout.getTop(seen)
+        val sheetTop = windowInsets.getTop(seen)
+        LaunchedEffect(statusTop, gesturesTop, mandatoryTop, cutoutTop, sheetTop) {
+            sheetLog {
+                "insets: status bar $statusTop, system gestures $gesturesTop, mandatory gestures $mandatoryTop, " +
+                    "cutout $cutoutTop, the sheet's own $sheetTop, density ${seen.density}"
+            }
+        }
+    }
 
     // The margin a floating sheet keeps, on each of the four sides: even from what
     // can be seen. Measured from the window's edge under a home indicator or a

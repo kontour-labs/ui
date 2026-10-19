@@ -122,7 +122,7 @@ internal fun Modifier.sheetDrag(
             val down = awaitFirstDown(requireUnconsumed = false)
             val slop = viewConfiguration.touchSlop * if (down.type == PointerType.Mouse) MouseSlopRatio else SheetDragSlop
             sheetLog {
-                "drag: down ${down.id} at y ${down.position.y.px()} t ${down.uptimeMillis}, ${down.type}, consumed ${down.isConsumed}, " +
+                "drag: down ${down.id} at x ${down.position.x.px()} y ${down.position.y.px()} t ${down.uptimeMillis}, ${down.type}, consumed ${down.isConsumed}, " +
                     "offset ${anchored.offset.px()}, moving ${state.isMoving}, slop ${slop.px()}"
             }
             // How far the pointer has gone, up or down, since it went down: the
@@ -251,8 +251,9 @@ internal fun Modifier.sheetDrag(
                         val cancelled = state.finger.cancelled
                         // A caught press that never moved lifts for whatever
                         // is under it: see `caught`.
+                        val consumedBeforeUs = change.isConsumed
                         if (taken) change.consume()
-                        sheetLog { "drag: up, cancelled $cancelled, consumed before us ${change.isConsumed}" }
+                        sheetLog { "drag: up, cancelled $cancelled, consumed before us $consumedBeforeUs" }
                         if (!cancelled) {
                             lifted = true
                             // When it let go, as well as where: a finger still
