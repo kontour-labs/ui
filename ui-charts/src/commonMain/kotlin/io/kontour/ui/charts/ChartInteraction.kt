@@ -169,7 +169,9 @@ internal fun Modifier.chartSelectionInput(
                     val change = event.changes.firstOrNull() ?: continue
                     if (change.type != PointerType.Mouse) continue
                     when (event.type) {
-                        PointerEventType.Move -> {
+                        // Arriving as much as moving: the event a pointer
+                        // crossing onto the chart brings is an enter.
+                        PointerEventType.Enter, PointerEventType.Move -> {
                             // A pointer arriving rests before the tooltip shows; one
                             // already showing moves with it.
                             if (latestChosen == null) tip.resting = true

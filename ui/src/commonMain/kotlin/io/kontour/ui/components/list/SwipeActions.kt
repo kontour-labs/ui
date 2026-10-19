@@ -889,7 +889,7 @@ fun SwipeActions(
              * A pan ends with an event of its own and settles then, flicked by
              * how it was moving; a scroll has no end, and settles once it has
              * been quiet for [SwipeActionsDefaults.SettleAfterScroll] — or at
-             * once, carried past its point of no return to the edge. What
+             * once, carried past its point of no return. What
              * scroll follows either before a quiet spell is a trackpad
              * coasting after its fingers lifted, and moves nothing.
              */
@@ -1020,15 +1020,16 @@ fun SwipeActions(
                                             continue
                                         }
                                         move(-sideScrollDistance(delta.x, stepPx, dpPx, platformScrollDeltaInPixels))
-                                        // Carried past the point of no return and on to
-                                        // the edge, there is nowhere further to go: it is
-                                        // let go of now, not once the scroll has been
-                                        // quiet, which on a trackpad is once its
-                                        // coasting has died away.
-                                        val at = state.anchoredState.offset
-                                        val anchors = state.anchoredState.anchors
-                                        val edge = if (at > 0f) anchors.maxPosition() else anchors.minPosition()
-                                        if (committing && abs(at - edge) < 0.5f) {
+                                        // Carried past the point of no return, it is let
+                                        // go of now, not once the scroll has been quiet,
+                                        // which on a trackpad is once its coasting has
+                                        // died away. It waited for the far edge first,
+                                        // which is the row's whole width away and which
+                                        // a swipe on a trackpad never reaches: the row
+                                        // sat past the point until the coasting stopped.
+                                        // A scroll says nothing of the fingers lifting,
+                                        // so there is no later moment to wait for.
+                                        if (committing) {
                                             dealt.reset()
                                             coasting = true
                                             settle(0f)

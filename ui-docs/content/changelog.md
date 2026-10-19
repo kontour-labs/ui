@@ -225,9 +225,9 @@ On `main`, and in the next release.
 - **A top bar opens as far as a wheel or a trackpad went** at a list's top,
   rather than all the way at the first piece of scroll the list declined, which
   made a slow trackpad scroll jump.
-- **Swipe actions let go of a trackpad's swipe as it ends**: carried to the edge
-  past the point of no return, the row runs its action at once, and the scroll a
-  trackpad coasts on after the fingers lift no longer holds it at the edge or
+- **Swipe actions let go of a trackpad's swipe as it ends**: carried past the
+  point of no return by a scroll, the row runs its action at once, and the
+  scroll a trackpad coasts on after the fingers lift no longer holds it there or
   cancels the settle under way. And a sideways scroll keeps the whole of
   itself: its ups and downs no longer scroll the list out from under the row
   being swiped, until it has been let go of.

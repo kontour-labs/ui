@@ -132,14 +132,15 @@ class SwipeScrollTest {
 
     /**
      * Swiped all the way across on a trackpad, the row is let go of as it
-     * reaches the edge, not once the trackpad's coasting has died away.
+     * passes the point of no return, not once the trackpad's coasting has died
+     * away, nor at the far edge, a whole row's width off, which it never reaches.
      * Reported as *"if you swipe it all the way across, it just stays there for
      * a bit before it decides to respond"*: each coasting event put the settle
      * off again, or cancelled the one under way. A second of coasting at a
      * frame apart runs the action within it, and once.
      */
     @Test
-    fun aScrollCarriedToTheEdgeRunsTheActionWhileTheTrackpadIsStillCoasting() {
+    fun aScrollCarriedPastThePointOfNoReturnRunsTheActionWhileTheTrackpadIsStillCoasting() {
         var ran = 0
         var whileCoasting = 0
         row(onArchive = { ran++ }, settleFrames = 120) { scene, at, _ ->
@@ -153,7 +154,7 @@ class SwipeScrollTest {
             }
             whileCoasting = ran
         }
-        assertEquals(1, whileCoasting, "carried to the edge past the point of no return, the row waited out the coasting")
+        assertEquals(1, whileCoasting, "carried past the point of no return, the row waited out the coasting")
         assertEquals(1, ran, "the coasting after a full swipe ran the action again")
     }
 
