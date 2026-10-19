@@ -19,8 +19,24 @@ from the version the app is on.
 
 Unreleased, and growing. `SystemIcons` is the theme's now, so code that named
 one of its glyphs changes; `Strings` has new fields and `CalendarEvent` a
-new parameter, each defaulted and last.
+new parameter, each defaulted and last, and `Table` a new one after
+`stickyColumns`.
 Charts are a new module, which an app takes only if it wants them.
+
+### `Table` has `narrowStickyColumns` after `stickyColumns`
+
+Defaulted, so a call that names its arguments needs nothing. One that passed
+the arguments after `stickyColumns` by position names them: the eighth place
+is `narrowStickyColumns` now, and a `true` meant for `striped` still compiles,
+and narrows the pinned columns instead of striping the rows.
+
+```kotlin
+// 0.4.5
+Table(rows, Modifier, true, null, rememberTableState(), 1, true) { /* columns */ }
+
+// 0.5.0
+Table(rows, Modifier, true, null, rememberTableState(), 1, striped = true) { /* columns */ }
+```
 
 ### `SystemIcons.Close` is `Theme.icons.close`
 

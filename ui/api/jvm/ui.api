@@ -1881,7 +1881,7 @@ public final class io/kontour/ui/components/table/TableDefaults {
 }
 
 public final class io/kontour/ui/components/table/TableKt {
-	public static final fun Table-27XhPBE (Ljava/util/List;Landroidx/compose/ui/Modifier;ZLkotlin/jvm/functions/Function1;Lio/kontour/ui/components/table/TableState;IZLio/kontour/ui/components/table/TableLines;ZLio/kontour/ui/components/table/TableSort;Lkotlin/jvm/functions/Function1;Landroidx/compose/ui/graphics/vector/ImageVector;Landroidx/compose/ui/graphics/vector/ImageVector;Lio/kontour/ui/components/table/TableSelection;Ljava/util/Set;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lio/kontour/ui/components/table/TableColours;FLkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;IIII)V
+	public static final fun Table-8OxJH8E (Ljava/util/List;Landroidx/compose/ui/Modifier;ZLkotlin/jvm/functions/Function1;Lio/kontour/ui/components/table/TableState;IZZLio/kontour/ui/components/table/TableLines;ZLio/kontour/ui/components/table/TableSort;Lkotlin/jvm/functions/Function1;Landroidx/compose/ui/graphics/vector/ImageVector;Landroidx/compose/ui/graphics/vector/ImageVector;Lio/kontour/ui/components/table/TableSelection;Ljava/util/Set;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lio/kontour/ui/components/table/TableColours;FLkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;IIII)V
 	public static final fun rememberTableState (Landroidx/compose/runtime/Composer;I)Lio/kontour/ui/components/table/TableState;
 }
 
@@ -3324,7 +3324,7 @@ public final class io/kontour/ui/nav/DocumentTabsDefaults {
 }
 
 public final class io/kontour/ui/nav/DocumentTabsKt {
-	public static final fun DocumentTabs-wzuqKr0 (Lio/kontour/ui/dragdrop/DropListState;Ljava/lang/Object;Lkotlin/jvm/functions/Function1;Landroidx/compose/ui/Modifier;ZLkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Landroidx/compose/ui/graphics/vector/ImageVector;Landroidx/compose/ui/graphics/vector/ImageVector;FFLio/kontour/ui/nav/DocumentTabsColours;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;III)V
+	public static final fun DocumentTabs-eWTbjVg (Lio/kontour/ui/dragdrop/DropListState;Ljava/lang/Object;Lkotlin/jvm/functions/Function1;Landroidx/compose/ui/Modifier;ZLkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function0;ZLkotlin/jvm/functions/Function1;Ljava/lang/String;Landroidx/compose/ui/graphics/vector/ImageVector;Landroidx/compose/ui/graphics/vector/ImageVector;FFLio/kontour/ui/nav/DocumentTabsColours;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;III)V
 }
 
 public final class io/kontour/ui/nav/NavBarDefaults {

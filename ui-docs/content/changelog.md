@@ -122,6 +122,12 @@ On `main`, and in the next release.
 - **`CalendarEvent` has a new parameter**, `pattern`, defaulted and last, so
   anything built against 0.4.5 recompiles; every call site still compiles as it
   is.
+- **`Table` has a new parameter**, `narrowStickyColumns`, defaulted, after
+  `stickyColumns`, so anything built against 0.4.5 recompiles. A call that
+  names its arguments, as every one in these docs does, needs nothing; one that
+  passed `striped` by position still compiles, and narrows the pinned columns
+  instead, so it names it. See
+  [Migrating](migrating.md#table-has-narrowstickycolumns-after-stickycolumns).
 
 ### Fixed
 
