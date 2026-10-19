@@ -3,7 +3,7 @@
 A Compose Multiplatform design system, built on **Foundation** — no Material.
 
 Android, iOS, desktop and the web from one source set.
-<!--counts-->174 public components across 133 pages<!--/counts-->, every one with
+<!--counts-->175 public components across 134 pages<!--/counts-->, every one with
 a demo you can operate, a compiled example and a generated parameter table.
 
 ```kotlin

@@ -9,14 +9,18 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyItemScope
 import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.isSpecified
 import io.kontour.ui.components.selection.SelectionRow
+import io.kontour.ui.components.text.ImeChainStep
 import io.kontour.ui.components.list.ListItemDefaults
 import io.kontour.ui.foundation.ContentScope
 import io.kontour.ui.foundation.GroupPosition
@@ -128,6 +132,59 @@ class ListGroupScope @PublishedApi internal constructor() {
                 if (icon != null) leading { +icon }
                 if (value != null) trailing { +value }
             }
+        }
+    }
+
+    /**
+     * A row you type into, as a [TextFieldListItem]: a label at its start and
+     * the value at its end, or with no [label] the field from its start with a
+     * [placeholder] in it.
+     *
+     * ```kotlin
+     * val name = rememberTextFieldState("Perth Underground")
+     * val note = rememberTextFieldState()
+     *
+     * ListGroup {
+     *     field(name, label = "Name")
+     *     field(note, placeholder = "Add a note")
+     * }
+     * ```
+     *
+     * The [state] is made before the group, with `rememberTextFieldState`: a
+     * group's builder in a `LazyColumn` runs outside composition, where nothing
+     * can be remembered, and a field whose text lived in the builder would lose
+     * it as the list scrolled.
+     *
+     * @param trailing After the field: a unit, a clear button.
+     */
+    fun field(
+        state: TextFieldState,
+        enabled: Boolean = true,
+        label: String? = null,
+        placeholder: String? = null,
+        supporting: String? = null,
+        errorMessage: String? = null,
+        icon: ImageVector? = null,
+        keyboardType: KeyboardType = KeyboardType.Text,
+        imeAction: ImeAction = ImeAction.Default,
+        imeChain: ImeChainStep? = null,
+        trailing: (@Composable () -> Unit)? = null,
+    ) {
+        rows += { position ->
+            TextFieldListItem(
+                state = state,
+                enabled = enabled,
+                label = label,
+                placeholder = placeholder,
+                supporting = supporting,
+                errorMessage = errorMessage,
+                leadingIcon = icon,
+                position = position,
+                keyboardType = keyboardType,
+                imeAction = imeAction,
+                imeChain = imeChain,
+                trailing = trailing,
+            )
         }
     }
 

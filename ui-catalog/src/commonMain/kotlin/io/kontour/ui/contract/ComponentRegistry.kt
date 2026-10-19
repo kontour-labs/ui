@@ -153,6 +153,7 @@ import io.kontour.ui.components.display.Stat
 import io.kontour.ui.components.display.StepProgress
 import io.kontour.ui.components.display.CircularStepProgress
 import io.kontour.ui.components.display.rememberCarouselState
+import io.kontour.ui.components.list.TextFieldListItem
 import io.kontour.ui.components.list.DisclosureListItem
 import io.kontour.ui.components.list.ListItemSplit
 import io.kontour.ui.components.list.SplitListItem
@@ -1679,6 +1680,26 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 modifier = modifier,
                 enabled = enabled,
                 label = "Origin",
+            )
+        }
+    )
+
+    // A list row you type into: the field is the control, named by the row's
+    // label, as a `TextField`'s is by its own.
+    add(
+        ComponentSpec(
+            name = "TextFieldListItem",
+            role = null,
+            expectsMinimumTarget = false,
+            activatedByClick = false,
+            control = ControlLocator.TextInput,
+            accessibleName = "Name",
+        ) { modifier, enabled, _ ->
+            TextFieldListItem(
+                state = rememberTextFieldState("Perth Underground"),
+                modifier = modifier,
+                enabled = enabled,
+                label = "Name",
             )
         }
     )

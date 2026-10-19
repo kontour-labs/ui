@@ -40,6 +40,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -989,11 +990,44 @@ internal val DragAndDropDemo = ComponentDemo(
     }
 }
 
+private val fieldLabels = Knob.Flag("Labels", initial = true)
+private val fieldError = Knob.Flag("Error")
+private val fieldEnabled = Knob.Flag("Enabled", initial = true)
+
+/**
+ * A favourite's details as a group of rows you type into: a name and a
+ * nickname, and a note with no label. With labels off, every row is its field
+ * and its placeholder; the error shows on the nickname.
+ */
+internal val TextFieldListItemDemo = ComponentDemo(
+    slug = "text-field-list-item",
+    knobs = listOf(fieldLabels, fieldError, fieldEnabled),
+) {
+    val name = rememberTextFieldState("Perth Underground")
+    val nickname = rememberTextFieldState("Work")
+    val note = rememberTextFieldState()
+    val labels = this[fieldLabels]
+    val enabled = this[fieldEnabled]
+    val error = if (this[fieldError]) "Already used for Elizabeth Quay" else null
+    ListGroup {
+        field(name, enabled = enabled, label = if (labels) "Name" else null, placeholder = "Name", icon = Tabler.Outline.Star)
+        field(
+            nickname,
+            enabled = enabled,
+            label = if (labels) "Nickname" else null,
+            placeholder = "Nickname",
+            errorMessage = error,
+        )
+        field(note, enabled = enabled, placeholder = "Add a note", supporting = "Only you see this")
+    }
+}
+
 internal val collectionDemos = listOf(
     ListItemDemo,
     ExpandingListItemDemo,
     DisclosureListItemDemo,
     SplitListItemDemo,
+    TextFieldListItemDemo,
     ListSectionDemo,
     SwipeActionsDemo,
     ReorderableItemDemo,

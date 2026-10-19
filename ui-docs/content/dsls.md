@@ -384,9 +384,10 @@ ListGroup {
 That overload is the reason the other shorthands can stay small — and it is an
 overload rather than a fifth verb because a group holds items either way.
 
-Two shorthands are named for the row they draw rather than called `item`, because
-the row is a different component: `setting` is a `SelectionRow` that opens a
-choice, and `split` is a `SplitListItem`, two rows side by side as one.
+Three shorthands are named for the row they draw rather than called `item`,
+because the row is a different component: `setting` is a `SelectionRow` that
+opens a choice, `split` is a `SplitListItem`, two rows side by side as one, and
+`field` is a `TextFieldListItem`, a row you type into.
 
 ```kotlin
 ListGroup {
@@ -395,6 +396,7 @@ ListGroup {
         start(onClick = ::openWifi) { +"Wi-Fi" }
         end(onClick = ::openBluetooth) { +"Bluetooth" }
     }
+    field(nickname, label = "Nickname")
 }
 ```
 

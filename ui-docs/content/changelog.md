@@ -28,6 +28,12 @@ On `main`, and in the next release.
 
 ### Added
 
+- **[`TextFieldListItem`](components/text-field-list-item.md)**: a list row
+  you type into, with a `ListItem`'s ground, corners and `position`. A label at
+  the start and the value at the end, or with no label the field from the start
+  and its placeholder. A leading icon, a supporting or error line, a trailing
+  slot, and `imeChain`. `field` on `ListGroup` and `listGroup` draws one in
+  place.
 - **`ModalBottomSheet(recedes = false)`**, and `ModalSideSheet`'s: the page
   behind stays where it is, still dimmed, for a screen with a map, a video or
   another platform view behind the sheet, which Android and iOS move on every

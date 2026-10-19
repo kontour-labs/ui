@@ -50,6 +50,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.foundation.Icon
@@ -228,11 +229,19 @@ internal fun TextFieldImpl(
      * a browser can draw for itself: see [textTouchesGoToTheBrowser].
      */
     masked: Boolean = false,
+    /**
+     * Whether the text, and the placeholder standing in for it, sit at the end
+     * of the field rather than its start: the value of a
+     * [io.kontour.ui.components.list.TextFieldListItem] beside its label, where
+     * a settings row's value goes.
+     */
+    alignEnd: Boolean = false,
 ) {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     // Code in the theme's mono face, at the field's own size: the family and
     // tabular figures from `mono`, the metrics from the scale.
-    val textStyle = if (code) Theme.typography.bodyMedium.mono() else Theme.typography.bodyMedium
+    val textStyle = (if (code) Theme.typography.bodyMedium.mono() else Theme.typography.bodyMedium)
+        .let { if (alignEnd) it.copy(textAlign = TextAlign.End) else it }
     val focused by interactions.collectIsFocusedAsState()
 
     // The requester the frame hands a press to.
@@ -371,7 +380,7 @@ internal fun TextFieldImpl(
         // pixel at the first character.
         Box(
             Modifier.weight(1f).then(if (parts != null) Modifier.onPlaced(parts.text) else Modifier),
-            contentAlignment = Alignment.TopStart,
+            contentAlignment = if (alignEnd) Alignment.TopEnd else Alignment.TopStart,
         ) {
             CompositionLocalProvider(
                 LocalTextSelectionColors provides selectionColours,
@@ -454,6 +463,7 @@ internal fun TextFieldImpl(
                     // for is. It kept its own colour, darker than that grey, so
                     // an empty disabled field said more than a filled one.
                     colour = if (enabled) colours.placeholder else colours.contentDisabled,
+                    textAlign = if (alignEnd) TextAlign.End else null,
                     // Over the lines an empty area already has, and no more: a
                     // hint taller than that would grow the empty field, which
                     // would then shrink a line at the first keystroke. One line

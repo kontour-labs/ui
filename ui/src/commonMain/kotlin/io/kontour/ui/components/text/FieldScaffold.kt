@@ -417,7 +417,7 @@ internal fun FieldScaffold(
  * field, and saying so is what stops the host clearing the focus it just asked
  * for.
  */
-private fun Modifier.frameTap(onTap: () -> Unit): Modifier = pointerInput(onTap) {
+internal fun Modifier.frameTap(onTap: () -> Unit): Modifier = pointerInput(onTap) {
     awaitEachGesture {
         awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
         val release = waitForUpOrCancellation()
