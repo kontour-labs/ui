@@ -231,6 +231,19 @@ On `main`, and in the next release.
   sideways lifted the row before the swipe inside it could take it. A grip still
   takes the mouse at once, and a mouse no longer waits for a hold because a
   touch was the last input used.
+- **A press on a destination or a tab no longer leans the marker toward it.**
+  A nav bar's, a nav rail's and a tab bar's marker waits for the tap and then
+  goes; switched between all day, its twitch toward each before it went looked
+  eager. A drag still leans it as it goes, and a segmented control's thumb
+  still leans toward a segment pressed.
+- **A mouse drags a nav rail's or a tab bar's marker when the row scrolls**,
+  as it does when the row fits. A mouse scrolls the row with its wheel, so the
+  drag has nothing to take from; a finger's drag along a row that scrolls
+  still scrolls it.
+- **A chart's tooltip goes as the mouse leaves the chart**, and the place it
+  rested on with it, rather than staying until a scroll moved the chart.
+- **An index scroller shows its bubble for the letter a mouse rests on**,
+  before it is clicked, and moves nothing until it is.
 - **Charts' first data rises into place**: a `Chart` that had no data, loading
   say, raises its marks from their baseline as its first data arrives, as one
   with data from the start does; they used to appear at once and fall from above

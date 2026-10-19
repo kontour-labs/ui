@@ -19,6 +19,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performKeyInput
+import androidx.compose.ui.test.performMouseInput
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.test.requestFocus
@@ -103,6 +104,23 @@ class SectorChartSelectionTest {
         assertEquals(ChartSeries("Food"), selection.x)
         onNodeWithTag("pie").performTouchInput { click(Offset(center.x + 4f, center.y - height / 4)) }
         assertEquals(ChartSeries("Fun"), selection.x)
+    }
+
+    /**
+     * A mouse that rested on a sector lets it go as it leaves the chart, and
+     * its tooltip with it, rather than waiting for a scroll to move the chart.
+     */
+    @Test
+    fun aMouseLeavingLetsGo() = runComposeUiTest {
+        val selection = ChartSelectionState<ChartSeries>(null)
+        pie(selection)
+        onNodeWithTag("pie").performMouseInput { moveTo(Offset(center.x + width / 4, center.y)) }
+        waitForIdle()
+        assertEquals(ChartSeries("Rent"), selection.x, "a mouse resting on rent did not choose it")
+        // Below the 200dp chart, in the host round it.
+        onRoot().performMouseInput { moveTo(Offset(width / 2f, height - 4f)) }
+        waitForIdle()
+        assertNull(selection.x, "a mouse gone off the chart left ${selection.x} chosen")
     }
 
     /** A tap off the chart lets the sector go, as a tap elsewhere puts any tooltip away. */

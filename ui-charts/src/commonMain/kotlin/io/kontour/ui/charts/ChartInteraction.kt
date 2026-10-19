@@ -87,8 +87,8 @@ internal fun rememberChartTip(): ChartTip {
 /**
  * Everything a chart is chosen from, the same for a `Chart` and a
  * `SectorChart`: a tap, a hold then a drag any way, a resting mouse, and the
- * arrow keys, Home, End and Escape; a press anywhere else lets go; and moved,
- * by a scroll, its tooltip goes. One place for them, so a gesture added to one
+ * arrow keys, Home, End and Escape; a press anywhere else lets go, as a mouse
+ * that rested on it does as it leaves; and moved, by a scroll, its tooltip goes. One place for them, so a gesture added to one
  * chart is not one the other lacks.
  *
  * @param chosen What is chosen now, as [index] of [count]; `null` for nothing.
@@ -160,15 +160,32 @@ internal fun Modifier.chartSelectionInput(
             }
         }
         .pointerInput(Unit) {
+            // Whether what is chosen was chosen by the mouse resting on it,
+            // which it lets go of as it leaves.
+            var hovering = false
             awaitPointerEventScope {
                 while (true) {
                     val event = awaitPointerEvent()
                     val change = event.changes.firstOrNull() ?: continue
-                    if (event.type == PointerEventType.Move && change.type == PointerType.Mouse) {
-                        // A pointer arriving rests before the tooltip shows; one
-                        // already showing moves with it.
-                        if (latestChosen == null) tip.resting = true
-                        latestPickAt(change.position)
+                    if (change.type != PointerType.Mouse) continue
+                    when (event.type) {
+                        PointerEventType.Move -> {
+                            // A pointer arriving rests before the tooltip shows; one
+                            // already showing moves with it.
+                            if (latestChosen == null) tip.resting = true
+                            latestPickAt(change.position)
+                            hovering = true
+                        }
+                        // Gone off the chart, its tooltip goes with it, at once.
+                        // It stayed until a scroll moved the chart under it:
+                        // *"when you stop hovering, the tooltip should disappear.
+                        // it shouldn't wait for you to scroll"*.
+                        PointerEventType.Exit -> if (hovering) {
+                            hovering = false
+                            tip.resting = false
+                            if (latestChosen != null) latestClear()
+                        }
+                        else -> Unit
                     }
                 }
             }

@@ -28,6 +28,7 @@ import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performKeyInput
+import androidx.compose.ui.test.performMouseInput
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.pressKey
@@ -171,6 +172,40 @@ class IndexScrollerTest {
         waitForIdle()
         onNodeWithText("M").assertDoesNotExist()
         assertEquals(12, felt.count { it == FeedbackIntent.Tick }, "lifting the finger ticked")
+    }
+
+    /**
+     * A mouse resting on a letter shows its bubble, and moves nothing until it
+     * is clicked. Asked for as *"hovering a letter in the index (with a mouse)
+     * will show the little tooltip thing"*.
+     */
+    @Test
+    fun aMouseRestingOnALetterShowsItsBubble() = runComposeUiTest {
+        show()
+        hover("M")
+        onNodeWithText("M").assertExistsCompat("no bubble saying M beside a mouse resting on it")
+        assertEquals(0, list.firstVisibleItemIndex, "a mouse resting on a letter moved the list")
+
+        hover("C")
+        onNodeWithText("C").assertExistsCompat("the bubble did not follow the mouse to C")
+        onNodeWithText("M").assertDoesNotExist()
+
+        onNodeWithTag("index").performMouseInput { moveTo(Offset(-width.toFloat(), centerY)) }
+        waitForIdle()
+        onNodeWithText("C").assertDoesNotExist()
+    }
+
+    /**
+     * A mouse moved to [label], twice: the first move makes the input a mouse's,
+     * which narrows the rail to a pointer's width, and the second finds the
+     * letter on the rail as it is now.
+     */
+    private fun ComposeUiTest.hover(label: String) {
+        repeat(2) {
+            val y = labelY(labels.indexOf(label))
+            onNodeWithTag("index").performMouseInput { moveTo(Offset(centerX, y)) }
+            waitForIdle()
+        }
     }
 
     @Test
