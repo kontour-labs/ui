@@ -126,6 +126,33 @@ class SwipeScrollTest {
         assertEquals(1, ran, "a scroll that stopped past the point of no return ran the outermost action $ran time(s)")
     }
 
+    /**
+     * Swiped all the way across on a trackpad, the row is let go of as it
+     * reaches the edge, not once the trackpad's coasting has died away.
+     * Reported as *"if you swipe it all the way across, it just stays there for
+     * a bit before it decides to respond"*: each coasting event put the settle
+     * off again, or cancelled the one under way. A second of coasting at a
+     * frame apart runs the action within it, and once.
+     */
+    @Test
+    fun aScrollCarriedToTheEdgeRunsTheActionWhileTheTrackpadIsStillCoasting() {
+        var ran = 0
+        var whileCoasting = 0
+        row(onArchive = { ran++ }, settleFrames = 120) { scene, at, _ ->
+            repeat(12) {
+                scene.scroll(at, Offset(1f, 0f))
+                scene.frame()
+            }
+            repeat(60) {
+                scene.scroll(at, Offset(0.05f, 0f))
+                scene.frame()
+            }
+            whileCoasting = ran
+        }
+        assertEquals(1, whileCoasting, "carried to the edge past the point of no return, the row waited out the coasting")
+        assertEquals(1, ran, "the coasting after a full swipe ran the action again")
+    }
+
     @Test
     fun aMostlyVerticalPanIsTheLists() {
         val (state, settled) = row { scene, at, _ ->

@@ -72,8 +72,9 @@ desktop, which never move the content's top, are left as they are.
 
 **A mouse wheel opens it all the way too.** A list at its top declines a wheel's
 notch before it becomes a scroll, so nothing listening to the scroll hears it.
-`topBarCollapse` hears the notches the content declined, and finishes the bar
-the way the wheel turned. The state's `nestedScrollConnection` is still there
+`topBarCollapse` hears the notches the content declined, and moves the bar as
+far as each would have scrolled, the way the wheel turned; a trackpad's small
+pieces of scroll move it as little as they go, so a slow scroll opens it slowly. The state's `nestedScrollConnection` is still there
 for wiring the scroll yourself with `Modifier.nestedScroll`, without that.
 
 To drive it from anything else, pass `collapseProgress` directly: 0 open, 1

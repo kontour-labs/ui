@@ -886,7 +886,10 @@ fun SwipeActions(
              *
              * A pan ends with an event of its own and settles then, flicked by
              * how it was moving; a scroll has no end, and settles once it has
-             * been quiet for [SwipeActionsDefaults.SettleAfterScroll].
+             * been quiet for [SwipeActionsDefaults.SettleAfterScroll] — or at
+             * once, carried past its point of no return to the edge. What
+             * scroll follows either before a quiet spell is a trackpad
+             * coasting after its fingers lifted, and moves nothing.
              */
             .then(
                 if (swipeable) {
@@ -901,6 +904,15 @@ fun SwipeActions(
                         var ours: Boolean? = null
                         var gathered = Offset.Zero
                         var lastScroll = 0L
+                        // The gesture has been let go of — its pan ended, or its
+                        // scroll settled — and what scroll follows before a quiet
+                        // spell is its momentum: a trackpad's fingers have lifted
+                        // and it is still coasting. It used to be taken as more of
+                        // the gesture, and each event put off the settle, or
+                        // cancelled one already under way and started the wait
+                        // again: a row swiped all the way across sat at the edge
+                        // until the coasting had died away.
+                        var coasting = false
                         var panned = 0f
                         val panVelocity = VelocityTracker1D(isDataDifferential = false)
 
@@ -937,6 +949,7 @@ fun SwipeActions(
                                 when (event.type) {
                                     PointerEventType.PanStart -> {
                                         begin()
+                                        coasting = false
                                         panned = 0f
                                         panVelocity.resetTracking()
                                     }
@@ -955,6 +968,9 @@ fun SwipeActions(
                                             changes.forEach { it.consume() }
                                             val velocity = panVelocity.calculateVelocity()
                                             settle(if (isRtl) -velocity else velocity)
+                                            // Its momentum may follow as scroll.
+                                            coasting = true
+                                            lastScroll = changes.first().uptimeMillis
                                         }
                                         dealt.reset()
                                         ours = null
@@ -964,15 +980,40 @@ fun SwipeActions(
                                         // Says nothing about direction, so decides nothing.
                                         if (delta == Offset.Zero) continue
                                         val now = changes.first().uptimeMillis
-                                        if (now - lastScroll > SideScrollQuietMillis) begin()
+                                        val quiet = now - lastScroll > SideScrollQuietMillis
                                         lastScroll = now
+                                        if (coasting) {
+                                            // Momentum of a gesture already let go of:
+                                            // the row's, and it moves nothing.
+                                            if (!quiet) {
+                                                if (abs(delta.x) >= abs(delta.y)) changes.forEach { it.consume() }
+                                                continue
+                                            }
+                                            coasting = false
+                                        }
+                                        if (quiet) begin()
                                         // A notch is a whole decision on its own.
                                         if (decide(delta, 0f) != true || delta.x == 0f) continue
                                         changes.forEach { it.consume() }
                                         move(-sideScrollDistance(delta.x, stepPx, dpPx, platformScrollDeltaInPixels))
+                                        // Carried past the point of no return and on to
+                                        // the edge, there is nowhere further to go: it is
+                                        // let go of now, not once the scroll has been
+                                        // quiet, which on a trackpad is once its
+                                        // coasting has died away.
+                                        val at = state.anchoredState.offset
+                                        val anchors = state.anchoredState.anchors
+                                        val edge = if (at > 0f) anchors.maxPosition() else anchors.minPosition()
+                                        if (committing && abs(at - edge) < 0.5f) {
+                                            dealt.reset()
+                                            coasting = true
+                                            settle(0f)
+                                            continue
+                                        }
                                         waiting = scope.launch {
                                             delay(SwipeActionsDefaults.SettleAfterScroll)
                                             dealt.reset()
+                                            coasting = true
                                             settle(0f)
                                         }
                                     }

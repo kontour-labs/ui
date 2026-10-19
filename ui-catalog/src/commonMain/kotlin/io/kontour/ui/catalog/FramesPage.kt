@@ -370,7 +370,7 @@ private fun roundedShapes(): Shapes {
         container = md,
         panel = lg,
         sheet = RoundedCornerShape(topStart = 34.dp, topEnd = 34.dp),
-        sideSheet = RoundedCornerShape(topEnd = 34.dp, bottomEnd = 34.dp),
+        sideSheet = RoundedCornerShape(topEnd = 28.dp, bottomEnd = 28.dp),
     )
 }
 

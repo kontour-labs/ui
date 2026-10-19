@@ -113,6 +113,8 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.Velocity
 import kotlin.math.abs
 import kotlin.math.roundToInt
+import io.kontour.ui.components.list.sideScrollDistance
+import io.kontour.ui.platform.platformScrollDeltaInPixels
 
 /** How much room a [TopBar] takes, and where its title sits. */
 enum class TopBarStyle {
@@ -1582,6 +1584,27 @@ class TopBarCollapseState internal constructor(initialProgress: Float) {
     private var settlingTo: Float = 0f
 
     /**
+     * Moves the bar by a wheel's or a trackpad's [by] pixels the content
+     * declined — towards its end collapses — in [scope], from where the last
+     * one was taking it. Whether that used them: not when the bar is already
+     * at that end, nor when it does not collapse at all.
+     *
+     * It used to finish the bar all the way for anything declined, which a
+     * notch at a time was meant to: but a trackpad sends a scroll in dozens of
+     * small pieces, and the first of them threw the whole bar open at a list's
+     * top — *"it isn't smooth, it sort of just jumps if you scroll slowly"*. A
+     * bar now opens as far as the wheel or the fingers went, as the list moves.
+     */
+    internal fun nudgeForWheel(by: Float, scope: CoroutineScope): Boolean {
+        if (travel <= 0f || follows != null || by == 0f) return false
+        val from = if (settling?.isActive == true) settlingTo else progress
+        // Opening at the content's start is spent over the bar's height alone,
+        // as a scroll's is: see `spend`.
+        val length = if (by < 0f && shrink > 0f) shrink else travel
+        return finishForWheel((from + by / length).coerceIn(0f, 1f), scope)
+    }
+
+    /**
      * Finishes the bar towards [target] — 0 open, 1 collapsed — for a wheel's
      * notch the content declined, in [scope]. Whether that used the notch: not
      * when the bar is already there, nor when it does not collapse at all.
@@ -1791,8 +1814,9 @@ fun rememberTopBarCollapseState(
  * a mouse wheel. A list declines a wheel's notch outright when it cannot scroll
  * any further that way, so the notch never becomes a scroll and no connection
  * hears of it — and a list at its top is exactly where a bar opens. So a notch
- * the content declined finishes the bar the way it turned: towards the
- * content's start, open; towards its end, collapsed. A notch the content
+ * the content declined moves the bar as far as the notch would have scrolled,
+ * the way it turned — towards the content's start, opening — and a trackpad's
+ * small pieces of scroll move it as little as they go. A notch the content
  * scrolled by moves the bar as any scroll does.
  *
  * The other is for a finger pushing past the content's end, on iOS, where the
@@ -1849,12 +1873,15 @@ fun Modifier.topBarCollapse(state: TopBarCollapseState): Modifier =
                         if (change.isConsumed) continue
                         val delta = change.scrollDelta
                         if (delta.y == 0f || abs(delta.y) < abs(delta.x)) continue
-                        val target = if (delta.y > 0f) 1f else 0f
-                        if (state.finishForWheel(target, this@coroutineScope)) change.consume()
+                        val by = sideScrollDistance(delta.y, WheelStep.toPx(), 1.dp.toPx(), platformScrollDeltaInPixels)
+                        if (state.nudgeForWheel(by, this@coroutineScope)) change.consume()
                     }
                 }
             }
         }
+
+/** How far a wheel's notch the content declined moves a collapsing bar: about what a notch scrolls a list. */
+private val WheelStep = 64.dp
 
 /** The collapse whose [topBarCollapse] a node is inside, for a bar to tell whether it is inside its own. */
 private val ModifierLocalTopBarCollapse = modifierLocalOf<TopBarCollapseState?> { null }

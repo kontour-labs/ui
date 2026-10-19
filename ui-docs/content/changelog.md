@@ -211,6 +211,18 @@ On `main`, and in the next release.
 
 ### Changed
 
+- **Side sheets take the panel's corner, 28dp**, not a sheet's 34. Facing the
+  content in the middle of the window, a side sheet meets no device corner, and
+  at 34dp its smoothed top corner crowded the title and the back button in it.
+  `Theme.shapes.sideSheet` is `large.leadingCornersOnly()`; pass `shape` for the
+  old corner.
+- **A top bar opens as far as a wheel or a trackpad went** at a list's top,
+  rather than all the way at the first piece of scroll the list declined, which
+  made a slow trackpad scroll jump.
+- **Swipe actions let go of a trackpad's swipe as it ends**: carried to the edge
+  past the point of no return, the row runs its action at once, and the scroll a
+  trackpad coasts on after the fingers lift no longer holds it at the edge or
+  cancels the settle under way.
 - **Charts' first data rises into place**: a `Chart` that had no data, loading
   say, raises its marks from their baseline as its first data arrives, as one
   with data from the start does; they used to appear at once and fall from above
