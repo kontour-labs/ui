@@ -28,6 +28,11 @@ On `main`, and in the next release.
 
 ### Added
 
+- **`ModalBottomSheet(recedes = false)`**, and `ModalSideSheet`'s: the page
+  behind stays where it is, still dimmed, for a screen with a map, a video or
+  another platform view behind the sheet, which Android and iOS move on every
+  frame of the shrink. See
+  [`ModalBottomSheet`](components/modal-bottom-sheet.md#recedes--false-over-a-map-or-a-video).
 - **`Table(narrowStickyColumns = true)`**: pinned columns narrow to about two
   thirds of their width over the first stretch of a scroll across, cut and
   faded at their ends, giving the scrolling columns the room, and widen again as
@@ -103,6 +108,11 @@ On `main`, and in the next release.
 
 ### Breaking
 
+- **`ModalBottomSheet` and `ModalSideSheet` have a new parameter**,
+  `recedes`, defaulted, after `scrim`, so anything built against 0.4.5
+  recompiles. A call that passed `dismissible` by position still compiles and
+  sets `recedes` instead, so it names it. See
+  [Migrating](migrating.md#modalbottomsheet-has-recedes-after-scrim).
 - **`SystemIcons` is a class, read as `Theme.icons`.** `SystemIcons.Close` is
   `Theme.icons.close`, every glyph in lower camel case, and
   `DatePickerDefaults.TodayIcon` is `Theme.icons.today`. `KontourTheme` and
@@ -230,6 +240,11 @@ On `main`, and in the next release.
 - **A top bar opens as far as a wheel or a trackpad went** at a list's top,
   rather than all the way at the first piece of scroll the list declined, which
   made a slow trackpad scroll jump.
+- **A receding page costs a modal sheet much less to draw.** The black band
+  round the page and its rounded corners were one screen-sized path, cut and
+  filled afresh on every frame the sheet arrived, left or was dragged. They are
+  four rectangles and four corner pieces now, cut once per step of the corner's
+  ramp and drawn under each frame's scale. The picture is the same.
 - **Swipe actions let go of a trackpad's swipe as it ends**: carried past the
   point of no return by a scroll, the row runs its action at once, and the
   scroll a trackpad coasts on after the fingers lift no longer holds it there or

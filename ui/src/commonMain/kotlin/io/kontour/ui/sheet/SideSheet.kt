@@ -123,6 +123,14 @@ fun ModalSideSheet(
     containerColour: Color = Theme.colours.surfaceRaised,
     contentColour: Color = Theme.colours.content,
     scrim: ScrimStyle = ScrimStyle.Dimmed,
+    /**
+     * Whether the screen behind shrinks back as the sheet comes in, under a
+     * [ScrimStyle.Dimmed] scrim, as a [ModalBottomSheet]'s does. `false` leaves it
+     * where it is, still dimmed: for a screen with a map, a video or another
+     * platform view behind, which Android and iOS move on every frame the screen
+     * shrinks. See [ModalBottomSheet]'s.
+     */
+    recedes: Boolean = true,
     dismissible: Boolean = true,
     dismissLabel: String = Theme.strings.close,
     /**
@@ -170,7 +178,7 @@ fun ModalSideSheet(
 
     DisposableEffect(Unit) { onDispose { host.hide(key) } }
 
-    LaunchedEffect(visible, side, width, scrim) {
+    LaunchedEffect(visible, side, width, scrim, recedes) {
         if (!visible) {
             host.hide(key)
             return@LaunchedEffect
@@ -199,7 +207,7 @@ fun ModalSideSheet(
                 // because the blur costs 7.3x the frame for every frame the
                 // sheet is open. Two sheets that receded differently would read
                 // as two components.
-                backdrop = if (scrim == ScrimStyle.Dimmed) {
+                backdrop = if (scrim == ScrimStyle.Dimmed && recedes) {
                     BackdropStyle.Scale
                 } else {
                     BackdropStyle.None

@@ -59,6 +59,24 @@ floats the whole way up and back, and a sheet whose content fills the window is
 an edge sheet from its first frame to its last. See
 [`BottomSheet`](bottom-sheet.md#expanded-a-floating-sheet-becomes-an-edge-sheet).
 
+### `recedes = false` over a map or a video
+
+The page behind a modal sheet shrinks back as the sheet comes up, and follows it
+as it is dragged and as it leaves. Over a screen with a map, a video or another
+platform view behind, that costs frames: such a view draws through a surface of
+its own, which Android and iOS move and resize on every frame of the shrink.
+`recedes = false` keeps the page where it is, still dimmed:
+
+```kotlin
+ModalBottomSheet(
+    visible = showStop,
+    onDismissRequest = { showStop = false },
+    recedes = false,
+) {
+    SheetHeader { +"Perth Underground" }
+}
+```
+
 ### `onDismissRequest` is the user's, and comes once
 
 It fires when the *user* closes the sheet — a drag to the bottom, a tap outside,

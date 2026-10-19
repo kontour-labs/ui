@@ -19,9 +19,24 @@ from the version the app is on.
 
 Unreleased, and growing. `SystemIcons` is the theme's now, so code that named
 one of its glyphs changes; `Strings` has new fields and `CalendarEvent` a
-new parameter, each defaulted and last, and `Table` a new one after
-`stickyColumns`.
+new parameter, each defaulted and last, `Table` a new one after
+`stickyColumns`, and the modal sheets one after `scrim`.
 Charts are a new module, which an app takes only if it wants them.
+
+### `ModalBottomSheet` has `recedes` after `scrim`
+
+`ModalSideSheet` too. Defaulted, so a call that names its arguments needs
+nothing. One that passed `dismissible` by position names it: the place after
+`scrim` is `recedes` now, and a `false` meant to make the sheet undismissable
+still compiles, and keeps the page from receding instead.
+
+```kotlin
+// 0.4.5
+ModalSideSheet(open, { open = false }, Modifier, SheetSide.End, 480.dp, shape, surface, content, ScrimStyle.Dimmed, false) { /* … */ }
+
+// 0.5.0
+ModalSideSheet(open, { open = false }, Modifier, SheetSide.End, 480.dp, shape, surface, content, ScrimStyle.Dimmed, dismissible = false) { /* … */ }
+```
 
 ### `Table` has `narrowStickyColumns` after `stickyColumns`
 

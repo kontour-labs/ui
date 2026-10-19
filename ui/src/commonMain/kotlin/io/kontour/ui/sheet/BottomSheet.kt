@@ -1058,6 +1058,18 @@ fun ModalBottomSheet(
      */
     scrim: ScrimStyle = ScrimStyle.Dimmed,
     /**
+     * Whether the screen behind shrinks back as the sheet comes up, under a
+     * [ScrimStyle.Dimmed] scrim. `false` leaves it where it is, still dimmed.
+     *
+     * For a screen with a map, a video or another platform view behind the
+     * sheet: such a view draws through a surface of its own, which Android and
+     * iOS have to move and resize on every frame the screen shrinks, as the
+     * sheet arrives, leaves and is dragged. Measured as dropped frames over a
+     * map and a video, and the platform's cost rather than the library's to
+     * lower. Read when the sheet opens.
+     */
+    recedes: Boolean = true,
+    /**
      * Whether the user can close this sheet without the app's help.
      *
      * `false` closes **every** route out: the tap outside, the back gesture, and
@@ -1206,7 +1218,8 @@ fun ModalBottomSheet(
                     // ridiculously laggy" was reported from exactly that. A
                     // dialog still blurs; it is on screen for one decision and
                     // has nothing to recede.
-                    backdrop = if (scrim == ScrimStyle.Dimmed) BackdropStyle.Scale else BackdropStyle.None,
+                    // And not at all where the caller said not to: see `recedes`.
+                    backdrop = if (scrim == ScrimStyle.Dimmed && recedes) BackdropStyle.Scale else BackdropStyle.None,
                     dismissOnOutside = dismissible,
                     dismissOnBack = dismissible,
                     dismissLabel = dismissLabel,
