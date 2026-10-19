@@ -24,46 +24,52 @@ internal fun interpolate(from: ResolvedChart, to: ResolvedChart, fraction: Float
         val previous = from.layers.firstOrNull {
             it.markIndex == layer.markIndex && it.series == layer.series && it.mark.kind == layer.mark.kind
         }
-        if (previous == null) layer else blendLayer(previous, layer, t, to.horizontal)
+        // A series that was not there rises from its baseline, as the whole
+        // chart does when it first appears. It used to arrive at once.
+        blendLayer(previous ?: collapsedLayer(layer, to), layer, t, to.horizontal)
     }
     return to.with(x, y, layers)
 }
+
+/** Whether [this] shows no marks at all: a chart whose data has not come yet. */
+internal val ResolvedChart.empty: Boolean get() = layers.all { it.size == 0 }
 
 /**
  * [chart] with every bar, area and line at its baseline: where it rises from
  * when it first appears. A line's baseline is the bottom of the plot.
  */
-internal fun collapsed(chart: ResolvedChart): ResolvedChart {
+internal fun collapsed(chart: ResolvedChart): ResolvedChart =
+    chart.with(chart.x, chart.y, chart.layers.map { collapsedLayer(it, chart) })
+
+/** [layer] of [chart] at its baseline: see [collapsed]. */
+private fun collapsedLayer(layer: Layer, chart: ResolvedChart): Layer {
     val valueLow = if (chart.horizontal) chart.x.low else chart.y.low
-    val layers = chart.layers.map { layer ->
-        // A stream swells out of its middle, top and foot together.
-        if (layer.mark.kind == MarkKind.Area && layer.mark.stacking == ChartStacking.Centred) {
-            val middle = DoubleArray(layer.size)
-            return@map layer.copy(up = middle, base = middle.copyOf())
-        }
-        when (layer.mark.kind) {
-            // A band rises from its low edge, as an area does from its base,
-            // and a stem and a floating bar from their feet.
-            MarkKind.Bar, MarkKind.Area, MarkKind.Line, MarkKind.Band, MarkKind.Stem -> {
-                val lying = chart.horizontal && layer.mark.kind == MarkKind.Bar
-                val floor = DoubleArray(layer.size) { layer.base?.get(it) ?: valueLow }
-                if (lying) layer.copy(across = floor) else layer.copy(up = floor)
-            }
-            // A box opens out from its median line.
-            MarkKind.Box -> {
-                val median = layer.values
-                val box = layer.box?.let { BoxRun(median.copyOf(), median.copyOf(), median.copyOf(), it.outliers) }
-                layer.copy(up = median.copyOf(), base = median.copyOf(), box = box)
-            }
-            // A heat map warms in from its palest.
-            MarkKind.Cell -> {
-                val palest = layer.values.filter { !it.isNaN() }.minOrNull() ?: 0.0
-                layer.copy(values = DoubleArray(layer.size) { if (layer.values[it].isNaN()) Double.NaN else palest })
-            }
-            MarkKind.Point, MarkKind.Rectangle -> layer
-        }
+    // A stream swells out of its middle, top and foot together.
+    if (layer.mark.kind == MarkKind.Area && layer.mark.stacking == ChartStacking.Centred) {
+        val middle = DoubleArray(layer.size)
+        return layer.copy(up = middle, base = middle.copyOf())
     }
-    return chart.with(chart.x, chart.y, layers)
+    return when (layer.mark.kind) {
+        // A band rises from its low edge, as an area does from its base,
+        // and a stem and a floating bar from their feet.
+        MarkKind.Bar, MarkKind.Area, MarkKind.Line, MarkKind.Band, MarkKind.Stem -> {
+            val lying = chart.horizontal && layer.mark.kind == MarkKind.Bar
+            val floor = DoubleArray(layer.size) { layer.base?.get(it) ?: valueLow }
+            if (lying) layer.copy(across = floor) else layer.copy(up = floor)
+        }
+        // A box opens out from its median line.
+        MarkKind.Box -> {
+            val median = layer.values
+            val box = layer.box?.let { BoxRun(median.copyOf(), median.copyOf(), median.copyOf(), it.outliers) }
+            layer.copy(up = median.copyOf(), base = median.copyOf(), box = box)
+        }
+        // A heat map warms in from its palest.
+        MarkKind.Cell -> {
+            val palest = layer.values.filter { !it.isNaN() }.minOrNull() ?: 0.0
+            layer.copy(values = DoubleArray(layer.size) { if (layer.values[it].isNaN()) Double.NaN else palest })
+        }
+        MarkKind.Point, MarkKind.Rectangle -> layer
+    }
 }
 
 private fun blendAxis(from: ResolvedAxis, to: ResolvedAxis, t: Double): ResolvedAxis =

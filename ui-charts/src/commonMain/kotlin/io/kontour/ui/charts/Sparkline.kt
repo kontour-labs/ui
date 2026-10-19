@@ -84,9 +84,17 @@ fun Sparkline(
         }
     }
 
-    val reveal = remember { Animatable(if (animateData && !motion.reduceMotion) 0f else 1f) }
-    LaunchedEffect(Unit) {
-        if (reveal.value < 1f) reveal.animateTo(1f, motion.tweenSlow())
+    val reveals = animateData && !motion.reduceMotion
+    val reveal = remember { Animatable(if (reveals) 0f else 1f) }
+    // Drawn in as it first appears, and again as its first values arrive where
+    // it had none: they used to be there at once.
+    val empty = numbers.all { it.isNaN() }
+    LaunchedEffect(empty) {
+        if (empty) {
+            if (reveals) reveal.snapTo(0f)
+        } else if (reveal.value < 1f) {
+            reveal.animateTo(1f, motion.tweenSlow())
+        }
     }
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val lineWidth = Theme.sizing.borderWidthStrong

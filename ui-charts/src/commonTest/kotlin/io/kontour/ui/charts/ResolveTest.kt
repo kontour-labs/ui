@@ -118,6 +118,42 @@ class ResolveTest {
         assertEquals(resolved, interpolate(start, resolved, 1f))
     }
 
+    /**
+     * Data arriving in a chart that had none rises into place from the new
+     * chart laid flat, as a chart with data from the start does — not from the
+     * empty frame, through whose axes the marks fell from far above the plot.
+     */
+    @Test
+    fun theFirstDataInAnEmptyChartRisesFromItsBaseline() {
+        val empty = chart(ChartAxis.category<String>(), ChartAxis.number()) {
+            bar(emptyList<Trip>(), x = { it.day }, y = { it.riders })
+        }
+        val full = chart(ChartAxis.category<String>(), ChartAxis.number()) {
+            bar(trips, x = { it.day }, y = { it.riders }, series = { ChartSeries(it.route) }, stacking = ChartStacking.Grouped)
+        }
+        assertTrue(empty.empty, "a chart with no data should count as empty")
+        val start = moveFrom(empty, full) { empty }
+        assertEquals(full.y.low, start.y.low, "the move should start on the new chart's own axes")
+        start.layers.forEach { layer -> layer.up.forEach { assertEquals(0.0, it) } }
+        assertEquals(20.0, interpolate(start, full, 0.5f).layers.first().up[0], 1e-9)
+        // A chart that had data moves on from the frame on screen.
+        assertTrue(moveFrom(full, full) { empty } === empty)
+    }
+
+    /** A series that was not there rises from its baseline as the rest move. */
+    @Test
+    fun aSeriesThatWasNotThereRisesFromItsBaseline() {
+        val one = chart(ChartAxis.category<String>(), ChartAxis.number()) {
+            bar(trips.filter { it.route == "950" }, x = { it.day }, y = { it.riders }, series = { ChartSeries(it.route) }, stacking = ChartStacking.Grouped)
+        }
+        val both = chart(ChartAxis.category<String>(), ChartAxis.number()) {
+            bar(trips, x = { it.day }, y = { it.riders }, series = { ChartSeries(it.route) }, stacking = ChartStacking.Grouped)
+        }
+        val arriving = interpolate(one, both, 0.5f).layers.first { it.series.name == "951" }
+        // Monday's 10, half way up from 0.
+        assertEquals(5.0, arriving.up[0], 1e-9)
+    }
+
     @Test
     fun theSummarySaysTheNumbersAGlanceWouldTake() {
         val resolved = chart(ChartAxis.category<String>(), ChartAxis.number(title = "Riders")) {

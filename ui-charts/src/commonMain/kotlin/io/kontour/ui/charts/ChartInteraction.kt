@@ -227,15 +227,22 @@ internal fun <T : Any> ChartTooltipProbe(
 }
 
 /**
- * How visible a chart is as it first appears: whole at once, unless motion is
- * reduced, where it fades in, because nothing moves into place.
+ * How visible a chart is as it first appears, and as its first data arrives
+ * where it was [empty]: whole at once, unless motion is reduced, where it fades
+ * in, because nothing moves into place.
  */
 @Composable
-internal fun rememberChartFade(animateData: Boolean): Animatable<Float, AnimationVector1D> {
+internal fun rememberChartFade(animateData: Boolean, empty: Boolean = false): Animatable<Float, AnimationVector1D> {
     val motion = Theme.motion
-    val fade = remember { Animatable(if (animateData && motion.reduceMotion) 0f else 1f) }
-    LaunchedEffect(Unit) {
-        if (fade.value < 1f) fade.animateTo(1f, motion.tweenFast())
+    val fades = animateData && motion.reduceMotion
+    val fade = remember { Animatable(if (fades) 0f else 1f) }
+    LaunchedEffect(empty) {
+        // Nothing to show yet: ready to fade in what comes.
+        if (empty) {
+            if (fades) fade.snapTo(0f)
+        } else if (fade.value < 1f) {
+            fade.animateTo(1f, motion.tweenFast())
+        }
     }
     return fade
 }

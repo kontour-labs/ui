@@ -307,7 +307,9 @@ every series' value there, and the chart shows it in a tooltip.
 ## Motion
 
 A chart rises into place when it first appears: bars and areas from their
-baseline, lines from the bottom. A change of data moves from the old chart to
+baseline, lines from the bottom. It does the same when its first data arrives
+in a chart that had none, loading say, and a series added later rises from its
+baseline while the rest move. A change of data moves from the old chart to
 the new one. A bar for March becomes the new bar for March, and a line of
 twelve points becomes one of thirty by being read at the new places, so
 nothing jumps. The plot's edges move with it: when the axis's labels grow a
@@ -403,8 +405,8 @@ chart of a week.
 
 The legend is not read: the summary names every series already.
 
-**Under reduced motion nothing moves.** A chart appearing fades in, and a change
-of data is the new chart at once.
+**Under reduced motion nothing moves.** A chart appearing, or its first data
+arriving, fades in, and a change of data is the new chart at once.
 
 **Right to left**, the axis across runs from the right and the axis up stands on
 the right, and the text stays the right way round.

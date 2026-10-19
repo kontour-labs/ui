@@ -207,6 +207,12 @@ On `main`, and in the next release.
 
 ### Changed
 
+- **Charts' first data rises into place**: a `Chart` that had no data, loading
+  say, raises its marks from their baseline as its first data arrives, as one
+  with data from the start does; they used to appear at once and fall from above
+  the plot as its axes opened. A series added later rises too, a `Sparkline`
+  draws itself in when its first values come, and under reduced motion each
+  fades in instead.
 - **A drop list laid out as a row says "Move left" and "Move right"** to a
   screen reader, the other way round right to left, rather than a column's
   "Move up" and "Move down".

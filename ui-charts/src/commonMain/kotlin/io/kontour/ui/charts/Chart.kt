@@ -138,7 +138,7 @@ fun <X : Any, Y : Any> Chart(
     }
     // Under reduced motion nothing moves: a chart appearing fades in, and a
     // change of data is the new chart at once.
-    val fade = rememberChartFade(animateData)
+    val fade = rememberChartFade(animateData, empty = chart.empty)
 
     val sentences = Theme.strings.sentences
     val summary = remember(chart, strings, formats, sentences, contentDescription) {
@@ -239,7 +239,7 @@ internal class ChartTransition(initial: ResolvedChart, animate: Boolean) {
                 // its own, and whatever move was under way carries on to it.
                 to = next
             } else {
-                from = if (animate) frame() else next
+                from = if (animate) moveFrom(to, next, ::frame) else next
                 startInsets = if (animate) drawnInsets else null
                 to = next
                 restarting = animate
@@ -250,6 +250,17 @@ internal class ChartTransition(initial: ResolvedChart, animate: Boolean) {
         if (animate) progress.animateTo(1f, spec) else progress.snapTo(1f)
     }
 }
+
+/**
+ * Where a move from [current] to [next] starts: the frame on screen, [frame] —
+ * or, for data arriving in a chart that had none, the new chart laid flat, on
+ * its own axes, so it rises into place as a chart that had data from the start
+ * does. From the empty frame, the marks arrived at once, and through the empty
+ * chart's axes, which span nothing much, they fell into place from far above
+ * the plot as the axes opened out.
+ */
+internal fun moveFrom(current: ResolvedChart, next: ResolvedChart, frame: () -> ResolvedChart): ResolvedChart =
+    if (current.empty && !next.empty) collapsed(next) else frame()
 
 @Suppress("UNCHECKED_CAST")
 private fun <X : Any> decodePlace(place: Double, axis: ChartAxis<X>, model: ChartModel): X? = when (axis.kind) {

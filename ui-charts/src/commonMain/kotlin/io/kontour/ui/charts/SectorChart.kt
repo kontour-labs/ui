@@ -160,7 +160,7 @@ fun SectorChart(
         previous.clear()
         previous += parts.map { it.series }.zip(fractions)
     }
-    val fade = rememberChartFade(animateData)
+    val fade = rememberChartFade(animateData, empty = parts.isEmpty())
 
     val shares = remember(parts, strings, formats) {
         parts.mapIndexed { index, part ->
