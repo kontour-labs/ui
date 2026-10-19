@@ -326,6 +326,10 @@ class TableScope<T> internal constructor() {
  * @param stickyColumns How many columns stay pinned at the start as the rest
  *   scroll across. Pinned columns never cover more than half the table; past that
  *   the last of them scroll too.
+ * @param narrowStickyColumns Whether the pinned columns narrow a little as the
+ *   rest are scrolled across, giving the rest more room: to about two thirds of
+ *   their width over the first stretch of the scroll, cut and faded at their
+ *   ends rather than wrapped, and back as the table returns to its start.
  * @param striped Every other row on a quiet ground, for reading across a wide row.
  * @param lines The rules between rows and between columns.
  * @param outlined A border round the whole table, with a card's corners.
@@ -352,6 +356,7 @@ fun <T> Table(
     key: ((item: T) -> Any)? = null,
     state: TableState = rememberTableState(),
     stickyColumns: Int = 0,
+    narrowStickyColumns: Boolean = false,
     striped: Boolean = false,
     lines: TableLines = TableLines.Rows,
     outlined: Boolean = false,
@@ -495,6 +500,11 @@ fun <T> Table(
             viewport = viewport,
             pinnedRequested = stickyColumns.coerceAtLeast(0) + if (leading) 1 else 0,
             pinCap = TablePinCap,
+            narrowTo = if (narrowStickyColumns) StickyNarrowTo else 1f,
+            narrowFloor = StickyNarrowest.roundToPx(),
+            narrowRange = StickyNarrowOver.roundToPx(),
+            // The checkbox column keeps its width: a checkbox cut is no checkbox.
+            keepWidth = if (leading) 1 else 0,
         )
         state.horizontal.updateBounds(maxValue = layout.maxScroll, viewport = layout.paneWidth)
 
@@ -568,6 +578,15 @@ private val EmptyColumns = resolveTableColumns(emptyList(), 0, 0, 1f)
 
 /** How much of the table pinned columns may cover before the last of them scrolls too. */
 private const val TablePinCap: Float = 0.5f
+
+/** How much of its width a pinned column keeps, narrowed: see `narrowStickyColumns`. */
+private const val StickyNarrowTo: Float = 0.7f
+
+/** The narrowest a pinned column is made, if it was wider: a word or two of a name still shows. */
+private val StickyNarrowest = 64.dp
+
+/** How far the table scrolls across while its pinned columns narrow: the first stretch, as a top bar collapses over a page's first. */
+private val StickyNarrowOver = 64.dp
 
 /**
  * Which rows a fitted column is measured against: all of them up to fifty, and

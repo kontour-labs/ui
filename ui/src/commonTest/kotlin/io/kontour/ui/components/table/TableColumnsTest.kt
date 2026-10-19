@@ -95,4 +95,58 @@ class TableColumnsTest {
         scroll.updateBounds(maxValue = 100, viewport = 400)
         assertEquals(100, scroll.value, "a table that grows wider pulls a scroll past its new end back")
     }
+
+    /**
+     * Pinned columns told to narrow give the pane what they give up, a little at
+     * a time over the first stretch of a scroll, and the pane scrolls that much
+     * less. A checkbox column kept at its width stays it.
+     */
+    @Test
+    fun pinnedColumnsNarrowOverTheFirstStretchOfAScroll() {
+        val layout = resolveTableColumns(
+            listOf(fixed(40), fixed(200), fixed(300), fixed(300)),
+            viewport = 600,
+            pinnedRequested = 2,
+            pinCap = 0.5f,
+            narrowTo = 0.7f,
+            narrowFloor = 64,
+            narrowRange = 100,
+            keepWidth = 1,
+        )
+        val unnarrowed = 840 - 240 - 360
+        assertContentEquals(intArrayOf(40, 140), layout.narrowest, "the checkbox keeps its 40, the name goes to 70% of 200")
+        assertEquals(unnarrowed - 60, layout.maxScroll, "the pane scrolls 60 less, what the name gave up")
+        assertEquals(0f, layout.narrowing(0))
+        assertEquals(0.5f, layout.narrowing(50))
+        assertEquals(1f, layout.narrowing(400))
+        assertEquals(170, layout.shownWidth(1, 0.5f), "half way, half of what it gives up")
+        assertEquals(40 + 140, layout.shownPinnedWidth(1f))
+        assertEquals(40, layout.shownStart(1, 1f))
+    }
+
+    /** Never by more than half the scroll there is: it is the scroll that narrows them. */
+    @Test
+    fun narrowingNeverTakesMoreThanHalfTheScroll() {
+        val layout = resolveTableColumns(
+            listOf(fixed(200), fixed(420)),
+            viewport = 600,
+            pinnedRequested = 1,
+            pinCap = 0.5f,
+            narrowTo = 0.5f,
+            narrowFloor = 0,
+            narrowRange = 100,
+        )
+        // 20 of scroll, so 10 of narrowing, where 100 was asked for.
+        assertEquals(190, layout.narrowest[0])
+        assertEquals(10, layout.maxScroll)
+        assertEquals(10, layout.narrowRange, "it narrows over the whole of what scroll is left")
+    }
+
+    @Test
+    fun withoutNarrowingNothingNarrows() {
+        val layout = resolveTableColumns(listOf(fixed(200), fixed(500)), viewport = 600, pinnedRequested = 1, pinCap = 0.5f)
+        assertEquals(0, layout.narrowest.size)
+        assertEquals(0f, layout.narrowing(500))
+        assertEquals(200, layout.shownPinnedWidth(1f))
+    }
 }

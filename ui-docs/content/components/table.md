@@ -62,6 +62,13 @@ appears at their edge once something has slid under it. Pinned columns never
 cover more than half the table. On a screen too narrow for that, the last of
 them scroll too.
 
+With `narrowStickyColumns`, the pinned columns **narrow a little as the rest are
+scrolled across**, to about two thirds of their width, giving the scrolling
+columns the room. They narrow in step with the first stretch of the scroll, so
+they follow the finger, and widen again as the table comes back to its start.
+What is in them is cut and faded at their ends rather than wrapped, so nothing
+reflows as they move; a checkbox column keeps its width.
+
 `TableState` holds both scroll positions: down through its `listState`, and
 across through `horizontalOffset` and `scrollHorizontallyTo`. `rememberTableState`
 keeps them across recreation.

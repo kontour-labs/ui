@@ -28,6 +28,10 @@ On `main`, and in the next release.
 
 ### Added
 
+- **`Table(narrowStickyColumns = true)`**: pinned columns narrow to about two
+  thirds of their width over the first stretch of a scroll across, cut and
+  faded at their ends, giving the scrolling columns the room, and widen again as
+  the table returns to its start.
 - **Charts**, in their own module, `io.kontour:ui-charts`. A
   [`Chart`](components/chart.md) is made of marks, `line`, `area`, `bar`,
   `point`, `rectangle` and `rule`, as many and as mixed as it needs, over number,

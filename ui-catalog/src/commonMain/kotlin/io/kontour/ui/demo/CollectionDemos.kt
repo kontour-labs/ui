@@ -789,12 +789,13 @@ private val tableOutlined = Knob.Flag("Outlined", initial = false)
 
 /** The route column pinned at the start while the rest scroll across. */
 private val tablePinRoute = Knob.Flag("Pin route", initial = true)
+private val tableNarrowPinned = Knob.Flag("Narrow pinned on scroll")
 
 private val tableFooter = Knob.Flag("Footer", initial = true)
 
 internal val TableDemo = ComponentDemo(
     slug = "table",
-    knobs = listOf(tableLines, tableSelection, tableStriped, tableOutlined, tablePinRoute, tableFooter),
+    knobs = listOf(tableLines, tableSelection, tableStriped, tableOutlined, tablePinRoute, tableNarrowPinned, tableFooter),
 ) {
     var sort by remember { mutableStateOf<TableSort?>(null) }
     var selected by remember { mutableStateOf(emptySet<Any>()) }
@@ -816,6 +817,7 @@ internal val TableDemo = ComponentDemo(
         modifier = Modifier.fillMaxWidth().height(320.dp),
         key = { it.id },
         stickyColumns = if (this[tablePinRoute]) 1 else 0,
+        narrowStickyColumns = this[tableNarrowPinned],
         striped = this[tableStriped],
         lines = this[tableLines],
         outlined = this[tableOutlined],
