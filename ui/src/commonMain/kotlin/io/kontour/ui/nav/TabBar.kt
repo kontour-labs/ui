@@ -57,7 +57,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.offset
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.components.display.Badge
-import io.kontour.ui.foundation.anticipatesSelection
 import io.kontour.ui.foundation.HorizontalDivider
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.IndicatorEdge
@@ -412,8 +411,8 @@ fun TabBarScope.Tab(
             // makes the whole 48dp band tappable on desktop rather than the
             // 36dp the label occupied.
             .fillMaxHeight()
+            // No lean toward a pressed tab: see `NavDestination`.
             .selectionIndicatorItem(key, marked)
-            .anticipatesSelection(key, marked, interactions)
             .onPlaced { target.coordinates = it }
             .then(dragging?.let { Modifier.markerDrag(it, target, enabled) } ?: Modifier)
             // Kept for a tab measured outside the bar's fixed-height row, where
