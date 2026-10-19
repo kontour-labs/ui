@@ -1425,6 +1425,8 @@ public final class io/kontour/ui/components/list/ListDslKt {
 public final class io/kontour/ui/components/list/ListGroupScope {
 	public static final field $stable I
 	public fun <init> ()V
+	public final fun field-fRX6ZZo (Landroidx/compose/foundation/text/input/TextFieldState;ZLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Landroidx/compose/ui/graphics/vector/ImageVector;IILio/kontour/ui/components/text/ImeChainStep;Lkotlin/jvm/functions/Function2;)V
+	public static synthetic fun field-fRX6ZZo$default (Lio/kontour/ui/components/list/ListGroupScope;Landroidx/compose/foundation/text/input/TextFieldState;ZLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Landroidx/compose/ui/graphics/vector/ImageVector;IILio/kontour/ui/components/text/ImeChainStep;Lkotlin/jvm/functions/Function2;ILjava/lang/Object;)V
 	public final fun item (Lkotlin/jvm/functions/Function3;)V
 	public final fun item-nCNpSLQ (Ljava/lang/String;ZLjava/lang/String;Ljava/lang/String;Landroidx/compose/ui/graphics/vector/ImageVector;ZILkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function0;)V
 	public static synthetic fun item-nCNpSLQ$default (Lio/kontour/ui/components/list/ListGroupScope;Ljava/lang/String;ZLjava/lang/String;Ljava/lang/String;Landroidx/compose/ui/graphics/vector/ImageVector;ZILkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function0;ILjava/lang/Object;)V
@@ -1613,6 +1615,10 @@ public final class io/kontour/ui/components/list/SwipeValue : java/lang/Enum {
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
 	public static fun valueOf (Ljava/lang/String;)Lio/kontour/ui/components/list/SwipeValue;
 	public static fun values ()[Lio/kontour/ui/components/list/SwipeValue;
+}
+
+public final class io/kontour/ui/components/list/TextFieldListItemKt {
+	public static final fun TextFieldListItem-IpA4KwA (Landroidx/compose/foundation/text/input/TextFieldState;Landroidx/compose/ui/Modifier;ZZLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Landroidx/compose/ui/graphics/vector/ImageVector;Lio/kontour/ui/foundation/GroupPosition;Landroidx/compose/ui/graphics/Shape;JIILandroidx/compose/foundation/text/input/KeyboardActionHandler;Lio/kontour/ui/components/text/ImeChainStep;Landroidx/compose/foundation/text/input/InputTransformation;Landroidx/compose/foundation/text/input/OutputTransformation;Landroidx/compose/foundation/interaction/MutableInteractionSource;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;III)V
 }
 
 public final class io/kontour/ui/components/selection/CheckboxDefaults {
