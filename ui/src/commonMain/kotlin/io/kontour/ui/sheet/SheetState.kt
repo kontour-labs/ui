@@ -865,6 +865,7 @@ class SheetState internal constructor(
      * either way, and the setting is about movement nobody's hand is making.
      */
     suspend fun animateTo(detent: SheetDetent) {
+        sheetLog { "state: animateTo $detent from ${anchoredState.offset.px()}" }
         if (detent !in allowedDetents) return
         if (!hasAnchors) {
             pendingSnap = false
@@ -926,6 +927,7 @@ class SheetState internal constructor(
 
     /** Jumps to [detent] with no animation. For restoring state, not for interaction. */
     suspend fun snapTo(detent: SheetDetent) {
+        sheetLog { "state: snapTo $detent from ${anchoredState.offset.px()}" }
         if (detent !in allowedDetents) return
         if (!hasAnchors) {
             // Delivered as a snap: see [pendingSnap].
@@ -1162,6 +1164,7 @@ class SheetState internal constructor(
             fontScale = density.fontScale,
         )
         if (inputs == anchoredFor) return
+        sheetLog { "state: anchors rebuilt for $inputs, offset ${anchoredState.offset.px()}" }
         anchoredFor = inputs
 
         anchorRebuilds++
@@ -1393,6 +1396,7 @@ class SheetState internal constructor(
         val at = anchoredState.offset
         if (at.isNaN()) return
         val nearest = nearestAllowed(at) ?: return
+        sheetLog { "state: restAtNearest from ${at.px()} to $nearest" }
         anchoredState.anchoredDrag(targetValue = nearest) { anchors, latest ->
             val to = anchors.positionOf(latest)
             if (!to.isNaN()) dragTo(to)
@@ -1559,6 +1563,7 @@ class SheetState internal constructor(
                 // callback below can tell how much of it the child wanted. The
                 // two are one dispatch, so nothing can arrive in between.
                 offeredToChild = offered - taken
+                sheetLog { "nested: preScroll ${delta.px()}, paid back ${paid.px()}, sheet took ${taken.px()}, offset ${anchoredState.offset.px()}" }
                 return (paid + taken).toOffset()
             }
 
@@ -1582,10 +1587,12 @@ class SheetState internal constructor(
                 val taken = anchoredState.dispatchRawDelta(toSheet)
                 val leftOver = offered - taken
                 val stretched = if (leftOver > 0f) stretchDown(leftOver) else 0f
+                sheetLog { "nested: postScroll list used ${consumed.y.px()}, left ${offered.px()}, sheet took ${taken.px()}, offset ${anchoredState.offset.px()}" }
                 return (taken + stretched).toOffset()
             }
 
             override suspend fun onPreFling(available: Velocity): Velocity {
+                sheetLog { "nested: preFling ${available.y.px()}, resting ${restingAtADetent()}, offset ${anchoredState.offset.px()}" }
                 // **The sheet was moving under the finger when it let go**, so
                 // the release is the sheet's, whatever the list did earlier in
                 // the gesture. UIKit's rule: once a scroll view at its top has
@@ -1674,6 +1681,7 @@ class SheetState internal constructor(
                 consumed: Velocity,
                 available: Velocity,
             ): Velocity {
+                sheetLog { "nested: postFling used ${consumed.y.px()}, left ${available.y.px()}, list scrolled $listScrolled, by sheet $releasedBySheet" }
                 val wasTheList = listScrolled
                 // The gesture is over either way, and `onDragStopped` always
                 // reaches here — with a zero velocity if the finger simply

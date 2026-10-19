@@ -427,10 +427,11 @@ SINK = re.compile(
 )
 TEMPLATE = re.compile(r'"((?:[^"\\]|\\.)*\$(?:\{[^}]*\}|\w+)(?:[^"\\]|\\.)*)"')
 # The argument of a call that throws or logs, and a data class's `toString`:
-# words for a developer, never for a reader.
+# words for a developer, never for a reader. `sheetLog` is the temporary log
+# of a sheet's drag in `SheetDebug.kt`, and goes when it does.
 DEVELOPER_TEXT = re.compile(
     r"\b(?:error|require|requireNotNull|check|checkNotNull|IllegalArgumentException"
-    r"|IllegalStateException|println)\s*|\btoString\(\)\s*(?::\s*String\s*)?=\s*"
+    r"|IllegalStateException|println|sheetLog)\s*|\btoString\(\)\s*(?::\s*String\s*)?=\s*"
 )
 # By file, for the one file whose job is words; by literal for the rest.
 LITERAL_FILES_ALLOWED = {
