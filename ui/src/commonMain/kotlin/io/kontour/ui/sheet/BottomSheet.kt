@@ -1241,7 +1241,10 @@ fun ModalBottomSheet(
                     // the dimming is gone while the sheet is still on its way
                     // down. This is the worst of the desyncs, because a spring
                     // and a tween disagree most in the middle.
-                    visibility = { state.visibleFraction * state.presence.value },
+                    // How far it has arrived rather than how much of it shows,
+                    // so a sheet resting at `Half` holds the page as far back as
+                    // a side sheet does: see `SheetState.arrivedFraction`.
+                    visibility = { state.arrivedFraction * state.presence.value },
                     // Tell the caller, not just the sheet. This used to only
                     // launch `state.hide()`, so after an outside tap the host
                     // had dropped the entry while the caller's `visible` was

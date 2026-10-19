@@ -249,6 +249,10 @@ On `main`, and in the next release.
 - **A top bar opens as far as a wheel or a trackpad went** at a list's top,
   rather than all the way at the first piece of scroll the list declined, which
   made a slow trackpad scroll jump.
+- **A modal bottom sheet holds the page back the whole way once it is open**,
+  at any detent, as a side sheet does. Resting at `Half` or a peek it pushed the
+  page back and dimmed it only as far as it showed, with a corner part of the
+  way between the screen's and the card's.
 - **A modal bottom sheet is wider on a wide window**: it stops at
   `ComponentDefaults.modalSheetMaxWidth`, 560dp, rather than the 480 a
   `BottomSheet` beside the page keeps, at which it stood in the middle of a

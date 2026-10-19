@@ -834,6 +834,32 @@ class SheetState internal constructor(
         }
 
     /**
+     * How far the sheet has arrived, 0..1: 0 off the bottom of the window, and 1
+     * once it shows as much as its lowest open detent, wherever it rests above
+     * that. What a modal sheet's scrim and receding page follow.
+     *
+     * Not [visibleFraction], which they followed until a sheet resting at `Half`
+     * or a peek pushed the page back only part of the way, with a corner part of
+     * the way between the screen's and the card's — beside a side sheet, which
+     * pushes it back the whole way: *"why is the backdrop scale between bottom
+     * sheets and side sheets different? look at the shape and the amount"*. The
+     * sheet being open is what the page answers, not how tall it is.
+     */
+    internal val arrivedFraction: Float
+        get() {
+            val anchors = anchoredState.anchors
+            var lowest = Float.NaN
+            for (detent in allowedDetents) {
+                if (detent == SheetDetent.Hidden) continue
+                val at = anchors.positionOf(detent)
+                if (!at.isNaN() && (lowest.isNaN() || at > lowest)) lowest = at
+            }
+            if (lowest.isNaN()) return visibleFraction
+            val shown = containerHeight - lowest
+            return if (shown <= 0f) visibleFraction else (visibleHeight / shown).coerceIn(0f, 1f)
+        }
+
+    /**
      * Where the sheet should go once it has anchors.
      *
      * A screen that starts with its sheet open calls [animateTo] from a
