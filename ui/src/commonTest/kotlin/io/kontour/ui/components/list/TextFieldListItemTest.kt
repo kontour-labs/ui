@@ -17,8 +17,10 @@ import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTextInputSelection
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.v2.runComposeUiTest
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.theme.KontourTheme
 import kotlin.test.Test
@@ -56,6 +58,9 @@ class TextFieldListItemTest {
     fun whatIsTypedGoesIntoTheState() = runComposeUiTest {
         rows()
         onAllNodes(hasSetTextAction() and named("Name"))[0].performClick()
+        // The value is at the row's end, so a press on the middle of the field
+        // lands before it: the caret goes after it, as a reader typing on would.
+        onAllNodes(hasSetTextAction() and named("Name"))[0].performTextInputSelection(TextRange(name.text.length))
         onAllNodes(hasSetTextAction() and named("Name"))[0].performTextInput(" Underground")
         waitForIdle()
         assertEquals("Perth Underground", name.text.toString())

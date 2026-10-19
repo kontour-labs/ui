@@ -28,12 +28,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.SemanticsPropertyReceiver
 import androidx.compose.ui.semantics.error as semanticsError
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.a11y.optionalBorder
@@ -185,68 +187,77 @@ fun TextFieldListItem(
             if (leadingIcon != null) {
                 Icon(imageVector = leadingIcon, contentDescription = null, tint = muted, size = Theme.sizing.iconLarge)
             }
-            if (label != null) {
-                Text(
-                    text = label,
-                    // The field carries the name, as a text field's does: said
-                    // here as well, it was the label twice.
-                    modifier = Modifier.weight(1f, fill = false).clearAndSetSemantics {},
-                    style = Theme.typography.bodyMedium,
-                    colour = if (enabled && isError) field.error else content,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
+            // The label as wide as its words, up to a share of the row, and the
+            // field everything after it, its value at the row's end. Weights
+            // left the label's unused share to nobody, and the value stopped
+            // short of the row's end.
+            LabelAndValue(
+                modifier = Modifier.weight(1f),
+                gap = Theme.spacing.md,
+                label = label?.let { words ->
+                    @Composable {
+                        Text(
+                            text = words,
+                            // The field carries the name, as a text field's does:
+                            // said here as well, it was the label twice.
+                            modifier = Modifier.clearAndSetSemantics {},
+                            style = Theme.typography.bodyMedium,
+                            colour = if (enabled && isError) field.error else content,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                },
+            ) {
+                TextFieldImpl(
+                    state = state,
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = enabled,
+                    readOnly = readOnly,
+                    label = null,
+                    placeholder = placeholder,
+                    supporting = null,
+                    errorMessage = null,
+                    leadingIcon = null,
+                    leading = null,
+                    trailingIcon = null,
+                    trailing = null,
+                    variant = TextFieldVariant.Plain,
+                    shape = RectangleShape,
+                    keyboardType = keyboardType,
+                    imeAction = imeAction,
+                    onKeyboardAction = onKeyboardAction,
+                    imeChain = imeChain,
+                    inputTransformation = inputTransformation,
+                    outputTransformation = outputTransformation,
+                    lineLimits = TextFieldLineLimits.SingleLine,
+                    // Nothing of a field's own drawn round it: the row is its frame.
+                    colours = TextFieldDefaults.colours(
+                        variant = TextFieldVariant.Plain,
+                        container = Color.Transparent,
+                        containerFocused = Color.Transparent,
+                        containerDisabled = Color.Transparent,
+                        border = Color.Transparent,
+                        borderFocused = Color.Transparent,
+                        borderError = Color.Transparent,
+                        borderDisabled = Color.Transparent,
+                    ),
+                    metrics = TextFieldMetrics(
+                        minHeight = 0.dp,
+                        horizontalPadding = 0.dp,
+                        iconPadding = 0.dp,
+                        verticalPadding = 0.dp,
+                        gap = 0.dp,
+                    ),
+                    interactionSource = interactions,
+                    accessibleName = label ?: placeholder,
+                    // The message is drawn by the row, under all of it; the error is
+                    // still the field's to say.
+                    inputSemantics = errorMessage?.let(::saysError),
+                    focusRequester = requester,
+                    alignEnd = label != null,
                 )
             }
-            TextFieldImpl(
-                state = state,
-                // A label takes no more than a third of the row; the value has
-                // the rest, and sits at its end.
-                modifier = Modifier.weight(if (label != null) 2f else 1f),
-                enabled = enabled,
-                readOnly = readOnly,
-                label = null,
-                placeholder = placeholder,
-                supporting = null,
-                errorMessage = null,
-                leadingIcon = null,
-                leading = null,
-                trailingIcon = null,
-                trailing = null,
-                variant = TextFieldVariant.Plain,
-                shape = RectangleShape,
-                keyboardType = keyboardType,
-                imeAction = imeAction,
-                onKeyboardAction = onKeyboardAction,
-                imeChain = imeChain,
-                inputTransformation = inputTransformation,
-                outputTransformation = outputTransformation,
-                lineLimits = TextFieldLineLimits.SingleLine,
-                // Nothing of a field's own drawn round it: the row is its frame.
-                colours = TextFieldDefaults.colours(
-                    variant = TextFieldVariant.Plain,
-                    container = Color.Transparent,
-                    containerFocused = Color.Transparent,
-                    containerDisabled = Color.Transparent,
-                    border = Color.Transparent,
-                    borderFocused = Color.Transparent,
-                    borderError = Color.Transparent,
-                    borderDisabled = Color.Transparent,
-                ),
-                metrics = TextFieldMetrics(
-                    minHeight = 0.dp,
-                    horizontalPadding = 0.dp,
-                    iconPadding = 0.dp,
-                    verticalPadding = 0.dp,
-                    gap = 0.dp,
-                ),
-                interactionSource = interactions,
-                accessibleName = label ?: placeholder,
-                // The message is drawn by the row, under all of it; the error is
-                // still the field's to say.
-                inputSemantics = errorMessage?.let(::saysError),
-                focusRequester = requester,
-                alignEnd = label != null,
-            )
             if (trailing != null) {
                 Box(contentAlignment = Alignment.Center) {
                     ProvideContentColour(muted) {
@@ -277,3 +288,42 @@ fun TextFieldListItem(
  * unseen, `error` is Kotlin's own, which throws.
  */
 private fun saysError(message: String): SemanticsPropertyReceiver.() -> Unit = { semanticsError(message) }
+
+/** The most of a row a [TextFieldListItem]'s label takes, as a share of the room beside its icon and trailing slot. */
+private const val LabelShare = 0.4f
+
+/**
+ * A label up to [LabelShare] of the width, and [value] the rest of it after
+ * [gap], both centred on the taller. Without a label, [value] is all of it.
+ */
+@Composable
+private fun LabelAndValue(
+    modifier: Modifier,
+    gap: Dp,
+    label: (@Composable () -> Unit)?,
+    value: @Composable () -> Unit,
+) {
+    if (label == null) {
+        Box(modifier) { value() }
+        return
+    }
+    Layout(
+        content = {
+            Box { label() }
+            Box { value() }
+        },
+        modifier = modifier,
+    ) { measurables, constraints ->
+        val width = constraints.maxWidth
+        val gapPx = gap.roundToPx()
+        val loose = constraints.copy(minWidth = 0, minHeight = 0)
+        val labelPlaceable = measurables[0].measure(loose.copy(maxWidth = (width * LabelShare).toInt()))
+        val rest = (width - labelPlaceable.width - gapPx).coerceAtLeast(0)
+        val valuePlaceable = measurables[1].measure(loose.copy(minWidth = rest, maxWidth = rest))
+        val height = maxOf(labelPlaceable.height, valuePlaceable.height).coerceAtLeast(constraints.minHeight)
+        layout(width, height) {
+            labelPlaceable.placeRelative(0, (height - labelPlaceable.height) / 2)
+            valuePlaceable.placeRelative(labelPlaceable.width + gapPx, (height - valuePlaceable.height) / 2)
+        }
+    }
+}
