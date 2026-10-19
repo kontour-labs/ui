@@ -131,6 +131,11 @@ On `main`, and in the next release.
 
 ### Fixed
 
+- **A sheet drag the system takes away is not a throw.** Android sends a
+  cancel to each part of a sheet in turn, and the drag could hear it before the
+  part that tells a cancel from a lift: a pull the phone took for its own
+  gesture was thrown on at the pull's speed, as much as a detent further than
+  the finger had taken it. It settles where it is now.
 - **An overlay shows content that changed as it opened.** A dialog, sheet,
   popover, menu or tooltip whose content changed in the frame it appeared could
   keep the content it opened with, from a caller in a `Scaffold`'s body or a

@@ -74,6 +74,30 @@ class SheetCancelTest {
         assertEquals(SheetDetent.Expanded, state.currentDetent, "a nudge the system took away threw the sheet to ${state.currentDetent}")
     }
 
+    /**
+     * A long, fast pull the system takes away settles where the sheet is, not
+     * where the pull's speed would have thrown it. Past the distance a nudge
+     * stays inside, so only knowing it was a cancel keeps it from Half: seen
+     * on a phone as a drag Android took, read as a release at 2,600px/s.
+     */
+    @Test
+    fun aLongPullTakenAwayByTheSystemSettlesWhereItIs() = runComposeUiTest {
+        val state = sheet()
+        onNodeWithTag("content").performTouchInput {
+            val from = Offset(width / 2f, 200f)
+            down(from)
+            // 150dp: past the 48 a throw has to travel, and nearer full height
+            // than half, which is 400dp down this 800dp host.
+            repeat(5) {
+                advanceEventTime(8)
+                moveBy(Offset(0f, 30f))
+            }
+            cancel()
+        }
+        waitForIdle()
+        assertEquals(SheetDetent.Expanded, state.currentDetent, "a long pull the system took away threw the sheet to ${state.currentDetent}")
+    }
+
     @Test
     fun aNudgeHeldStillBeforeLettingGoIsNotAThrow() = runComposeUiTest {
         val state = sheet()

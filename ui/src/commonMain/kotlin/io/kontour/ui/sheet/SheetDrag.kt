@@ -219,7 +219,16 @@ internal fun Modifier.sheetDrag(
                         // Read off the finger, which saw the up before anything
                         // inside the sheet did: by this pass a bar inside it
                         // that keeps its presses has consumed a real lift too.
-                        val cancelled = state.finger.cancelled
+                        //
+                        // **And off the change itself**, because for a cancel
+                        // the finger has not always seen it yet. Compose cancels
+                        // each pointer node in turn rather than pass by pass, and
+                        // logged on a phone (2026-10-19) this node had the cancel
+                        // first every time: the finger still read pressed, the
+                        // up was taken for a release, and the sheet was thrown at
+                        // up to 2,600px/s by a drag Android had taken away. See
+                        // [takenAway].
+                        val cancelled = state.finger.cancelled || change.takenAway()
                         // A caught press that never moved lifts for whatever
                         // is under it: see `caught`.
                         if (taken) change.consume()
@@ -284,6 +293,16 @@ internal fun Modifier.sheetDrag(
         }
     }
 }
+
+/**
+ * Whether this up is a cancel rather than a lift: already consumed, and at the
+ * time of the last move, which is how Compose sends a pointer the system took.
+ * A real lift carries its own time, later than the move before it, so a lift
+ * that something inside consumed — a bar that keeps its presses — is still a
+ * lift.
+ */
+private fun PointerInputChange.takenAway(): Boolean =
+    !pressed && previousPressed && isConsumed && uptimeMillis == previousUptimeMillis
 
 /**
  * The touches [change] batched up since the last event — Android reports several
