@@ -29,10 +29,21 @@ import kotlin.test.assertTrue
  * Reported from Android: *"when you try to drag full-screen bottom sheets down
  * from just above the safe area, it lets go and just snaps back up the top"*.
  * The sheet followed for a moment, no notification shade came down, and then
- * it sprang back to full height with the finger still on the glass: the app
- * lost the drag, not the system. Each case drives the gesture a frame at a time,
- * so the sheet lays itself out between moves as it does on a phone, and says
- * frame by frame where the sheet was and what it thought the finger was doing.
+ * it sprang back to full height with the finger still on the glass.
+ *
+ * **It was the phone.** Logged on it (2026-10-19), every drag that let go
+ * ended in a cancel from Android, an up already consumed at the time of the
+ * last move, and every one began inside the system gestures' top inset, 190px
+ * there against a 161px status bar; a drag begun below it followed all the
+ * way. Instagram's sheets let go the same way on the same phone. The system
+ * takes a downward swipe that starts in that band once it has gone about
+ * twenty dp, and no app keeps a pointer the system has taken.
+ *
+ * So what this holds is the half that is the sheet's: given the pointer, it
+ * follows to the end, from the top as from anywhere. Each case drives the
+ * gesture a frame at a time, so the sheet lays itself out between moves as it
+ * does on a phone, and says frame by frame where the sheet was and what it
+ * thought the finger was doing.
  */
 @OptIn(ExperimentalTestApi::class)
 class SheetTopDragTest {

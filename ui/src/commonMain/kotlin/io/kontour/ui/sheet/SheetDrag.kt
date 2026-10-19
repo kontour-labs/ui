@@ -73,7 +73,6 @@ internal fun Modifier.sheetDrag(
         return (from + delta).coerceIn(anchors.minPosition(), anchors.maxPosition())
     }
     suspend fun throwBy(velocity: Float): Float {
-        sheetLog { "drag: throw at ${velocity.px()} from ${anchored.offset.px()}" }
         var left = velocity
         // Counted, so a finger laid on the sheet while it lands is a catch: see
         // [SheetState.isMoving].
@@ -97,8 +96,7 @@ internal fun Modifier.sheetDrag(
         }
         return left
     }
-    sheetLog { "drag: handler started, offset ${anchored.offset.px()}" }
-    try { coroutineScope {
+    coroutineScope {
         val scope = this
         // **Ended from outside: settled where it is.** The drag and the throw run
         // in this handler's scope, which a change of density, of motion or of
@@ -108,7 +106,6 @@ internal fun Modifier.sheetDrag(
         // interruption from inside — a new finger catching the throw — is not
         // this, and is left alone.
         suspend fun restIfEndedFromOutside() {
-            sheetLog { "drag: ended from outside? scope active ${scope.isActive}, offset ${anchored.offset.px()}" }
             if (scope.isActive) return
             withContext(NonCancellable) {
                 try {
@@ -121,10 +118,6 @@ internal fun Modifier.sheetDrag(
         awaitEachGesture {
             val down = awaitFirstDown(requireUnconsumed = false)
             val slop = viewConfiguration.touchSlop * if (down.type == PointerType.Mouse) MouseSlopRatio else SheetDragSlop
-            sheetLog {
-                "drag: down ${down.id} at x ${down.position.x.px()} y ${down.position.y.px()} t ${down.uptimeMillis}, ${down.type}, consumed ${down.isConsumed}, " +
-                    "offset ${anchored.offset.px()}, moving ${state.isMoving}, slop ${slop.px()}"
-            }
             // How far the pointer has gone, up or down, since it went down: the
             // throw is read from all of it, the slop included, as Compose's own
             // draggables read it.
@@ -166,20 +159,9 @@ internal fun Modifier.sheetDrag(
                 var total = Offset.Zero
                 while (true) {
                     val event = awaitPointerEvent()
-                    val change = event.changes.firstOrNull { it.id == down.id }
-                    if (change == null) {
-                        sheetLog { "drag: before slop, pointer gone from the event (${event.changes.map { it.id }}), giving up" }
-                        return@awaitEachGesture
-                    }
-                    sheetLog {
-                        "drag: before slop t ${change.uptimeMillis} ${event.type} dy ${change.positionChange().y.px()} " +
-                            "consumed ${change.isConsumed} pressed ${change.pressed} total ${(total.y + change.positionChange().y).px()}"
-                    }
+                    val change = event.changes.firstOrNull { it.id == down.id } ?: return@awaitEachGesture
                     // Something inside set off first, or the pointer let go: not the sheet's.
-                    if (change.isConsumed || !change.pressed) {
-                        sheetLog { "drag: before slop, ${if (change.isConsumed) "taken by something inside" else "let go"}: not the sheet's" }
-                        return@awaitEachGesture
-                    }
+                    if (change.isConsumed || !change.pressed) return@awaitEachGesture
                     tracker.addHistory(change, total.y)
                     total += change.positionChange()
                     movedAt = change.uptimeMillis
@@ -193,7 +175,6 @@ internal fun Modifier.sheetDrag(
                 }
             }
 
-            sheetLog { "drag: started, caught $caught, travelled ${travelled.px()}, over slop ${overSlop.px()}, pass $pass" }
             val start = DragInteraction.Start()
             interactions.tryEmit(start)
             val deltas = Channel<Float>(Channel.UNLIMITED)
@@ -214,7 +195,6 @@ internal fun Modifier.sheetDrag(
                         }
                     }
                 } catch (ended: CancellationException) {
-                    sheetLog { "drag: anchoredDrag cancelled (${ended.message}), offset ${anchored.offset.px()}" }
                     restIfEndedFromOutside()
                     throw ended
                 }
@@ -226,16 +206,7 @@ internal fun Modifier.sheetDrag(
             try {
                 while (true) {
                     val event = awaitPointerEvent(pass)
-                    val change = event.changes.firstOrNull { it.id == down.id }
-                    if (change == null) {
-                        sheetLog { "drag: pointer gone from the event (${event.type}, ${event.changes.map { it.id }}): drag ends as a cancel" }
-                        break
-                    }
-                    sheetLog {
-                        "drag: t ${change.uptimeMillis} ${event.type} dy ${change.positionChange().y.px()} y ${change.position.y.px()} " +
-                            "consumed ${change.isConsumed} pressed ${change.pressed} offset ${anchored.offset.px()} " +
-                            "finger pressed ${state.finger.pressed} cancelled ${state.finger.cancelled}"
-                    }
+                    val change = event.changes.firstOrNull { it.id == down.id } ?: break
                     if (!change.pressed) {
                         // **Let go, or taken away.** A pointer the system took —
                         // the notification shade pulled down over the app, focus
@@ -251,9 +222,7 @@ internal fun Modifier.sheetDrag(
                         val cancelled = state.finger.cancelled
                         // A caught press that never moved lifts for whatever
                         // is under it: see `caught`.
-                        val consumedBeforeUs = change.isConsumed
                         if (taken) change.consume()
-                        sheetLog { "drag: up, cancelled $cancelled, consumed before us $consumedBeforeUs" }
                         if (!cancelled) {
                             lifted = true
                             // When it let go, as well as where: a finger still
@@ -281,7 +250,6 @@ internal fun Modifier.sheetDrag(
                     }
                 }
             } catch (cancelled: CancellationException) {
-                sheetLog { "drag: gesture cancelled mid-drag (${cancelled.message}), offset ${anchored.offset.px()}" }
                 deltas.close()
                 interactions.tryEmit(DragInteraction.Cancel(start))
                 throw cancelled
@@ -289,7 +257,6 @@ internal fun Modifier.sheetDrag(
             deltas.close()
             val most = viewConfiguration.maximumFlingVelocity
             val velocity = if (lifted && stoppedFor <= StoppedMillis) tracker.calculateVelocity().y.coerceIn(-most, most) else 0f
-            sheetLog { "drag: ended, lifted $lifted, still for ${stoppedFor}ms, velocity ${velocity.px()}, offset ${anchored.offset.px()}" }
             interactions.tryEmit(if (lifted) DragInteraction.Stop(start) else DragInteraction.Cancel(start))
             scope.launch {
                 try {
@@ -297,10 +264,7 @@ internal fun Modifier.sheetDrag(
                     // Taken over while the finger was on it — the app moved the
                     // sheet, closing it say — so the release is not a throw:
                     // throwing it would undo what the app did.
-                    if (dragging.isCancelled) {
-                        sheetLog { "drag: drag was taken over, no throw" }
-                        return@launch
-                    }
+                    if (dragging.isCancelled) return@launch
                     if (overscroll == null) {
                         throwBy(velocity)
                     } else {
@@ -313,15 +277,11 @@ internal fun Modifier.sheetDrag(
                         }
                     }
                 } catch (ended: CancellationException) {
-                    sheetLog { "drag: throw cancelled (${ended.message}), offset ${anchored.offset.px()}" }
                     restIfEndedFromOutside()
                     throw ended
                 }
             }
         }
-    } } catch (ended: CancellationException) {
-        sheetLog { "drag: handler cancelled (${ended.message}), offset ${anchored.offset.px()}" }
-        throw ended
     }
 }
 

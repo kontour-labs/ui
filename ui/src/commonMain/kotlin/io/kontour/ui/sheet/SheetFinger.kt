@@ -182,18 +182,12 @@ internal fun Modifier.followSheetFinger(finger: SheetFinger): Modifier =
     pointerInput(finger) {
         awaitEachGesture {
             val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-            sheetLog { "finger: down ${down.id} t ${down.uptimeMillis} y ${down.position.y.px()}" }
             finger.down(down.uptimeMillis)
             try {
                 while (true) {
                     val event = awaitPointerEvent(PointerEventPass.Initial)
-                    val change = event.changes.firstOrNull { it.id == down.id }
-                    if (change == null) {
-                        sheetLog { "finger: pointer gone from the event (${event.type}, ${event.changes.map { it.id }})" }
-                        break
-                    }
+                    val change = event.changes.firstOrNull { it.id == down.id } ?: break
                     if (change.changedToUpIgnoreConsumed()) {
-                        sheetLog { "finger: up t ${change.uptimeMillis}, already consumed ${change.isConsumed} (a cancel if so)" }
                         // Already consumed before the sheet has seen it at all: a
                         // cancel, which Compose sends as a consumed up — the system
                         // took the pointer. Not a lift, so not a throw: see [SheetFinger.cancel].
@@ -204,7 +198,6 @@ internal fun Modifier.followSheetFinger(finger: SheetFinger): Modifier =
                     if (dy != 0f) finger.move(change.uptimeMillis, dy)
                 }
             } finally {
-                sheetLog { "finger: gesture over" }
                 // However the gesture ended — the pointer gone, the sheet torn
                 // down mid-press — no finger is on it now.
                 finger.gone()
