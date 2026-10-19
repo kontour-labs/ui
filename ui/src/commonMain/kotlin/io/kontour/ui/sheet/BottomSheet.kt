@@ -334,6 +334,14 @@ object BottomSheetDefaults {
     val MaxWidth: Dp
         @Composable @ReadOnlyComposable get() = Theme.componentDefaults.sheetMaxWidth
 
+    /**
+     * The widest a [ModalBottomSheet] gets, on a window wider than that: wider
+     * than [MaxWidth], which a sheet beside the page keeps. See
+     * [ComponentDefaults.modalSheetMaxWidth][io.kontour.ui.theme.ComponentDefaults.modalSheetMaxWidth].
+     */
+    val ModalMaxWidth: Dp
+        @Composable @ReadOnlyComposable get() = Theme.componentDefaults.modalSheetMaxWidth
+
     /** Between the sheet's top edge and anything riding above it. */
     val ActionsGap: Dp = 8.dp
 }
@@ -594,6 +602,8 @@ fun BottomSheet(
 ) {
     val density = LocalDensity.current
     val motion = Theme.motion
+    // A modal sheet's own, wider cap, or a sheet's: see `LocalSheetMaxWidth`.
+    val widest = LocalSheetMaxWidth.current ?: BottomSheetDefaults.MaxWidth
     // What a programmatic open or close reads to decide between a slide and a
     // fade. A plain field: nothing recomposes because it was re-stated.
     state.motion = motion
@@ -820,7 +830,7 @@ fun BottomSheet(
                 // `alignment`'s KDoc records: `fillMaxWidth` fixes the minimum at
                 // the window's width, and `widthIn` cannot lower a minimum it is
                 // handed.
-                .widthIn(max = BottomSheetDefaults.MaxWidth)
+                .widthIn(max = widest)
                 .fillMaxWidth()
                 // The float, horizontally. A padding at the sides is enough
                 // because nothing here is measured from a side edge; the
@@ -928,7 +938,7 @@ fun BottomSheet(
                     // same defeated cap — spanning the window over a sheet that, once
                     // capped, did not.
                     .align(alignment.atBottomEdge)
-                    .widthIn(max = BottomSheetDefaults.MaxWidth)
+                    .widthIn(max = widest)
                     .fillMaxWidth()
                     .onSizeChanged { actionsHeight = it.height }
                     // The sheet's own offset, less this row's height and a gap,
@@ -1041,7 +1051,7 @@ fun ModalBottomSheet(
     edgeMorph: SheetEdgeMorph? = SheetEdgeMorph(),
     /**
      * See [BottomSheet]: where the sheet sits once the window is wider than
-     * [BottomSheetDefaults.MaxWidth], and nothing at all below it. Read live, so a sheet
+     * [BottomSheetDefaults.ModalMaxWidth], and nothing at all below it. Read live, so a sheet
      * that is already up follows a window resize.
      */
     alignment: OverlayAlignment = OverlayAlignment.Centre,
@@ -1244,27 +1254,31 @@ fun ModalBottomSheet(
                         LocalOverlayBack.current?.let { back ->
                             FollowBack(state, back, stillWanted = { showing })
                         }
-                        BottomSheet(
-                            state = state,
-                            modifier = latestModifier,
-                            presentation = latestPresentation,
-                            edgeMorph = latestEdgeMorph,
-                            alignment = latestAlignment,
-                            shape = latestShape,
-                            expandedShape = latestExpandedShape,
-                            containerColour = latestContainerColour,
-                            contentColour = latestContentColour,
-                            paneTitle = latestPaneTitle,
-                            draggable = latestDraggable,
-                            // The modal's own, handed down rather than written
-                            // into the state from here: the sheet owns the drag,
-                            // so the sheet is what tells the state about it.
-                            dismissible = canDismiss,
-                            fadeUnder = latestFadeUnder,
-                            dragHandle = latestDragHandle,
-                            windowInsets = latestWindowInsets,
-                            content = body,
-                        )
+                        // Wider than a sheet beside the page: see
+                        // `BottomSheetDefaults.ModalMaxWidth`.
+                        CompositionLocalProvider(LocalSheetMaxWidth provides BottomSheetDefaults.ModalMaxWidth) {
+                            BottomSheet(
+                                state = state,
+                                modifier = latestModifier,
+                                presentation = latestPresentation,
+                                edgeMorph = latestEdgeMorph,
+                                alignment = latestAlignment,
+                                shape = latestShape,
+                                expandedShape = latestExpandedShape,
+                                containerColour = latestContainerColour,
+                                contentColour = latestContentColour,
+                                paneTitle = latestPaneTitle,
+                                draggable = latestDraggable,
+                                // The modal's own, handed down rather than written
+                                // into the state from here: the sheet owns the drag,
+                                // so the sheet is what tells the state about it.
+                                dismissible = canDismiss,
+                                fadeUnder = latestFadeUnder,
+                                dragHandle = latestDragHandle,
+                                windowInsets = latestWindowInsets,
+                                content = body,
+                            )
+                        }
                     },
                 ).also { entry ->
                     // **Read live, not as it was when the sheet opened.** The

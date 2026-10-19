@@ -59,6 +59,15 @@ floats the whole way up and back, and a sheet whose content fills the window is
 an edge sheet from its first frame to its last. See
 [`BottomSheet`](bottom-sheet.md#expanded-a-floating-sheet-becomes-an-edge-sheet).
 
+### Wider than a sheet beside the page
+
+On a window wider than it, a modal sheet stops at
+`ComponentDefaults.modalSheetMaxWidth`, 560dp, and sits where `alignment` puts it.
+A [`BottomSheet`](bottom-sheet.md) beside the page keeps
+`ComponentDefaults.sheetMaxWidth`, 480dp: a modal sheet is the whole of what the
+reader is doing, and at a panel's width it stood in the middle of a tablet as a
+narrow strip.
+
 ### `recedes = false` over a map or a video
 
 The page behind a modal sheet shrinks back as the sheet comes up, and follows it

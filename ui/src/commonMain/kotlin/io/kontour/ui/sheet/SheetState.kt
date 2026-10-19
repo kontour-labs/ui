@@ -1845,6 +1845,14 @@ val LocalSheetState = staticCompositionLocalOf<SheetState?> { null }
 internal val LocalSheetBand = staticCompositionLocalOf { false }
 
 /**
+ * The widest the sheet below gets, where it is not [BottomSheetDefaults.MaxWidth]:
+ * what a [ModalBottomSheet] hands the sheet it draws, [BottomSheetDefaults.ModalMaxWidth].
+ * A local rather than a parameter, because `BottomSheet` is public and the cap is
+ * the modal's own. Read once, at the top of `BottomSheet`.
+ */
+internal val LocalSheetMaxWidth = staticCompositionLocalOf<Dp?> { null }
+
+/**
  * Marks the part of a sheet that [SheetDetent.peek] shows.
  *
  * Put it on the header. The sheet then peeks exactly far enough to show that,

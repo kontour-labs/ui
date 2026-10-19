@@ -129,6 +129,7 @@ class ComponentDefaultsValuesTest {
         assertEquals(24.dp, d.backdropBlurRadius)
         assertEquals(12.dp, d.backdropInset)
         assertEquals(480.dp, d.sheetMaxWidth)
+        assertEquals(560.dp, d.modalSheetMaxWidth)
         assertEquals(480.dp, d.sideSheetWidth)
         assertEquals(12.dp, d.toastPeek)
         assertEquals(420.dp, d.toastMaxWidth)
@@ -202,6 +203,7 @@ class ComponentDefaultsValuesTest {
                 backdropBlurRadius = 24.dp,
                 backdropInset = 12.dp,
                 sheetMaxWidth = 480.dp,
+                modalSheetMaxWidth = 560.dp,
                 sideSheetWidth = 480.dp,
                 toastPeek = 12.dp,
                 toastMaxWidth = 420.dp,

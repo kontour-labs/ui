@@ -108,6 +108,9 @@ On `main`, and in the next release.
 
 ### Breaking
 
+- **`ComponentDefaults` has `modalSheetMaxWidth`**, 560dp, after
+  `sheetMaxWidth`, so a theme built against 0.4.5 recompiles; one that names its
+  arguments needs nothing.
 - **`ModalBottomSheet` and `ModalSideSheet` have a new parameter**,
   `recedes`, defaulted, after `scrim`, so anything built against 0.4.5
   recompiles. A call that passed `dismissible` by position still compiles and
@@ -240,6 +243,10 @@ On `main`, and in the next release.
 - **A top bar opens as far as a wheel or a trackpad went** at a list's top,
   rather than all the way at the first piece of scroll the list declined, which
   made a slow trackpad scroll jump.
+- **A modal bottom sheet is wider on a wide window**: it stops at
+  `ComponentDefaults.modalSheetMaxWidth`, 560dp, rather than the 480 a
+  `BottomSheet` beside the page keeps, at which it stood in the middle of a
+  tablet as a narrow strip. Set it to `sheetMaxWidth`'s for the old width.
 - **A receding page costs a modal sheet much less to draw.** The black band
   round the page and its rounded corners were one screen-sized path, cut and
   filled afresh on every frame the sheet arrived, left or was dragged. They are
