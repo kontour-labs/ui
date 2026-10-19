@@ -8,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.pointer.AwaitPointerEventScope
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerId
 import androidx.compose.ui.input.pointer.PointerInputChange
@@ -18,6 +19,7 @@ import androidx.compose.ui.input.pointer.isTertiaryPressed
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import kotlin.math.abs
 import kotlinx.coroutines.withTimeoutOrNull
 
 /**
@@ -47,6 +49,13 @@ internal enum class PickUpAxis { Vertical, Free }
  * slower than a page moves under a finger that means to move it.
  */
 internal val PickUpHoldSlop: Dp = 24.dp
+
+/**
+ * How much of the touch slop a mouse travels on a whole row before it is a
+ * pick-up: as much as a swipe takes to decide it is one, so the two decide on
+ * the same distance and the row takes what is mostly up or down.
+ */
+internal const val MouseDecisionShare = 0.4f
 
 /**
  * A pick-up, after a long press or after the pointer's slop depending on
@@ -88,6 +97,17 @@ internal val PickUpHoldSlop: Dp = 24.dp
  *   vertical part of the first one.
  * @param onPutDown The pointer let go.
  * @param onCancel Something else took the pointer, or it went away.
+ * @param decidesForMouse For a whole row with things of its own inside it — a
+ *   click, a swipe — rather than a dedicated grip: a mouse travels
+ *   [MouseDecisionShare] of the touch slop first, mostly along [axis], before
+ *   this takes it, as a swipe decides its direction. At a mouse's own slop, an
+ *   eighth of a dp, a pixel's jitter in a click picked the row up and lost the
+ *   click, and a sideways drag lifted the row before the swipe inside it could
+ *   tell it was sideways — *"it interferes sometimes with swipe actions and
+ *   even click actions"*.
+ * @param onHeld A hold was what picked it up, just before [onPointer]: for the
+ *   long press's own feedback, which a mouse, a grip or a row a mouse decided
+ *   on reaches no threshold to be told of.
  * @param exclusive Whether, once picked up, the carry is this detector's alone:
  *   each move taken on the initial pass, before anything inside the node hears
  *   it, so nothing in it — a row's swipe actions — can claim a carry already
@@ -105,6 +125,8 @@ internal suspend fun PointerInputScope.detectPickUp(
     onPutDown: () -> Unit,
     onCancel: () -> Unit,
     exclusive: Boolean = false,
+    decidesForMouse: Boolean = false,
+    onHeld: () -> Unit = {},
 ) {
     val budget = PickUpHoldSlop.toPx()
     awaitEachGesture {
@@ -115,7 +137,21 @@ internal suspend fun PointerInputScope.detectPickUp(
         val buttons = currentEvent.buttons
         if (down.type == PointerType.Mouse && (buttons.isSecondaryPressed || buttons.isTertiaryPressed)) return@awaitEachGesture
         if (!accepts(down.position)) return@awaitEachGesture
-        if (immediate()) {
+        // A mouse on a whole row with things of its own in it — a click, a
+        // swipe: see [decidesForMouse]. Taken by the pointer that went down,
+        // not by the input last used, which a touch before it left reading
+        // `Touch`: a mouse then waited for a hold, dragged straight past it,
+        // and picked nothing up.
+        if (decidesForMouse && down.type == PointerType.Mouse) {
+            val decideAt = viewConfiguration.touchSlop * MouseDecisionShare
+            val decided = awaitMouseDecision(down.id, axis, decideAt) ?: return@awaitEachGesture
+            val gathered = decided.position - down.position
+            onPointer(down.id)
+            onPickUp(decided.position)
+            // The whole way it came, so the row is under the pointer where it
+            // was taken hold of rather than the decision's distance behind it.
+            onCarry(decided, if (axis == PickUpAxis.Vertical) Offset(0f, gathered.y) else gathered)
+        } else if (immediate()) {
             // Slop rather than a hold. Without it a plain click on a row would
             // pick it up, which is what the long press is for on a touchscreen
             // and what slop is for with a pointer.
@@ -169,6 +205,7 @@ internal suspend fun PointerInputScope.detectPickUp(
                 }
             }
             if (gaveUp != null) return@awaitEachGesture
+            onHeld()
             onPointer(down.id)
             onPickUp(down.position)
         }
@@ -216,6 +253,29 @@ internal suspend fun PointerInputScope.detectPickUp(
             val delta = change.positionChange()
             if (delta != Offset.Zero) onCarry(change, delta)
         }
+    }
+}
+
+/**
+ * A mouse's move on a row decided: the change that took it past [decideAt],
+ * mostly along [axis], consumed. `null` for anything else — a click, something
+ * inside that set off first, or a move mostly across a row that goes up and
+ * down, which is a swipe's or nobody's. See `detectPickUp`'s `decidesForMouse`.
+ */
+private suspend fun AwaitPointerEventScope.awaitMouseDecision(
+    id: PointerId,
+    axis: PickUpAxis,
+    decideAt: Float,
+): PointerInputChange? {
+    var gathered = Offset.Zero
+    while (true) {
+        val change = awaitPointerEvent().changes.firstOrNull { it.id == id } ?: return null
+        if (change.isConsumed || !change.pressed) return null
+        gathered += change.positionChange()
+        if (gathered.getDistance() < decideAt) continue
+        if (axis == PickUpAxis.Vertical && abs(gathered.x) > abs(gathered.y)) return null
+        change.consume()
+        return change
     }
 }
 
