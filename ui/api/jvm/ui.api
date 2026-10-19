@@ -4016,7 +4016,7 @@ public final class io/kontour/ui/sheet/BottomSheetDefaults {
 
 public final class io/kontour/ui/sheet/BottomSheetKt {
 	public static final fun BottomSheet-4tXdUAQ (Lio/kontour/ui/sheet/SheetState;Landroidx/compose/ui/Modifier;Lio/kontour/ui/sheet/SheetPresentation;Lio/kontour/ui/sheet/SheetEdgeMorph;Lio/kontour/ui/overlay/OverlayAlignment;Lio/kontour/ui/overlay/OverlayAlignment;Landroidx/compose/ui/graphics/Shape;Landroidx/compose/ui/graphics/Shape;JJZLjava/lang/String;ZZLkotlin/jvm/functions/Function2;Landroidx/compose/foundation/layout/WindowInsets;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function4;Landroidx/compose/runtime/Composer;III)V
-	public static final fun ModalBottomSheet-0P6OaRw (ZLkotlin/jvm/functions/Function0;Landroidx/compose/ui/Modifier;Lio/kontour/ui/sheet/SheetState;Lio/kontour/ui/sheet/SheetPresentation;Lio/kontour/ui/sheet/SheetEdgeMorph;Lio/kontour/ui/overlay/OverlayAlignment;Landroidx/compose/ui/graphics/Shape;Landroidx/compose/ui/graphics/Shape;JJLio/kontour/ui/overlay/ScrimStyle;ZLjava/lang/String;Ljava/lang/String;ZZLkotlin/jvm/functions/Function2;Landroidx/compose/foundation/layout/WindowInsets;Lkotlin/jvm/functions/Function4;Landroidx/compose/runtime/Composer;III)V
+	public static final fun ModalBottomSheet-hyR3mQA (ZLkotlin/jvm/functions/Function0;Landroidx/compose/ui/Modifier;Lio/kontour/ui/sheet/SheetState;Lio/kontour/ui/sheet/SheetPresentation;Lio/kontour/ui/sheet/SheetEdgeMorph;Lio/kontour/ui/overlay/OverlayAlignment;Landroidx/compose/ui/graphics/Shape;Landroidx/compose/ui/graphics/Shape;JJLio/kontour/ui/overlay/ScrimStyle;ZZLjava/lang/String;Ljava/lang/String;ZZLkotlin/jvm/functions/Function2;Landroidx/compose/foundation/layout/WindowInsets;Lkotlin/jvm/functions/Function4;Landroidx/compose/runtime/Composer;IIII)V
 }
 
 public final class io/kontour/ui/sheet/DragHandleDefaults {
@@ -4148,7 +4148,7 @@ public final class io/kontour/ui/sheet/SideSheetDefaults {
 }
 
 public final class io/kontour/ui/sheet/SideSheetKt {
-	public static final fun ModalSideSheet-C2b5UNc (ZLkotlin/jvm/functions/Function0;Landroidx/compose/ui/Modifier;Lio/kontour/ui/sheet/SheetSide;FLandroidx/compose/foundation/shape/CornerBasedShape;JJLio/kontour/ui/overlay/ScrimStyle;ZLjava/lang/String;Lkotlin/jvm/functions/Function0;Ljava/lang/String;Landroidx/compose/ui/graphics/vector/ImageVector;Ljava/lang/String;Landroidx/compose/foundation/layout/WindowInsets;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;III)V
+	public static final fun ModalSideSheet-UnjgIpI (ZLkotlin/jvm/functions/Function0;Landroidx/compose/ui/Modifier;Lio/kontour/ui/sheet/SheetSide;FLandroidx/compose/foundation/shape/CornerBasedShape;JJLio/kontour/ui/overlay/ScrimStyle;ZZLjava/lang/String;Lkotlin/jvm/functions/Function0;Ljava/lang/String;Landroidx/compose/ui/graphics/vector/ImageVector;Ljava/lang/String;Landroidx/compose/foundation/layout/WindowInsets;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;III)V
 	public static final fun SideSheet-zZpE5Mw (ZLandroidx/compose/ui/Modifier;Lio/kontour/ui/sheet/SheetSide;FLandroidx/compose/foundation/shape/CornerBasedShape;JJLkotlin/jvm/functions/Function0;Ljava/lang/String;Landroidx/compose/ui/graphics/vector/ImageVector;Ljava/lang/String;Landroidx/compose/foundation/layout/WindowInsets;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;III)V
 }
 
