@@ -220,6 +220,12 @@ On `main`, and in the next release.
   or two. The row moves with the finger, so its own long press saw a finger
   held still and came true half a second in, then took the carry from the
   grip. The row's hold now stands aside while the grip has the row.
+- **A `ListSection` in a lazy list no longer crashes a row's layout.** To
+  inset its header and footer beside rows, a section asked its body for an
+  alignment line while measuring, and Compose laid the body out to answer,
+  placing its rows inside the section's measure. In a lazy list on Android
+  that placed a node Compose had not filed: "LayoutNode … not found in
+  RectList". The section now reads the line where it places the body.
 - **A list on `rememberScrollbarListState()` no longer crashes an app as it
   leaves.** Leaving a page, a tab or a sheet while its list was still measuring
   its rows for the scrollbar could crash with "LayoutNode should be attached
