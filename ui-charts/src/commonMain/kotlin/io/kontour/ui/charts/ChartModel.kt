@@ -41,7 +41,15 @@ internal class Mark(
     val style: SeriesStyle?,
     /** A bar from a start to an end rather than from zero: a day's range. */
     val floating: Boolean = false,
-)
+    /** Measured against the chart's end axis: recorded in [ChartScope.onEndAxis]. */
+    val onEnd: Boolean = false,
+) {
+    /** This mark with [runs], and everything else as it is. */
+    fun with(runs: List<Run>): Mark = Mark(kind, runs, stacking, interpolation, showPoints, symbol, style, floating, onEnd)
+
+    /** This mark, measured against the end axis. */
+    fun onEndAxis(): Mark = Mark(kind, runs, stacking, interpolation, showPoints, symbol, style, floating, onEnd = true)
+}
 
 /**
  * One series' values within one mark, in the chart's own units.
@@ -82,6 +90,8 @@ internal class Rule(
     val y: Double?,
     val label: String?,
     val style: SeriesStyle?,
+    /** Its [y] measured against the chart's end axis: recorded in [ChartScope.onEndAxis]. */
+    val onEnd: Boolean = false,
 )
 
 /**
@@ -95,6 +105,8 @@ internal class Region(
     val yEnd: Double?,
     val label: String?,
     val style: SeriesStyle?,
+    /** Its ends up measured against the chart's end axis: recorded in [ChartScope.onEndAxis]. */
+    val onEnd: Boolean = false,
 )
 
 /**
@@ -107,6 +119,7 @@ internal class Region(
 internal class ChartRecorder<X : Any, Y : Any>(
     private val xAxis: ChartAxis<X>,
     private val yAxis: ChartAxis<Y>,
+    private val endYAxis: ChartAxis<Y>? = null,
 ) : ChartScope<X, Y> {
 
     private val marks = mutableListOf<Mark>()
@@ -128,10 +141,42 @@ internal class ChartRecorder<X : Any, Y : Any>(
     private fun xOf(value: X): Double =
         if (xAxis.kind == AxisKind.Category) xCategories.indexOf(value) else xAxis.encode(value)
 
+    /**
+     * The axis a value up is read on: the end axis inside [onEndAxis], where
+     * there is one to read it on, and the start axis everywhere else.
+     */
+    private var upAxis: ChartAxis<Y> = yAxis
+
     private fun yOf(value: Y?): Double = when {
         value == null -> Double.NaN
-        yAxis.kind == AxisKind.Category -> yCategories.indexOf(value)
-        else -> yAxis.encode(value)
+        upAxis.kind == AxisKind.Category -> yCategories.indexOf(value)
+        else -> upAxis.encode(value)
+    }
+
+    override fun onEndAxis(content: ChartScope<X, Y>.() -> Unit) {
+        // Only a value axis up, against another: lying bars and a heat map
+        // have categories up, and two of those cannot share a plot. There,
+        // and with no end axis given, the content is the start axis's, which
+        // draws it rather than dropping it.
+        val end = endYAxis
+        if (end == null || end.kind == AxisKind.Category || yAxis.kind == AxisKind.Category || upAxis === end) {
+            content()
+            return
+        }
+        val marksFrom = marks.size
+        val rulesFrom = rules.size
+        val regionsFrom = regions.size
+        upAxis = end
+        try {
+            content()
+        } finally {
+            upAxis = yAxis
+        }
+        for (i in marksFrom until marks.size) marks[i] = marks[i].onEndAxis()
+        for (i in rulesFrom until rules.size) rules[i].let { rules[i] = Rule(it.x, it.y, it.label, it.style, onEnd = true) }
+        for (i in regionsFrom until regions.size) {
+            regions[i].let { regions[i] = Region(it.xStart, it.xEnd, it.yStart, it.yEnd, it.label, it.style, onEnd = true) }
+        }
     }
 
     private fun <T> runsOf(

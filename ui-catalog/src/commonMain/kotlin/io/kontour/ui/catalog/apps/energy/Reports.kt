@@ -247,7 +247,8 @@ private fun SeasonsReport() {
 private class Window(val name: String, val from: Int, val to: Int, val price: Double)
 
 /**
- * Bills: each month's, with its average and winter shaded, and the day's
+ * Bills: each month's, with its average and winter shaded and what the
+ * house bought from the grid on the end axis, beside it, and the day's
  * prices — the tariff's windows as rectangles under a stepped line, at the
  * rates the settings page holds, and the feed-in rate as a rule.
  */
@@ -258,6 +259,7 @@ private fun BillsReport() {
     val formats = Theme.formats
     val names = remember { ChartAxis.category(monthNames) }
     val dollars = remember { ChartAxis.number(title = "$") }
+    val bought = remember { ChartAxis.number(title = "kWh bought") }
     val hours = remember { ChartAxis.number(domain = 0.0..24.0, label = { hourLabel(it) }) }
     val rate = remember { ChartAxis.number(title = "$ a kWh", includeZero = true) }
     val selection = rememberChartSelectionState<String>()
@@ -275,18 +277,23 @@ private fun BillsReport() {
     val prices = (0..24).map { hour -> hour to (windows.firstOrNull { hour >= it.from && hour < it.to }?.price ?: offPeak) }
     val average = months.sumOf { it.bill } / months.size
 
-    EnergyHeading("Each month's bill", supporting = "Net of what the roof sold")
+    EnergyHeading("Each month's bill", supporting = "Net of what the roof sold, beside what came from the grid")
     Chart(
         xAxis = names,
         yAxis = dollars,
         modifier = Modifier.fillMaxWidth().height(ChartHeight).testTag("energy-bills"),
+        // The energy behind each bill, in its own units down the end edge.
+        endYAxis = bought,
         selection = selection,
-        contentDescription = "Each month's bill",
+        contentDescription = "Each month's bill, and what was bought from the grid",
         showPatterns = patterns,
     ) {
         region(xStart = "Jun", xEnd = "Aug", label = "Winter")
-        bar(months, x = { it.name }, y = { it.bill })
+        bar(months, x = { it.name }, y = { it.bill }, series = { Bill })
         rule(y = average, label = "Average")
+        onEndAxis {
+            line(months, x = { it.name }, y = { it.imported }, series = { Bought }, interpolation = ChartInterpolation.Monotone, showPoints = true)
+        }
     }
 
     EnergyHeading("A day's prices", supporting = "From the tariff in Settings")
@@ -311,6 +318,7 @@ private fun BillsReport() {
 }
 
 private val Bought = ChartSeries("Bought")
+private val Bill = ChartSeries("Bill")
 private val Sold = ChartSeries("Sold")
 private val Price = ChartSeries("Price")
 private val MonthColumn = 80.dp

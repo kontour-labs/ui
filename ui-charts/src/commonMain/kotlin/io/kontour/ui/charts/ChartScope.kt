@@ -304,6 +304,30 @@ interface ChartScope<X : Any, Y : Any> {
         label: String? = null,
         style: SeriesStyle? = null,
     )
+
+    /**
+     * Marks, rules and regions read against the chart's `endYAxis` rather than
+     * its `yAxis`: a second series in other units, with its own scale and its
+     * own labels down the end edge of the plot.
+     *
+     * ```kotlin
+     * Chart(
+     *     xAxis = ChartAxis.date(),
+     *     yAxis = ChartAxis.number(title = "Riders"),
+     *     endYAxis = ChartAxis.number(title = "Fares", label = { formats.currency(it, "AUD") }),
+     * ) {
+     *     bar(week, x = { it.day }, y = { it.riders }, series = { riders })
+     *     onEndAxis {
+     *         line(week, x = { it.day }, y = { it.fares }, series = { fares })
+     *     }
+     * }
+     * ```
+     *
+     * With no `endYAxis`, on a chart whose axis up is a category axis, or
+     * given a category axis to end with, the content is drawn against the
+     * start axis like any other.
+     */
+    fun onEndAxis(content: ChartScope<X, Y>.() -> Unit) = content()
 }
 
 /** How the series of an [area][ChartScope.area] or a [bar][ChartScope.bar] mark share one place. */

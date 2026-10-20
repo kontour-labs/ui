@@ -20,6 +20,15 @@ internal fun interpolate(from: ResolvedChart, to: ResolvedChart, fraction: Float
     val t = fraction.toDouble()
     val x = blendAxis(from.x, to.x, t)
     val y = blendAxis(from.y, to.y, t)
+    // The end axis eases as the start does. Arriving, it is there at once,
+    // with its series rising up it; leaving, its series go down the scale
+    // they were on rather than jumping to the start axis's.
+    val toEnd = to.yEnd
+    val fromEnd = from.yEnd
+    val yEnd = when {
+        toEnd != null && fromEnd != null -> blendAxis(fromEnd, toEnd, t)
+        else -> toEnd ?: fromEnd
+    }
     fun Layer.sameAs(other: Layer) = markIndex == other.markIndex && series == other.series && mark.kind == other.mark.kind
     val layers = to.layers.map { layer ->
         val previous = from.layers.firstOrNull { it.sameAs(layer) }
@@ -41,7 +50,7 @@ internal fun interpolate(from: ResolvedChart, to: ResolvedChart, fraction: Float
     val leaving = from.layers.filter { old -> to.layers.none { it.sameAs(old) } }.map { old ->
         blendLayer(old, collapsedLayer(old, to), t, to.horizontal).copy(opacity = old.opacity * (1f - fraction))
     }
-    return to.with(x, y, leaving + layers)
+    return to.with(x, y, leaving + layers, yEnd)
 }
 
 /** Whether [this] shows no marks at all: a chart whose data has not come yet. */
@@ -56,7 +65,7 @@ internal fun collapsed(chart: ResolvedChart): ResolvedChart =
 
 /** [layer] of [chart] at its baseline: see [collapsed]. */
 private fun collapsedLayer(layer: Layer, chart: ResolvedChart): Layer {
-    val valueLow = if (chart.horizontal) chart.x.low else chart.y.low
+    val valueLow = if (chart.horizontal) chart.x.low else chart.upAxis(layer.mark.onEnd).low
     // A stream swells out of its middle, top and foot together.
     if (layer.mark.kind == MarkKind.Area && layer.mark.stacking == ChartStacking.Centred) {
         val middle = DoubleArray(layer.size)

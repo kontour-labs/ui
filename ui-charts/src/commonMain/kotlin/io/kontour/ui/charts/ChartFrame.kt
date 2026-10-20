@@ -59,6 +59,10 @@ internal class ChartFrame(
     val yAxisAtStart: Boolean,
     /** A heat map's values, measured to be written in their cells, by cell; empty unless they are written. */
     val cellLabels: List<TextLayoutResult?> = emptyList(),
+    /** The end axis's labels, down the edge across from the start axis's; empty with no end axis. */
+    val yEndLabels: List<AxisLabel> = emptyList(),
+    /** The end axis's title, in the top corner across from the start axis's. */
+    val yEndTitle: TextLayoutResult? = null,
 )
 
 /**
@@ -81,6 +85,7 @@ internal fun ChartFrame.withInsets(insets: PlotInsets): ChartFrame {
     return ChartFrame(
         width, height, moved, rtl, xLabels, yLabels, xTitle, yTitle,
         ruleLabels, rulePins, regionLabels, pinHeight, pinBand, gap, xAxisAtBottom, yAxisAtStart, cellLabels,
+        yEndLabels, yEndTitle,
     )
 }
 
@@ -97,8 +102,13 @@ internal fun blendInsets(from: PlotInsets?, to: PlotInsets, fraction: Float): Pl
 }
 
 /** Maps the chart's units onto [frame]'s plot, for one frame's axes. */
-internal class Mapper(val frame: ChartFrame, val x: ResolvedAxis, val y: ResolvedAxis) {
+internal class Mapper(val frame: ChartFrame, val x: ResolvedAxis, val y: ResolvedAxis, private val yEnd: ResolvedAxis? = null) {
     private val plot = frame.plot
+
+    /** This mapping, up the end axis where [onEnd] and there is one: for what [ChartScope.onEndAxis] put on it. */
+    fun up(onEnd: Boolean): Mapper = if (onEnd && yEnd != null) endMapper else this
+
+    private val endMapper: Mapper by lazy { Mapper(frame, x, yEnd ?: y) }
 
     fun px(value: Double): Float {
         val fraction = ((value - x.low) / x.span).toFloat()
@@ -167,19 +177,28 @@ internal fun layOutFrame(
         )
 
     // Up the start edge: as wide as its widest label, but never more than two
-    // fifths of the chart, for the long names of lying bars.
-    val yCap = (width * 0.4f).toInt()
-    val yMeasured = if (y.showLabels) {
-        y.ticks.indices.map { i -> AxisLabel(y.ticks[i], measure(y.tickLabels[i], labelStyle, yCap)) }
+    // fifths of the chart, for the long names of lying bars; with an end axis
+    // across from it, three tenths each.
+    val yEnd = chart.yEnd
+    val yCap = (width * if (yEnd != null) 0.3f else 0.4f).toInt()
+    fun labelsOf(axis: ResolvedAxis) = if (axis.showLabels) {
+        axis.ticks.indices.map { i -> AxisLabel(axis.ticks[i], measure(axis.tickLabels[i], labelStyle, yCap)) }
     } else {
         emptyList()
     }
-    val yGutter = yMeasured.maxOfOrNull { it.layout.size.width }?.let { it + gap } ?: 0f
-    val yTitle = y.title?.let { measure(it, titleStyle, width.toInt()) }
+    val yMeasured = labelsOf(y)
+    val yEndMeasured = yEnd?.let(::labelsOf).orEmpty()
+    fun gutterOf(labels: List<AxisLabel>) = labels.maxOfOrNull { it.layout.size.width }?.let { it + gap } ?: 0f
+    val yGutter = gutterOf(yMeasured)
+    // Two titles over the plot share its width, each in its own corner.
+    val titleRoom = if (yEnd?.title != null) (width / 2 - gap).toInt() else width.toInt()
+    val yTitle = y.title?.let { measure(it, titleStyle, titleRoom) }
+    val yEndTitle = yEnd?.title?.let { measure(it, titleStyle, titleRoom) }
     val xTitle = x.title?.let { measure(it, titleStyle, width.toInt()) }
 
-    val labelHeight = yMeasured.maxOfOrNull { it.layout.size.height }?.toFloat() ?: 0f
-    val endPad = gap
+    val labelHeight = (yMeasured + yEndMeasured).maxOfOrNull { it.layout.size.height }?.toFloat() ?: 0f
+    // Across from the start axis: the end axis's labels, or a gap.
+    val endPad = if (yEnd != null && yEndMeasured.isNotEmpty()) gutterOf(yEndMeasured) else gap
     val plotLeftLtr = if (yAtStart) yGutter else endPad
     val plotRightLtr = width - if (yAtStart) endPad else yGutter
     val plotWidth = max(1f, plotRightLtr - plotLeftLtr)
@@ -197,7 +216,7 @@ internal fun layOutFrame(
     // The title over the value axis, a full gap clear of the top tick's label,
     // which is centred on the plot's top edge and so stands half above it. It
     // was half a gap from the plot instead, and the label reached up to it.
-    val titleTop = yTitle?.let { it.size.height + gap } ?: 0f
+    val titleTop = listOfNotNull(yTitle, yEndTitle).maxOfOrNull { it.size.height + gap } ?: 0f
     val labelHalf = labelHeight / 2
 
     val left = if (rtl) width - plotRightLtr else plotLeftLtr
@@ -239,10 +258,10 @@ internal fun layOutFrame(
     }
     val rulePins = pinsByRule.mapIndexed { index, pin -> pin?.let { RulePin(it.first, rows[index]) } }
     val frame = blankFrame(width, height, plot, rtl, gap, xAtBottom, yAtStart)
-    val mapper = Mapper(frame, x, y)
+    val mapper = Mapper(frame, x, y, yEnd)
     val regionLabels = chart.regions.map { region ->
         val label = region.label?.takeIf { it.isNotBlank() } ?: return@map null
-        val span = regionRect(region, mapper, chart)
+        val span = regionRect(region, mapper.up(region.onEnd), chart)
         val room = (span.width - pinPad * 2).toInt()
         if (room < labelHeight) null else measure(label, labelStyle, room)
     }
@@ -270,6 +289,11 @@ internal fun layOutFrame(
         xAxisAtBottom = xAtBottom,
         yAxisAtStart = yAtStart,
         cellLabels = if (writeCells) cellLabelsOf(chart) { measure(it, labelStyle) } else emptyList(),
+        yEndLabels = thinned(yEndMeasured, gap / 2) { label ->
+            val centre = mapper.up(onEnd = true).py(label.value)
+            centre - label.layout.size.height / 2f to centre + label.layout.size.height / 2f
+        },
+        yEndTitle = yEndTitle,
     )
 }
 

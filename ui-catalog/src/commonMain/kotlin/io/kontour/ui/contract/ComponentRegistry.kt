@@ -1261,6 +1261,27 @@ val componentRegistry: List<ComponentSpec> = buildList {
                         rule(y = 700, label = "Target")
                     }
                 },
+                // Two series in different units, each on its own axis: the
+                // riders as bars up the start edge, the takings as a line down
+                // the end, its labels on the riders' gridlines.
+                RenderState("end-axis") { modifier ->
+                    val days = listOf("Mon", "Tue", "Wed", "Thu", "Fri")
+                    val riders = listOf(640, 720, 690, 810, 905)
+                    val takings = listOf(1_790.0, 2_030.0, 1_950.0, 2_310.0, 2_640.0)
+                    Chart(
+                        xAxis = ChartAxis.category<String>(),
+                        yAxis = ChartAxis.number(title = "Riders"),
+                        endYAxis = ChartAxis.number(title = "Takings"),
+                        modifier = modifier.fillMaxWidth().height(220.dp),
+                        contentDescription = "Riders and takings this week",
+                        animateData = false,
+                    ) {
+                        bar(days, x = { it }, y = { riders[days.indexOf(it)] }, series = { ChartSeries("Riders") })
+                        onEndAxis {
+                            line(days, x = { it }, y = { takings[days.indexOf(it)] }, series = { ChartSeries("Takings") }, showPoints = true)
+                        }
+                    }
+                },
                 // A month's coldest and warmest days, a bar from one to the
                 // other, rounded at both ends.
                 RenderState("ranges") { modifier ->

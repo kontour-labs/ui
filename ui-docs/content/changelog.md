@@ -28,6 +28,11 @@ On `main`, and in the next release.
 
 ### Added
 
+- **A second axis up on a `Chart`.** `endYAxis` puts one down the end edge,
+  and what the content draws in `onEndAxis { }` is measured against it: two
+  series in different units, each on its own scale, the end axis's labels on
+  the start axis's gridlines. `ChartDataTable` takes it too. See
+  [Chart](components/chart.md#two-axes-up).
 - **A `Sparkline` moves to new values.** When its values change, the line
   moves from the shape it had to the new one, as a `Chart` does, rather than
   being replaced. Not under reduced motion or `animateData = false`.

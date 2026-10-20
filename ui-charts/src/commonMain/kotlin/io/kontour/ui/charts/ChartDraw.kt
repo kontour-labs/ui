@@ -90,7 +90,8 @@ internal fun DrawScope.drawChart(
     alpha: Float,
     selected: Double?,
 ) {
-    val m = Mapper(frame, chart.x, chart.y)
+    // And up the end axis, for what is on it: see [Mapper.up].
+    val m = Mapper(frame, chart.x, chart.y, chart.yEnd)
     val plot = frame.plot
     val colours = config.colours
 
@@ -128,7 +129,7 @@ internal fun DrawScope.drawChart(
     // Regions behind everything drawn from data, each in its selection-coloured
     // wash; their labels are drawn after the marks, where they are clear of them.
     chart.regions.forEach { region ->
-        val rect = regionRect(region, m, chart)
+        val rect = regionRect(region, m.up(region.onEnd), chart)
         if (rect.width <= 0f || rect.height <= 0f) return@forEach
         val colour = region.style?.colour?.takeIf { it != Color.Unspecified } ?: colours.selection
         val path = Path()
@@ -149,7 +150,7 @@ internal fun DrawScope.drawChart(
         val effect = (rule.style?.line ?: LinePattern.Dashed).effect(config.hairline * 2)
         val stroke = config.hairline * 1.5f
         rule.y?.let { value ->
-            val y = m.py(value)
+            val y = m.up(rule.onEnd).py(value)
             drawLine(colour, Offset(plot.left, y), Offset(plot.right, y), stroke, pathEffect = effect)
         }
         rule.x?.let { value ->
@@ -175,21 +176,22 @@ internal fun DrawScope.drawChart(
             // A series on its way out fades as it goes.
             val alpha = alpha * layer.opacity
             if (alpha <= 0f) return@forEach
+            val mapped = m.up(layer.mark.onEnd)
             when (layer.mark.kind) {
-                MarkKind.Area -> drawArea(layer, look, m, config, alpha)
-                MarkKind.Band -> drawArea(layer, look, m, config, alpha, band = true)
+                MarkKind.Area -> drawArea(layer, look, mapped, config, alpha)
+                MarkKind.Band -> drawArea(layer, look, mapped, config, alpha, band = true)
                 MarkKind.Line -> {
-                    drawLineMark(layer, look, m, config, alpha)
+                    drawLineMark(layer, look, mapped, config, alpha)
                     if (layer.mark.showPoints || (config.patterns && seriesCount > 1)) {
-                        drawSymbols(layer, look.symbol, look.colour, m, config, alpha)
+                        drawSymbols(layer, look.symbol, look.colour, mapped, config, alpha)
                     }
                 }
-                MarkKind.Bar -> drawBars(layer, look, chart, m, config, alpha)
-                MarkKind.Point -> drawSymbols(layer, layer.mark.symbol ?: look.symbol, look.colour, m, config, alpha)
-                MarkKind.Rectangle -> drawRectangles(layer, look, m, config, alpha)
-                MarkKind.Stem -> drawStems(layer, look, m, config, alpha)
-                MarkKind.Box -> drawBoxes(layer, look, chart, m, config, alpha)
-                MarkKind.Cell -> drawCells(layer, frame, chart, m, config, alpha)
+                MarkKind.Bar -> drawBars(layer, look, chart, mapped, config, alpha)
+                MarkKind.Point -> drawSymbols(layer, layer.mark.symbol ?: look.symbol, look.colour, mapped, config, alpha)
+                MarkKind.Rectangle -> drawRectangles(layer, look, mapped, config, alpha)
+                MarkKind.Stem -> drawStems(layer, look, mapped, config, alpha)
+                MarkKind.Box -> drawBoxes(layer, look, chart, mapped, config, alpha)
+                MarkKind.Cell -> drawCells(layer, frame, chart, mapped, config, alpha)
             }
         }
     }
@@ -202,7 +204,7 @@ internal fun DrawScope.drawChart(
     val data = if (needed) obstaclesOf(chart, m, config) else null
     chart.regions.forEachIndexed { index, region ->
         val label = frame.regionLabels.getOrNull(index) ?: return@forEachIndexed
-        val rect = regionRect(region, m, chart)
+        val rect = regionRect(region, m.up(region.onEnd), chart)
         val w = label.size.width.toFloat()
         val h = label.size.height.toFloat()
         val start = if (frame.rtl) rect.right - inset - w else rect.left + inset
@@ -216,7 +218,7 @@ internal fun DrawScope.drawChart(
     chart.rules.forEachIndexed { index, rule ->
         val label = frame.ruleLabels.getOrNull(index) ?: return@forEachIndexed
         val value = rule.y ?: return@forEachIndexed
-        val y = m.py(value)
+        val y = m.up(rule.onEnd).py(value)
         val w = label.size.width.toFloat()
         val h = label.size.height.toFloat()
         val lift = config.hairline * 2
@@ -264,7 +266,7 @@ internal fun DrawScope.drawChart(
                 val value = sampleAt(layer.across, layer.up, selected)
                 if (value.isNaN()) return@forEach
                 val look = lookOf(layer.slot, colours.series, config.patterns, layer.mark.style, layer.series.style)
-                val centre = Offset(x, m.py(value))
+                val centre = Offset(x, m.up(layer.mark.onEnd).py(value))
                 drawCircle(colours.ground, config.pointSize * 0.9f, centre)
                 drawCircle(look.colour, config.pointSize * 0.6f, centre)
             }
@@ -568,8 +570,24 @@ private fun DrawScope.drawLabels(frame: ChartFrame, m: Mapper, colours: ChartCol
         val left = if (onLeft) plot.left - half - w else plot.right + half
         drawText(label.layout, colours.label, Offset(left, top))
     }
+    // The end axis's, down the other edge.
+    val endMapper = m.up(onEnd = true)
+    frame.yEndLabels.forEach { label ->
+        val w = label.layout.size.width.toFloat()
+        val h = label.layout.size.height.toFloat()
+        val centre = endMapper.py(label.value)
+        if (centre < plot.top - 1f || centre > plot.bottom + 1f) return@forEach
+        val top = (centre - h / 2).coerceIn(0f, max(0f, frame.height - h))
+        val onLeft = frame.yAxisAtStart == frame.rtl
+        val left = if (onLeft) plot.left - half - w else plot.right + half
+        drawText(label.layout, colours.label, Offset(left, top))
+    }
     frame.yTitle?.let { title ->
         val left = if (frame.yAxisAtStart != frame.rtl) 0f else frame.width - title.size.width
+        drawText(title, colours.label, Offset(left, 0f))
+    }
+    frame.yEndTitle?.let { title ->
+        val left = if (frame.yAxisAtStart == frame.rtl) 0f else frame.width - title.size.width
         drawText(title, colours.label, Offset(left, 0f))
     }
     frame.xTitle?.let { title ->
@@ -587,11 +605,12 @@ private class Obstacles(private val points: List<Offset>, private val boxes: Lis
     fun hit(rect: Rect): Boolean = points.any { rect.contains(it) } || boxes.any { it.overlaps(rect) }
 }
 
-private fun obstaclesOf(chart: ResolvedChart, m: Mapper, config: DrawConfig): Obstacles {
+private fun obstaclesOf(chart: ResolvedChart, chartMapper: Mapper, config: DrawConfig): Obstacles {
     val points = ArrayList<Offset>()
     val boxes = ArrayList<Rect>()
     val step = config.pointSize
     chart.layers.forEach { layer ->
+        val m = chartMapper.up(layer.mark.onEnd)
         when (layer.mark.kind) {
             MarkKind.Bar -> {
                 val lying = chart.horizontal

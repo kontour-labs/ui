@@ -39,8 +39,11 @@ internal fun chartSummary(
     // their own numbers.
     if (!chart.x.centred) parts += axisSentence(chart.x, chart, strings.horizontalAxis, strings)
     if (!chart.y.centred) parts += axisSentence(chart.y, chart, strings.verticalAxis, strings)
+    chart.yEnd?.let { parts += axisSentence(it, chart, strings.verticalAxis, strings) }
 
     val valueAxis = chart.valueAxis
+    // A series on the end axis is said in its units, not the start axis's.
+    fun axisOf(layer: Layer?): ResolvedAxis = if (chart.horizontal || layer == null) valueAxis else chart.upAxis(layer.mark.onEnd)
     // A heat map's values are its cells' shades, written by its scale.
     chart.cells?.let { scale -> parts += strings.axisRange(strings.valueColumn, scale.write(scale.low), scale.write(scale.high)) }
     chart.model.series.forEach { series ->
@@ -61,8 +64,9 @@ internal fun chartSummary(
             -1 -> strings.trendFalling
             else -> strings.trendSteady
         }
-        val least = valueAxis.write(values.min())
-        val most = valueAxis.write(values.max())
+        val axis = axisOf(layers.firstOrNull())
+        val least = axis.write(values.min())
+        val most = axis.write(values.max())
         parts += if (series.name.isBlank()) {
             strings.valuesSummary(least, most, direction)
         } else {
@@ -73,14 +77,14 @@ internal fun chartSummary(
     // "Launch fortnight, 1 Feb to 14 Feb". One with no label is decoration.
     chart.rules.forEach { rule ->
         val label = rule.label?.takeIf { it.isNotBlank() } ?: return@forEach
-        val at = rule.y?.let { chart.y.write(it) } ?: rule.x?.let { chart.x.write(it) }
+        val at = rule.y?.let { chart.upAxis(rule.onEnd).write(it) } ?: rule.x?.let { chart.x.write(it) }
         parts += if (at == null) label else strings.seriesValue(label, at)
     }
     chart.regions.forEach { region ->
         val label = region.label?.takeIf { it.isNotBlank() } ?: return@forEach
         val span = when {
             region.xStart != null || region.xEnd != null -> spanOf(chart.x, region.xStart, region.xEnd, strings)
-            region.yStart != null || region.yEnd != null -> spanOf(chart.y, region.yStart, region.yEnd, strings)
+            region.yStart != null || region.yEnd != null -> spanOf(chart.upAxis(region.onEnd), region.yStart, region.yEnd, strings)
             else -> null
         }
         parts += if (span == null) label else strings.seriesValue(label, span)
@@ -146,16 +150,18 @@ internal fun placeDescriptions(chart: ResolvedChart, strings: ChartStrings, form
                 places.indices.filter { places[it] == place && !layer.values[it].isNaN() && !stemSilentAt(chart, layer, it) }
             }
             if (indices.isEmpty()) return@flatMap emptyList()
+            // In its own axis's units: see [chartSummary].
+            val axis = if (chart.horizontal) valueAxis else chart.upAxis(layer.mark.onEnd)
             when {
                 // A heat map's column, cell by cell, each by its row: "6am, 12".
                 layer.mark.kind == MarkKind.Cell -> {
                     val scale = chart.cells
-                    indices.map { i -> strings.seriesValue(chart.y.write(layer.up[i]), scale?.write?.invoke(layer.values[i]) ?: valueAxis.write(layer.values[i])) }
+                    indices.map { i -> strings.seriesValue(chart.y.write(layer.up[i]), scale?.write?.invoke(layer.values[i]) ?: axis.write(layer.values[i])) }
                 }
                 // One box by its numbers, or several, grouped, from the least
                 // whisker's end to the most.
                 layer.box != null && indices.size == 1 -> {
-                    val amount = boxSaid(layer, indices[0], valueAxis.write, strings, formats)
+                    val amount = boxSaid(layer, indices[0], axis.write, strings, formats)
                     listOf(if (layer.series.name.isBlank()) amount else strings.seriesValue(layer.series.name, amount))
                 }
                 else -> {
@@ -167,7 +173,7 @@ internal fun placeDescriptions(chart: ResolvedChart, strings: ChartStrings, form
                         layer.spans -> indices.maxOf { layer.endAt(it) ?: layer.values[it] }
                         else -> indices.maxOf { layer.values[it] }
                     }
-                    val amount = if (least == most) valueAxis.write(least) else strings.valueRange(valueAxis.write(least), valueAxis.write(most))
+                    val amount = if (least == most) axis.write(least) else strings.valueRange(axis.write(least), axis.write(most))
                     listOf(if (layer.series.name.isBlank()) amount else strings.seriesValue(layer.series.name, amount))
                 }
             }

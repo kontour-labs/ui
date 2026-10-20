@@ -79,9 +79,47 @@ internal fun niceTicks(low: Double, high: Double, count: Int): Ticks {
         // `-0.0` and `1e-17` are both zero to a reader.
         if (abs(value) < step * 1e-9) 0.0 else value
     }
-    val digits = max(0, -floor(log10(step) + 1e-9).toInt())
+    return Ticks(values, first, last, fractionDigits = digitsOf(step))
+}
+
+/** How many digits after the point a tick [step] apart needs. */
+private fun digitsOf(step: Double): Int =
+    max(0, -floor(log10(step) + 1e-9).toInt())
         .let { if (abs(step * 10.0.pow(it) - (step * 10.0.pow(it)).roundToLong()) > 1e-6) it + 1 else it }
-    return Ticks(values, first, last, fractionDigits = digits)
+
+/**
+ * Ticks for [low]..[high] in exactly [intervals] round steps, the smallest
+ * that reaches from a tick at or below [low] to one at or above [high]: a
+ * chart's end axis, whose labels then sit on the start axis's gridlines,
+ * rather than a second set of lines between them or labels beside nothing.
+ */
+internal fun alignedTicks(low: Double, high: Double, intervals: Int): Ticks {
+    var lo = low
+    var hi = high
+    if (lo.isNaN() || hi.isNaN() || lo.isInfinite() || hi.isInfinite()) {
+        lo = 0.0
+        hi = 1.0
+    }
+    if (lo > hi) lo = hi.also { hi = lo }
+    if (hi - lo < 1e-12) {
+        val pad = if (abs(lo) < 1e-12) 1.0 else abs(lo) * 0.5
+        lo -= pad
+        hi += pad
+    }
+    val n = max(intervals, 1)
+    var step = niceNumber((hi - lo) / n, round = false)
+    // A round step that does not reach from the tick below the data's start
+    // to past its end goes up to the next round step: at most a handful.
+    var first = floor(lo / step + StepSlack) * step
+    while (first + n * step < hi - step * StepSlack) {
+        step = niceNumber(step * 1.01, round = false)
+        first = floor(lo / step + StepSlack) * step
+    }
+    val values = DoubleArray(n + 1) { index ->
+        val value = first + index * step
+        if (abs(value) < step * 1e-9) 0.0 else value
+    }
+    return Ticks(values, first, first + n * step, fractionDigits = digitsOf(step))
 }
 
 /** How far past a tick, in steps, an end may sit and still end on it: rounding, not data. */

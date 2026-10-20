@@ -74,6 +74,29 @@ fun ChartHidingSeries() {
     }
 }
 
+private class Takings(val day: LocalDate, val riders: Int, val fares: Double)
+
+private val takings = week.filter { it.route == "950" }.map { Takings(it.day, it.riders, it.riders * 2.9) }
+
+@Composable
+fun ChartEndAxis() {
+    // Two series in different units, each against its own axis: the riders
+    // up the start edge, and what they paid down the end.
+    val formats = Theme.formats
+    Chart(
+        xAxis = ChartAxis.date(),
+        yAxis = ChartAxis.number(title = "Riders"),
+        endYAxis = ChartAxis.number(title = "Takings", label = { formats.currency(it, "AUD") }),
+        modifier = Modifier.fillMaxWidth().height(220.dp),
+        contentDescription = "Route 950's riders and takings this week",
+    ) {
+        bar(takings, x = { it.day }, y = { it.riders }, series = { ChartSeries("Riders") })
+        onEndAxis {
+            line(takings, x = { it.day }, y = { it.fares }, series = { ChartSeries("Takings") }, showPoints = true)
+        }
+    }
+}
+
 private class Forecast(val day: LocalDate, val low: Int, val likely: Int, val high: Int)
 
 private val ahead = listOf(

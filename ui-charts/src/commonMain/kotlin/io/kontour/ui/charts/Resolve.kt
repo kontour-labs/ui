@@ -37,7 +37,15 @@ internal class ResolvedChart(
     val places: DoubleArray,
     /** The values a heat map's cells run between, for their shades; `null` for a chart with none. */
     val cells: CellScale? = null,
+    /**
+     * The axis up the end edge, for what [ChartScope.onEndAxis] recorded;
+     * `null` with none, or nothing shown on it.
+     */
+    val yEnd: ResolvedAxis? = null,
 ) {
+    /** The axis a value up is read on: the end axis for what is [on the end][Mark.onEnd], the start axis otherwise. */
+    fun upAxis(onEnd: Boolean): ResolvedAxis = if (onEnd) yEnd ?: y else y
+
     /** The axis places run along: across, or up for lying bars. */
     val placeAxis: ResolvedAxis get() = if (horizontal) y else x
 
@@ -52,6 +60,7 @@ internal class ResolvedChart(
     fun sameAs(other: ResolvedChart): Boolean =
         horizontal == other.horizontal &&
             x.low == other.x.low && x.high == other.x.high && y.low == other.y.low && y.high == other.y.high &&
+            yEnd?.low == other.yEnd?.low && yEnd?.high == other.yEnd?.high &&
             places.contentEquals(other.places) &&
             layers.size == other.layers.size &&
             layers.zip(other.layers).all { (a, b) ->
@@ -65,8 +74,8 @@ internal class ResolvedChart(
             }
 
     /** A copy with these axes' spans and these layers, for a frame between two charts. */
-    fun with(x: ResolvedAxis, y: ResolvedAxis, layers: List<Layer>): ResolvedChart =
-        ResolvedChart(model, horizontal, x, y, layers, rules, regions, places, cells)
+    fun with(x: ResolvedAxis, y: ResolvedAxis, layers: List<Layer>, yEnd: ResolvedAxis? = this.yEnd): ResolvedChart =
+        ResolvedChart(model, horizontal, x, y, layers, rules, regions, places, cells, yEnd)
 }
 
 /**
@@ -149,6 +158,7 @@ internal fun <X : Any, Y : Any> resolve(
     xAxis: ChartAxis<X>,
     yAxis: ChartAxis<Y>,
     formats: LocaleFormats,
+    endYAxis: ChartAxis<Y>? = null,
 ): ResolvedChart {
     val horizontal = yAxis.kind == AxisKind.Category && xAxis.kind != AxisKind.Category
 
@@ -162,24 +172,29 @@ internal fun <X : Any, Y : Any> resolve(
     // beside them is read as a share too, and stretched the axis to its own
     // units instead: a "Capacity" rule at 700 riders made the axis run to
     // 70,000% and pressed the bars flat against its foot.
-    val normalised = layers.any { it.mark.stacking == ChartStacking.Normalised }
-    fun measuresValues(layer: Layer) = !normalised || layer.mark.stacking == ChartStacking.Normalised
+    //
+    // Only on the start axis: what is on the end axis is in its own units,
+    // and is measured on its own scale whatever the start axis is in.
+    val normalised = layers.any { !it.mark.onEnd && it.mark.stacking == ChartStacking.Normalised }
+    fun measuresValues(layer: Layer) = layer.mark.onEnd || !normalised || layer.mark.stacking == ChartStacking.Normalised
 
     // The data's extent along each axis, with zero wherever a bar or an area is
-    // measured from it.
+    // measured from it; what is on the end axis, up its own.
     val xs = Extent()
     val ys = Extent()
+    val endYs = Extent()
     layers.forEach { layer ->
         val values = measuresValues(layer)
+        val up = if (layer.mark.onEnd) endYs else ys
         for (i in 0 until layer.size) {
             if (values || !horizontal) xs += layer.across[i]
-            if (values || horizontal) ys += layer.up[i]
+            if (values || horizontal) up += layer.up[i]
             if (values || !horizontal) layer.acrossEnd?.let { xs += it[i] }
-            if (values || horizontal) layer.upEnd?.let { ys += it[i] }
-            if (values) layer.base?.let { base -> if (horizontal) xs += base[i] else ys += base[i] }
+            if (values || horizontal) layer.upEnd?.let { up += it[i] }
+            if (values) layer.base?.let { base -> if (horizontal) xs += base[i] else up += base[i] }
             // A box reaches past itself, to its whiskers and its outliers.
             if (values) layer.box?.let { box ->
-                val reach = if (horizontal) xs else ys
+                val reach = if (horizontal) xs else up
                 reach += box.low[i]
                 reach += box.high[i]
                 box.outliers[i].forEach { reach += it }
@@ -187,27 +202,32 @@ internal fun <X : Any, Y : Any> resolve(
         }
     }
     model.rules.forEach { rule ->
-        if (!normalised || !horizontal) rule.x?.let { xs += it }
-        if (!normalised || horizontal) rule.y?.let { ys += it }
+        val shares = normalised && !rule.onEnd
+        if (!shares || !horizontal) rule.x?.let { xs += it }
+        if (!shares || horizontal) rule.y?.let { if (rule.onEnd) endYs += it else ys += it }
     }
     // A region widens the axes to take it in, as a rule does: a forecast's
     // shading after today runs on past the last day of data.
     model.regions.forEach { region ->
-        if (!normalised || !horizontal) {
+        val shares = normalised && !region.onEnd
+        val up = if (region.onEnd) endYs else ys
+        if (!shares || !horizontal) {
             region.xStart?.let { xs += it }
             region.xEnd?.let { xs += it }
         }
-        if (!normalised || horizontal) {
-            region.yStart?.let { ys += it }
-            region.yEnd?.let { ys += it }
+        if (!shares || horizontal) {
+            region.yStart?.let { up += it }
+            region.yEnd?.let { up += it }
         }
     }
     // A floating bar is measured from its start, not from zero.
-    val measured = layers.any { (it.mark.kind == MarkKind.Bar && !it.mark.floating) || it.mark.kind == MarkKind.Area }
-    val centred = layers.any { it.mark.kind == MarkKind.Area && it.mark.stacking == ChartStacking.Centred }
+    fun Layer.fromZero() = (mark.kind == MarkKind.Bar && !mark.floating) || mark.kind == MarkKind.Area
+    val measured = layers.any { !it.mark.onEnd && it.fromZero() }
+    val centred = layers.any { !it.mark.onEnd && it.mark.kind == MarkKind.Area && it.mark.stacking == ChartStacking.Centred }
     if (measured) {
         if (horizontal) xs += 0.0 else ys += 0.0
     }
+    if (layers.any { it.mark.onEnd && it.fromZero() }) endYs += 0.0
 
     // Bars across a number or date axis stand on their value, so half a bar's
     // width either side of the first and the last is part of the domain.
@@ -218,6 +238,22 @@ internal fun <X : Any, Y : Any> resolve(
 
     val x = resolveAxis(xAxis, xs, model.xCategories, formats, padding = barPad, percent = normalised && horizontal)
     val y = resolveAxis(yAxis, ys, model.yCategories, formats, padding = 0.0, percent = normalised && !horizontal, centred = centred && !horizontal)
+
+    // The end axis, only while something is on it: a series hidden from the
+    // legend takes its axis with it, and the plot widens into its gutter. Its
+    // ticks are the start axis's in number, where both count and the start's
+    // run from its low to its high, so its labels sit on the start's
+    // gridlines rather than beside nothing.
+    val onEnd = model.marks.any { it.onEnd && it.runs.isNotEmpty() } || model.rules.any { it.onEnd } || model.regions.any { it.onEnd }
+    val yEnd = if (endYAxis != null && onEnd && !horizontal) {
+        val intervals = y.ticks.size - 1
+        val aligned = y.kind == AxisKind.Number && endYAxis.kind == AxisKind.Number && endYAxis.domain == null &&
+            !y.centred && intervals >= 1 &&
+            abs(y.ticks.first() - y.low) <= y.span * 1e-9 && abs(y.ticks.last() - y.high) <= y.span * 1e-9
+        resolveAxis(endYAxis, endYs, emptyList(), formats, padding = 0.0, percent = false, intervals = if (aligned) intervals else null)
+    } else {
+        null
+    }
 
     val places = when {
         horizontal -> DoubleArray(model.yCategories.size) { it.toDouble() }
@@ -231,10 +267,11 @@ internal fun <X : Any, Y : Any> resolve(
         x = x,
         y = y,
         layers = layers,
-        rules = model.rules.filter { rule -> rule.x.within(x) && rule.y.within(y) },
-        regions = model.regions.mapNotNull { it.clampedTo(x, y) },
+        rules = model.rules.filter { rule -> rule.x.within(x) && rule.y.within(if (rule.onEnd) yEnd ?: y else y) },
+        regions = model.regions.mapNotNull { it.clampedTo(x, if (it.onEnd) yEnd ?: y else y) },
         places = places,
         cells = cellScaleOf(layers, formats),
+        yEnd = yEnd,
     )
 }
 
@@ -280,7 +317,7 @@ private fun Region.clampedTo(x: ResolvedAxis, y: ResolvedAxis): Region? {
     return if (xStart == this.xStart && xEnd == this.xEnd && yStart == this.yStart && yEnd == this.yEnd) {
         this
     } else {
-        Region(xStart, xEnd, yStart, yEnd, label, style)
+        Region(xStart, xEnd, yStart, yEnd, label, style, onEnd)
     }
 }
 
@@ -457,6 +494,8 @@ private fun <V : Any> resolveAxis(
     padding: Double,
     percent: Boolean,
     centred: Boolean = false,
+    /** For an end axis: exactly this many steps between ticks, to sit on the start axis's. See [alignedTicks]. */
+    intervals: Int? = null,
 ): ResolvedAxis = when (axis.kind) {
     AxisKind.Category -> {
         @Suppress("UNCHECKED_CAST")
@@ -498,7 +537,7 @@ private fun <V : Any> resolveAxis(
         }
         low -= padding
         high += padding
-        val ticks = niceTicks(low, high, axis.tickCount)
+        val ticks = if (intervals != null) alignedTicks(low, high, intervals) else niceTicks(low, high, axis.tickCount)
         val domainLow = if (axis.domain != null || padding > 0) low else ticks.low
         val domainHigh = if (axis.domain != null || padding > 0) high else ticks.high
         val shown = ticks.values.filter { it >= domainLow - 1e-9 && it <= domainHigh + 1e-9 }.toDoubleArray()

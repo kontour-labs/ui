@@ -82,6 +82,11 @@ import kotlin.math.roundToInt
  * @param xAxis The axis across: what the content's `x` values are.
  * @param yAxis The axis up: what its `y` values are.
  * @param enabled Whether a reader can select. A chart is drawn the same either way.
+ * @param endYAxis A second axis up, down the end edge of the plot, for what
+ *   the content puts [on it][ChartScope.onEndAxis]: a series in other units,
+ *   with its own scale and labels. Its ticks are the start axis's in number,
+ *   so its labels sit on the start axis's gridlines. `null`, the default, is a
+ *   chart with one axis up. Not for a chart whose axis up is a category axis.
  * @param selection Where the selected place is kept. A chart given one is
  *   interactive: a tap or a drag selects the nearest place, a pointer selects
  *   what it is over, and with focus the arrow keys move between places. A
@@ -110,6 +115,7 @@ fun <X : Any, Y : Any> Chart(
     yAxis: ChartAxis<Y>,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    endYAxis: ChartAxis<Y>? = null,
     selection: ChartSelectionState<X>? = null,
     seriesVisibility: ChartSeriesVisibility? = null,
     contentDescription: String? = null,
@@ -129,15 +135,15 @@ fun <X : Any, Y : Any> Chart(
 
     // Recorded once per change of the content, and again when a state it read
     // changes — never once a frame.
-    val model by remember(xAxis, yAxis, content) {
-        derivedStateOf { ChartRecorder(xAxis, yAxis).apply(content).build() }
+    val model by remember(xAxis, yAxis, endYAxis, content) {
+        derivedStateOf { ChartRecorder(xAxis, yAxis, endYAxis).apply(content).build() }
     }
     // Without what the legend has hidden: the chart is worked out from what
     // is shown, so the axes and stacks close in on it, while the legend and
     // every series' colour still come from the whole.
     val hidden = seriesVisibility?.hidden.orEmpty()
     val shown = remember(model, hidden) { model.without(hidden) }
-    val chart = remember(shown, formats) { resolve(shown, xAxis, yAxis, formats) }
+    val chart = remember(shown, formats, endYAxis) { resolve(shown, xAxis, yAxis, formats, endYAxis) }
     val patterns = showPatterns || model.series.size > colours.series.size
 
     val animate = animateData && !motion.reduceMotion
@@ -577,6 +583,9 @@ private fun <X : Any> selectionAt(
             else -> {
                 val index = layer.across.indexOfFirst { it == place }
                 if (index < 0 || layer.values[index].isNaN() || stemSilentAt(chart, layer, index)) return@flatMap emptyList()
+                // In its own axis's units: a series on the end axis is not
+                // in the start axis's.
+                val write = if (chart.horizontal) write else chart.upAxis(layer.mark.onEnd).write
                 val value = layer.values[index]
                 // A range's value is its foot, and what it shows is its range;
                 // a box's is its median, and what it shows is its five numbers.

@@ -69,18 +69,7 @@ fun rememberChartSeriesVisibility(initialHidden: Set<ChartSeries> = emptySet()):
 internal fun ChartModel.without(hidden: Set<ChartSeries>): ChartModel {
     if (hidden.isEmpty()) return this
     return ChartModel(
-        marks = marks.map { mark ->
-            Mark(
-                kind = mark.kind,
-                runs = mark.runs.filter { it.series !in hidden },
-                stacking = mark.stacking,
-                interpolation = mark.interpolation,
-                showPoints = mark.showPoints,
-                symbol = mark.symbol,
-                style = mark.style,
-                floating = mark.floating,
-            )
-        },
+        marks = marks.map { mark -> mark.with(runs = mark.runs.filter { it.series !in hidden }) },
         rules = rules,
         regions = regions,
         series = series,

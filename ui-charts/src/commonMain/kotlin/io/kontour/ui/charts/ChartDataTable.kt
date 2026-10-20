@@ -33,6 +33,9 @@ import io.kontour.ui.theme.Theme
  * its range, and rules, which are not data, are left out. The first column is
  * named by the place axis's title, or by what it holds.
  *
+ * @param endYAxis The chart's second axis up, for what the content puts
+ *   [on it][ChartScope.onEndAxis]: its series' values are written as that
+ *   axis writes them. See [Chart].
  * @param striped Every other row on a quiet ground, for reading across.
  * @param strings The words the table says on its own.
  * @param content The chart's marks, as a [Chart] takes them.
@@ -42,16 +45,17 @@ fun <X : Any, Y : Any> ChartDataTable(
     xAxis: ChartAxis<X>,
     yAxis: ChartAxis<Y>,
     modifier: Modifier = Modifier,
+    endYAxis: ChartAxis<Y>? = null,
     striped: Boolean = false,
     strings: ChartStrings = ChartDefaults.strings(),
     content: ChartScope<X, Y>.() -> Unit,
 ) {
     val formats = Theme.formats
-    val model by remember(xAxis, yAxis, content) {
-        derivedStateOf { ChartRecorder(xAxis, yAxis).apply(content).build() }
+    val model by remember(xAxis, yAxis, endYAxis, content) {
+        derivedStateOf { ChartRecorder(xAxis, yAxis, endYAxis).apply(content).build() }
     }
-    val table = remember(model, formats, strings) {
-        chartTable(resolve(model, xAxis, yAxis, formats), strings, formats)
+    val table = remember(model, formats, strings, endYAxis) {
+        chartTable(resolve(model, xAxis, yAxis, formats, endYAxis), strings, formats)
     }
     Table(
         items = table.rows,
@@ -102,6 +106,9 @@ internal fun chartTable(chart: ResolvedChart, strings: ChartStrings, formats: Lo
     val series = chart.layers.filterNot { it.isSilent(chart) }.map { it.series }.distinct()
     val columns = series.flatMap { one ->
         val layers = chart.layers.filter { it.series == one && !it.isSilent(chart) }
+        // In its own axis's units, and named by it where the series has no
+        // name: a series on the end axis is not in the start axis's.
+        val axis = if (chart.horizontal) valueAxis else chart.upAxis(layers.firstOrNull()?.mark?.onEnd == true)
         val named = one.name.takeIf { it.isNotBlank() }
         val boxes = layers.firstOrNull { it.box != null }
         if (boxes != null) {
@@ -112,25 +119,25 @@ internal fun chartTable(chart: ResolvedChart, strings: ChartStrings, formats: Lo
             }
             val base = boxes.base ?: boxes.values
             listOf(
-                strings.lowColumn to { place: Double -> at(place) { valueAxis.write(box.low[it]) } },
-                strings.lowerQuartileColumn to { place: Double -> at(place) { valueAxis.write(base[it]) } },
-                strings.medianColumn to { place: Double -> at(place) { valueAxis.write(boxes.values[it]) } },
-                strings.upperQuartileColumn to { place: Double -> at(place) { valueAxis.write(boxes.up[it]) } },
-                strings.highColumn to { place: Double -> at(place) { valueAxis.write(box.high[it]) } },
-                strings.outliersColumn to { place: Double -> at(place) { formats.list(box.outliers[it].map(valueAxis.write), ListStyle.Unit) } },
+                strings.lowColumn to { place: Double -> at(place) { axis.write(box.low[it]) } },
+                strings.lowerQuartileColumn to { place: Double -> at(place) { axis.write(base[it]) } },
+                strings.medianColumn to { place: Double -> at(place) { axis.write(boxes.values[it]) } },
+                strings.upperQuartileColumn to { place: Double -> at(place) { axis.write(boxes.up[it]) } },
+                strings.highColumn to { place: Double -> at(place) { axis.write(box.high[it]) } },
+                strings.outliersColumn to { place: Double -> at(place) { formats.list(box.outliers[it].map(axis.write), ListStyle.Unit) } },
             ).map { (title, cell) -> TableColumn(if (named != null) strings.seriesColumn(named, title) else title, cell) }
         } else {
             listOf(
-                TableColumn(named ?: valueAxis.title ?: strings.valueColumn) { place ->
+                TableColumn(named ?: axis.title ?: strings.valueColumn) { place ->
                     val written = layers.flatMap { layer ->
                         val places = if (chart.horizontal && layer.mark.kind == MarkKind.Bar) layer.up else layer.across
                         places.indices.filter { places[it] == place && !layer.values[it].isNaN() }.map { i ->
                             val value = layer.values[i]
                             val end = layer.endAt(i) ?: (if (chart.horizontal) layer.acrossEnd else layer.upEnd)?.getOrNull(i)
                             if (end != null && !end.isNaN() && end != value) {
-                                strings.valueRange(valueAxis.write(value), valueAxis.write(end))
+                                strings.valueRange(axis.write(value), axis.write(end))
                             } else {
-                                valueAxis.write(value)
+                                axis.write(value)
                             }
                         }
                     }

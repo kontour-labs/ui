@@ -340,6 +340,48 @@ ends, and Escape clears. Everything at the selected place is selected together,
 every series' value there, and the chart shows it in a tooltip.
 `selection.x` is the selected value; `tooltip` replaces what the tooltip shows.
 
+## Two axes up
+
+<!--sample:ChartEndAxis-->
+```kotlin
+// Two series in different units, each against its own axis: the riders
+// up the start edge, and what they paid down the end.
+val formats = Theme.formats
+Chart(
+    xAxis = ChartAxis.date(),
+    yAxis = ChartAxis.number(title = "Riders"),
+    endYAxis = ChartAxis.number(title = "Takings", label = { formats.currency(it, "AUD") }),
+    modifier = Modifier.fillMaxWidth().height(220.dp),
+    contentDescription = "Route 950's riders and takings this week",
+) {
+    bar(takings, x = { it.day }, y = { it.riders }, series = { ChartSeries("Riders") })
+    onEndAxis {
+        line(takings, x = { it.day }, y = { it.fares }, series = { ChartSeries("Takings") }, showPoints = true)
+    }
+}
+```
+
+For two series in different units, riders and dollars, kilowatt-hours and
+degrees: `endYAxis` puts a second axis down the end edge of the plot, and
+whatever the content draws inside `onEndAxis { }` is measured against it,
+marks, rules and regions alike. Each axis is scaled to its own series, so
+neither is pressed flat by the other's numbers. The end axis has as many
+ticks as the start axis, at round values of its own, so its labels sit on
+the start axis's gridlines rather than on a second grid. Each axis's title
+sits over its own edge.
+
+The tooltip, the table and what a screen reader hears write each series in
+its own axis's units, and a screen reader hears both axes' ranges. Hide
+everything on the end axis from the legend and the axis goes with it, the
+plot widening into its gutter. A chart whose axis up is a category axis, a
+row of lying bars or a heat map, has no end axis; there the content of
+`onEndAxis` is drawn against the start axis.
+
+Two scales on one plot invite reading a crossing as meaningful when it is
+only where two scales happen to meet. Use one when the two series are
+read together, the bill beside the energy behind it, and not to fit two
+unrelated charts into one.
+
 ## Motion
 
 A chart rises into place when it first appears: bars and areas from their
