@@ -2469,6 +2469,10 @@ val componentRegistry: List<ComponentSpec> = buildList {
                         modifier = modifier.fillMaxWidth(),
                     )
                 },
+                // Step 2 measured, 40% of the way through it.
+                RenderState("measured") { modifier ->
+                    StepProgress(current = 2, total = 5, stepProgress = 0.4f, modifier = modifier.fillMaxWidth())
+                },
             ),
         ) { modifier, _, _ ->
             StepProgress(current = 2, total = 5, modifier = modifier.fillMaxWidth())
@@ -2489,6 +2493,9 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 },
                 RenderState("gapless") { modifier ->
                     CircularStepProgress(current = 2, total = 5, gap = 0.dp, modifier = modifier)
+                },
+                RenderState("measured") { modifier ->
+                    CircularStepProgress(current = 2, total = 5, stepProgress = 0.4f, modifier = modifier)
                 },
             ),
         ) { modifier, _, _ ->

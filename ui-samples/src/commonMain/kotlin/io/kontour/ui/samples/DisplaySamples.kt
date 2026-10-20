@@ -513,6 +513,10 @@ fun ProgressBasics() {
 
     // No gap: one continuous bar, filled to the end of the step.
     StepProgress(current = 2, total = 4, gap = 0.dp, contentDescription = "Step 2 of 4")
+
+    // A step that knows how far through itself it is: the third of four
+    // photos, 40% uploaded.
+    StepProgress(current = 3, total = 4, stepProgress = 0.4f, contentDescription = "Uploading photo 3 of 4")
 }
 
 @Composable

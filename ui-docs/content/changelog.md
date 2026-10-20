@@ -28,6 +28,11 @@ On `main`, and in the next release.
 
 ### Added
 
+- **Progress within a step.** `StepProgress` and `CircularStepProgress` take
+  `stepProgress`, from 0 to 1 as `LinearProgress`'s `progress` is: the steps
+  before the current one full, and the current one filled as far as it has
+  got, in place of `working`'s bars. It defaults to `null`, which draws a step
+  reached full as before. See [Progress](components/progress.md).
 - **[`TextFieldListItem`](components/text-field-list-item.md)**: a list row
   you type into, with a `ListItem`'s ground, corners and `position`. A label at
   the start and the value at the end, or with no label the field from the start

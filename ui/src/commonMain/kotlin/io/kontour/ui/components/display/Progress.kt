@@ -249,6 +249,13 @@ fun CircularProgress(
  *   from a phone: "the current step fills up before the indeterminate animation
  *   moves to the next step". Ignored when [current] is `null`, which is already
  *   animating.
+ * @param stepProgress How far through [current] it has got, from 0 to 1, as
+ *   [LinearProgress]'s `progress` is: the steps before it full and this one
+ *   filled that far, for a step that can say how much of itself is done — a
+ *   file of a batch uploading, a stage of an install. Takes the place of
+ *   [working]'s bars, which are for a step that cannot. `null`, the default,
+ *   is a step reached and not measured, drawn full as it always has been.
+ *   Ignored when [current] is `null`.
  * @param gap The space between segments. `0.dp` draws one continuous bar with
  *   round ends and no seams, filled to a step's end — a stepped bar that does
  *   not show its steps, for where the count is said elsewhere.
@@ -260,6 +267,7 @@ fun StepProgress(
     modifier: Modifier = Modifier,
     contentDescription: String? = null,
     working: Boolean = false,
+    stepProgress: Float? = null,
     colour: Color = Theme.colours.primary,
     trackColour: Color = trackAtTier(Theme.colours.outline),
     height: Dp = ProgressDefaults.StepHeight,
@@ -269,7 +277,7 @@ fun StepProgress(
     val strings = Theme.strings
     val formats = Theme.formats
     val indeterminate = current == null
-    val steps = rememberStepMotion(current, total, working)
+    val steps = rememberStepMotion(current, total, working, stepProgress)
 
     Canvas(
         modifier
@@ -279,7 +287,7 @@ fun StepProgress(
             .semantics {
                 this.contentDescription = contentDescription ?: when {
                     indeterminate -> strings.inProgress
-                    else -> strings.stepOfCount(formats.quantity(current), formats.quantity(total), working)
+                    else -> strings.stepOfCount(formats.quantity(current), formats.quantity(total), steps.underWay)
                 }
                 // `Indeterminate` rather than a made-up position: a screen reader
                 // saying "step 0 of 4" would be stating something the caller
@@ -290,11 +298,7 @@ fun StepProgress(
                     // The step it is on, as `LinearProgress` reports its value —
                     // not the fill on its way there, which re-ran these semantics
                     // on every frame of the spring for a number between steps.
-                    ProgressBarRangeInfo(
-                        current = current.coerceIn(0, total).toFloat(),
-                        range = 0f..total.toFloat(),
-                        steps = total - 1,
-                    )
+                    steps.rangeInfo()
                 }
             }
     ) {
@@ -421,6 +425,9 @@ fun StepProgress(
  *   the step is not known. See [StepProgress].
  * @param working Whether [current] is itself still going: its arc carries the
  *   chasing bars instead of a fill. See [StepProgress].
+ * @param stepProgress How far through [current] it has got, from 0 to 1: its
+ *   arc filled that far, in place of [working]'s bars. `null` draws it full.
+ *   See [StepProgress].
  * @param gap The space between arcs, along the ring. `0.dp` draws one continuous
  *   ring, filled to the end of the step it has reached.
  */
@@ -431,6 +438,7 @@ fun CircularStepProgress(
     modifier: Modifier = Modifier,
     contentDescription: String? = null,
     working: Boolean = false,
+    stepProgress: Float? = null,
     colour: Color = Theme.colours.primary,
     trackColour: Color = trackAtTier(Theme.colours.outline),
     size: Dp = ProgressDefaults.CircularSize,
@@ -441,7 +449,7 @@ fun CircularStepProgress(
     val strings = Theme.strings
     val formats = Theme.formats
     val indeterminate = current == null
-    val steps = rememberStepMotion(current, total, working)
+    val steps = rememberStepMotion(current, total, working, stepProgress)
 
     Canvas(
         modifier
@@ -452,16 +460,12 @@ fun CircularStepProgress(
             .semantics {
                 this.contentDescription = contentDescription ?: when {
                     indeterminate -> strings.inProgress
-                    else -> strings.stepOfCount(formats.quantity(current), formats.quantity(total), working)
+                    else -> strings.stepOfCount(formats.quantity(current), formats.quantity(total), steps.underWay)
                 }
                 progressBarRangeInfo = if (indeterminate) {
                     ProgressBarRangeInfo.Indeterminate
                 } else {
-                    ProgressBarRangeInfo(
-                        current = current.coerceIn(0, total).toFloat(),
-                        range = 0f..total.toFloat(),
-                        steps = total - 1,
-                    )
+                    steps.rangeInfo()
                 }
             }
     ) {
@@ -618,6 +622,8 @@ internal class StepMotion(
     val current: Int?,
     val total: Int,
     val working: Boolean,
+    /** How far through [current] it is, 0 to 1, or null for a step not measured. */
+    val within: Float?,
     /** Whether anything loops: a chase is running, and motion is not reduced. */
     val animating: Boolean,
     private val fill: State<Float>,
@@ -627,6 +633,28 @@ internal class StepMotion(
     private val chaseStep: IntState,
 ) {
     val indeterminate: Boolean get() = current == null
+
+    /**
+     * Whether [current] is still going, by either measure: working with no
+     * telling how far, or [within] some way through. What a screen reader is
+     * told about the step; how far is the range's.
+     */
+    val underWay: Boolean get() = working || within != null
+
+    /**
+     * The step it is on, and with [within] how far into it, as
+     * `LinearProgress` reports its value: the number asked for, not the fill
+     * on its way to it. Continuous rather than in steps once a step is
+     * measured, since a value between steps is then the point.
+     */
+    fun rangeInfo(): ProgressBarRangeInfo {
+        val step = (current ?: 0).coerceIn(0, total)
+        return if (within == null || step == 0) {
+            ProgressBarRangeInfo(current = step.toFloat(), range = 0f..total.toFloat(), steps = total - 1)
+        } else {
+            ProgressBarRangeInfo(current = step - 1 + within, range = 0f..total.toFloat())
+        }
+    }
 
     /** The steps filled, fractional while the fill springs between them. */
     val filled: Float get() = fill.value
@@ -649,7 +677,8 @@ internal class StepMotion(
      * solid and animated says two things at once, so a band replaces the fill
      * rather than sitting on top of it.
      */
-    fun busy(index: Int): Boolean = current != null && working && index == current.coerceIn(1, total) - 1
+    fun busy(index: Int): Boolean =
+        current != null && working && within == null && index == current.coerceIn(1, total) - 1
 
     /**
      * How full step [index] is drawn, 0 to 1: partly, on the step in progress,
@@ -686,21 +715,26 @@ internal class StepMotion(
 }
 
 @Composable
-internal fun rememberStepMotion(current: Int?, total: Int, working: Boolean): StepMotion {
+internal fun rememberStepMotion(current: Int?, total: Int, working: Boolean, stepProgress: Float?): StepMotion {
     val motion = Theme.motion
     val indeterminate = current == null
+    // Only of a step that is known, and in place of the bars: see `StepProgress`.
+    val within = if (current == null) null else stepProgress?.coerceIn(0f, 1f)
+    val chases = working && within == null
 
     // The steps drawn full: those before a working step, or up to and including
     // the current one. A step that is working is not done, so it is not filled
     // — it carries the bars — and when it is done the fill runs across it
-    // before the bars start in the next.
+    // before the bars start in the next. A measured step is filled as far as
+    // it has got, on the same spring, so it reads as the rest of the row does.
     val completed = when {
-        current == null -> 0
-        working -> (current - 1).coerceIn(0, total)
-        else -> current.coerceIn(0, total)
+        current == null -> 0f
+        within != null -> (current - 1).coerceIn(0, total) + if (current in 1..total) within else 0f
+        chases -> (current - 1).coerceIn(0, total).toFloat()
+        else -> current.coerceIn(0, total).toFloat()
     }
     val filled = animateFloatAsState(
-        targetValue = completed.toFloat(),
+        targetValue = completed,
         animationSpec = motion.springOrTween(motion.springDefault),
         label = "stepProgress",
     )
@@ -729,7 +763,7 @@ internal fun rememberStepMotion(current: Int?, total: Int, working: Boolean): St
     // nothing at all for the cost: `rememberInfiniteTransition` subscribes to
     // the frame clock when it is composed, so a settled row of steps went on
     // requesting sixty frames a second to draw a picture that could not change.
-    val animating = (indeterminate || working) && !motion.reduceMotion
+    val animating = (indeterminate || chases) && !motion.reduceMotion
 
     /**
      * How far the row has melted into one continuous bar. 1 is fully merged.
@@ -797,7 +831,7 @@ internal fun rememberStepMotion(current: Int?, total: Int, working: Boolean): St
         }
     }
 
-    return StepMotion(current, total, working, animating, filled, meltState, sweep, chase, chaseStep)
+    return StepMotion(current, total, working, within, animating, filled, meltState, sweep, chase, chaseStep)
 }
 
 /** No step's chase: before one has started, and between steps. */
