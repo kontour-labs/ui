@@ -364,6 +364,21 @@ class DropListState<T : Any> internal constructor(
         gapSize = if (vertical) session.size.height else session.size.width
         gapCross = if (vertical) session.size.width else session.size.height
         val from = if (session.fromList === this) session.fromIndex else null
+
+        // **A list that will not take it makes no room for it.** A full column
+        // opened a gap under the thing carried over it and closed it again
+        // when it went home: its cards moved aside for a drop it was about to
+        // refuse. Reported as *"if a drop zone is full, then i don't want its
+        // items to move around and make room"*. Its own item keeps the place
+        // it left, so nothing in it moves either.
+        if (!target.accepts(session.payload)) {
+            gapIndex = from
+            session.index = from
+            leftPlace = null
+            rode = false
+            return
+        }
+
         val positions = HashMap<Any, Int>(items.size)
         items.forEachIndexed { index, item -> positions[key(item)] = index }
 
@@ -500,7 +515,8 @@ class DropListState<T : Any> internal constructor(
  *   the lists show the move — up to half a second — and then hands over to
  *   the item there.
  * @param accepts Whether this list would take [T] — a column at its limit, a list
- *   that holds no duplicates.
+ *   that holds no duplicates. Refused, it shows [DropStatus.Refused] and makes
+ *   no room: its items stay where they are under the thing carried over them.
  * @param canDrag Whether an item can be picked up at all.
  * @param previewShape The shape its items' shadows are cast in while carried.
  * @param external Drags from outside the app it takes — files from the desktop,

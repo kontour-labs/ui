@@ -35,7 +35,7 @@ Column {
 | `Idle` | A dashed edge, and no ground of its own. |
 | `Available` | Something it would take is being carried elsewhere: the dashed edge turns the accent. |
 | `Over` | That thing is over it and would be taken: a solid accent edge on the accent's ground. |
-| `Refused` | The thing is over it, but the state's `accepts` turns it away: the same in the danger colour. Let go, it goes home. |
+| `Refused` | The thing is over it, but the state's `accepts` turns it away: the same in the danger colour. Let go, it goes home. A `dropList` that refuses makes no room for it either: a full column's items stay where they are. |
 
 Off (`enabled = false`), it takes nothing and is drawn as a disabled control is.
 

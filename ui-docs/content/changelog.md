@@ -173,6 +173,9 @@ On `main`, and in the next release.
 - **The keyboard goes as a sheet or dialog starts to leave.** It went when the
   overlay had finished leaving and its field had gone with it, the length of a
   sheet's slide late. Only when the focus is in the overlay.
+- **A drop list that refuses what is carried over it makes no room for it.**
+  A full column moved its items aside for a card it was about to send home.
+  It now shows the refusal and keeps its items where they are.
 - **A reorderable row carried by its grip is no longer put down on the way.**
   On a touchscreen, a slow carry by the grip dropped the row after a crossing
   or two. The row moves with the finger, so its own long press saw a finger

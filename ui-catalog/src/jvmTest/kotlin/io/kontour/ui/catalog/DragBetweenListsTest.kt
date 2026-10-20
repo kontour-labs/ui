@@ -19,6 +19,7 @@ import io.kontour.ui.components.list.ListItem
 import io.kontour.ui.dragdrop.DragType
 import io.kontour.ui.dragdrop.DropEvent
 import io.kontour.ui.dragdrop.DropListState
+import io.kontour.ui.dragdrop.DropStatus
 import io.kontour.ui.dragdrop.dragItems
 import io.kontour.ui.dragdrop.dropList
 import io.kontour.ui.dragdrop.rememberDropListState
@@ -26,6 +27,7 @@ import io.kontour.ui.interaction.FeedbackDispatcher
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.overlay.OverlayHost
+import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -180,6 +182,36 @@ class DragBetweenListsTest {
         assertTrue(FeedbackIntent.GestureEnd in felt, "and the landing: $felt")
     }
 
+    /**
+     * Over a column that is full, nothing in it moves: it refuses the card, so
+     * it makes no room for it, and let go there the card goes home.
+     *
+     * Reported as *"if a drop zone is full, then i don't want its items to
+     * move around and make room if another item is dragged over the top"*.
+     */
+    @Test
+    fun aFullColumnMakesNoRoom() {
+        val board = Board(todo = listOf("Timetable", "Fares"), done = listOf("Maps", "Wi-Fi", "Bins"), limit = 3)
+        board.run { scene ->
+            val grab = board.bounds.getValue("Fares").center
+            val over = Offset(board.doneList.center.x, board.bounds.getValue("Wi-Fi").top + 4f)
+            scene.hold(grab)
+            scene.carry(grab, over)
+            repeat(20) { scene.frame() }
+
+            assertEquals(DropStatus.Refused, board.done.state!!.status)
+            assertEquals(null, board.done.state!!.dropIndex, "a full column should have no place for the card")
+            for (card in listOf("Maps", "Wi-Fi", "Bins")) {
+                val moved = board.bounds.getValue(card).top - board.restingTop.getValue(card)
+                assertTrue(abs(moved) < 1f, "$card moved ${moved}px to make room in a column that will not take the card")
+            }
+            scene.release(over)
+            scene.frames(40)
+        }
+        assertTrue(board.drops.isEmpty(), "a full column took a card: ${board.drops.map { it.payload }}")
+        assertEquals(listOf("Timetable", "Fares"), board.todo.items.toList())
+    }
+
     // -----------------------------------------------------------------------
 
     private class Column(initial: List<String>, val label: String) {
@@ -192,6 +224,8 @@ class DragBetweenListsTest {
         done: List<String>,
         val felt: MutableList<FeedbackIntent>? = null,
         val withGutter: Boolean = false,
+        /** How many cards a column holds, beyond which it takes no more. */
+        val limit: Int = Int.MAX_VALUE,
     ) {
         val todo = Column(todo, "To do")
         val done = Column(done, "Done")
@@ -248,6 +282,8 @@ class DragBetweenListsTest {
                     drops += event
                     move(event, column)
                 },
+                // Its own cards move within it, full or not.
+                accepts = { it in column.items || column.items.size < limit },
             )
             column.state = state
             LazyColumn(state = scroll, modifier = modifier.fillMaxHeight().dropList(state)) {
