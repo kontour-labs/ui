@@ -120,6 +120,8 @@ internal class Layer(
     val groupCount: Int,
     /** A box plot's whiskers, median and outliers; its box is [base] to [up]. */
     val box: BoxRun? = null,
+    /** How much of it is drawn: less than whole only while a hidden series leaves. See [interpolate]. */
+    val opacity: Float = 1f,
 ) {
     val size: Int get() = across.size
 
@@ -135,7 +137,8 @@ internal class Layer(
         base: DoubleArray? = this.base,
         values: DoubleArray = this.values,
         box: BoxRun? = this.box,
-    ): Layer = Layer(markIndex, mark, series, slot, across, up, base, acrossEnd, upEnd, values, groupIndex, groupCount, box)
+        opacity: Float = this.opacity,
+    ): Layer = Layer(markIndex, mark, series, slot, across, up, base, acrossEnd, upEnd, values, groupIndex, groupCount, box, opacity)
 }
 
 /**

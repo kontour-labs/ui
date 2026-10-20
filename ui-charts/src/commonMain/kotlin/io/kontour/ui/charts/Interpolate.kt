@@ -20,15 +20,28 @@ internal fun interpolate(from: ResolvedChart, to: ResolvedChart, fraction: Float
     val t = fraction.toDouble()
     val x = blendAxis(from.x, to.x, t)
     val y = blendAxis(from.y, to.y, t)
+    fun Layer.sameAs(other: Layer) = markIndex == other.markIndex && series == other.series && mark.kind == other.mark.kind
     val layers = to.layers.map { layer ->
-        val previous = from.layers.firstOrNull {
-            it.markIndex == layer.markIndex && it.series == layer.series && it.mark.kind == layer.mark.kind
-        }
+        val previous = from.layers.firstOrNull { it.sameAs(layer) }
         // A series that was not there rises from its baseline, as the whole
         // chart does when it first appears. It used to arrive at once.
-        blendLayer(previous ?: collapsedLayer(layer, to), layer, t, to.horizontal)
+        val blended = blendLayer(previous ?: collapsedLayer(layer, to), layer, t, to.horizontal)
+        // Shown again before it had finished leaving: back from as faint as it was.
+        if (previous != null && previous.opacity < 1f) {
+            blended.copy(opacity = previous.opacity + (1f - previous.opacity) * fraction)
+        } else {
+            blended
+        }
     }
-    return to.with(x, y, layers)
+    // And one that has gone — hidden from the legend, or no longer in the
+    // data — goes the same way back: down to its baseline on the new axes,
+    // fading as it goes, under what stays. It used to vanish in the first
+    // frame, while everything else moved. Reported as "when you turn a series
+    // off, it doesn't animate out".
+    val leaving = from.layers.filter { old -> to.layers.none { it.sameAs(old) } }.map { old ->
+        blendLayer(old, collapsedLayer(old, to), t, to.horizontal).copy(opacity = old.opacity * (1f - fraction))
+    }
+    return to.with(x, y, leaving + layers)
 }
 
 /** Whether [this] shows no marks at all: a chart whose data has not come yet. */

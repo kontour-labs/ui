@@ -157,6 +157,21 @@ fun SectorChart(
     // the effect runs, and a frame between them drew the new shares at the
     // old sweep's end: where they were going, then back, then the move.
     val restarting = remember(shape) { mutableStateOf(animate) }
+    // Every sector recorded, hidden or not, with its share — nothing for a
+    // hidden one — in the order they were recorded: what is drawn. A hidden
+    // sector shrinks away where it is while the others close in on its place,
+    // and one shown again grows back into it. Drawing only what was shown, a
+    // sector hidden left its place empty, and the circle was whole again only
+    // once the others had grown; and they grew from where their shares had
+    // been, so the ones after it swung round to meet it. Reported as "it just
+    // disappears after the animation finishes" and "animates in a bit of a
+    // strange way when you turn it off".
+    val drawn = remember(recorded, hidden, total) {
+        recorded.map { part ->
+            val share = if (part.series in hidden || total <= 0) 0f else (part.value.coerceAtLeast(0.0) / total).toFloat()
+            part to share
+        }
+    }
     LaunchedEffect(shape, animate) {
         if (animate) {
             sweep.snapTo(0f)
@@ -166,7 +181,7 @@ fun SectorChart(
             sweep.snapTo(1f)
         }
         previous.clear()
-        previous += parts.map { it.series }.zip(fractions)
+        previous += drawn.map { (part, share) -> part.series to share }
     }
     val fade = rememberChartFade(animateData, empty = parts.isEmpty())
 
@@ -295,25 +310,28 @@ fun SectorChart(
                     val gap = ChartDefaults.SectorGap.toPx()
                     val t = if (restarting.value) 0f else sweep.value
                     var angle = -90f
-                    parts.forEachIndexed { index, part ->
+                    drawn.forEach { (part, share) ->
                         val start = from.firstOrNull { it.first == part.series }?.second ?: 0f
-                        val fraction = start + (fractions[index] - start) * t
+                        val fraction = start + (share - start) * t
                         val extent = fraction * 360f * (if (from.isEmpty()) t else 1f)
-                        if (extent <= 0f) return@forEachIndexed
+                        if (extent <= 0f) return@forEach
+                        // Hidden, or on its way out: not chosen, and not a node.
+                        val index = parts.indexOf(part)
+                        val pull = if (index >= 0) pulls[index].value else 0f
                         val look = lookOf(series.indexOf(part.series), colours.series, patterns, part.style, part.series.style)
                         // A chosen sector stands out along its middle, away from the centre.
                         val middle = radians(angle + extent * direction / 2)
-                        val out = pullOut.toPx() * pulls[index].value
+                        val out = pullOut.toPx() * pull
                         val origin = Offset(circle.x + out * cos(middle), circle.y + out * sin(middle))
                         val path = sectorPath(origin, radius, hole, angle, extent * direction, corner.toPx(size, this) * SectorCornerShare)
                         drawPath(path, look.colour, alpha = fade.value)
                         tiles.brush(look.fill, colours.patternInk, this, patternWeight)
                             ?.let { drawPath(path, it, alpha = fade.value) }
-                        if (pulls[index].value > 0f) {
+                        if (pull > 0f) {
                             drawPath(
                                 path,
                                 colours.selection,
-                                alpha = pulls[index].value,
+                                alpha = pull,
                                 style = Stroke(width = sizing.borderWidthStrong.toPx()),
                             )
                         }

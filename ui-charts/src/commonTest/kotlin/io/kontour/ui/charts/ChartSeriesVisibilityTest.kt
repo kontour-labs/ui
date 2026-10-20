@@ -19,6 +19,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.locale.LocaleFormats
 import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.theme.KontourTheme
 import kotlin.test.Test
@@ -113,6 +114,28 @@ class ChartSeriesVisibilityTest {
         val shown = model.without(setOf(b))
         assertEquals(listOf(a, c), shown.marks.single().runs.map { it.series })
         assertEquals(2, shown.slotOf(c), "C should keep the third slot, and its colour, with B hidden")
+    }
+
+    /**
+     * A hidden series leaves over the move rather than at its first frame:
+     * halfway, still drawn and half faded; at the end, gone.
+     *
+     * Reported as "when you turn a series off, it doesn't animate out".
+     */
+    @Test
+    fun aHiddenSeriesLeavesOverTheMove() {
+        val x = ChartAxis.number()
+        val y = ChartAxis.number()
+        val formats = LocaleFormats.english()
+        val model = ChartRecorder(x, y).apply {
+            line(week, x = { it.day }, y = { it.riders }, series = { ChartSeries("Route ${it.route}") })
+        }.build()
+        val both = resolve(model, x, y, formats)
+        val one = resolve(model.without(setOf(ChartSeries("Route 951"))), x, y, formats)
+        val halfway = interpolate(both, one, 0.5f)
+        val leaving = halfway.layers.single { it.series == ChartSeries("Route 951") }
+        assertEquals(0.5f, leaving.opacity, 0.01f, "halfway, the hidden series should be half faded")
+        assertEquals(listOf(ChartSeries("Route 950")), interpolate(both, one, 1f).layers.map { it.series })
     }
 
     /** A hidden sector leaves the circle, and the others grow into its share. */

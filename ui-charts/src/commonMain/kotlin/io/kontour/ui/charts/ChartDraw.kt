@@ -172,6 +172,9 @@ internal fun DrawScope.drawChart(
     clipRect(plot.left - pad, plot.top - pad, plot.right + pad, plot.bottom + pad) {
         chart.layers.forEach { layer ->
             val look = lookOf(layer.slot, colours.series, config.patterns, layer.mark.style, layer.series.style)
+            // A series on its way out fades as it goes.
+            val alpha = alpha * layer.opacity
+            if (alpha <= 0f) return@forEach
             when (layer.mark.kind) {
                 MarkKind.Area -> drawArea(layer, look, m, config, alpha)
                 MarkKind.Band -> drawArea(layer, look, m, config, alpha, band = true)
