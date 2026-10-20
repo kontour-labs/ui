@@ -158,6 +158,16 @@ On `main`, and in the next release.
 
 ### Fixed
 
+- **A sheet opening with the keyboard rises with it.** A field focused as a
+  sheet opened made the sheet stand still for the whole of the keyboard's
+  slide, then come up after it, while the page behind receded, came forward
+  and receded again. The keyboard is the sheet's bottom padding, so the sheet's
+  resting place moved on every frame of it, and each move started the sheet's
+  slide again from rest. The slide now carries on towards wherever its detent
+  has got to, and the page recedes once.
+- **The keyboard goes as a sheet or dialog starts to leave.** It went when the
+  overlay had finished leaving and its field had gone with it, the length of a
+  sheet's slide late. Only when the focus is in the overlay.
 - **A reorderable row carried by its grip is no longer put down on the way.**
   On a touchscreen, a slow carry by the grip dropped the row after a crossing
   or two. The row moves with the finger, so its own long press saw a finger

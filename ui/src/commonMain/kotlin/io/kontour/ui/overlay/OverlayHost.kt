@@ -42,6 +42,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.semantics
@@ -518,6 +519,20 @@ private fun EntryHost(
     val going = state.isGoing(entry.key)
     val progress = remember { Animatable(0f) }
 
+    // **The keyboard goes as the entry does**, not after it. A field in a
+    // sheet or a dialog kept its focus, and so the keyboard, until the entry
+    // had finished leaving and its content was gone: the length of a sheet's
+    // slide down with the keyboard still up over it, reported from Android as
+    // *"closing sheets with a keyboard open makes the keyboard take just like
+    // half a second too long to close"*. UIKit lets go of the keyboard as a
+    // dismissal starts. Only for focus in this entry: a sheet that leaves the
+    // page usable leaves the page's own field its keyboard.
+    val keyboard = LocalSoftwareKeyboardController.current
+    val focused = remember { mutableStateOf(false) }
+    LaunchedEffect(going) {
+        if (going && focused.value) keyboard?.hide()
+    }
+
     // Back, for this entry alone. Its dispatcher is enabled only while it is
     // the entry back goes to, and its handler is registered before its content
     // is composed, so a stack inside a sheet answers first while it has
@@ -684,6 +699,7 @@ private fun EntryHost(
             // of page beside it. See [blurredBehind].
             .then(if (blurredBy.isNotEmpty()) Modifier.blurredBehind(state, blurredBy) else Modifier)
             .onFocusChanged { focus ->
+                focused.value = focus.hasFocus
                 if (focus.hasFocus) opened.focusIn = entry.key else if (opened.focusIn == entry.key) opened.focusIn = null
             }
             // A field in the overlay asking to be seen never moves the window. See [endsBringIntoView].

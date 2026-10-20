@@ -5,11 +5,17 @@ import androidx.compose.foundation.gestures.AnchoredDraggableState
 import androidx.compose.foundation.gestures.DraggableAnchors
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.animation.core.AnimationSpec
-import androidx.compose.animation.core.animate
-import androidx.compose.foundation.gestures.animateTo
+import androidx.compose.animation.core.AnimationConstants
+import androidx.compose.animation.core.AnimationVector1D
+import androidx.compose.animation.core.TargetBasedAnimation
+import androidx.compose.animation.core.VectorConverter
+import androidx.compose.animation.core.getVelocityFromNanos
+import androidx.compose.foundation.gestures.AnchoredDraggableDefaults
 import androidx.compose.foundation.gestures.snapTo
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.MotionDurationScale
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -35,6 +41,7 @@ import kotlin.coroutines.cancellation.CancellationException
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlin.math.sign
+import kotlinx.coroutines.currentCoroutineContext
 
 /**
  * Where a sheet is, and where it is going.
@@ -922,7 +929,9 @@ class SheetState internal constructor(
             // mid-fade, or the caller reopening — leaves [presence] wherever the
             // fade had got to, and a slide never touches it.
             if (target != SheetDetent.Hidden && presence.value != 1f) presence.snapTo(1f)
-            anchoredState.animateTo(target)
+            // Foundation's own `animateTo`, but one that keeps going when the
+            // anchors move under it: see [slide].
+            slide(target, anchoredState.lastVelocity, AnchoredDraggableDefaults.SnapAnimationSpec)
             return
         }
         val shown = anchoredState.settledValue != SheetDetent.Hidden
@@ -1360,15 +1369,68 @@ class SheetState internal constructor(
      * sheet is usually dragged by its handle, whose fling carried the speed all
      * along.
      */
-    private suspend fun carryTo(target: SheetDetent, velocity: Float, spec: AnimationSpec<Float>) {
+    private suspend fun carryTo(target: SheetDetent, velocity: Float, spec: AnimationSpec<Float>) =
+        slide(target, velocity, spec)
+
+    /**
+     * Animates to [target] from [velocity], and **goes on through a change of
+     * anchors** rather than starting again.
+     *
+     * `anchoredDrag` restarts its block whenever the anchors move, and the
+     * sheet's own slide is a tween that eases in: started afresh, it spent its
+     * first frame where it was and the next few barely moving. A keyboard
+     * sliding up under a sheet that has a field in it is the sheet's own
+     * bottom padding growing, so the anchors move on every frame of it, and
+     * every frame was a fresh start: the sheet stood still for the whole of the
+     * keyboard's slide and came up after it. The page behind, which recedes as
+     * far as the sheet has come against how far it has to go, swung back as
+     * the destination climbed away. Reported from Android as *"the sheet
+     * doesn't open over the ime for like half a second after the ime opens"*,
+     * with the backdrop shrinking, growing and shrinking again; and the same
+     * on the way down, as the keyboard leaves.
+     *
+     * So one curve for the whole move, over the distance the sheet set off to
+     * cover, on one clock that a restart picks up where it was; and the sheet
+     * as far along the way from where it set off to **wherever the detent is
+     * now** as the curve is along its own. A detent that moves stretches the
+     * rest of the way rather than starting it again, and how far the sheet has
+     * arrived is the curve's own progress, which only goes one way. In pixels
+     * rather than from nothing to one, so a spring stops as close to its
+     * detent as it always has: its threshold is in the units it runs in.
+     */
+    private suspend fun slide(target: SheetDetent, velocity: Float, spec: AnimationSpec<Float>) {
+        var from = Float.NaN
+        var span = 0f
+        var curve: TargetBasedAnimation<Float, AnimationVector1D>? = null
+        var startedAt = AnimationConstants.UnspecifiedTime
         anchoredState.anchoredDrag(targetValue = target) { anchors, latest ->
             val to = anchors.positionOf(latest)
             if (to.isNaN()) return@anchoredDrag
-            val from = anchoredState.offset.takeUnless { it.isNaN() } ?: to
-            // Already there: nothing to animate, as Foundation's own `animateTo`
-            // decides, and no frame to wait for.
-            if (from == to) return@anchoredDrag
-            animate(from, to, velocity, spec) { value, speed -> dragTo(value, speed) }
+            val along = curve ?: run {
+                from = anchoredState.offset.takeUnless { it.isNaN() } ?: to
+                // Already there: nothing to animate, as Foundation's own
+                // `animateTo` decides, and no frame to wait for.
+                if (from == to) return@anchoredDrag
+                span = to - from
+                TargetBasedAnimation(spec, Float.VectorConverter, 0f, span, AnimationVector1D(velocity))
+                    .also { curve = it }
+            }
+            // As `animate` reads it: the platform's animator duration setting,
+            // where none at all means the end at once.
+            val scale = currentCoroutineContext()[MotionDurationScale]?.scaleFactor ?: 1f
+            do {
+                val done = withFrameNanos { now ->
+                    if (startedAt == AnimationConstants.UnspecifiedTime) startedAt = now
+                    val played = if (scale == 0f) along.durationNanos else ((now - startedAt) / scale).toLong()
+                    // How much further, or less far, the detent now is.
+                    val stretch = (to - from) / span
+                    dragTo(
+                        from + along.getValueFromNanos(played) * stretch,
+                        along.getVelocityFromNanos(played) * stretch,
+                    )
+                    along.isFinishedFromNanos(played)
+                }
+            } while (!done)
         }
     }
 
