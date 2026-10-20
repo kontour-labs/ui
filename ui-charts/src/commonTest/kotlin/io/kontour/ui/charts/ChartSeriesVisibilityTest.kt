@@ -4,6 +4,14 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.ui.Modifier
+import io.kontour.ui.theme.LocalSizing
+import androidx.compose.ui.unit.Dp
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.test.click
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.getBoundsInRoot
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
@@ -46,9 +54,11 @@ class ChartSeriesVisibilityTest {
         Riders(3, "950", 690), Riders(3, "951", 1_455),
     )
 
-    private fun androidx.compose.ui.test.ComposeUiTest.lines(visibility: ChartSeriesVisibility?) {
+    private fun androidx.compose.ui.test.ComposeUiTest.lines(visibility: ChartSeriesVisibility?, minTouchTarget: Dp? = null) {
         setContent {
             KontourTheme(reduceMotion = true) {
+                val sizing = LocalSizing.current
+                CompositionLocalProvider(LocalSizing provides (minTouchTarget?.let { sizing.copy(minTouchTarget = it) } ?: sizing)) {
                 OverlayHost(Modifier.fillMaxSize()) {
                     Chart(
                         xAxis = ChartAxis.number(),
@@ -59,6 +69,7 @@ class ChartSeriesVisibilityTest {
                     ) {
                         line(week, x = { it.day }, y = { it.riders }, series = { ChartSeries("Route ${it.route}") })
                     }
+                }
                 }
             }
         }
@@ -85,6 +96,33 @@ class ChartSeriesVisibilityTest {
         entry.performClick()
         assertTrue(visibility.hidden.isEmpty())
         assertTrue("Route 951" in summary(), "shown again, it should be said again: ${summary()}")
+    }
+
+    /**
+     * A legend whose entries are switches is laid out as one whose entries are
+     * not, and a finger just off an entry still reaches it.
+     *
+     * Each entry reserved a finger's height of room, so the legend's rows
+     * stood twice as far apart as soon as it could hide a series. Reported as
+     * *"if legend hides series is on, the spacing above/below them becomes
+     * physically larger"*. A touch near a small target is the target's
+     * anyway, when nothing nearer claims it.
+     */
+    @Test
+    fun aLegendOfSwitchesTakesNoMoreRoom() = runComposeUiTest {
+        val visibility = ChartSeriesVisibility(emptySet())
+        // A phone's minimum, not the JVM's 24dp, under which nothing grew.
+        lines(visibility, minTouchTarget = 48.dp)
+        val entry = onNode(isToggleable() and hasText("Route 951"))
+        val bounds = entry.getBoundsInRoot()
+        // The legend is the chart's foot, so what an entry reserves round it
+        // is the space between it and the chart's bottom edge.
+        val below = onNodeWithTag("chart").getBoundsInRoot().bottom - bounds.bottom
+        assertTrue(below < 4.dp, "a legend entry should reserve no room round itself: ${below} below it")
+        // Eight dp above it, in the room it no longer reserves.
+        val near = with(density) { Offset(((bounds.left + bounds.right) / 2).toPx(), (bounds.top - 8.dp).toPx()) }
+        onRoot().performTouchInput { click(near) }
+        assertEquals(setOf(ChartSeries("Route 951")), visibility.hidden, "a touch just above the entry should still have hidden its series")
     }
 
     /** Without a visibility, the legend is not read: the summary names every series already. */

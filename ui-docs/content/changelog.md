@@ -184,6 +184,10 @@ On `main`, and in the next release.
 - **The keyboard goes as a sheet or dialog starts to leave.** It went when the
   overlay had finished leaving and its field had gone with it, the length of a
   sheet's slide late. Only when the focus is in the overlay.
+- **A chart legend whose entries hide series is laid out as one whose
+  entries do not.** Each entry reserved a finger's height of room, so the
+  legend's rows stood twice as far apart once it could hide a series. A touch
+  just off an entry still reaches it.
 - **A sector at 100% is drawn as the whole circle.** The last series shown in
   a `SectorChart` vanished: a whole turn was one arc of 360 degrees, which
   Skia takes as no turn at all. It also has no dividing line across it now,

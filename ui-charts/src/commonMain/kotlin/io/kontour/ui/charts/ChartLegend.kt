@@ -3,7 +3,6 @@ package io.kontour.ui.charts
 import io.kontour.ui.interaction.rememberToggleFeedback
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.input.focusRing
-import io.kontour.ui.a11y.minimumTouchTarget
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.draw.alpha
 import androidx.compose.runtime.remember
@@ -69,8 +68,14 @@ internal fun ChartLegend(
         val toggle = if (visibility == null) {
             Modifier
         } else {
+            // **No room reserved for a finger.** `minimumTouchTarget` made each
+            // entry a finger tall, and the legend's rows stood twice as far
+            // apart the moment it could hide a series: *"the spacing
+            // above/below them becomes physically larger"*. A touch near a
+            // small target is the target's anyway, when nothing nearer claims
+            // it, which is how Compose hit-tests a touch, so the entry keeps a
+            // finger's reach without the room. See `ChartSeriesVisibilityTest`.
             Modifier
-                .minimumTouchTarget()
                 .focusRing(interactions, focusShape)
                 .pointerCursor()
                 .toggleable(
