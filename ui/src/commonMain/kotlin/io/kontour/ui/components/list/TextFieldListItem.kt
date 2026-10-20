@@ -45,6 +45,10 @@ import io.kontour.ui.components.text.TextFieldImpl
 import io.kontour.ui.components.text.TextFieldMetrics
 import io.kontour.ui.components.text.TextFieldVariant
 import io.kontour.ui.components.text.frameTap
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.layout.LayoutCoordinates
+import io.kontour.ui.components.text.FrameSpot
+import io.kontour.ui.components.text.CaretAim
 import io.kontour.ui.foundation.GroupPosition
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.ProvideContentColour
@@ -141,8 +145,18 @@ fun TextFieldListItem(
     val ownRequester = remember { FocusRequester() }
     val requester = imeChain?.requester ?: ownRequester
     // Remembered, because `frameTap` is keyed on it: a new lambda every
-    // composition restarted the row's gesture under a finger.
-    val focusOnTap: () -> Unit = remember(requester) { { requester.requestFocus() } }
+    // composition restarted the row's gesture under a finger. A press on the
+    // row off the field — its label, its icon — puts the caret at the end of
+    // the value nearer it, as one on the field's own frame does: see
+    // `CaretAim`, shared with the field so both read the one text.
+    val aim = remember { CaretAim() }
+    val spot = remember { FrameSpot() }
+    val focusOnTap: (LayoutCoordinates?, Offset) -> Unit = remember(requester, state, aim) {
+        { frame, at ->
+            aim.place(state, frame, at)
+            requester.requestFocus()
+        }
+    }
     val editable = enabled && !readOnly
     val isError = errorMessage != null
     val message = errorMessage ?: supporting
@@ -174,7 +188,7 @@ fun TextFieldListItem(
             // press anywhere on it puts the caret in. See `TextFieldImpl`.
             .pointerCursor(Cursor.Text, enabled = editable)
             .opensKeyboard(enabled = editable)
-            .then(if (enabled) Modifier.frameTap(focusOnTap) else Modifier)
+            .then(if (enabled) Modifier.frameTap(spot, focusOnTap) else Modifier)
             .padding(start = ListItemDefaults.ContentInset, end = Theme.spacing.md)
             .padding(vertical = Theme.spacing.xs),
         verticalArrangement = Arrangement.Center,
@@ -256,6 +270,7 @@ fun TextFieldListItem(
                     inputSemantics = errorMessage?.let(::saysError),
                     focusRequester = requester,
                     alignEnd = label != null,
+                    caretAim = aim,
                 )
             }
             if (trailing != null) {

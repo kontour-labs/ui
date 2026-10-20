@@ -236,6 +236,11 @@ internal fun TextFieldImpl(
      * a settings row's value goes.
      */
     alignEnd: Boolean = false,
+    /**
+     * Where a press off the text puts the caret, shared with a frame round this
+     * one: a [io.kontour.ui.components.list.TextFieldListItem]'s row. See [CaretAim].
+     */
+    caretAim: CaretAim? = null,
 ) {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     // Code in the theme's mono face, at the field's own size: the family and
@@ -261,6 +266,9 @@ internal fun TextFieldImpl(
     val routed = textTouchesGoToTheBrowser && enabled && !readOnly && (outputTransformation == null || masked)
     val scroll = rememberScrollState()
     val browser = remember { BrowserText() }
+    val aim = caretAim ?: remember { CaretAim() }
+    aim.scroll = scroll
+    aim.singleLine = lineLimits == TextFieldLineLimits.SingleLine
     if (routed) {
         // Asked for only here, where they are compared against: seven font
         // resources resolved on every composition of every field, on platforms
@@ -353,14 +361,21 @@ internal fun TextFieldImpl(
                 filter = inputTransformation,
                 copyable = !masked,
             ),
-        // A press anywhere on the frame puts the caret in the field.
+        // A press anywhere on the frame puts the caret in the field, at the
+        // end of the text nearer the press: see [CaretAim].
         //
         // Not gated on `readOnly`: a read-only field is still focusable and its
         // text is still selectable, which is the whole reason foundation has
         // that flag rather than `enabled`. It is gated on `enabled`, because a
         // disabled field should not take focus from wherever it currently is.
+        // Remembered, because `frameTap` is keyed on it.
         onFrameTap = if (enabled) {
-            { requester.requestFocus() }
+            remember(requester, state, aim) {
+                { frame, at ->
+                    aim.place(state, frame, at)
+                    requester.requestFocus()
+                }
+            }
         } else {
             null
         },
@@ -392,6 +407,7 @@ internal fun TextFieldImpl(
                     state = state,
                     modifier = Modifier
                         .fillMaxWidth()
+                        .onPlaced { aim.input = it }
                         .then(if (routed) Modifier.tapPlacesCaret(state, browser, requester) else Modifier)
                         .browserText(browser)
                         // The requester belongs on the input itself, not on the
@@ -444,10 +460,9 @@ internal fun TextFieldImpl(
                     cursorBrush = SolidColor(if (drawnByBrowser) Color.Transparent else colours.cursor),
                     interactionSource = interactions,
                     scrollState = scroll,
-                    onTextLayout = if (routed) {
-                        { result -> browser.layout = result() }
-                    } else {
-                        null
+                    onTextLayout = { result ->
+                        aim.layout = result
+                        if (routed) browser.layout = result()
                     },
                 )
             }
