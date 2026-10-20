@@ -67,7 +67,15 @@ fun rememberScrollbarListState(
         MeasuredLists[state] = rows
         onDispose {
             MeasuredLists.remove(state)
-            strategy.cancelAll()
+            // Forgotten, not let go of. Reported from an app on 0.4.5 as a
+            // crash, "LayoutNode should be attached to an owner", leaving a
+            // page while its list was still being measured: by the time this
+            // runs the list may already have left, and letting go of a row
+            // held composed in a list that has gone is what Compose refuses.
+            // The list's own leaving disposes every row it holds, and the
+            // queued work, run, finds its list gone and does nothing.
+            strategy.forget()
+            frames.clear()
         }
     }
     return state
@@ -152,9 +160,30 @@ private class MeasuringPrefetch(private val rows: RowSizes, private val frames: 
     }
 
     fun cancelAll() {
-        for (handle in inFlight.values) handle.cancel()
+        for (handle in inFlight.values) letGo(handle)
         inFlight.clear()
         landed.clear()
+    }
+
+    /** Every row asked for, forgotten without being let go of: for a list that has gone. */
+    fun forget() {
+        inFlight.clear()
+        landed.clear()
+    }
+
+    /**
+     * [handle]'s row let go of — unless its list has already left the screen,
+     * when Compose refuses, and the list's leaving has disposed the row
+     * anyway. A state kept above its list, across tabs or while a spinner
+     * stands in for it, can come to let go of rows of a list that has gone
+     * and been replaced; nothing else is caught.
+     */
+    private fun letGo(handle: LazyLayoutPrefetchState.PrefetchHandle) {
+        try {
+            handle.cancel()
+        } catch (gone: IllegalStateException) {
+            if (gone.message?.contains("attached") != true) throw gone
+        }
     }
 }
 
@@ -195,6 +224,12 @@ private class FramePrefetchScheduler : PrefetchScheduler {
     override fun schedulePrefetch(prefetchRequest: PrefetchRequest) {
         (if (ahead) aheadQueue else queue).addLast(prefetchRequest)
         waiting.trySend(Unit)
+    }
+
+    /** Drops every request waiting: the list they were for has gone. */
+    fun clear() {
+        queue.clear()
+        aheadQueue.clear()
     }
 
     suspend fun run() {
