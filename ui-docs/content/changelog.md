@@ -63,7 +63,14 @@ On `main`, and in the next release.
   chart's series take as a second cue beside colour are in `:ui` now, with
   `Modifier.fillPattern` to draw one over any background and `PatternBrushes`
   for a canvas of an app's own. A `CalendarEvent` takes one as its `pattern`,
-  drawn over its block and its bar.
+  drawn over its block and its bar. Beside the named ones (`Diagonal`, `Dots`,
+  `CrossHatch`, `Grid` and the rest), `FillPattern.lines` takes a direction,
+  a spacing and a weight, `FillPattern.dots` a spacing, a size and staggered
+  rows, and `FillPattern.custom` repeats a tile you draw.
+- **`seriesVisibility`** on `Chart` and `SectorChart`, from
+  `rememberChartSeriesVisibility()`: each entry in the legend becomes a switch
+  that hides its series and shows it again, the axes and stacks closing in on
+  what is left.
 - **`Modifier.onPressOutside`**: told of a press anywhere but on its node,
   without taking it, for a selection that lets go when the reader taps
   elsewhere. A chart's selection does.
@@ -92,7 +99,8 @@ On `main`, and in the next release.
 - **`KeyValueList(compact = true)`**, for a small container of its own: the
   rows take the style around them and the list is as wide as its rows. A
   chart's tooltip is one now, rather than rows laid out by hand.
-- **`FillPatternDefaults`**, the tile and stroke a pattern is drawn with, and
+- **`FillPatternDefaults`**, the spacing and weight a pattern is drawn with and
+  the order a chart's series take them in, and
   **`bottomCornersOnly()`** and **`trailingCornersOnly()`** beside
   `topCornersOnly()` and `leadingCornersOnly()`, which the charts' bars use.
 - **`Theme.icons`**: every glyph the library draws on its own behalf, Tabler's

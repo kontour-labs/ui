@@ -1,5 +1,6 @@
 package io.kontour.ui.catalog.apps.energy
 
+import io.kontour.ui.charts.rememberChartSeriesVisibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -83,6 +84,9 @@ private fun ByAppliance(patterns: Boolean) {
     val days = remember { ChartAxis.date() }
     val energy = remember { ChartAxis.number(title = "kWh") }
     val selection = rememberChartSelectionState<LocalDate>()
+    // A tap on an appliance in the legend takes it off the bars, and another
+    // puts it back: the car's days, without the car.
+    val appliances = rememberChartSeriesVisibility()
     val average = remember(uses, span) { uses.sumOf { it.kwh } / span.days }
     // One content for the chart and its table, so the two never disagree.
     val content: ChartScope<LocalDate, Number>.() -> Unit = remember(uses, stacking, average) {
@@ -93,7 +97,7 @@ private fun ByAppliance(patterns: Boolean) {
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm)) {
-        EnergyHeading("By appliance", supporting = "What used it, day by day")
+        EnergyHeading("By appliance", supporting = "What used it, day by day. Tap one below to leave it out")
         SegmentedControl(
             value = span,
             options = Span.entries,
@@ -116,6 +120,7 @@ private fun ByAppliance(patterns: Boolean) {
                 yAxis = energy,
                 modifier = Modifier.fillMaxWidth().height(TallChartHeight).testTag("energy-usage-chart"),
                 selection = selection,
+                seriesVisibility = appliances,
                 contentDescription = "Energy used each day, by appliance",
                 showPatterns = patterns,
                 content = content,

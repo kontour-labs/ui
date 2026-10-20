@@ -1,5 +1,6 @@
 package io.kontour.ui.catalog.apps.energy
 
+import io.kontour.ui.charts.rememberChartSeriesVisibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.calculateEndPadding
@@ -152,6 +153,7 @@ private fun YearReport(onMonth: (String) -> Unit) {
         yAxis = energy,
         modifier = Modifier.fillMaxWidth().height(ChartHeight).testTag("energy-stream"),
         selection = selection,
+        seriesVisibility = rememberChartSeriesVisibility(),
         contentDescription = "Where each month's generation went",
         showPatterns = patterns,
     ) {

@@ -22,6 +22,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.Dp
 import kotlin.math.max
 import kotlin.math.min
 
@@ -36,8 +37,8 @@ internal class DrawConfig(
     /** The theme's capsule, for a rule's pin. */
     val pinShape: Shape,
     val hairline: Float,
-    val tileSize: Int,
-    val tileStroke: Float,
+    /** How heavy a pattern's lines are where it does not say. */
+    val patternWeight: Dp,
     val tiles: PatternBrushes,
     /** The ground left between a heat map's cells, as between a sector chart's sectors. */
     val cellGap: Float = 0f,
@@ -272,7 +273,7 @@ internal fun DrawScope.drawChart(
 
 private fun DrawScope.fill(path: Path, look: SeriesLook, config: DrawConfig, alpha: Float, opacity: Float = 1f) {
     drawPath(path, look.colour, alpha = alpha * opacity)
-    val pattern: Brush? = config.tiles.brush(look.fill, config.colours.patternInk, config.tileSize, config.tileStroke)
+    val pattern: Brush? = config.tiles.brush(look.fill, config.colours.patternInk, this, config.patternWeight)
     if (pattern != null) drawPath(path, pattern, alpha = alpha)
 }
 

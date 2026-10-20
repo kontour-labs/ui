@@ -1,5 +1,11 @@
 package io.kontour.ui.catalog.apps.energy
 
+import io.kontour.ui.foundation.PatternDirection
+import io.kontour.ui.foundation.FillPatternDefaults
+import androidx.compose.ui.unit.DpSize
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -135,27 +141,57 @@ private fun UnitText(text: String) {
 /**
  * The patterns a chart's series wear, in the order they take them, each over a
  * swatch with `Modifier.fillPattern`: what any surface of the app's own can
- * draw as well.
+ * draw as well. Then a few made to order — lines further apart and heavier,
+ * dots in staggered rows, and a tile of the app's own, a little sun.
  */
 @Composable
 private fun Patterns() {
     val ink = Theme.colours.content
     val ground = Theme.colours.surfaceSunken
     val shape = Theme.shapes.extraSmall
-    FlowRow(
-        horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
-        verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
-    ) {
-        for (pattern in FillPattern.entries.filter { it != FillPattern.Solid }) {
-            Box(
-                Modifier
-                    .size(PatternSwatch)
-                    .clip(shape)
-                    .background(ground)
-                    .fillPattern(pattern, ink = ink, shape = shape),
-            )
+    Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs)) {
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+            verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+        ) {
+            for (pattern in FillPatternDefaults.Series.filter { !it.isSolid }) PatternSwatch(pattern, ink, ground, shape)
+        }
+        Text("Made to order", style = Theme.typography.labelMedium, colour = Theme.colours.contentMuted)
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+            verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+        ) {
+            for (pattern in madeToOrder) PatternSwatch(pattern, ink, ground, shape)
         }
     }
 }
 
-private val PatternSwatch = 32.dp
+@Composable
+private fun PatternSwatch(pattern: FillPattern, ink: Color, ground: Color, shape: Shape) {
+    Box(
+        Modifier
+            .size(PatternSwatchSize)
+            .clip(shape)
+            .background(ground)
+            .fillPattern(pattern, ink = ink, shape = shape),
+    )
+}
+
+/** Patterns of the app's own: opened out, weighted, staggered and drawn. */
+private val madeToOrder = listOf(
+    FillPattern.lines(PatternDirection.Rising, spacing = 14.dp, weight = 3.dp),
+    FillPattern.lines(PatternDirection.Horizontal, PatternDirection.Rising, spacing = 12.dp),
+    FillPattern.dots(spacing = 9.dp, size = 4.dp, staggered = true),
+    FillPattern.lines(PatternDirection.Vertical, spacing = 5.dp, weight = 1.dp),
+    // A little sun: a dot with four rays, the app's own mark.
+    FillPattern.custom(DpSize(16.dp, 16.dp), key = "energy-sun") { ink ->
+        val middle = Offset(size.width / 2, size.height / 2)
+        val ray = size.minDimension * 0.42f
+        val stroke = size.minDimension * 0.08f
+        drawCircle(ink, radius = size.minDimension * 0.16f, center = middle)
+        drawLine(ink, middle - Offset(ray, 0f), middle + Offset(ray, 0f), strokeWidth = stroke)
+        drawLine(ink, middle - Offset(0f, ray), middle + Offset(0f, ray), strokeWidth = stroke)
+    },
+)
+
+private val PatternSwatchSize = 40.dp

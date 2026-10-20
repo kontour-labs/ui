@@ -9,7 +9,9 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.click
@@ -18,7 +20,7 @@ import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isFocused
-import androidx.compose.ui.test.isToggleable
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onFirst
@@ -87,7 +89,10 @@ class EnergyAppTest {
         launch()
         tab("Usage")
         onNodeWithTag("energy-usage-chart").assertExists()
-        onNode(isToggleable() and hasAnyAncestor(hasTestTag("energy-usage"))).performScrollTo().performClick()
+        // The switch, by its role: the legend's entries toggle too.
+        onNode(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Switch) and hasAnyAncestor(hasTestTag("energy-usage")))
+            .performScrollTo()
+            .performClick()
         waitForIdle()
         onNodeWithTag("energy-usage-table").assertExists("the switch did not turn the chart into its table")
         onNodeWithTag("energy-usage-chart").assertDoesNotExist()

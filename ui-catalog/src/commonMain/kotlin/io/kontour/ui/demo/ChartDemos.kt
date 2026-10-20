@@ -1,5 +1,6 @@
 package io.kontour.ui.demo
 
+import io.kontour.ui.charts.rememberChartSeriesVisibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.FlowRow
@@ -44,6 +45,7 @@ private val chartTooltip = Knob.Flag("Tooltip", initial = true)
 private val chartAnimated = Knob.Flag("Animated", initial = true)
 private val chartDonut = Knob.Flag("Donut", initial = true)
 private val chartReferences = Knob.Flag("References", initial = true)
+private val chartHides = Knob.Flag("Legend hides series", initial = true)
 
 /** A month's riders on one route. */
 private class Riders(val month: String, val route: String, val riders: Int)
@@ -98,6 +100,7 @@ internal val ChartDemo = ComponentDemo(
         chartAnimated,
         chartDonut,
         chartReferences,
+        chartHides,
     ),
 ) {
     var seed by remember { mutableIntStateOf(0) }
@@ -113,6 +116,12 @@ internal val ChartDemo = ComponentDemo(
     val animated = this[chartAnimated]
     val donut = this[chartDonut]
     val references = this[chartReferences]
+    // One for the charts across months and one for the circle: a route hidden
+    // from the lines stays in the circle until it is hidden there too.
+    val shownRoutes = rememberChartSeriesVisibility()
+    val shownSectors = rememberChartSeriesVisibility()
+    val hides = this[chartHides]
+    val visibility = shownRoutes.takeIf { hides }
     val selection = rememberChartSelectionState<String>()
     val spacing = Theme.spacing
 
@@ -127,6 +136,7 @@ internal val ChartDemo = ComponentDemo(
                 modifier = chartModifier,
                 contentDescription = "Riders by route and month",
                 showLegend = showLegend,
+                seriesVisibility = visibility,
                 legendPosition = legendPosition,
                 showPatterns = patterns,
                 showSelectionTooltip = tooltip,
@@ -148,6 +158,7 @@ internal val ChartDemo = ComponentDemo(
                 contentDescription = "Population by age and sex",
                 legendPosition = legendPosition,
                 showLegend = showLegend,
+                seriesVisibility = visibility,
                 showPatterns = patterns,
                 animateData = animated,
             ) {
@@ -165,6 +176,7 @@ internal val ChartDemo = ComponentDemo(
                 contentDescription = "Trip times by month",
                 legendPosition = legendPosition,
                 showLegend = showLegend,
+                seriesVisibility = visibility,
                 showPatterns = patterns,
                 showSelectionTooltip = tooltip,
                 animateData = animated,
@@ -184,6 +196,7 @@ internal val ChartDemo = ComponentDemo(
                 contentDescription = "Riders in August, by route",
                 legendPosition = legendPosition,
                 showLegend = showLegend,
+                seriesVisibility = visibility,
                 showPatterns = patterns,
                 animateData = animated,
             ) {
@@ -198,6 +211,7 @@ internal val ChartDemo = ComponentDemo(
                 contentDescription = "Riders by month",
                 legendPosition = legendPosition,
                 showLegend = showLegend,
+                seriesVisibility = visibility,
                 showPatterns = patterns,
                 showSelectionTooltip = tooltip,
                 animateData = animated,
@@ -292,6 +306,7 @@ internal val ChartDemo = ComponentDemo(
             SectorChart(
                 modifier = Modifier.widthIn(min = 260.dp).weight(1f).height(180.dp),
                 innerRadius = if (donut) 0.6f else 0f,
+                seriesVisibility = shownSectors.takeIf { hides },
                 contentDescription = "Riders in August, by route",
                 showPatterns = patterns,
                 showLegend = showLegend,

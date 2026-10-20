@@ -29,7 +29,10 @@ internal fun chartSummary(
         return sentences(parts)
     }
 
-    val named = chart.model.series.filter { it.name.isNotBlank() }
+    // Only what is drawn: a series the legend has hidden is not counted.
+    val named = chart.model.series.filter { series ->
+        series.name.isNotBlank() && chart.model.marks.any { mark -> mark.runs.any { it.series == series } }
+    }
     if (named.size > 1) parts += strings.seriesCount(formats.quantity(named.size))
 
     // A stream's value axis spans nothing a reader can use: its series say

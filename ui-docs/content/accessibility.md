@@ -226,6 +226,17 @@ the same for any surface of an app's own, after its background:
 Box(Modifier.background(colours.container, shape).fillPattern(FillPattern.Diagonal, colours.onContainer.copy(alpha = 0.25f), shape))
 ```
 
+The named patterns are what a chart's series take, in
+`FillPatternDefaults.Series`' order. For others, `FillPattern.lines` runs lines
+in one direction or two at a spacing and weight of your own,
+`FillPattern.dots` sets the dots' spacing and size and can stagger their rows,
+and `FillPattern.custom` repeats a tile you draw:
+
+```kotlin
+val open = FillPattern.lines(PatternDirection.Rising, spacing = 14.dp, weight = 2.dp)
+val halftone = FillPattern.dots(spacing = 8.dp, staggered = true)
+```
+
 `PatternBrushes` is the cache of tiles behind both, for a canvas of an app's
 own: one brush for each pattern, ink and size, laid in the canvas's space so
 neighbouring shapes' hatching lines up.

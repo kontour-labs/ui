@@ -109,6 +109,42 @@ palette of its own provides `LocalSeriesColours`.
 `SeriesStyle` overrides a series' colour, dash, symbol or fill, on a
 `ChartSeries` for everywhere it appears or on a mark for that mark alone.
 
+With patterns on, a series' fill can be any `FillPattern`: the named ones,
+lines further apart or heavier, dots in staggered rows, or a tile of your own.
+
+```kotlin
+val hatched = SeriesStyle(fill = FillPattern.lines(PatternDirection.Rising, spacing = 12.dp, weight = 2.dp))
+```
+
+## Hiding a series
+
+Give a chart a `rememberChartSeriesVisibility()` and each entry in its legend
+becomes a switch. A tap, a click or a screen reader's action hides that
+series, and another shows it again. The chart is worked out again from what is
+left, the same move as a change of data: the axes close in, a stack closes up,
+and in a `SectorChart` the other sectors grow into the hidden one's share. A
+hidden series keeps its colour and its pattern, and its legend entry stays,
+faded, so it can be brought back.
+
+<!--sample:ChartHidingSeries-->
+```kotlin
+// The legend's entries become switches: a tap hides a route, and the
+// chart closes in on the one that is left.
+val shown = rememberChartSeriesVisibility()
+Chart(
+    xAxis = ChartAxis.date(),
+    yAxis = ChartAxis.number(title = "Riders"),
+    modifier = Modifier.fillMaxWidth().height(220.dp),
+    seriesVisibility = shown,
+    contentDescription = "Riders this week, by route",
+) {
+    line(week, x = { it.day }, y = { it.riders }, series = { ChartSeries("Route ${it.route}") })
+}
+```
+
+`seriesVisibility.hidden` is what is hidden, and `hide`, `show` and `showAll`
+change it from elsewhere: a "Show all" button, or a filter of your own.
+
 ## Regions, bands and rules
 
 What a chart says besides its data: a stretch of time and what it was, how far
@@ -403,7 +439,9 @@ it. With a selection, a place is chosen from there as it is by touch. There
 are no custom actions, so a chart of a year costs no more to navigate than a
 chart of a week.
 
-The legend is not read: the summary names every series already.
+The legend is not read: the summary names every series already. With a
+`seriesVisibility` its entries are switches, and each is read as one: "Route
+950, checkbox, checked". A hidden series is not in the summary.
 
 **Under reduced motion nothing moves.** A chart appearing, or its first data
 arriving, fades in, and a change of data is the new chart at once.

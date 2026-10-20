@@ -19,6 +19,7 @@ import io.kontour.ui.charts.SectorChart
 import io.kontour.ui.charts.SeriesStyle
 import io.kontour.ui.charts.Sparkline
 import io.kontour.ui.charts.rememberChartSelectionState
+import io.kontour.ui.charts.rememberChartSeriesVisibility
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.theme.Theme
 import kotlinx.datetime.LocalDate
@@ -54,6 +55,22 @@ fun ChartBasics() {
             showPoints = true,
         )
         rule(y = 800, label = "Capacity")
+    }
+}
+
+@Composable
+fun ChartHidingSeries() {
+    // The legend's entries become switches: a tap hides a route, and the
+    // chart closes in on the one that is left.
+    val shown = rememberChartSeriesVisibility()
+    Chart(
+        xAxis = ChartAxis.date(),
+        yAxis = ChartAxis.number(title = "Riders"),
+        modifier = Modifier.fillMaxWidth().height(220.dp),
+        seriesVisibility = shown,
+        contentDescription = "Riders this week, by route",
+    ) {
+        line(week, x = { it.day }, y = { it.riders }, series = { ChartSeries("Route ${it.route}") })
     }
 }
 

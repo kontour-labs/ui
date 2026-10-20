@@ -1,6 +1,7 @@
 package io.kontour.ui.charts
 
 import io.kontour.ui.foundation.FillPattern
+import io.kontour.ui.foundation.FillPatternDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.graphics.Color
@@ -128,7 +129,7 @@ internal class SeriesLook(
 /**
  * What series [slot] is drawn with: its colour from [palette], and with
  * [patterns] on, a dash, a symbol and a fill of its own, each in the order its
- * enum lists them so that slot 0 is always solid. Past the end of the palette,
+ * enum or [FillPatternDefaults.Series] lists them, so that slot 0 is always solid. Past the end of the palette,
  * colours go round again with patterns on, so the second time round is told
  * apart from the first.
  */
@@ -146,7 +147,7 @@ internal fun lookOf(
             ?: palette[slot % palette.size],
         line = override.firstNotNullOfOrNull { it.line } ?: pick(LinePattern.entries, LinePattern.Solid),
         symbol = override.firstNotNullOfOrNull { it.symbol } ?: pick(PointSymbol.entries, PointSymbol.Circle),
-        fill = override.firstNotNullOfOrNull { it.fill } ?: pick(FillPattern.entries, FillPattern.Solid),
+        fill = override.firstNotNullOfOrNull { it.fill } ?: pick(FillPatternDefaults.Series, FillPattern.Solid),
     )
 }
 

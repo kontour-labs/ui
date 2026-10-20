@@ -90,6 +90,9 @@ import kotlin.math.sqrt
  * @param enabled Off, the chart cannot be selected from, and is still read.
  * @param selection Which sector is chosen, by its series. Null, the default, is
  *   a picture with a description.
+ * @param seriesVisibility Which sectors are shown. A chart given one makes each
+ *   entry in its legend a switch: a hidden sector leaves the circle, and the
+ *   others grow into its share. See [ChartSeriesVisibility].
  * @param innerRadius The hole, as a fraction of the radius: `0` for a pie,
  *   about `0.6` for a donut.
  * @param contentDescription What the whole is, said before its parts: "Spending
@@ -111,6 +114,7 @@ fun SectorChart(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     selection: ChartSelectionState<ChartSeries>? = null,
+    seriesVisibility: ChartSeriesVisibility? = null,
     innerRadius: Float = 0f,
     contentDescription: String? = null,
     colours: ChartColours = ChartDefaults.colours(),
@@ -127,9 +131,13 @@ fun SectorChart(
 ) {
     val formats = Theme.formats
     val motion = Theme.motion
-    val parts by remember(content) { derivedStateOf { SectorRecorder().apply(content).parts } }
+    val recorded by remember(content) { derivedStateOf { SectorRecorder().apply(content).parts } }
+    // What is drawn is what the legend has not hidden; every series keeps its
+    // slot, and so its colour, from the whole.
+    val hidden = seriesVisibility?.hidden.orEmpty()
+    val parts = remember(recorded, hidden) { recorded.filter { it.series !in hidden } }
     val total = parts.sumOf { it.value.coerceAtLeast(0.0) }
-    val series = parts.map { it.series }.distinct()
+    val series = recorded.map { it.series }.distinct()
     val patterns = showPatterns || series.size > colours.series.size
 
     // One fraction per part, animated from the last shares to these; the
@@ -181,8 +189,8 @@ fun SectorChart(
     val direction = if (rtl) -1f else 1f
     val tiles = remember { PatternBrushes() }
     val sizing = Theme.sizing
-    val patternStroke = FillPatternDefaults.Stroke
-    val legendModel = remember(parts) {
+    val patternWeight = FillPatternDefaults.Weight
+    val legendModel = remember(recorded) {
         ChartModel(
             marks = listOf(
                 Mark(
@@ -209,6 +217,7 @@ fun SectorChart(
                 colours = colours,
                 patterns = patterns,
                 stacked = legendPosition == ChartLegendPosition.Start || legendPosition == ChartLegendPosition.End,
+                visibility = seriesVisibility,
             )
         }
     } else {
@@ -298,7 +307,7 @@ fun SectorChart(
                         val origin = Offset(circle.x + out * cos(middle), circle.y + out * sin(middle))
                         val path = sectorPath(origin, radius, hole, angle, extent * direction, corner.toPx(size, this) * SectorCornerShare)
                         drawPath(path, look.colour, alpha = fade.value)
-                        tiles.brush(look.fill, colours.patternInk, FillPatternDefaults.Tile.roundToPx(), patternStroke.toPx())
+                        tiles.brush(look.fill, colours.patternInk, this, patternWeight)
                             ?.let { drawPath(path, it, alpha = fade.value) }
                         if (pulls[index].value > 0f) {
                             drawPath(

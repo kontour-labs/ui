@@ -86,6 +86,9 @@ import kotlin.math.roundToInt
  *   interactive: a tap or a drag selects the nearest place, a pointer selects
  *   what it is over, and with focus the arrow keys move between places. A
  *   chart of lying bars is read bar by bar, and is not selected by place.
+ * @param seriesVisibility Which series are shown. A chart given one makes
+ *   each entry in its legend a switch that hides its series and shows it
+ *   again. See [ChartSeriesVisibility].
  * @param contentDescription What the chart shows, in a sentence, said before
  *   the summary the chart writes itself: "Riders this week, by route".
  * @param legendPosition Where the legend goes, when there is one.
@@ -108,6 +111,7 @@ fun <X : Any, Y : Any> Chart(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     selection: ChartSelectionState<X>? = null,
+    seriesVisibility: ChartSeriesVisibility? = null,
     contentDescription: String? = null,
     colours: ChartColours = ChartDefaults.colours(),
     legendPosition: ChartLegendPosition = ChartLegendPosition.Bottom,
@@ -128,7 +132,12 @@ fun <X : Any, Y : Any> Chart(
     val model by remember(xAxis, yAxis, content) {
         derivedStateOf { ChartRecorder(xAxis, yAxis).apply(content).build() }
     }
-    val chart = remember(model, formats) { resolve(model, xAxis, yAxis, formats) }
+    // Without what the legend has hidden: the chart is worked out from what
+    // is shown, so the axes and stacks close in on it, while the legend and
+    // every series' colour still come from the whole.
+    val hidden = seriesVisibility?.hidden.orEmpty()
+    val shown = remember(model, hidden) { model.without(hidden) }
+    val chart = remember(shown, formats) { resolve(shown, xAxis, yAxis, formats) }
     val patterns = showPatterns || model.series.size > colours.series.size
 
     val animate = animateData && !motion.reduceMotion
@@ -156,6 +165,7 @@ fun <X : Any, Y : Any> Chart(
                     patterns = patterns,
                     stacked = legendPosition == ChartLegendPosition.Start || legendPosition == ChartLegendPosition.End,
                     scale = chart.cells,
+                    visibility = seriesVisibility,
                 )
             }
         } else {
@@ -381,11 +391,11 @@ private fun <X : Any> ChartPlot(
     // rest of the library at the high contrast tier.
     val sizing = Theme.sizing
     val shapes = Theme.shapes
-    val patternStroke = FillPatternDefaults.Stroke
+    val patternWeight = FillPatternDefaults.Weight
     // A heat map's value is written in its cell in whichever of the page's
     // ink and the page itself stands out more from the cell's shade.
     val inks = Theme.colours.content to Theme.colours.background
-    val config = remember(colours, patterns, density, sizing, shapes, patternStroke, inks) {
+    val config = remember(colours, patterns, density, sizing, shapes, patternWeight, inks) {
         with(density) {
             DrawConfig(
                 colours = colours,
@@ -395,8 +405,7 @@ private fun <X : Any> ChartPlot(
                 cornerShape = shapes.extraSmall,
                 pinShape = shapes.capsule,
                 hairline = sizing.dividerThickness.toPx(),
-                tileSize = FillPatternDefaults.Tile.roundToPx(),
-                tileStroke = patternStroke.toPx(),
+                patternWeight = patternWeight,
                 tiles = tiles,
                 cellGap = ChartDefaults.SectorGap.toPx(),
                 cellInks = inks,

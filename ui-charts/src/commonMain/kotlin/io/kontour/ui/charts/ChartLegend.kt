@@ -1,5 +1,15 @@
 package io.kontour.ui.charts
 
+import io.kontour.ui.interaction.rememberToggleFeedback
+import io.kontour.ui.input.pointerCursor
+import io.kontour.ui.input.focusRing
+import io.kontour.ui.a11y.minimumTouchTarget
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.draw.alpha
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.key
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.graphics.Brush
@@ -36,6 +46,9 @@ import io.kontour.ui.theme.Theme
  *
  * Kept out of what a screen reader hears, which names every series already in
  * the chart's summary; read again, the legend would be the same words twice.
+ * Except with a [visibility] to answer to: then each entry is a switch, read as
+ * one — "Route 950, checkbox, checked" — and a hidden series' entry stays,
+ * faded, to be shown again.
  */
 @Composable
 internal fun ChartLegend(
@@ -44,29 +57,59 @@ internal fun ChartLegend(
     patterns: Boolean,
     stacked: Boolean,
     scale: CellScale? = null,
+    visibility: ChartSeriesVisibility? = null,
 ) {
     val named = model.series.filter { it.name.isNotBlank() }
     val spacing = Theme.spacing
+    val toggled = rememberToggleFeedback()
+    val focusShape = Theme.shapes.extraSmall
     val item: @Composable (ChartSeries) -> Unit = { series ->
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(spacing.xxs)) {
+        val shown = visibility?.isShown(series) ?: true
+        val interactions = remember { MutableInteractionSource() }
+        val toggle = if (visibility == null) {
+            Modifier
+        } else {
+            Modifier
+                .minimumTouchTarget()
+                .focusRing(interactions, focusShape)
+                .pointerCursor()
+                .toggleable(
+                    value = shown,
+                    interactionSource = interactions,
+                    indication = null,
+                    role = Role.Checkbox,
+                    onValueChange = { on ->
+                        toggled(on)
+                        if (on) visibility.show(series) else visibility.hide(series)
+                    },
+                )
+        }
+        Row(
+            toggle.then(if (shown) Modifier else Modifier.alpha(HiddenAlpha)),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(spacing.xxs),
+        ) {
             SeriesSwatch(model, series, colours, patterns)
             Text(series.name, style = Theme.typography.labelMedium)
         }
     }
     val hidden = Modifier.clearAndSetSemantics { }
+    // Said only where it can be pressed; otherwise the summary has said it.
+    val heard = if (visibility != null) Modifier else hidden
+    val scaleKey: @Composable () -> Unit = { scale?.let { Box(hidden) { ScaleKey(it, colours.ramp) } } }
     if (stacked) {
-        Column(hidden, verticalArrangement = Arrangement.spacedBy(spacing.xxs)) {
-            named.forEach { item(it) }
-            scale?.let { ScaleKey(it, colours.ramp) }
+        Column(heard, verticalArrangement = Arrangement.spacedBy(spacing.xxs)) {
+            named.forEach { series -> key(series) { item(series) } }
+            scaleKey()
         }
     } else {
         FlowRow(
-            modifier = hidden,
+            modifier = heard,
             horizontalArrangement = Arrangement.spacedBy(spacing.sm),
             verticalArrangement = Arrangement.spacedBy(spacing.xxs),
         ) {
-            named.forEach { item(it) }
-            scale?.let { ScaleKey(it, colours.ramp) }
+            named.forEach { series -> key(series) { item(series) } }
+            scaleKey()
         }
     }
 }
@@ -146,7 +189,7 @@ internal fun FillSwatch(look: SeriesLook, colours: ChartColours) {
         Modifier
             .size(SwatchSize)
             .background(look.colour, SwatchShape)
-            .fillPattern(look.fill, colours.patternInk, SwatchShape, SwatchTile),
+            .fillPattern(look.fill, colours.patternInk, SwatchShape, scale = SwatchScale),
     )
 }
 
@@ -172,6 +215,9 @@ internal fun ShadeSwatch(shade: Color) {
  * in the line of text it introduces. A line's is longer, to have room for its
  * dashes and its symbol together.
  */
+/** How faint a hidden series' entry is drawn: there, to be shown again, and plainly not on the chart. */
+private const val HiddenAlpha = 0.38f
+
 private val SwatchSize = 12.dp
 private val LineSwatchWidth = 20.dp
 
@@ -186,4 +232,5 @@ private val SwatchShape = ActivityCalendarDefaults.CellShape
 private val ScaleWidth = 72.dp
 
 /** A swatch's pattern, finer than the plot's, so that two repeats fit in it. */
-private val SwatchTile = 6.dp
+/** A key's pattern a little tighter than its series', so a 12dp square shows enough of it to read. */
+private const val SwatchScale = 6f / 7f

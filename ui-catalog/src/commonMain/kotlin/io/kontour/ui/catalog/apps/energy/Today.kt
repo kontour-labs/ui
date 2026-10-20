@@ -1,5 +1,6 @@
 package io.kontour.ui.catalog.apps.energy
 
+import io.kontour.ui.charts.rememberChartSeriesVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -295,6 +296,7 @@ private fun DayByHour(patterns: Boolean) {
     val hours = remember { ChartAxis.number(domain = 0.0..23.0, label = { hourLabel(it) }) }
     val power = remember { ChartAxis.number(title = "kW", includeZero = true) }
     val selection = rememberChartSelectionState<Number>()
+    val shownSources = rememberChartSeriesVisibility()
     // Read out here: a chart's content records marks and is not composed.
     val dashed = SeriesStyle(line = LinePattern.Dashed)
 
@@ -305,6 +307,7 @@ private fun DayByHour(patterns: Boolean) {
             yAxis = power,
             modifier = Modifier.fillMaxWidth().height(TallChartHeight).testTag("energy-hours"),
             selection = selection,
+            seriesVisibility = shownSources,
             contentDescription = "Today's power by the hour, with the afternoon forecast",
             showPatterns = patterns,
         ) {
@@ -348,6 +351,7 @@ private fun WhereItCameFrom(patterns: Boolean) {
         SectorChart(
             modifier = Modifier.fillMaxWidth().height(ChartHeight).testTag("energy-sources"),
             selection = selection,
+            seriesVisibility = rememberChartSeriesVisibility(),
             innerRadius = DonutHole,
             contentDescription = "Today's power by where it came from",
             showPatterns = patterns,
