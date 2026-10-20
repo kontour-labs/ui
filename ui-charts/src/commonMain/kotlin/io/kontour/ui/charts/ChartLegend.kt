@@ -210,14 +210,14 @@ internal fun ShadeSwatch(shade: Color) {
     )
 }
 
+/** How faint a hidden series' entry is drawn: there, to be shown again, and plainly not on the chart. */
+private const val HiddenAlpha = 0.38f
+
 /**
  * A legend's swatch: the size of a small label's capital letters, so it sits
  * in the line of text it introduces. A line's is longer, to have room for its
  * dashes and its symbol together.
  */
-/** How faint a hidden series' entry is drawn: there, to be shown again, and plainly not on the chart. */
-private const val HiddenAlpha = 0.38f
-
 private val SwatchSize = 12.dp
 private val LineSwatchWidth = 20.dp
 
@@ -231,6 +231,5 @@ private val SwatchShape = ActivityCalendarDefaults.CellShape
 /** A heat map key's ramp: long enough to see its shades change, short enough to sit in a legend's line. */
 private val ScaleWidth = 72.dp
 
-/** A swatch's pattern, finer than the plot's, so that two repeats fit in it. */
-/** A key's pattern a little tighter than its series', so a 12dp square shows enough of it to read. */
+/** A swatch's pattern, finer than the plot's, so that two repeats fit in its 12dp. */
 private const val SwatchScale = 6f / 7f

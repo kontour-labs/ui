@@ -511,22 +511,6 @@ final enum class io.kontour.ui.dragdrop/DropStatus : kotlin/Enum<io.kontour.ui.d
     final fun values(): kotlin/Array<io.kontour.ui.dragdrop/DropStatus> // io.kontour.ui.dragdrop/DropStatus.values|values#static(){}[0]
 }
 
-final enum class io.kontour.ui.foundation/FillPattern : kotlin/Enum<io.kontour.ui.foundation/FillPattern> { // io.kontour.ui.foundation/FillPattern|null[0]
-    enum entry CrossHatch // io.kontour.ui.foundation/FillPattern.CrossHatch|null[0]
-    enum entry Diagonal // io.kontour.ui.foundation/FillPattern.Diagonal|null[0]
-    enum entry Dots // io.kontour.ui.foundation/FillPattern.Dots|null[0]
-    enum entry Horizontal // io.kontour.ui.foundation/FillPattern.Horizontal|null[0]
-    enum entry ReverseDiagonal // io.kontour.ui.foundation/FillPattern.ReverseDiagonal|null[0]
-    enum entry Solid // io.kontour.ui.foundation/FillPattern.Solid|null[0]
-    enum entry Vertical // io.kontour.ui.foundation/FillPattern.Vertical|null[0]
-
-    final val entries // io.kontour.ui.foundation/FillPattern.entries|#static{}entries[0]
-        final fun <get-entries>(): kotlin.enums/EnumEntries<io.kontour.ui.foundation/FillPattern> // io.kontour.ui.foundation/FillPattern.entries.<get-entries>|<get-entries>#static(){}[0]
-
-    final fun valueOf(kotlin/String): io.kontour.ui.foundation/FillPattern // io.kontour.ui.foundation/FillPattern.valueOf|valueOf#static(kotlin.String){}[0]
-    final fun values(): kotlin/Array<io.kontour.ui.foundation/FillPattern> // io.kontour.ui.foundation/FillPattern.values|values#static(){}[0]
-}
-
 final enum class io.kontour.ui.foundation/GroupPosition : kotlin/Enum<io.kontour.ui.foundation/GroupPosition> { // io.kontour.ui.foundation/GroupPosition|null[0]
     enum entry First // io.kontour.ui.foundation/GroupPosition.First|null[0]
     enum entry Last // io.kontour.ui.foundation/GroupPosition.Last|null[0]
@@ -556,6 +540,19 @@ final enum class io.kontour.ui.foundation/IndicatorEdge : kotlin/Enum<io.kontour
 
     final fun valueOf(kotlin/String): io.kontour.ui.foundation/IndicatorEdge // io.kontour.ui.foundation/IndicatorEdge.valueOf|valueOf#static(kotlin.String){}[0]
     final fun values(): kotlin/Array<io.kontour.ui.foundation/IndicatorEdge> // io.kontour.ui.foundation/IndicatorEdge.values|values#static(){}[0]
+}
+
+final enum class io.kontour.ui.foundation/PatternDirection : kotlin/Enum<io.kontour.ui.foundation/PatternDirection> { // io.kontour.ui.foundation/PatternDirection|null[0]
+    enum entry Falling // io.kontour.ui.foundation/PatternDirection.Falling|null[0]
+    enum entry Horizontal // io.kontour.ui.foundation/PatternDirection.Horizontal|null[0]
+    enum entry Rising // io.kontour.ui.foundation/PatternDirection.Rising|null[0]
+    enum entry Vertical // io.kontour.ui.foundation/PatternDirection.Vertical|null[0]
+
+    final val entries // io.kontour.ui.foundation/PatternDirection.entries|#static{}entries[0]
+        final fun <get-entries>(): kotlin.enums/EnumEntries<io.kontour.ui.foundation/PatternDirection> // io.kontour.ui.foundation/PatternDirection.entries.<get-entries>|<get-entries>#static(){}[0]
+
+    final fun valueOf(kotlin/String): io.kontour.ui.foundation/PatternDirection // io.kontour.ui.foundation/PatternDirection.valueOf|valueOf#static(kotlin.String){}[0]
+    final fun values(): kotlin/Array<io.kontour.ui.foundation/PatternDirection> // io.kontour.ui.foundation/PatternDirection.values|values#static(){}[0]
 }
 
 final enum class io.kontour.ui.input/Cursor : kotlin/Enum<io.kontour.ui.input/Cursor> { // io.kontour.ui.input/Cursor|null[0]
@@ -2381,6 +2378,41 @@ final class io.kontour.ui.files/FileTypes { // io.kontour.ui.files/FileTypes|nul
     }
 }
 
+final class io.kontour.ui.foundation/FillPattern { // io.kontour.ui.foundation/FillPattern|null[0]
+    final val isSolid // io.kontour.ui.foundation/FillPattern.isSolid|{}isSolid[0]
+        final fun <get-isSolid>(): kotlin/Boolean // io.kontour.ui.foundation/FillPattern.isSolid.<get-isSolid>|<get-isSolid>(){}[0]
+    final val spacing // io.kontour.ui.foundation/FillPattern.spacing|{}spacing[0]
+        final fun <get-spacing>(): androidx.compose.ui.unit/Dp // io.kontour.ui.foundation/FillPattern.spacing.<get-spacing>|<get-spacing>(){}[0]
+    final val weight // io.kontour.ui.foundation/FillPattern.weight|{}weight[0]
+        final fun <get-weight>(): androidx.compose.ui.unit/Dp // io.kontour.ui.foundation/FillPattern.weight.<get-weight>|<get-weight>(){}[0]
+
+    final fun equals(kotlin/Any?): kotlin/Boolean // io.kontour.ui.foundation/FillPattern.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // io.kontour.ui.foundation/FillPattern.hashCode|hashCode(){}[0]
+
+    final object Companion { // io.kontour.ui.foundation/FillPattern.Companion|null[0]
+        final val CrossHatch // io.kontour.ui.foundation/FillPattern.Companion.CrossHatch|{}CrossHatch[0]
+            final fun <get-CrossHatch>(): io.kontour.ui.foundation/FillPattern // io.kontour.ui.foundation/FillPattern.Companion.CrossHatch.<get-CrossHatch>|<get-CrossHatch>(){}[0]
+        final val Diagonal // io.kontour.ui.foundation/FillPattern.Companion.Diagonal|{}Diagonal[0]
+            final fun <get-Diagonal>(): io.kontour.ui.foundation/FillPattern // io.kontour.ui.foundation/FillPattern.Companion.Diagonal.<get-Diagonal>|<get-Diagonal>(){}[0]
+        final val Dots // io.kontour.ui.foundation/FillPattern.Companion.Dots|{}Dots[0]
+            final fun <get-Dots>(): io.kontour.ui.foundation/FillPattern // io.kontour.ui.foundation/FillPattern.Companion.Dots.<get-Dots>|<get-Dots>(){}[0]
+        final val Grid // io.kontour.ui.foundation/FillPattern.Companion.Grid|{}Grid[0]
+            final fun <get-Grid>(): io.kontour.ui.foundation/FillPattern // io.kontour.ui.foundation/FillPattern.Companion.Grid.<get-Grid>|<get-Grid>(){}[0]
+        final val Horizontal // io.kontour.ui.foundation/FillPattern.Companion.Horizontal|{}Horizontal[0]
+            final fun <get-Horizontal>(): io.kontour.ui.foundation/FillPattern // io.kontour.ui.foundation/FillPattern.Companion.Horizontal.<get-Horizontal>|<get-Horizontal>(){}[0]
+        final val ReverseDiagonal // io.kontour.ui.foundation/FillPattern.Companion.ReverseDiagonal|{}ReverseDiagonal[0]
+            final fun <get-ReverseDiagonal>(): io.kontour.ui.foundation/FillPattern // io.kontour.ui.foundation/FillPattern.Companion.ReverseDiagonal.<get-ReverseDiagonal>|<get-ReverseDiagonal>(){}[0]
+        final val Solid // io.kontour.ui.foundation/FillPattern.Companion.Solid|{}Solid[0]
+            final fun <get-Solid>(): io.kontour.ui.foundation/FillPattern // io.kontour.ui.foundation/FillPattern.Companion.Solid.<get-Solid>|<get-Solid>(){}[0]
+        final val Vertical // io.kontour.ui.foundation/FillPattern.Companion.Vertical|{}Vertical[0]
+            final fun <get-Vertical>(): io.kontour.ui.foundation/FillPattern // io.kontour.ui.foundation/FillPattern.Companion.Vertical.<get-Vertical>|<get-Vertical>(){}[0]
+
+        final fun custom(androidx.compose.ui.unit/DpSize, kotlin/Any? = ..., kotlin/Function2<androidx.compose.ui.graphics.drawscope/DrawScope, androidx.compose.ui.graphics/Color, kotlin/Unit>): io.kontour.ui.foundation/FillPattern // io.kontour.ui.foundation/FillPattern.Companion.custom|custom(androidx.compose.ui.unit.DpSize;kotlin.Any?;kotlin.Function2<androidx.compose.ui.graphics.drawscope.DrawScope,androidx.compose.ui.graphics.Color,kotlin.Unit>){}[0]
+        final fun dots(androidx.compose.ui.unit/Dp = ..., androidx.compose.ui.unit/Dp = ..., kotlin/Boolean = ...): io.kontour.ui.foundation/FillPattern // io.kontour.ui.foundation/FillPattern.Companion.dots|dots(androidx.compose.ui.unit.Dp;androidx.compose.ui.unit.Dp;kotlin.Boolean){}[0]
+        final fun lines(kotlin/Array<out io.kontour.ui.foundation/PatternDirection>..., androidx.compose.ui.unit/Dp = ..., androidx.compose.ui.unit/Dp = ...): io.kontour.ui.foundation/FillPattern // io.kontour.ui.foundation/FillPattern.Companion.lines|lines(kotlin.Array<out|io.kontour.ui.foundation.PatternDirection>...;androidx.compose.ui.unit.Dp;androidx.compose.ui.unit.Dp){}[0]
+    }
+}
+
 final class io.kontour.ui.foundation/Hsl { // io.kontour.ui.foundation/Hsl|null[0]
     constructor <init>(kotlin/Float, kotlin/Float, kotlin/Float) // io.kontour.ui.foundation/Hsl.<init>|<init>(kotlin.Float;kotlin.Float;kotlin.Float){}[0]
 
@@ -2422,7 +2454,7 @@ final class io.kontour.ui.foundation/Hsv { // io.kontour.ui.foundation/Hsv|null[
 final class io.kontour.ui.foundation/PatternBrushes { // io.kontour.ui.foundation/PatternBrushes|null[0]
     constructor <init>() // io.kontour.ui.foundation/PatternBrushes.<init>|<init>(){}[0]
 
-    final fun brush(io.kontour.ui.foundation/FillPattern, androidx.compose.ui.graphics/Color, kotlin/Int, kotlin/Float): androidx.compose.ui.graphics/Brush? // io.kontour.ui.foundation/PatternBrushes.brush|brush(io.kontour.ui.foundation.FillPattern;androidx.compose.ui.graphics.Color;kotlin.Int;kotlin.Float){}[0]
+    final fun brush(io.kontour.ui.foundation/FillPattern, androidx.compose.ui.graphics/Color, androidx.compose.ui.unit/Density, androidx.compose.ui.unit/Dp): androidx.compose.ui.graphics/Brush? // io.kontour.ui.foundation/PatternBrushes.brush|brush(io.kontour.ui.foundation.FillPattern;androidx.compose.ui.graphics.Color;androidx.compose.ui.unit.Density;androidx.compose.ui.unit.Dp){}[0]
 }
 
 final class io.kontour.ui.foundation/RichTextScope { // io.kontour.ui.foundation/RichTextScope|null[0]
@@ -4934,10 +4966,12 @@ final object io.kontour.ui.dragdrop/DragAndDropDefaults { // io.kontour.ui.dragd
 }
 
 final object io.kontour.ui.foundation/FillPatternDefaults { // io.kontour.ui.foundation/FillPatternDefaults|null[0]
-    final val Stroke // io.kontour.ui.foundation/FillPatternDefaults.Stroke|{}Stroke[0]
-        final fun <get-Stroke>(androidx.compose.runtime/Composer?, kotlin/Int): androidx.compose.ui.unit/Dp // io.kontour.ui.foundation/FillPatternDefaults.Stroke.<get-Stroke>|<get-Stroke>(androidx.compose.runtime.Composer?;kotlin.Int){}[0]
-    final val Tile // io.kontour.ui.foundation/FillPatternDefaults.Tile|{}Tile[0]
-        final fun <get-Tile>(): androidx.compose.ui.unit/Dp // io.kontour.ui.foundation/FillPatternDefaults.Tile.<get-Tile>|<get-Tile>(){}[0]
+    final val Series // io.kontour.ui.foundation/FillPatternDefaults.Series|{}Series[0]
+        final fun <get-Series>(): kotlin.collections/List<io.kontour.ui.foundation/FillPattern> // io.kontour.ui.foundation/FillPatternDefaults.Series.<get-Series>|<get-Series>(){}[0]
+    final val Spacing // io.kontour.ui.foundation/FillPatternDefaults.Spacing|{}Spacing[0]
+        final fun <get-Spacing>(): androidx.compose.ui.unit/Dp // io.kontour.ui.foundation/FillPatternDefaults.Spacing.<get-Spacing>|<get-Spacing>(){}[0]
+    final val Weight // io.kontour.ui.foundation/FillPatternDefaults.Weight|{}Weight[0]
+        final fun <get-Weight>(androidx.compose.runtime/Composer?, kotlin/Int): androidx.compose.ui.unit/Dp // io.kontour.ui.foundation/FillPatternDefaults.Weight.<get-Weight>|<get-Weight>(androidx.compose.runtime.Composer?;kotlin.Int){}[0]
 }
 
 final object io.kontour.ui.foundation/LinkDefaults { // io.kontour.ui.foundation/LinkDefaults|null[0]
@@ -5611,6 +5645,7 @@ final val io.kontour.ui.foundation/LocalRedacted // io.kontour.ui.foundation/Loc
     final fun <get-LocalRedacted>(): androidx.compose.runtime/ProvidableCompositionLocal<kotlin/Boolean> // io.kontour.ui.foundation/LocalRedacted.<get-LocalRedacted>|<get-LocalRedacted>(){}[0]
 final val io.kontour.ui.foundation/LocalTextStyle // io.kontour.ui.foundation/LocalTextStyle|{}LocalTextStyle[0]
     final fun <get-LocalTextStyle>(): androidx.compose.runtime/ProvidableCompositionLocal<androidx.compose.ui.text/TextStyle> // io.kontour.ui.foundation/LocalTextStyle.<get-LocalTextStyle>|<get-LocalTextStyle>(){}[0]
+final val io.kontour.ui.foundation/io_kontour_ui_foundation_FillPattern$stableprop // io.kontour.ui.foundation/io_kontour_ui_foundation_FillPattern$stableprop|#static{}io_kontour_ui_foundation_FillPattern$stableprop[0]
 final val io.kontour.ui.foundation/io_kontour_ui_foundation_FillPatternDefaults$stableprop // io.kontour.ui.foundation/io_kontour_ui_foundation_FillPatternDefaults$stableprop|#static{}io_kontour_ui_foundation_FillPatternDefaults$stableprop[0]
 final val io.kontour.ui.foundation/io_kontour_ui_foundation_Hsl$stableprop // io.kontour.ui.foundation/io_kontour_ui_foundation_Hsl$stableprop|#static{}io_kontour_ui_foundation_Hsl$stableprop[0]
 final val io.kontour.ui.foundation/io_kontour_ui_foundation_Hsv$stableprop // io.kontour.ui.foundation/io_kontour_ui_foundation_Hsv$stableprop|#static{}io_kontour_ui_foundation_Hsv$stableprop[0]
@@ -5813,7 +5848,7 @@ final fun (androidx.compose.ui/Modifier).io.kontour.ui.dragdrop/dragAutoScroll(a
 final fun (androidx.compose.ui/Modifier).io.kontour.ui.dragdrop/dropList(io.kontour.ui.dragdrop/DropListState<*>, kotlin/Boolean = ...): androidx.compose.ui/Modifier // io.kontour.ui.dragdrop/dropList|dropList@androidx.compose.ui.Modifier(io.kontour.ui.dragdrop.DropListState<*>;kotlin.Boolean){}[0]
 final fun (androidx.compose.ui/Modifier).io.kontour.ui.dragdrop/dropTarget(io.kontour.ui.dragdrop/DropTargetState<*>, kotlin/Boolean = ...): androidx.compose.ui/Modifier // io.kontour.ui.dragdrop/dropTarget|dropTarget@androidx.compose.ui.Modifier(io.kontour.ui.dragdrop.DropTargetState<*>;kotlin.Boolean){}[0]
 final fun (androidx.compose.ui/Modifier).io.kontour.ui.foundation/elevation(io.kontour.ui.theme/Shadow, androidx.compose.ui.graphics/Shape): androidx.compose.ui/Modifier // io.kontour.ui.foundation/elevation|elevation@androidx.compose.ui.Modifier(io.kontour.ui.theme.Shadow;androidx.compose.ui.graphics.Shape){}[0]
-final fun (androidx.compose.ui/Modifier).io.kontour.ui.foundation/fillPattern(io.kontour.ui.foundation/FillPattern, androidx.compose.ui.graphics/Color, androidx.compose.ui.graphics/Shape?, androidx.compose.ui.unit/Dp, androidx.compose.runtime/Composer?, kotlin/Int, kotlin/Int): androidx.compose.ui/Modifier // io.kontour.ui.foundation/fillPattern|fillPattern@androidx.compose.ui.Modifier(io.kontour.ui.foundation.FillPattern;androidx.compose.ui.graphics.Color;androidx.compose.ui.graphics.Shape?;androidx.compose.ui.unit.Dp;androidx.compose.runtime.Composer?;kotlin.Int;kotlin.Int){}[0]
+final fun (androidx.compose.ui/Modifier).io.kontour.ui.foundation/fillPattern(io.kontour.ui.foundation/FillPattern, androidx.compose.ui.graphics/Color, androidx.compose.ui.graphics/Shape?, kotlin/Float, androidx.compose.runtime/Composer?, kotlin/Int, kotlin/Int): androidx.compose.ui/Modifier // io.kontour.ui.foundation/fillPattern|fillPattern@androidx.compose.ui.Modifier(io.kontour.ui.foundation.FillPattern;androidx.compose.ui.graphics.Color;androidx.compose.ui.graphics.Shape?;kotlin.Float;androidx.compose.runtime.Composer?;kotlin.Int;kotlin.Int){}[0]
 final fun (androidx.compose.ui/Modifier).io.kontour.ui.foundation/redacted(androidx.compose.ui.graphics/Shape?, kotlin/Boolean, androidx.compose.runtime/Composer?, kotlin/Int, kotlin/Int): androidx.compose.ui/Modifier // io.kontour.ui.foundation/redacted|redacted@androidx.compose.ui.Modifier(androidx.compose.ui.graphics.Shape?;kotlin.Boolean;androidx.compose.runtime.Composer?;kotlin.Int;kotlin.Int){}[0]
 final fun (androidx.compose.ui/Modifier).io.kontour.ui.foundation/selectionIndicatorItem(kotlin/Any, kotlin/Boolean, androidx.compose.runtime/Composer?, kotlin/Int): androidx.compose.ui/Modifier // io.kontour.ui.foundation/selectionIndicatorItem|selectionIndicatorItem@androidx.compose.ui.Modifier(kotlin.Any;kotlin.Boolean;androidx.compose.runtime.Composer?;kotlin.Int){}[0]
 final fun (androidx.compose.ui/Modifier).io.kontour.ui.input/clearFocusOnTap(kotlin/Boolean, androidx.compose.runtime/Composer?, kotlin/Int, kotlin/Int): androidx.compose.ui/Modifier // io.kontour.ui.input/clearFocusOnTap|clearFocusOnTap@androidx.compose.ui.Modifier(kotlin.Boolean;androidx.compose.runtime.Composer?;kotlin.Int;kotlin.Int){}[0]
@@ -6168,6 +6203,7 @@ final fun io.kontour.ui.foundation/Text(kotlin/String, androidx.compose.ui/Modif
 final fun io.kontour.ui.foundation/Text(kotlin/String, androidx.compose.ui/Modifier?, androidx.compose.ui.graphics/Color, androidx.compose.ui.unit/TextUnit?, androidx.compose.ui.text.font/FontStyle?, androidx.compose.ui.text.font/FontWeight?, androidx.compose.ui.text.font/FontFamily?, androidx.compose.ui.unit/TextUnit?, androidx.compose.ui.text.style/TextDecoration?, androidx.compose.ui.text.style/TextAlign?, androidx.compose.ui.unit/TextUnit?, androidx.compose.ui.text.style/TextOverflow?, kotlin/Boolean, kotlin/Int, kotlin/Int, kotlin/Function1<androidx.compose.ui.text/TextLayoutResult, kotlin/Unit>?, androidx.compose.ui.text/TextStyle?, androidx.compose.runtime/Composer?, kotlin/Int, kotlin/Int, kotlin/Int) // io.kontour.ui.foundation/Text|Text(kotlin.String;androidx.compose.ui.Modifier?;androidx.compose.ui.graphics.Color;androidx.compose.ui.unit.TextUnit?;androidx.compose.ui.text.font.FontStyle?;androidx.compose.ui.text.font.FontWeight?;androidx.compose.ui.text.font.FontFamily?;androidx.compose.ui.unit.TextUnit?;androidx.compose.ui.text.style.TextDecoration?;androidx.compose.ui.text.style.TextAlign?;androidx.compose.ui.unit.TextUnit?;androidx.compose.ui.text.style.TextOverflow?;kotlin.Boolean;kotlin.Int;kotlin.Int;kotlin.Function1<androidx.compose.ui.text.TextLayoutResult,kotlin.Unit>?;androidx.compose.ui.text.TextStyle?;androidx.compose.runtime.Composer?;kotlin.Int;kotlin.Int;kotlin.Int){}[0]
 final fun io.kontour.ui.foundation/VerticalDivider(androidx.compose.ui/Modifier?, androidx.compose.ui.unit/Dp, androidx.compose.ui.graphics/Color, androidx.compose.ui.unit/Dp, androidx.compose.ui.unit/Dp, androidx.compose.runtime/Composer?, kotlin/Int, kotlin/Int) // io.kontour.ui.foundation/VerticalDivider|VerticalDivider(androidx.compose.ui.Modifier?;androidx.compose.ui.unit.Dp;androidx.compose.ui.graphics.Color;androidx.compose.ui.unit.Dp;androidx.compose.ui.unit.Dp;androidx.compose.runtime.Composer?;kotlin.Int;kotlin.Int){}[0]
 final fun io.kontour.ui.foundation/colourFromHex(kotlin/String): androidx.compose.ui.graphics/Color? // io.kontour.ui.foundation/colourFromHex|colourFromHex(kotlin.String){}[0]
+final fun io.kontour.ui.foundation/io_kontour_ui_foundation_FillPattern$stableprop_getter(): kotlin/Int // io.kontour.ui.foundation/io_kontour_ui_foundation_FillPattern$stableprop_getter|io_kontour_ui_foundation_FillPattern$stableprop_getter(){}[0]
 final fun io.kontour.ui.foundation/io_kontour_ui_foundation_FillPatternDefaults$stableprop_getter(): kotlin/Int // io.kontour.ui.foundation/io_kontour_ui_foundation_FillPatternDefaults$stableprop_getter|io_kontour_ui_foundation_FillPatternDefaults$stableprop_getter(){}[0]
 final fun io.kontour.ui.foundation/io_kontour_ui_foundation_Hsl$stableprop_getter(): kotlin/Int // io.kontour.ui.foundation/io_kontour_ui_foundation_Hsl$stableprop_getter|io_kontour_ui_foundation_Hsl$stableprop_getter(){}[0]
 final fun io.kontour.ui.foundation/io_kontour_ui_foundation_Hsv$stableprop_getter(): kotlin/Int // io.kontour.ui.foundation/io_kontour_ui_foundation_Hsv$stableprop_getter|io_kontour_ui_foundation_Hsv$stableprop_getter(){}[0]

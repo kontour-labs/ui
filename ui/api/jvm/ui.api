@@ -2323,28 +2323,43 @@ public final class io/kontour/ui/foundation/DividerKt {
 	public static final fun VerticalDivider-orn9Ti0 (Landroidx/compose/ui/Modifier;FJFFLandroidx/compose/runtime/Composer;II)V
 }
 
-public final class io/kontour/ui/foundation/FillPattern : java/lang/Enum {
-	public static final field CrossHatch Lio/kontour/ui/foundation/FillPattern;
-	public static final field Diagonal Lio/kontour/ui/foundation/FillPattern;
-	public static final field Dots Lio/kontour/ui/foundation/FillPattern;
-	public static final field Horizontal Lio/kontour/ui/foundation/FillPattern;
-	public static final field ReverseDiagonal Lio/kontour/ui/foundation/FillPattern;
-	public static final field Solid Lio/kontour/ui/foundation/FillPattern;
-	public static final field Vertical Lio/kontour/ui/foundation/FillPattern;
-	public static fun getEntries ()Lkotlin/enums/EnumEntries;
-	public static fun valueOf (Ljava/lang/String;)Lio/kontour/ui/foundation/FillPattern;
-	public static fun values ()[Lio/kontour/ui/foundation/FillPattern;
+public final class io/kontour/ui/foundation/FillPattern {
+	public static final field $stable I
+	public static final field Companion Lio/kontour/ui/foundation/FillPattern$Companion;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getSpacing-D9Ej5fM ()F
+	public final fun getWeight-D9Ej5fM ()F
+	public fun hashCode ()I
+	public final fun isSolid ()Z
+}
+
+public final class io/kontour/ui/foundation/FillPattern$Companion {
+	public final fun custom-qzXmJYc (JLjava/lang/Object;Lkotlin/jvm/functions/Function2;)Lio/kontour/ui/foundation/FillPattern;
+	public static synthetic fun custom-qzXmJYc$default (Lio/kontour/ui/foundation/FillPattern$Companion;JLjava/lang/Object;Lkotlin/jvm/functions/Function2;ILjava/lang/Object;)Lio/kontour/ui/foundation/FillPattern;
+	public final fun dots-Md-fbLM (FFZ)Lio/kontour/ui/foundation/FillPattern;
+	public static synthetic fun dots-Md-fbLM$default (Lio/kontour/ui/foundation/FillPattern$Companion;FFZILjava/lang/Object;)Lio/kontour/ui/foundation/FillPattern;
+	public final fun getCrossHatch ()Lio/kontour/ui/foundation/FillPattern;
+	public final fun getDiagonal ()Lio/kontour/ui/foundation/FillPattern;
+	public final fun getDots ()Lio/kontour/ui/foundation/FillPattern;
+	public final fun getGrid ()Lio/kontour/ui/foundation/FillPattern;
+	public final fun getHorizontal ()Lio/kontour/ui/foundation/FillPattern;
+	public final fun getReverseDiagonal ()Lio/kontour/ui/foundation/FillPattern;
+	public final fun getSolid ()Lio/kontour/ui/foundation/FillPattern;
+	public final fun getVertical ()Lio/kontour/ui/foundation/FillPattern;
+	public final fun lines-VpY3zN4 ([Lio/kontour/ui/foundation/PatternDirection;FF)Lio/kontour/ui/foundation/FillPattern;
+	public static synthetic fun lines-VpY3zN4$default (Lio/kontour/ui/foundation/FillPattern$Companion;[Lio/kontour/ui/foundation/PatternDirection;FFILjava/lang/Object;)Lio/kontour/ui/foundation/FillPattern;
 }
 
 public final class io/kontour/ui/foundation/FillPatternDefaults {
 	public static final field $stable I
 	public static final field INSTANCE Lio/kontour/ui/foundation/FillPatternDefaults;
-	public final fun getStroke (Landroidx/compose/runtime/Composer;I)F
-	public final fun getTile-D9Ej5fM ()F
+	public final fun getSeries ()Ljava/util/List;
+	public final fun getSpacing-D9Ej5fM ()F
+	public final fun getWeight (Landroidx/compose/runtime/Composer;I)F
 }
 
 public final class io/kontour/ui/foundation/FillPatternKt {
-	public static final fun fillPattern-u4SGt0E (Landroidx/compose/ui/Modifier;Lio/kontour/ui/foundation/FillPattern;JLandroidx/compose/ui/graphics/Shape;FLandroidx/compose/runtime/Composer;II)Landroidx/compose/ui/Modifier;
+	public static final fun fillPattern-T042LqI (Landroidx/compose/ui/Modifier;Lio/kontour/ui/foundation/FillPattern;JLandroidx/compose/ui/graphics/Shape;FLandroidx/compose/runtime/Composer;II)Landroidx/compose/ui/Modifier;
 }
 
 public final class io/kontour/ui/foundation/GroupPosition : java/lang/Enum {
@@ -2491,7 +2506,17 @@ public final class io/kontour/ui/foundation/LocalContentKt {
 public final class io/kontour/ui/foundation/PatternBrushes {
 	public static final field $stable I
 	public fun <init> ()V
-	public final fun brush-RPmYEkk (Lio/kontour/ui/foundation/FillPattern;JIF)Landroidx/compose/ui/graphics/Brush;
+	public final fun brush-fOGDGlw (Lio/kontour/ui/foundation/FillPattern;JLandroidx/compose/ui/unit/Density;F)Landroidx/compose/ui/graphics/Brush;
+}
+
+public final class io/kontour/ui/foundation/PatternDirection : java/lang/Enum {
+	public static final field Falling Lio/kontour/ui/foundation/PatternDirection;
+	public static final field Horizontal Lio/kontour/ui/foundation/PatternDirection;
+	public static final field Rising Lio/kontour/ui/foundation/PatternDirection;
+	public static final field Vertical Lio/kontour/ui/foundation/PatternDirection;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/kontour/ui/foundation/PatternDirection;
+	public static fun values ()[Lio/kontour/ui/foundation/PatternDirection;
 }
 
 public final class io/kontour/ui/foundation/RedactionKt {
