@@ -11,6 +11,15 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.CoroutineScope
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.unit.Velocity
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.NestedScrollDispatcher
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
@@ -240,7 +249,7 @@ fun Scrollbar(
     // scrollbar that thinned out halfway through one would be reporting that
     // the grip had been lost.
     val active = (pointer && (hovered || dragged)) || touch.held
-    val source = rememberScrollbarSource(state)
+    val source = rememberScrollbarSource(state, orientation)
     // Held, the thumb keeps its length, and a pixel of it the content it was.
     SideEffect { source.hold(dragged || touch.held) }
     // A list with an index down its edge has that for a scrollbar.
@@ -302,6 +311,9 @@ fun Scrollbar(
 
     Box(
         modifier = modifier
+            // A drag of the thumb goes through the scroll chain round the
+            // list, as a swipe of it does: see [ScrollbarSource.dragBy].
+            .scrollbarChain(source)
             // Nothing to announce: the list already conveys its own position.
             .clearAndSetSemantics {}
             // Clear of what is over the scroller's ends, and outside everything
@@ -457,7 +469,7 @@ fun Modifier.scrollbar(
     val touch = remember { ScrollbarTouchGrip() }
     val active = (pointer && (grip.hovered || grip.dragging)) || touch.held
     val look = rememberScrollbarLook(state, pointer, alwaysVisible, active, thickness, hoveredThickness, touch.held)
-    val source = rememberScrollbarSource(state)
+    val source = rememberScrollbarSource(state, orientation)
     // Held, the thumb keeps its length, and a pixel of it the content it was.
     SideEffect { source.hold(grip.dragging || touch.held) }
     val density = LocalDensity.current
@@ -496,6 +508,9 @@ fun Modifier.scrollbar(
     // and a node taken off the scroller mid-press cancels the press on
     // everything inside it: the row, or the menu item, the tap was for.
     return this
+        // Before the content's own scroll, so a drag of the thumb goes up the
+        // chain past the content rather than into it.
+        .scrollbarChain(source)
         // There all along and the arrow, overriding nothing, until the pointer
         // is on the bar: Compose asks the nodes under a press at the moment it
         // goes down. See `heldCursor`.
@@ -1117,7 +1132,35 @@ internal class ScrollbarSource(private val state: ScrollableState) {
 
     fun hold(on: Boolean) {
         if (on && !held) frozenScrollable = estimate().scrollable
+        // Let go: a fling of nothing, so what collapses as the content scrolls
+        // settles where a swipe let go would have left it.
+        if (!on && held) settle()
         held = on
+    }
+
+    /**
+     * The scroll chain round the content: what a drag of the thumb is offered
+     * first and told of after, as a swipe's is. See [dragBy].
+     */
+    var chain: NestedScrollDispatcher? = null
+
+    /** Which way the thumb drags the content, for the chain's offsets. */
+    var vertical: Boolean = true
+
+    /** Where a let-go's fling to the chain runs. */
+    var scope: CoroutineScope? = null
+
+    private fun along(amount: Float): Offset = if (vertical) Offset(0f, amount) else Offset(amount, 0f)
+
+    private fun Offset.along(): Float = if (vertical) y else x
+
+    private fun settle() {
+        val chain = chain ?: return
+        val scope = scope ?: return
+        scope.launch {
+            val left = Velocity.Zero - chain.dispatchPreFling(Velocity.Zero)
+            chain.dispatchPostFling(Velocity.Zero, left)
+        }
     }
 
     private var frozenScrollable = 0f
@@ -1246,7 +1289,23 @@ internal class ScrollbarSource(private val state: ScrollableState) {
             position <= 0f && along < 0f -> -scrollable.coerceAtLeast(1f) * EndPush
             else -> (position - was) * scrollable
         }
-        driven += state.dispatchRawDelta(delta)
+        // **Through the scroll chain, as a swipe goes**, not straight into the
+        // content: a large top bar collapses from what its connection is
+        // offered, and a thumb dragged down the list offered it nothing, so
+        // the bar stayed open over a list scrolled to its middle — *"if you
+        // drag the scrollbar, the bar doesn't collapse"*. Offered first, the
+        // content scrolls what is left, and the chain is told what it did.
+        // A chain's offsets are the way a finger moves, against the content's.
+        // Only once it is in the chain: a dispatcher not yet attached has none.
+        val chain = chain?.takeIf { runCatching { it.coroutineScope.isActive }.getOrDefault(false) }
+        if (chain == null) {
+            driven += state.dispatchRawDelta(delta)
+            return
+        }
+        val ahead = delta + chain.dispatchPreScroll(along(-delta), NestedScrollSource.UserInput).along()
+        val moved = state.dispatchRawDelta(ahead)
+        chain.dispatchPostScroll(along(-moved), along(-(ahead - moved)), NestedScrollSource.UserInput)
+        driven += moved
     }
 }
 
@@ -1254,11 +1313,25 @@ internal class ScrollbarSource(private val state: ScrollableState) {
 private const val EndPush = 4f
 
 @Composable
-private fun rememberScrollbarSource(state: ScrollableState): ScrollbarSource {
+private fun rememberScrollbarSource(state: ScrollableState, orientation: Orientation): ScrollbarSource {
     val source = remember(state) { ScrollbarSource(state) }
     source.shownFraction = rememberShownFraction(source)
+    source.vertical = orientation == Orientation.Vertical
+    source.scope = rememberCoroutineScope()
     return source
 }
+
+/**
+ * A node in the scroll chain for the thumb to drag the content through: see
+ * [ScrollbarSource.dragBy]. It takes nothing itself; it only passes a drag of
+ * the thumb up to whatever is above it, a top bar's connection among them.
+ */
+private fun Modifier.scrollbarChain(source: ScrollbarSource): Modifier {
+    val chain = source.chain ?: NestedScrollDispatcher().also { source.chain = it }
+    return nestedScroll(TakesNothing, chain)
+}
+
+private object TakesNothing : NestedScrollConnection
 
 /**
  * The thumb's length as drawn: the estimate's, eased toward it with a gentle
