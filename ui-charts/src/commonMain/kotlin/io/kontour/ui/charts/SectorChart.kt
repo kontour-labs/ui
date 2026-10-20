@@ -336,9 +336,12 @@ fun SectorChart(
                             )
                         }
                         // The gap between sectors, in the page's own ground, so
-                        // that two sectors of near colours are still two.
+                        // that two sectors of near colours are still two. None
+                        // for a sector that is the whole circle: it has no
+                        // neighbour to be told from, and a line across it
+                        // reads as a part of nothing.
                         val edge = radians(angle)
-                        drawLine(
+                        if (extent < 359.9f) drawLine(
                             colours.ground,
                             Offset(circle.x + hole * cos(edge), circle.y + hole * sin(edge)),
                             Offset(circle.x + radius * cos(edge), circle.y + radius * sin(edge)),
@@ -514,11 +517,11 @@ internal fun sectorPath(centre: Offset, radius: Float, hole: Float, start: Float
     if (r < 0.5f || abs(sweep) >= 359.9f) {
         if (hole <= 0f) {
             path.moveTo(centre.x, centre.y)
-            path.arcTo(outer, start, sweep, forceMoveTo = false)
+            path.wholeArcTo(outer, start, sweep, forceMoveTo = false)
             path.close()
         } else {
-            path.arcTo(outer, start, sweep, forceMoveTo = true)
-            path.arcTo(Rect(centre, hole), start + sweep, -sweep, forceMoveTo = false)
+            path.wholeArcTo(outer, start, sweep, forceMoveTo = true)
+            path.wholeArcTo(Rect(centre, hole), start + sweep, -sweep, forceMoveTo = false)
             path.close()
         }
         return path
@@ -548,6 +551,24 @@ internal fun sectorPath(centre: Offset, radius: Float, hole: Float, start: Float
     }
     path.close()
     return path
+}
+
+/**
+ * `arcTo`, in halves past half a turn, so a whole turn is drawn as one.
+ *
+ * Skia, like Android's own `Path.arcTo`, takes a sweep of a whole turn as no
+ * turn at all: it starts and ends in the same place, and is drawn as a point.
+ * So a sector that was the whole of its circle, the last series shown in a
+ * pie at 100%, vanished. Reported as *"when one item is 100%, it rolls over
+ * to 0%"*.
+ */
+private fun Path.wholeArcTo(oval: Rect, start: Float, sweep: Float, forceMoveTo: Boolean) {
+    if (abs(sweep) <= 180f) {
+        arcTo(oval, start, sweep, forceMoveTo)
+        return
+    }
+    arcTo(oval, start, sweep / 2, forceMoveTo)
+    arcTo(oval, start + sweep / 2, sweep / 2, forceMoveTo = false)
 }
 
 /** The short way round the circle of [r] about [centre], from [from] to [to]. */

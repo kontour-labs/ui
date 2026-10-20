@@ -37,6 +37,25 @@ class SectorGeometryTest {
         assertNull(pie.partAt(Offset(40f, 100f), 400f, 200f), "left of the circle is outside it")
     }
 
+    /**
+     * A sector that is the whole of the circle is drawn as the whole of it, as
+     * a pie and as a ring, either way round: not as nothing.
+     *
+     * A whole turn was one `arcTo` of 360 degrees, which Skia takes as no turn
+     * at all, so the last series left in a pie, at 100%, vanished. Reported
+     * as *"when one item is 100%, it rolls over to 0%"*.
+     */
+    @Test
+    fun aWholeCircleIsDrawnWhole() {
+        for (hole in listOf(0f, 50f)) {
+            for (sweep in listOf(360f, -360f)) {
+                val bounds = sectorPath(Offset(100f, 100f), radius = 80f, hole = hole, start = -90f, sweep = sweep).getBounds()
+                assertEquals(160f, bounds.width, 1f, "a whole ${if (hole > 0f) "ring" else "pie"} at $sweep degrees is ${bounds.width} wide")
+                assertEquals(160f, bounds.height, 1f, "a whole ${if (hole > 0f) "ring" else "pie"} at $sweep degrees is ${bounds.height} tall")
+            }
+        }
+    }
+
     @Test
     fun theHoleIsNoSector() {
         val donut = SectorGeometry(shares, innerRadius = 0.5f, direction = 1f)

@@ -173,6 +173,10 @@ On `main`, and in the next release.
 - **The keyboard goes as a sheet or dialog starts to leave.** It went when the
   overlay had finished leaving and its field had gone with it, the length of a
   sheet's slide late. Only when the focus is in the overlay.
+- **A sector at 100% is drawn as the whole circle.** The last series shown in
+  a `SectorChart` vanished: a whole turn was one arc of 360 degrees, which
+  Skia takes as no turn at all. It also has no dividing line across it now,
+  since it has no neighbour.
 - **A drop list that refuses what is carried over it makes no room for it.**
   A full column moved its items aside for a card it was about to send home.
   It now shows the refusal and keeps its items where they are.
