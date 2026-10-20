@@ -150,6 +150,12 @@ On `main`, and in the next release.
 
 ### Fixed
 
+- **A list on `rememberScrollbarListState()` no longer crashes an app as it
+  leaves.** Leaving a page, a tab or a sheet while its list was still measuring
+  its rows for the scrollbar could crash with "LayoutNode should be attached
+  to an owner": the rows it held were let go of after the list had gone. Now
+  they are forgotten with it, since the list's leaving disposes them, and a
+  row of a list that has gone is never let go of.
 - **A sheet or dialog opening with the keyboard no longer pushes the app up.**
   A field focused as its overlay arrived asked to be seen while it was still
   low on the screen, nothing in the overlay answered, and on Android the
