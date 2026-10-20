@@ -184,6 +184,10 @@ On `main`, and in the next release.
 - **The keyboard goes as a sheet or dialog starts to leave.** It went when the
   overlay had finished leaving and its field had gone with it, the length of a
   sheet's slide late. Only when the focus is in the overlay.
+- **A submenu opened in place closes as it opened.** It opened on the theme's
+  spring and closed on its fastest tween, so a long one collapsed its whole
+  height in a fraction of the time it took to grow. It closes on the same
+  spring now, and the menu beneath takes taps again as soon as it starts to.
 - **A press on a field off its text puts the caret at the nearer end.** A
   press on a text field's leading icon or padding, or on a
   `TextFieldListItem`'s label, focused it with the caret wherever it was last
