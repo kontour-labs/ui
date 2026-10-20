@@ -24,6 +24,9 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -538,6 +541,22 @@ private class SectionMeasurePolicy(
     private val rowInset: Dp,
 ) : MeasurePolicy {
 
+    /**
+     * Whether the body began with a row, and ended with one, as it was last
+     * placed: what the header's and the footer's insets go by.
+     *
+     * **Read where the body is placed, not where it is measured.** Asking a
+     * child for an alignment line during measure has Compose lay it out
+     * there and then, placing its children inside the section's measure, and
+     * in a lazy list's row on a phone that placed a node Compose had not
+     * filed yet: *"LayoutNode … not found in RectList"*, from a row's
+     * touch target, under `startsWithRow`. Rows, until the body says
+     * otherwise, as the intrinsics below assume; a body that is not is
+     * measured again with its words flush, as soon as it has been placed.
+     */
+    private var bodyStarts by mutableStateOf(true)
+    private var bodyEnds by mutableStateOf(true)
+
     override fun MeasureScope.measure(measurables: List<Measurable>, constraints: Constraints): MeasureResult {
         val headerPart = measurables.firstOrNull { it.part == SectionPart.Header }
         val bodyPart = measurables.first { it.part == SectionPart.Body }
@@ -564,8 +583,8 @@ private class SectionMeasurePolicy(
         }
         val body = bodyPart.measure(bodyConstraints)
 
-        val headerInset = given ?: if (body.startsWithRow()) beside else 0
-        val footerInset = given ?: if (body.endsWithRow()) beside else 0
+        val headerInset = given ?: if (bodyStarts) beside else 0
+        val footerInset = given ?: if (bodyEnds) beside else 0
 
         val header = headerPart?.measure(loose.offset(horizontal = -headerInset))
         val footer = footerPart?.measure(loose.offset(horizontal = -footerInset))
@@ -591,6 +610,11 @@ private class SectionMeasurePolicy(
                 y += body.height + gap
             }
             footer?.placeRelative(footerInset, y)
+            // Once placed, what it began and ended with: see [bodyStarts].
+            if (given == null) {
+                if (header != null) body.startsWithRow().let { if (it != bodyStarts) bodyStarts = it }
+                if (footer != null) body.endsWithRow().let { if (it != bodyEnds) bodyEnds = it }
+            }
         }
     }
 
