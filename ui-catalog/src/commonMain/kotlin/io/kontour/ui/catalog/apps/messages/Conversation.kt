@@ -258,7 +258,7 @@ private fun ChatInfo(chat: Chat, thread: List<Message>) {
             alignment = OverlayAlignment.End,
             title = { +chat.name },
         ) {
-            KeyValueList {
+            KeyValueList(compact = true) {
                 if (chat.kind == ChatKind.Group) {
                     item("Members", (chat.members.map { it.substringBefore(' ') } + "you").joinToString(", "))
                 }

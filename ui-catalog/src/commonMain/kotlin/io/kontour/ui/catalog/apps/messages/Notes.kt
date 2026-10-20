@@ -58,6 +58,7 @@ import io.kontour.ui.components.display.Stat
 import io.kontour.ui.components.display.Tag
 import io.kontour.ui.components.list.ListItem
 import io.kontour.ui.components.list.ListItemDefaults
+import io.kontour.ui.components.list.TextFieldListItem
 import io.kontour.ui.components.list.ReorderableItem
 import io.kontour.ui.components.list.SectionHeader
 import io.kontour.ui.components.list.rememberReorderableState
@@ -399,21 +400,26 @@ private fun ColumnScope.NoteInfo(state: MessagesState, note: Note, onClose: () -
                 }
             }
         }
-        TextField(
-            state = newTag,
-            placeholder = "Add a tag",
-            imeAction = ImeAction.Done,
-            onKeyboardAction = { add() },
-            modifier = Modifier.fillMaxWidth(),
-        )
-        SelectionRow(
-            selected = note.pinned,
-            onSelectedChange = { state.updateNote(note.copy(pinned = it)) },
-            role = Role.Switch,
-        ) {
-            +"Pinned"
-            supporting { +"At the top of Notes, in the order you drag it to" }
-            trailing { Switch(checked = note.pinned, onCheckedChange = null) }
+        // A tag typed into a row, and the pin under it: one group, its rows'
+        // corners saying where each is in it.
+        Column(verticalArrangement = Arrangement.spacedBy(ListItemDefaults.Spacing)) {
+            TextFieldListItem(
+                state = newTag,
+                placeholder = "Add a tag",
+                imeAction = ImeAction.Done,
+                onKeyboardAction = { add() },
+                position = GroupPosition.First,
+            )
+            SelectionRow(
+                selected = note.pinned,
+                onSelectedChange = { state.updateNote(note.copy(pinned = it)) },
+                role = Role.Switch,
+                position = GroupPosition.Last,
+            ) {
+                +"Pinned"
+                supporting { +"At the top of Notes, in the order you drag it to" }
+                trailing { Switch(checked = note.pinned, onCheckedChange = null) }
+            }
         }
     }
 }
