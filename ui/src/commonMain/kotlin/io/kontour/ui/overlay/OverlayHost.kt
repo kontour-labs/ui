@@ -686,6 +686,8 @@ private fun EntryHost(
             .onFocusChanged { focus ->
                 if (focus.hasFocus) opened.focusIn = entry.key else if (opened.focusIn == entry.key) opened.focusIn = null
             }
+            // A field in the overlay asking to be seen never moves the window. See [endsBringIntoView].
+            .endsBringIntoView()
     ) {
         CompositionLocalProvider(
             LocalOverlayProgress provides reader,

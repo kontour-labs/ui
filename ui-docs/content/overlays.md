@@ -413,6 +413,24 @@ A modal that puts the focus in itself, as `CommandPalette` does with its
 field, still gets it: the focus behind it goes first, and its own request
 comes after. Closing a dialog over a sheet takes nothing from the sheet.
 
+### Nothing outside an overlay moves for a field in it
+
+A field asks to be brought into view as it takes focus, and again as the
+keyboard rises. A request from inside an overlay goes as far as the overlay
+and no further. The page under it never scrolls for it, and on Android the
+window never pans for it. A sheet hands the keyboard to its content as
+padding, and a dialog centres itself above the keyboard, so the overlay is
+already where it should be.
+
+In a sheet whose content scrolls, a field the keyboard covers is scrolled
+clear once the sheet has come to rest. Give the content the sheet's padding
+(`LazyColumn(contentPadding = padding)`) so there is room to scroll it into.
+Content that doesn't scroll stays where it is, behind the keyboard.
+
+On iOS, set `onFocusBehavior = OnFocusBehavior.DoNothing` on the
+`ComposeUIViewController`. Its default moves the whole view up for a focused
+field, which is the same push from the platform's side.
+
 ### A press on nothing puts the keyboard away
 
 `OverlayHost` also owns the other half of focus, which is losing it. A press that

@@ -51,6 +51,7 @@ import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.dragdrop.LocalOverlayLayer
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.motion.AnimatedSlot
@@ -188,19 +189,31 @@ internal fun FieldScaffold(
     // it is focused, since that is what shrinks the space it has to be seen in.
     //
     // In the scaffold, so `Select`, `Combobox` and `MultiSelect` have it too.
+    //
+    // In a sheet or a dialog, once the field has come to rest, and with room
+    // for the keyboard under it: see [FieldKeyboardRoom].
     val requester = remember { BringIntoViewRequester() }
     val keyboard = WindowInsets.ime
     val density = LocalDensity.current
-    LaunchedEffect(focused) {
+    val inOverlay = LocalOverlayLayer.current > 0
+    val room = remember { FieldKeyboardRoom() }
+    LaunchedEffect(focused, inOverlay) {
         if (!focused) return@LaunchedEffect
-        snapshotFlow { keyboard.getBottom(density) }.collectLatest { requester.bringIntoView() }
+        snapshotFlow { keyboard.getBottom(density) }.collectLatest { keyboardHeight ->
+            if (inOverlay) {
+                room.awaitRest()
+                requester.bringIntoView(room.boundsAbove(keyboardHeight))
+            } else {
+                requester.bringIntoView()
+            }
+        }
     }
 
     // No `verticalArrangement`: the message slot carries the gap above it, so a
     // field that stops being in error loses the message *and* its gap over the
     // same animation. With `spacedBy` the gap went in one frame at the end —
     // the vertical case of the snap `AnimatedSlot` documents.
-    Column(modifier = modifier.fillMaxWidth().bringIntoViewRequester(requester)) {
+    Column(modifier = modifier.fillMaxWidth().onPlaced { room.coordinates = it }.bringIntoViewRequester(requester)) {
         if (label != null) {
             Text(
                 // The one label that does not reach `contentScope`: a field

@@ -150,6 +150,14 @@ On `main`, and in the next release.
 
 ### Fixed
 
+- **A sheet or dialog opening with the keyboard no longer pushes the app up.**
+  A field focused as its overlay arrived asked to be seen while it was still
+  low on the screen, nothing in the overlay answered, and on Android the
+  window panned everything, sheet and page, to show it. A request from inside
+  an overlay now ends at the overlay. A field in a sheet the keyboard covers
+  waits until the sheet has stopped, and is then scrolled clear by the
+  content's own scroller, into the room the keyboard's padding makes. The rest
+  scrolls behind the keyboard.
 - **A sheet drag the system takes away is not a throw.** Android sends a
   cancel to each part of a sheet in turn, and the drag could hear it before the
   part that tells a cancel from a lift: a pull the phone took for its own
