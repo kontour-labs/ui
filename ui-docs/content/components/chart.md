@@ -396,6 +396,13 @@ A trend at the size of a word, with no axes: for a table cell, a `Stat`, the
 end of a sentence. It shows the shape and nothing else. To read values off it,
 use a `Chart`.
 
+It draws itself in from the start when it first appears, and when its values
+change, the line moves to its new shape rather than being replaced. Each new
+point sets off from where the old line was at the same place along it, so a
+live trend that gains a value and drops its oldest slides into shape. Values
+that change faster than the move carry on from wherever the line had got to.
+`animateData = false` draws it at once, as reduced motion does.
+
 ## `ChartDataTable`
 
 <!--sample:ChartDataTableBasics-->

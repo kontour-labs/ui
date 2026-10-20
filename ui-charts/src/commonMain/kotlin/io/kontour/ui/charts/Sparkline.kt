@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
@@ -45,7 +46,8 @@ import io.kontour.ui.theme.Theme
  * @param colour The line's colour: the first of the series palette, unless it
  *   should say something — `Theme.colours.danger.solid` for a fall that matters.
  * @param showArea Whether the area under the line is washed in its colour.
- * @param animateData Whether the line draws itself in when it first appears.
+ * @param animateData Whether the line draws itself in when it first appears,
+ *   and moves to its new shape when [values] change.
  * @param strings The words it says on its own.
  */
 @Composable
@@ -96,6 +98,25 @@ fun Sparkline(
             reveal.animateTo(1f, motion.tweenSlow())
         }
     }
+
+    // **New values move the line to its new shape**, as a chart's do, rather
+    // than replacing it: asked for as *"if the data in the sparkline changes,
+    // it animates"*. From the line as it is drawn, so values that change
+    // faster than the move carry on from wherever it had got to; each new
+    // point from where that line was at the same place along it, so a live
+    // trend that gains a value and drops its oldest slides into shape rather
+    // than every point climbing to its neighbour's height.
+    val drawn = remember { DrawnLine() }
+    val from = remember { mutableStateOf<List<Offset?>?>(null) }
+    val morph = remember { Animatable(1f) }
+    LaunchedEffect(numbers) {
+        val before = drawn.points
+        if (!reveals || reveal.value < 1f || before == null || before.all { it == null }) return@LaunchedEffect
+        from.value = before
+        morph.snapTo(0f)
+        morph.animateTo(1f, motion.springOrTween(motion.springGentle))
+        from.value = null
+    }
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val lineWidth = Theme.sizing.borderWidthStrong
 
@@ -122,8 +143,7 @@ fun Sparkline(
                         Offset(if (rtl) size.width - x else x, y)
                     }
                 }
-                val line = linePath(points, ChartInterpolation.Monotone)
-                val area = if (showArea) {
+                fun areaUnder(points: List<Offset?>): Path {
                     val path = Path()
                     var run = mutableListOf<Offset>()
                     fun finish() {
@@ -137,21 +157,60 @@ fun Sparkline(
                     }
                     points.forEach { point -> if (point == null) finish() else run += point }
                     finish()
-                    path
-                } else {
-                    null
+                    return path
                 }
+                val line = linePath(points, ChartInterpolation.Monotone)
+                val area = if (showArea) areaUnder(points) else null
+                // Where each new point sets off from: the old line's height at
+                // the same place along it.
+                val start = from.value?.let { old -> points.mapIndexed { i, point -> point?.let { it.copy(y = old.heightAt(i.toFloat() / last) ?: it.y) } } }
                 onDrawBehind {
+                    val t = morph.value
+                    val moving = start != null && t < 1f
+                    val now = if (start != null && moving) {
+                        points.mapIndexed { i, point ->
+                            val was = start[i]
+                            if (point == null || was == null) point else Offset(point.x, was.y + (point.y - was.y) * t)
+                        }
+                    } else {
+                        points
+                    }
+                    drawn.points = now
                     // Drawn in from the start edge, as the line is read.
                     val shown = size.width * reveal.value
                     val left = if (rtl) size.width - shown else 0f
                     clipRect(left = left, right = left + shown) {
-                        area?.let { drawPath(it, colour, alpha = AreaAlpha) }
-                        drawPath(line, colour, style = Stroke(stroke, cap = StrokeCap.Round, join = StrokeJoin.Round))
+                        (if (moving && showArea) areaUnder(now) else area)?.let { drawPath(it, colour, alpha = AreaAlpha) }
+                        drawPath(
+                            if (moving) linePath(now, ChartInterpolation.Monotone) else line,
+                            colour,
+                            style = Stroke(stroke, cap = StrokeCap.Round, join = StrokeJoin.Round),
+                        )
                     }
                 }
             },
     )
+}
+
+/** The line as it was last drawn, for the next change of values to move from. Not state: only draw writes it. */
+private class DrawnLine {
+    var points: List<Offset?>? = null
+}
+
+/**
+ * This line's height [fraction] of the way along it, from its points spread
+ * evenly from start to end, or null over a gap.
+ */
+private fun List<Offset?>.heightAt(fraction: Float): Float? {
+    if (isEmpty()) return null
+    val at = fraction.coerceIn(0f, 1f) * (size - 1)
+    val below = this[at.toInt()]
+    val above = this[minOf(at.toInt() + 1, size - 1)]
+    val share = at - at.toInt()
+    return when {
+        below != null && above != null -> below.y + (above.y - below.y) * share
+        else -> (below ?: above)?.y
+    }
 }
 
 /** A sparkline's size when nothing gives it one: about a word's. */
