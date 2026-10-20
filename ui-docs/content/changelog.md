@@ -188,6 +188,12 @@ On `main`, and in the next release.
   entries do not.** Each entry reserved a finger's height of room, so the
   legend's rows stood twice as far apart once it could hide a series. A touch
   just off an entry still reaches it.
+- **A rule's label stays put while its chart's data moves.** Its place, the
+  first end of its line with no data under it, was worked out on every frame
+  of a move, and it hopped between them; and the rule itself was at its new
+  value on axes still easing from the old, so a label could leave the plot
+  for the first frames. The place is now chosen from where the data is going,
+  and rules and regions move with their axes. A region's label likewise.
 - **A sector at 100% is drawn as the whole circle.** The last series shown in
   a `SectorChart` vanished: a whole turn was one arc of 360 degrees, which
   Skia takes as no turn at all. It also has no dividing line across it now,

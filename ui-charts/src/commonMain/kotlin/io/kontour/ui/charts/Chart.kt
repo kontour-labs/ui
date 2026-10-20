@@ -500,7 +500,7 @@ private fun <X : Any> ChartPlot(
                 frame?.let { target ->
                     val insets = transition.insets(target.insets)
                     transition.drawnInsets = insets
-                    drawChart(target.withInsets(insets), transition.frame(), config, fade(), selectedPlace)
+                    drawChart(target.withInsets(insets), transition.frame(), config, fade(), selectedPlace, settled = transition.to)
                 }
             }
             .then(input),

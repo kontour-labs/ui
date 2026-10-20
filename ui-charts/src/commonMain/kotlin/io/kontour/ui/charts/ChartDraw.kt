@@ -89,6 +89,8 @@ internal fun DrawScope.drawChart(
     config: DrawConfig,
     alpha: Float,
     selected: Double?,
+    /** The chart a move is heading to, which decides where the words go: see below. */
+    settled: ResolvedChart = chart,
 ) {
     // And up the end axis, for what is on it: see [Mapper.up].
     val m = Mapper(frame, chart.x, chart.y, chart.yEnd)
@@ -200,19 +202,31 @@ internal fun DrawScope.drawChart(
     // the first of its corners with no data under it, a rule's at the first
     // end of its line, above it or below, that has none. They sat at one
     // place whatever was there, and a line through "Capacity" crossed it out.
+    //
+    // **Which** place is worked out from the chart a move is heading to, not
+    // from each frame of the move: on each frame the data under the places
+    // changed, and the label hopped between them until the data settled.
+    // Reported as the energy app's "Average" flickering when its span changed,
+    // before it moved to the left. Now it goes to where it will stay as the
+    // move begins, and only rides its line up or down on the way.
     val needed = frame.regionLabels.any { it != null } || frame.ruleLabels.any { it != null }
-    val data = if (needed) obstaclesOf(chart, m, config) else null
-    chart.regions.forEachIndexed { index, region ->
-        val label = frame.regionLabels.getOrNull(index) ?: return@forEachIndexed
-        val rect = regionRect(region, m.up(region.onEnd), chart)
-        val w = label.size.width.toFloat()
-        val h = label.size.height.toFloat()
+    val settledMapper = if (settled === chart) m else Mapper(frame, settled.x, settled.y, settled.yEnd)
+    val data = if (needed) obstaclesOf(settled, settledMapper, config) else null
+    fun regionSpots(rect: Rect, w: Float, h: Float): List<Offset> {
         val start = if (frame.rtl) rect.right - inset - w else rect.left + inset
         val end = if (frame.rtl) rect.left + inset else rect.right - inset - w
         val top = rect.top + inset / 2
         val foot = rect.bottom - inset / 2 - h
-        val spots = listOf(Offset(start, top), Offset(end, top), Offset(start, foot), Offset(end, foot))
-        val at = spots.firstOrNull { data?.hit(Rect(it, Size(w, h))) != true } ?: spots[0]
+        return listOf(Offset(start, top), Offset(end, top), Offset(start, foot), Offset(end, foot))
+    }
+    chart.regions.forEachIndexed { index, region ->
+        val label = frame.regionLabels.getOrNull(index) ?: return@forEachIndexed
+        val w = label.size.width.toFloat()
+        val h = label.size.height.toFloat()
+        val target = settled.regions.getOrNull(index) ?: region
+        val goal = regionSpots(regionRect(target, settledMapper.up(target.onEnd), settled), w, h)
+        val choice = goal.indexOfFirst { data?.hit(Rect(it, Size(w, h))) != true }.coerceAtLeast(0)
+        val at = regionSpots(regionRect(region, m.up(region.onEnd), chart), w, h)[choice]
         drawText(label, colours.label, at)
     }
     chart.rules.forEachIndexed { index, rule ->
@@ -224,10 +238,16 @@ internal fun DrawScope.drawChart(
         val lift = config.hairline * 2
         val end = if (frame.rtl) plot.left + inset else plot.right - w - inset
         val start = if (frame.rtl) plot.right - w - inset else plot.left + inset
-        val spots = listOf(
+        fun spotsAt(y: Float) = listOf(
             Offset(end, y - h - lift), Offset(end, y + lift), Offset(start, y - h - lift), Offset(start, y + lift),
-        ).filter { it.y >= plot.top - h / 2 && it.y + h <= plot.bottom + h / 2 }.ifEmpty { listOf(Offset(end, y - h - lift)) }
-        val at = spots.firstOrNull { data?.hit(Rect(it, Size(w, h))) != true } ?: spots[0]
+        )
+        fun inPlot(spot: Offset) = spot.y >= plot.top - h / 2 && spot.y + h <= plot.bottom + h / 2
+        val target = settled.rules.getOrNull(index) ?: rule
+        val goal = spotsAt(target.y?.let { settledMapper.up(target.onEnd).py(it) } ?: y)
+        val choice = goal.indices.firstOrNull { inPlot(goal[it]) && data?.hit(Rect(goal[it], Size(w, h))) != true }
+            ?: goal.indices.firstOrNull { inPlot(goal[it]) }
+            ?: 0
+        val at = spotsAt(y)[choice]
         // On the page's ground, so it is read over whatever it could not miss.
         val backing = Path()
         addShape(backing, Rect(at.x - inset / 2, at.y, at.x + w + inset / 2, at.y + h), config.corners.all)

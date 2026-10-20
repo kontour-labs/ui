@@ -74,8 +74,14 @@ internal class ResolvedChart(
             }
 
     /** A copy with these axes' spans and these layers, for a frame between two charts. */
-    fun with(x: ResolvedAxis, y: ResolvedAxis, layers: List<Layer>, yEnd: ResolvedAxis? = this.yEnd): ResolvedChart =
-        ResolvedChart(model, horizontal, x, y, layers, rules, regions, places, cells, yEnd)
+    fun with(
+        x: ResolvedAxis,
+        y: ResolvedAxis,
+        layers: List<Layer>,
+        yEnd: ResolvedAxis? = this.yEnd,
+        rules: List<Rule> = this.rules,
+        regions: List<Region> = this.regions,
+    ): ResolvedChart = ResolvedChart(model, horizontal, x, y, layers, rules, regions, places, cells, yEnd)
 }
 
 /**

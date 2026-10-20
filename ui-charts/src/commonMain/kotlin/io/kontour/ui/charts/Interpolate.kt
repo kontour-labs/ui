@@ -50,8 +50,28 @@ internal fun interpolate(from: ResolvedChart, to: ResolvedChart, fraction: Float
     val leaving = from.layers.filter { old -> to.layers.none { it.sameAs(old) } }.map { old ->
         blendLayer(old, collapsedLayer(old, to), t, to.horizontal).copy(opacity = old.opacity * (1f - fraction))
     }
-    return to.with(x, y, leaving + layers, yEnd)
+    // The rules and the regions move with the axes they are on. They were the
+    // new chart's from the first frame, on axes still easing from the old one:
+    // a new average above an axis that had not grown to it yet was drawn off
+    // the plot, and its label vanished for the first frames of the move.
+    val rules = to.rules.mapIndexed { i, rule ->
+        val old = from.rules.getOrNull(i)?.takeIf { it.label == rule.label && it.onEnd == rule.onEnd } ?: return@mapIndexed rule
+        Rule(blendEnd(old.x, rule.x, t), blendEnd(old.y, rule.y, t), rule.label, rule.style, rule.onEnd)
+    }
+    val regions = to.regions.mapIndexed { i, region ->
+        val old = from.regions.getOrNull(i)?.takeIf { it.label == region.label && it.onEnd == region.onEnd } ?: return@mapIndexed region
+        Region(
+            blendEnd(old.xStart, region.xStart, t), blendEnd(old.xEnd, region.xEnd, t),
+            blendEnd(old.yStart, region.yStart, t), blendEnd(old.yEnd, region.yEnd, t),
+            region.label, region.style, region.onEnd,
+        )
+    }
+    return to.with(x, y, leaving + layers, yEnd, rules, regions)
 }
+
+/** A rule's or a region's end on its way from [from] to [to]: where it is going, if it was not somewhere before. */
+private fun blendEnd(from: Double?, to: Double?, t: Double): Double? =
+    if (from == null || to == null) to else lerp(from, to, t)
 
 /** Whether [this] shows no marks at all: a chart whose data has not come yet. */
 internal val ResolvedChart.empty: Boolean get() = layers.all { it.size == 0 }
