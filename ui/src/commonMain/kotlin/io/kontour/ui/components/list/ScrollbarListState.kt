@@ -17,6 +17,8 @@ import androidx.compose.runtime.remember
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.TimeSource
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.Job
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.foundation.lazy.layout.PrefetchScheduler
@@ -241,7 +243,15 @@ private class FramePrefetchScheduler : PrefetchScheduler {
                 override fun availableTimeNanos(): Long =
                     (Budget - started.elapsedNow()).inWholeNanoseconds.coerceAtLeast(0L)
             }
+            // **Nothing for a list that is going.** Its effect is cancelled as
+            // it leaves, and a frame already under way ran on: a request's
+            // callback let go of rows whose list had left the screen, and
+            // Compose refused — "LayoutNode should be attached to an owner",
+            // from a phone, with this coroutine `Cancelling` under it. Asked
+            // before each request, since a request is what can see it go.
+            val job = currentCoroutineContext()[Job]
             while (queue.isNotEmpty() && scope.availableTimeNanos() > 0L) {
+                if (job?.isActive == false) return
                 val request = queue.first()
                 // True while it has more to do: it stays at the front.
                 val more = with(request) { scope.execute() }
@@ -253,6 +263,7 @@ private class FramePrefetchScheduler : PrefetchScheduler {
             }
             if (stillSince == Long.MIN_VALUE) stillSince = now
             if (aheadQueue.isNotEmpty() && queue.isEmpty() && now - stillSince >= QuietNanos) {
+                if (job?.isActive == false) return
                 val request = aheadQueue.first()
                 val more = with(request) { scope.execute() }
                 if (!more) aheadQueue.removeFirst()
