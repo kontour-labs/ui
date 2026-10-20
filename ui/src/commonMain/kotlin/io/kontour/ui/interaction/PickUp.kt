@@ -108,6 +108,16 @@ internal const val MouseDecisionShare = 0.4f
  * @param onHeld A hold was what picked it up, just before [onPointer]: for the
  *   long press's own feedback, which a mouse, a grip or a row a mouse decided
  *   on reaches no threshold to be told of.
+ * @param takes Whether the thing is still there to be taken, asked at the
+ *   moment this would take it — after the hold, the slop or the mouse's
+ *   decision, and before anything is said of it. For two of these over one
+ *   thing: a reorderable row and the grip inside it. A carry by the grip moves
+ *   the row with the finger, so in the row's own terms the finger never left
+ *   the hold's budget, and half a second in the row's hold came true under a
+ *   carry already going: it took the moves on the initial pass, before the
+ *   grip could, and the grip read that as its pointer taken and put the row
+ *   down. Reported as *"with drag handles in the reorderable item, it just
+ *   drops it sometimes after like 1 or 2 positions"*.
  * @param exclusive Whether, once picked up, the carry is this detector's alone:
  *   each move taken on the initial pass, before anything inside the node hears
  *   it, so nothing in it — a row's swipe actions — can claim a carry already
@@ -127,6 +137,7 @@ internal suspend fun PointerInputScope.detectPickUp(
     exclusive: Boolean = false,
     decidesForMouse: Boolean = false,
     onHeld: () -> Unit = {},
+    takes: () -> Boolean = { true },
 ) {
     val budget = PickUpHoldSlop.toPx()
     awaitEachGesture {
@@ -146,6 +157,7 @@ internal suspend fun PointerInputScope.detectPickUp(
             val decideAt = viewConfiguration.touchSlop * MouseDecisionShare
             val decided = awaitMouseDecision(down.id, axis, decideAt) ?: return@awaitEachGesture
             val gathered = decided.position - down.position
+            if (!takes()) return@awaitEachGesture
             onPointer(down.id)
             onPickUp(decided.position)
             // The whole way it came, so the row is under the pointer where it
@@ -176,6 +188,7 @@ internal suspend fun PointerInputScope.detectPickUp(
                     overSlop = over
                 }
             } ?: return@awaitEachGesture
+            if (!takes()) return@awaitEachGesture
             onPointer(down.id)
             onPickUp(moved.position)
             // Delivered as `detectDragGestures` delivers it: the part of the
@@ -204,7 +217,7 @@ internal suspend fun PointerInputScope.detectPickUp(
                     }
                 }
             }
-            if (gaveUp != null) return@awaitEachGesture
+            if (gaveUp != null || !takes()) return@awaitEachGesture
             onHeld()
             onPointer(down.id)
             onPickUp(down.position)

@@ -748,13 +748,17 @@ private fun Modifier.reorderDrag(
         //
         // The row and its handle are two of these over overlapping areas, and
         // both see every down — `awaitFirstDown(requireUnconsumed = false)`.
-        // Movement sorts them out by itself, because the winner consumes and the
-        // long-press loop gives up the moment its finger travels. A press held
-        // *still* on the grip does not: the row's half-second would elapse, fire
-        // a `LongPress`, and start a drag the grip is about to start again.
+        // Movement does not sort them out. The long-press loop gives up when its
+        // finger travels, but a row carried by its grip travels with the finger,
+        // so in the row's own terms a carry is a finger held still: the row's
+        // half-second elapsed under it, and the row took the moves from the grip
+        // and put the row down after a crossing or two. A press held still on
+        // the grip is the same thing without the carry.
         //
-        // So starting is conditional on nobody having the row, and everything
-        // after it is conditional on this node having been the one that took it.
+        // So taking it at all is conditional on nobody having the row — the
+        // detector's `takes`, asked before it says or claims anything — and
+        // everything after it is conditional on this node having been the one
+        // that took it.
         // Without the second half a node that never started would still call
         // `stop()` on the drag that did.
         var owned = false
@@ -809,6 +813,8 @@ private fun Modifier.reorderDrag(
             exclusive = true,
             decidesForMouse = decidesForMouse,
             onHeld = { held = true },
+            // Not a row the other of the two is already carrying: see `takes`.
+            takes = { state.draggingIndex == null },
         )
     }
 }
