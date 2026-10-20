@@ -243,7 +243,13 @@ private fun LivePower(patterns: Boolean) {
     }
     val readings = remember(step) { liveReadings(step) }
     val selection = rememberChartSelectionState<Instant>()
-    val clock = remember { ChartAxis.instant(timeZone = PerthTime) }
+    // Spanning the readings exactly. Left to itself the axis rounds out to
+    // whole minutes on its ticks, and held there as the readings moved on:
+    // the plot's start emptied for five minutes and then jumped, as if the
+    // chart were eating itself away.
+    val clock = remember(readings) {
+        ChartAxis.instant(timeZone = PerthTime, domain = readings.first().at..readings.last().at)
+    }
     val power = remember { ChartAxis.number(title = "kW", includeZero = true) }
 
     Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs)) {
