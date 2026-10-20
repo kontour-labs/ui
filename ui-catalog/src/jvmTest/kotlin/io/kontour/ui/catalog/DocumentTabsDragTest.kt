@@ -75,6 +75,37 @@ class DocumentTabsDragTest {
         panes.assertEvenlySpaced("top")
     }
 
+    /**
+     * Carried halfway over its neighbour and moved about there, a tab takes
+     * the neighbour's place once, and is felt once.
+     *
+     * Reported as *"it rumbles when you drag one document tab over another. It
+     * should just click once"*. Between 40% and 60% of the way over, the place
+     * it had just taken was taken back by the very next move, and back again,
+     * a snap each time.
+     */
+    @Test
+    fun heldHalfwayOverItsNeighbourATabTradesPlacesOnce() {
+        val felt = mutableListOf<FeedbackIntent>()
+        val panes = Panes(top = listOf("Timetable", "Fares", "Route map", "Lifts"), bottom = null, felt = felt)
+        panes.run { scene ->
+            val grab = panes.glyph("top", "Timetable").center
+            val pitch = panes.glyph("top", "Fares").center.x - grab.x
+            val halfway = grab + Offset(pitch * 0.5f, 0f)
+            scene.pickUp(grab)
+            scene.carry(grab, halfway)
+            // A hand held over the middle is never quite still.
+            for (wobble in listOf(3f, -3f, 4f, -4f, 2f, -2f)) {
+                scene.move(halfway + Offset(wobble, 0f), PointerType.Mouse)
+                scene.frame()
+            }
+            scene.release(halfway, PointerType.Mouse)
+            scene.frames(40)
+        }
+        assertEquals(1, felt.count { it == FeedbackIntent.Snap }, "one trade of places should be one snap: $felt")
+        assertEquals(listOf("Fares", "Timetable", "Route map", "Lifts"), panes.top.items.toList())
+    }
+
     @Test
     fun pulledOffOneStripATabIsCarriedIntoAnother() {
         val felt = mutableListOf<FeedbackIntent>()

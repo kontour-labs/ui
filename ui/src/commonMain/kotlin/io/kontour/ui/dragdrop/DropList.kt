@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.theme.Theme
+import kotlin.math.abs
 
 /**
  * A lazy list that takes drops at a position, and whose items can be carried —
@@ -204,6 +205,17 @@ class DropListState<T : Any> internal constructor(
     /** Where the gap is laid out, for where across the list a landing goes. */
     internal var gapCoordinates: LayoutCoordinates? = null
 
+    /**
+     * The place a riding thing last left, and where along the list its start
+     * was as it left it: going back there waits until it has come
+     * [BackShare] of itself back. See [over].
+     */
+    private var leftPlace: Int? = null
+    private var leftAt: Float = 0f
+
+    /** Whether the last place was worked out for a thing riding the list, by its edges. */
+    private var rode = false
+
     internal val gapKey: String = "kontour.dropGap.$id"
 
     internal val target: DropTarget = object : DropTarget(type, label) {
@@ -220,6 +232,8 @@ class DropListState<T : Any> internal constructor(
 
         override fun leave() {
             gapIndex = null
+            leftPlace = null
+            rode = false
         }
 
         override fun changes(session: DragSession): Boolean =
@@ -375,10 +389,32 @@ class DropListState<T : Any> internal constructor(
                     index = maxOf(index, place + 1)
                 }
             }
-            gapIndex = index.coerceIn(0, count)
-            session.index = gapIndex
+            // **Back only once it has come back.** Covering 40% of a neighbour
+            // takes its place, and the neighbour moves a whole thing's length
+            // to the other side of it; now the carried thing covers 60% of it
+            // from that side, more than enough to take the place back. So the
+            // gap went back and forth on every move in between, and each trade
+            // was a snap: dragging one tab over another rumbled. Reported as
+            // "it should just click once". The place it left is not taken back
+            // until it has come a fifth of itself back.
+            //
+            // Only between two places both worked out by the edges: the first
+            // as a thing boards the list comes from its middle, and the edges
+            // correcting that is not a trade to hold it to.
+            index = index.coerceIn(0, count)
+            val back = leftPlace
+            if (rode && index == back && abs(start - leftAt) < size * BackShare) index = gap
+            if (index != gap) {
+                leftPlace = if (rode) gap else null
+                leftAt = start
+            }
+            rode = true
+            gapIndex = index
+            session.index = index
             return
         }
+        leftPlace = null
+        rode = false
 
         var landing: Int? = null
         var lastSeen: Int? = null
@@ -434,10 +470,16 @@ class DropListState<T : Any> internal constructor(
         /**
          * How much of a neighbour a thing riding a list covers before it takes
          * the neighbour's place: less than half, so a tab trades places a little
-         * sooner than its middle would say, and back again only once it has come
-         * a fifth of a tab back — a hand held still does not make the strip twitch.
+         * sooner than its middle would say.
          */
         const val EdgeShare = 0.4f
+
+        /**
+         * How far, as a share of itself, a thing riding a list comes back
+         * before it takes back the place it just left — a hand held still does
+         * not make the strip twitch, and a trade is felt once.
+         */
+        const val BackShare = 0.2f
     }
 }
 
