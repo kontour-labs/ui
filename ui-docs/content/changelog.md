@@ -31,6 +31,9 @@ On `main`, and in the next release.
 - **A `Sparkline` moves to new values.** When its values change, the line
   moves from the shape it had to the new one, as a `Chart` does, rather than
   being replaced. Not under reduced motion or `animateData = false`.
+- **Steps of different lengths.** `StepProgress` and `CircularStepProgress`
+  take `weights`, one a step, for a short step before a long one. Even by
+  default, as before.
 - **Progress within a step.** `StepProgress` and `CircularStepProgress` take
   `stepProgress`, from 0 to 1 as `LinearProgress`'s `progress` is: the steps
   before the current one full, and the current one filled as far as it has

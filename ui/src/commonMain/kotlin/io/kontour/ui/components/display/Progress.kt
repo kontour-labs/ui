@@ -256,6 +256,11 @@ fun CircularProgress(
  *   [working]'s bars, which are for a step that cannot. `null`, the default,
  *   is a step reached and not measured, drawn full as it always has been.
  *   Ignored when [current] is `null`.
+ * @param weights How long each step is against the others, one a step, as
+ *   `Modifier.weight` shares out a row: `listOf(1f, 3f)` makes the second step
+ *   three times the first, for a short step before a long one. `null`, the
+ *   default, makes them all the same, as does a list that does not have one
+ *   weight above nothing for every step.
  * @param gap The space between segments. `0.dp` draws one continuous bar with
  *   round ends and no seams, filled to a step's end — a stepped bar that does
  *   not show its steps, for where the count is said elsewhere.
@@ -271,6 +276,7 @@ fun StepProgress(
     colour: Color = Theme.colours.primary,
     trackColour: Color = trackAtTier(Theme.colours.outline),
     height: Dp = ProgressDefaults.StepHeight,
+    weights: List<Float>? = null,
     gap: Dp = ProgressDefaults.StepGap,
 ) {
     if (total <= 0) return
@@ -278,6 +284,7 @@ fun StepProgress(
     val formats = Theme.formats
     val indeterminate = current == null
     val steps = rememberStepMotion(current, total, working, stepProgress)
+    val shares = remember(total, weights) { stepShares(total, weights) }
 
     Canvas(
         modifier
@@ -305,7 +312,11 @@ fun StepProgress(
         // The gap closes as the row melts, so the segments arrive touching.
         val melt = steps.melt
         val gapPx = gap.toPx() * (1f - melt)
-        val segmentWidth = (size.width - gapPx * (total - 1)) / total
+        // Each step its share of what the gaps leave: see [weights].
+        val room = size.width - gapPx * (total - 1)
+        val widths = FloatArray(total) { room * shares[it] }
+        val lefts = FloatArray(total)
+        for (index in 1 until total) lefts[index] = lefts[index - 1] + widths[index - 1] + gapPx
         val radius = CornerRadius(size.height / 2f)
         // How far the seams are hidden: as far as the row has melted, or all the
         // way for a row asked for with no gap. Segments that merely touch meet
@@ -342,7 +353,8 @@ fun StepProgress(
         // reaches under that neighbour's track too, and drawn in turn, the next
         // track covered the end of a fill that had reached into it.
         for (index in 0 until total) {
-            val left = index * (segmentWidth + gapPx)
+            val left = lefts[index]
+            val segmentWidth = widths[index]
             val (reachStart, reachEnd) = reach(index)
             drawRoundRect(
                 color = trackColour,
@@ -352,7 +364,8 @@ fun StepProgress(
             )
         }
         for (index in 0 until total) {
-            val left = index * (segmentWidth + gapPx)
+            val left = lefts[index]
+            val segmentWidth = widths[index]
             val (reachStart, reachEnd) = reach(index)
             val fill = steps.fillOf(index)
             if (fill > 0f) {
@@ -428,6 +441,9 @@ fun StepProgress(
  * @param stepProgress How far through [current] it has got, from 0 to 1: its
  *   arc filled that far, in place of [working]'s bars. `null` draws it full.
  *   See [StepProgress].
+ * @param weights How much of the ring each step takes against the others, one
+ *   a step: `listOf(1f, 3f)` makes the second arc three times the first. `null`,
+ *   the default, shares it out evenly. See [StepProgress].
  * @param gap The space between arcs, along the ring. `0.dp` draws one continuous
  *   ring, filled to the end of the step it has reached.
  */
@@ -443,6 +459,7 @@ fun CircularStepProgress(
     trackColour: Color = trackAtTier(Theme.colours.outline),
     size: Dp = ProgressDefaults.CircularSize,
     strokeWidth: Dp = ProgressDefaults.CircularStrokeWidth,
+    weights: List<Float>? = null,
     gap: Dp = ProgressDefaults.StepGap,
 ) {
     if (total <= 0) return
@@ -450,6 +467,7 @@ fun CircularStepProgress(
     val formats = Theme.formats
     val indeterminate = current == null
     val steps = rememberStepMotion(current, total, working, stepProgress)
+    val shares = remember(total, weights) { stepShares(total, weights) }
 
     Canvas(
         modifier
@@ -472,7 +490,7 @@ fun CircularStepProgress(
         val ring = StepRing(
             stroke = strokeWidth.toPx(),
             diameter = this.size.minDimension,
-            total = total,
+            shares = shares,
             gap = gap.toPx(),
             melt = steps.melt,
             // One step is one ring, with nowhere for a gap to go.
@@ -525,7 +543,7 @@ fun CircularStepProgress(
  * The arithmetic of a [CircularStepProgress]'s ring, in degrees clockwise from
  * three o'clock, as `drawArc` takes them.
  *
- * Each step is an equal share of the ring, less a [gap] that closes as the
+ * Each step is its share of the ring, from [stepShares], less a [gap] that closes as the
  * steps [melt] into one. Every arc is described by the stretch of ring its
  * *ink* covers, round ends included — as a [StepProgress] segment is by its
  * rect — and [drawRingCapsule] turns that into a round-capped arc. So the gap a
@@ -535,7 +553,7 @@ fun CircularStepProgress(
 internal class StepRing(
     val stroke: Float,
     diameter: Float,
-    private val total: Int,
+    private val shares: FloatArray,
     gap: Float,
     melt: Float,
     seamless: Boolean,
@@ -546,7 +564,10 @@ internal class StepRing(
     /** Twelve o'clock. */
     val top: Float = -90f
 
-    private val share: Float = 360f / total
+    /** Where each step's share of the ring begins, in degrees from [top]; the last entry is the whole ring. */
+    private val begins: FloatArray = FloatArray(shares.size + 1).also { at ->
+        for (index in shares.indices) at[index + 1] = at[index] + shares[index] * 360f
+    }
 
     /** How far a round cap reaches past the end of its arc, in degrees. */
     val cap: Float = if (radius > 0f) degrees(stroke / 2f / radius) else 0f
@@ -556,7 +577,7 @@ internal class StepRing(
      * than half a step, so a ring of many small steps still draws each of them.
      */
     private val gapAngle: Float =
-        if (seamless || radius <= 0f) 0f else (degrees(gap / radius) * (1f - melt)).coerceAtMost(share / 2f)
+        if (seamless || radius <= 0f) 0f else (degrees(gap / radius) * (1f - melt)).coerceAtMost((shares.minOrNull() ?: 1f) * 180f)
 
     /**
      * How far an arc reaches into its neighbour, to hide the seam: a cap's
@@ -567,10 +588,10 @@ internal class StepRing(
     val reach: Float = cap * if (seamless) 1f else melt
 
     /** Where step [index]'s ink starts. */
-    fun start(index: Int): Float = top + index * share + gapAngle / 2f
+    fun start(index: Int): Float = top + begins[index] + gapAngle / 2f
 
     /** Where step [index]'s ink ends. */
-    fun end(index: Int): Float = top + (index + 1) * share - gapAngle / 2f
+    fun end(index: Int): Float = top + begins[index + 1] - gapAngle / 2f
 
     private fun degrees(radians: Float): Float = radians * 180f / PI.toFloat()
 }
@@ -610,6 +631,20 @@ internal fun DrawScope.drawRingCapsule(colour: Color, ring: StepRing, from: Floa
             ),
         )
     }
+}
+
+/**
+ * Each of [total] steps' share of the whole, from [weights], adding up to one:
+ * even when there are none, or not one above nothing for every step. A wrong
+ * count is not guessed at, since padding or cutting it would put a step's
+ * length on another step.
+ */
+internal fun stepShares(total: Int, weights: List<Float>?): FloatArray {
+    if (weights == null || weights.size != total || !weights.all { it > 0f && it.isFinite() }) {
+        return FloatArray(total) { 1f / total }
+    }
+    val sum = weights.sum()
+    return FloatArray(total) { weights[it] / sum }
 }
 
 /**

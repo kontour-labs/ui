@@ -517,6 +517,9 @@ fun ProgressBasics() {
     // A step that knows how far through itself it is: the third of four
     // photos, 40% uploaded.
     StepProgress(current = 3, total = 4, stepProgress = 0.4f, contentDescription = "Uploading photo 3 of 4")
+
+    // A short step before a long one: checking the file, then copying it.
+    StepProgress(current = 2, total = 2, weights = listOf(1f, 4f), working = true, contentDescription = "Copying")
 }
 
 @Composable
