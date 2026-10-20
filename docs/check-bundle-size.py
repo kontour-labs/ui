@@ -218,6 +218,26 @@ import sys
 #                            event's ground and last day, and tone ink
 #
 # `app` through `--update`'s rule by hand, over CI's figure.
+#
+# Raised 2026-10-20 for 0.5.0, from CI's own measurement on
+# `claude/trusting-dijkstra-w1a6rz` (132164c7, run 39368579474), the first run
+# to build the site with the gallery's Energy app. `total` is 7,803,298: +104,435
+# gzip on run 116's 7,698,863 (8579d74a), and over its ceiling by 3,298. `app` is
+# 4,019,056, +104,437 on run 116's 3,914,619 and 20,944 inside its ceiling, so it
+# stays, as do `skiko` (3,324,678), `js` (103,301), `fonts` (352,932) and `other`
+# (3,331). About 20 gzip bytes a net line, in line with the rate above. Read by
+# source, lines added and removed since 8579d74a:
+#
+#   :ui        +2,702 −233   DocumentTabs, TextFieldListItem and `field`, the
+#                            modal sheet's width and `recedes`, the cheaper
+#                            receding band, overlays ending bring-into-view
+#   gallery    +2,302 −28    the Energy app, the other apps' use of the new
+#                            components, the new demos
+#   the site   +448   −23    lines of pages: DocumentTabs, TextFieldListItem,
+#                            the sheet pages, the changelog and migrating
+#   charts     +138   −67    the tooltip's leaving and the sector selection
+#
+# `total` through `--update`'s rule by hand, over CI's figure.
 
 CEILINGS = {
     "skiko": 3_430_000,
@@ -225,7 +245,7 @@ CEILINGS = {
     "js": 110_000,
     "fonts": 370_000,
     "other": 10_000,
-    "total": 7_800_000,
+    "total": 8_040_000,
 }
 
 # The whole *distribution*, in files — `dist.rglob("*")`, which is every file the
