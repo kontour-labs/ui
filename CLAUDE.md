@@ -172,9 +172,10 @@ Central), measure it directly:
 python3 docs/check-bundle-size.py
 ```
 
-**Where it doesn't**, CI measures it. The *Build the site* job takes about nine
-minutes and runs beside *Test*, which takes about fifty, so read its *Check the
-bundle size* step first instead of waiting for the whole run.
+**Where it doesn't**, CI measures it, in a run the owner starts (see **CI**:
+don't start one yourself). Estimate with the lines above, and say what you
+estimate. In a run, the *Build the site* job takes about nine minutes beside
+*Test*'s fifty, so read its *Check the bundle size* step first.
 
 ### Raising a ceiling
 
@@ -203,10 +204,22 @@ resource), and the job is to find it.
 
 [`.github/workflows/ci.yml`](.github/workflows/ci.yml), on GitHub's runners.
 
+**CI minutes cost the owner money. Don't start a run yourself.** Check locally
+instead: the JVM tests, the goldens, `checkApiConventions`, `checkKdocSamples`
+and the five Python checks all run in a sandbox once Gradle's cache is warm.
+Use a git worktree, so you can keep editing while a build runs. What can't run
+locally is the ABI dump of every target, the bundle size and Android. That is
+not a reason to run CI either: say what is unchecked, and let the owner decide
+when a run is worth it. If they ask for one, batch everything first and start
+**one** run, without **full** unless they ask for it. Don't re-run for each
+fix, and cancel a run that a newer push has made pointless. If a run is going
+when you are told to stop, cancel it.
+
 - **It runs on pushes to `main`, on `v*` tags, and when started by hand**, and
-  never on a pull request or a push to another branch. To check a branch:
-  Actions → CI → Run workflow, on the branch, with **full** ticked. A run
-  started by hand skips nothing.
+  never on a pull request or a push to another branch. Pushing a branch is
+  free. Starting a run on it is the owner's call: Actions → CI → Run workflow,
+  on the branch, with **full** ticked only when asked. A run started by hand
+  skips nothing.
 - Jobs: *Compile every target* (about 8 min), *Build the site* (about 9),
   *Test* (about 15, or 50 with full), then *Deploy* and *Publish*. Each gate
   leaves a `passed-<gate>-<fingerprint>` marker, and a push skips the gates
