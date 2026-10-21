@@ -25,14 +25,19 @@ The version an app is on is the `kontour` entry in its version catalog. See
 
 ## Unreleased
 
-On `main`, and in the next release.
+On `main`, and in the next release. Nothing yet.
+
+---
+
+## 0.5.0 — 21 October 2026
 
 Charts, in a module of their own, `io.kontour:ui-charts`: a `Chart` of lines,
-areas, bars, points, ranges and rules, mixed as it needs, a `SectorChart` and
-a `Sparkline`, each read out to a screen reader place by place and told apart
-by more than colour. The fill patterns they are told apart with are in `:ui`
-for any surface, and an event calendar's events take them. Every glyph the
-library draws on its own is the theme's, `Theme.icons`, for an app to replace.
+areas, bars, points, ranges and rules, mixed as it needs, a `SectorChart` and a
+`Sparkline`, each read out to a screen reader place by place and told apart by
+more than colour, with a place to choose and a range or a box to mark. The fill
+patterns they are told apart with are in `:ui` for any surface, and an event
+calendar's events take them. Every glyph the library draws on its own is the
+theme's, `Theme.icons`, for an app to replace.
 
 And alongside them: [`DocumentTabs`](components/document-tabs.md), a browser's
 or an editor's tabs; a list row you type into; a tooltip drawn as a card; a
@@ -41,11 +46,12 @@ that narrow as a table scrolls across; and a modal sheet that leaves the page
 behind it where it is, over a map or a video. An event calendar's three days
 swipe a day at a time, and outline where a carried event will land.
 
-Then a round of fixes: a sheet takes a mouse's wheel and the keyboard as it
-should, a swiped row stays inside its row, a toast behind another is never
-bigger than it, and a good deal more is said to a screen reader in the
-reader's own words: a sortable column, a command palette's arrows, a coach
-mark, an activity calendar's cursor.
+Then a round of fixes: a sheet takes a mouse's wheel, a trackpad and the
+keyboard as it should, a swiped row stays inside its row and is calmer under a
+trackpad, a pointer passing over something plays no haptic, a toast behind
+another is never bigger than it, and a good deal more is said to a screen
+reader in the reader's own words: a sortable column, a command palette's
+arrows, a coach mark, an activity calendar's cursor.
 
 `SystemIcons` is `Theme.icons`, and a good many components,
 `ComponentDefaults`, `Strings`, `CalendarEvent` and `Tooltip` have new
@@ -149,6 +155,16 @@ window — see **Changed**.
   still move the row. And a sideways scroll keeps the whole of itself: its ups
   and downs no longer scroll the list out from under the row being swiped,
   until it has been let go of.
+- **Swipe actions are calmer on a trackpad.** A Mac's pan and a browser's
+  pixel scroll move the row at `SwipeActionsDefaults.TrackpadGain`, 0.6, not
+  pixel for pixel, so a small flick no longer carries it past its actions; a
+  pan or scroll is the row's only once it has gone a whole touch slop and
+  twice as far across as up or down; and a pan let go is thrown open only at
+  1200dp/s. A mouse wheel's notches are as they were.
+- **A pointer passing over something plays no haptic.** A mouse or trackpad
+  moving over a chart, a pie or anything else with no button down is silent,
+  where a Mac's trackpad ticked under each place. A click, and a drag with the
+  button held, still play.
 - **Swipe actions close at a scroll anywhere else**, from a wheel or a
   trackpad, as they do at a press: a carousel, a table or a row of chips
   scrolled across, or the list scrolled down. Asked for as *"can we apply that
@@ -317,6 +333,8 @@ window — see **Changed**.
   at the high contrast tier, so the ones inside stand out: lines and areas are
   cut at its edges, and the fade comes and goes with the range. See
   [Chart](components/chart.md#marking-a-range).
+- **`SwipeActionsDefaults.TrackpadGain`**, how far a trackpad's pan or a
+  browser's pixel scroll moves a swiped row for each pixel it scrolls.
 - **`selectsOnHover`** on `Chart` and `SectorChart`: off, a pointer chooses a
   place by clicking, and moving over the chart chooses nothing. It is off by
   default on a `Chart` that also marks ranges, where the hover's bar sat where
