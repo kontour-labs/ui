@@ -81,9 +81,9 @@ window — see **Changed**.
   A side sheet's back is the chevron a top bar's is.
 - **`Strings` has new fields**, `labelledValue`, `selectAllRows`,
   `sortAscending`, `sortDescending`, `notSorted`, `showDay`, `moveLeft`,
-  `moveRight`, `newTab` and `closeTab`, at the end,
-  so an app that builds its own with named arguments needs nothing; one that
-  passes them by position, or overrides `Strings.from`'s keys, recompiles. See
+  `moveRight`, `newTab`, `closeTab` and `moreOptions`, at the end, so an app
+  that builds its own with named arguments needs nothing; one that passes them
+  by position, or overrides `Strings.from`'s keys, recompiles. See
   [Migrating](migrating.md#045-to-050).
 - **`CalendarEvent` has a new parameter**, `pattern`, defaulted and last, so
   anything built against 0.4.5 recompiles; every call site still compiles as it
@@ -370,7 +370,12 @@ window — see **Changed**.
   with a detent at each place, or, with `movesBetweenStrips`, pulled off it
   into another strip, as a split view's panes exchange them. Middle click,
   Delete (which hands the focus to the next tab, or the previous at the end),
-  the arrow keys and a screen reader's actions all work.
+  the arrow keys and a screen reader's actions all work. `tabMenu` and
+  `addMenu` are menus for a tab and for the "+", opened by a right click, a
+  finger held still, Shift+F10 or the menu key, or a screen reader's "More
+  options"; a right click does not choose the tab, and a tab held and moved is
+  carried as before, closing its menu. `closeOnMiddleClick`, on by default,
+  lets an app keep the middle button for itself.
 - **`KeyValueList(compact = true)`**, for a small container of its own: the
   rows take the style around them and the list is as wide as its rows.
 - **`FillPatternDefaults`**, the spacing and weight a pattern is drawn with and
