@@ -440,6 +440,13 @@ On `main`, and in the next release.
   cancels the settle under way. And a sideways scroll keeps the whole of
   itself: its ups and downs no longer scroll the list out from under the row
   being swiped, until it has been let go of.
+- **Swipe actions close at a scroll anywhere else**, from a wheel or a
+  trackpad, as they do at a press: a carousel, a table or a row of chips
+  scrolled across, or the list scrolled down. Asked for as *"can we apply that
+  too if you start side-scrolling somewhere else?"*. A finger's scroll starts
+  with a press and always closed the row; a mouse's and a trackpad's left it
+  open. Seen at the app's `OverlayHost`, as presses are. See
+  [Swipe actions](components/swipe-actions.md).
 - **A mouse on a reorderable row decides before it carries**: it goes a few dp
   first, and mostly up or down, as a swipe decides. At a mouse's own slop a
   pixel of jitter in a click picked the row up and lost the click, and a drag

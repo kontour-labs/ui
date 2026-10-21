@@ -1,6 +1,7 @@
 package io.kontour.ui.components.list
 
 import io.kontour.ui.input.onPressOutside
+import io.kontour.ui.input.onScrollOutside
 import io.kontour.ui.theme.clipProxy
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.animation.AnimatedVisibility
@@ -381,6 +382,9 @@ object SwipeActionsDefaults {
  *   Android half of the report.
  * - **A tap on a row showing its actions closes it**, and does not also reach the
  *   row's own click. A tap on one of the buttons runs that action and closes it.
+ * - **A press or a scroll anywhere else closes it**: another row, a button, a
+ *   carousel scrolled across, the list scrolled, by finger, wheel or trackpad.
+ *   Seen at the app's `OverlayHost`; without one, only another swipe row does.
  *
  * **Order runs from the screen edge in toward the row**, on both sides. So the
  * *first* action of a list is the one furthest from the row, and the last one is
@@ -768,7 +772,8 @@ fun SwipeActions(
     val swipeable = enabled && (start.isNotEmpty() || end.isNotEmpty())
 
     // Showing its actions, it closes at a press anywhere else — another row, a
-    // button, the list scrolled — as a SwiftUI list's row does: asked for as
+    // button, the list scrolled — and at a scroll from a wheel or a trackpad
+    // anywhere else, as a SwiftUI list's row does: asked for as
     // *"if you start interacting with another component, it closes"*. The press
     // still does what it does; this row only gets out of the way.
     //
@@ -778,6 +783,12 @@ fun SwipeActions(
     fun opening() = state.anchoredState.let { it.settledValue.isReveal() || it.targetValue.isReveal() } &&
         tapped == null && !fullSwipe
     val showing = opening()
+    fun closeForElsewhere() {
+        if (opening()) {
+            settling?.cancel()
+            scope.launch { state.reset() }
+        }
+    }
 
     Box(
         modifier = modifier
@@ -800,12 +811,17 @@ fun SwipeActions(
             // any other that is open, with or without an `OverlayHost` round
             // the app to see every press: `onPressOutside` reports this row's
             // presses as well as watching for others'.
-            .onPressOutside(enabled = showing) {
-                if (opening()) {
-                    settling?.cancel()
-                    scope.launch { state.reset() }
-                }
-            }
+            .onPressOutside(enabled = showing) { closeForElsewhere() }
+            // And so does a scroll anywhere else, from a wheel or a trackpad,
+            // sideways or down: a finger's scroll starts with a press and always
+            // closed it, and a mouse's and a trackpad's left it open while a
+            // carousel or a table beside it was scrolled across. Asked for as
+            // *"can we apply that too if you start side-scrolling somewhere
+            // else?"*, 2026-10-21 for 0.5.0. Down as well, because the list
+            // scrolled is the example the page gives of what closes it, and a
+            // finger scrolling the list already did. A scroll on this row is
+            // the row's own, below, and does not close it.
+            .onScrollOutside(enabled = showing) { closeForElsewhere() }
             .semantics {
                 // The only route to these that does not require knowing the
                 // gesture exists. Withheld while disabled, as the gesture is: a

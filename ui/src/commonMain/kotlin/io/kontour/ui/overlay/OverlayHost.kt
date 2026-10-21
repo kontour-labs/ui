@@ -56,6 +56,7 @@ import io.kontour.ui.components.text.TextContextMenuHost
 import io.kontour.ui.foundation.ScrimLayer
 import io.kontour.ui.input.clearFocusOnTap
 import io.kontour.ui.input.reportsPresses
+import io.kontour.ui.input.reportsScrolls
 import io.kontour.ui.motion.BackPan
 import io.kontour.ui.motion.BackStyle
 import io.kontour.ui.motion.EdgePanWidth
@@ -1040,8 +1041,11 @@ fun OverlayHost(
                 .trackHostOrigin(state)
                 .clearFocusOnTap(clearFocusOnTap)
                 // Every press, wherever it lands, to what lets go at one
-                // elsewhere: a swipe row left open, a chart's selection.
+                // elsewhere: a swipe row left open, a chart's selection. And
+                // every scroll from a wheel or a trackpad, which has no press,
+                // to a swipe row that lets go at one of those too.
                 .reportsPresses()
+                .reportsScrolls()
                 .then(if (ownBack != null && tracksSwipe) Modifier.edgeSwipeBack(ownBack.navigationEventDispatcher) else Modifier),
         ) {
             Box(

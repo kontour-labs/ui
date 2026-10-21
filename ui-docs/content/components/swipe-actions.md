@@ -103,6 +103,15 @@ Presses are seen at the app's [`OverlayHost`](../overlays.md); without one round
 the app, a press on another swipe row still closes it, and one on anything else
 does not.
 
+**So does a scroll anywhere else, from a wheel or a trackpad**: a carousel or a
+table scrolled across, a row of chips, another swipe row, the list scrolled down.
+A finger's scroll starts with a press and always closed it; a wheel's and a
+trackpad's have none, and the row stayed open while the reader scrolled
+something beside it. The scroll still scrolls what it was aimed at. A scroll on
+the open row itself is the row's, as below, and moves it rather than closing it.
+Seen where presses are: at the `OverlayHost`, or without one, on another swipe
+row only.
+
 **One buzz at the one moment that has a consequence, and a soft tick as each
 action arrives.** It used to be four — a tick per action width uncovered, the
 threshold, a confirmation when the action ran, and a settle when the row came back

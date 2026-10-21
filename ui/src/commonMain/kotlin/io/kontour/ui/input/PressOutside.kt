@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -38,21 +39,32 @@ import androidx.compose.ui.layout.onGloballyPositioned
 @Composable
 fun Modifier.onPressOutside(enabled: Boolean = true, onPress: () -> Unit): Modifier {
     val placed = remember { Placed() }
-    val latest by rememberUpdatedState(onPress)
-    DisposableEffect(enabled) {
-        if (!enabled) return@DisposableEffect onDispose { }
-        val key = Any()
-        PressWatchers.add(key) { screen ->
-            val coordinates = placed.coordinates?.takeIf { it.isAttached } ?: return@add
-            val bounds = Rect(
-                coordinates.localToScreen(Offset.Zero),
-                coordinates.localToScreen(Offset(coordinates.size.width.toFloat(), coordinates.size.height.toFloat())),
-            )
-            if (!bounds.contains(screen)) latest()
-        }
-        onDispose { PressWatchers.remove(key) }
-    }
+    placed.watchOutside(enabled, PressWatchers, onPress)
     return onGloballyPositioned { placed.coordinates = it }.reportsPresses()
+}
+
+/**
+ * [onScroll] when a scroll starts anywhere but on this node — a wheel turned,
+ * a trackpad's fingers pushed, sideways or down — as [onPressOutside] is told
+ * of a press: what closes a swipe row left showing its actions when a carousel,
+ * a table or the list beside it is scrolled from a mouse or a trackpad.
+ *
+ * A finger's scroll needs none of this, because it starts with a press. A
+ * wheel's and a trackpad's have no press, and the row stayed open while the
+ * reader scrolled something else across: asked for as *"can we apply that too
+ * if you start side-scrolling somewhere else?"*. Added 2026-10-21 for 0.5.0.
+ *
+ * Seen as presses are: by an [io.kontour.ui.overlay.OverlayHost] round the
+ * app, and by this node itself. Only watched, never taken, so the scroll still
+ * scrolls what it was aimed at. Internal while a swipe row is the only thing
+ * that wants it; a chart's selection, the other user of [onPressOutside],
+ * keeps its point through a scroll of the page.
+ */
+@Composable
+internal fun Modifier.onScrollOutside(enabled: Boolean = true, onScroll: () -> Unit): Modifier {
+    val placed = remember { Placed() }
+    placed.watchOutside(enabled, ScrollWatchers, onScroll)
+    return onGloballyPositioned { placed.coordinates = it }.reportsScrolls()
 }
 
 /** Where a node is, for a press elsewhere to be told from one on it. Not state: written in layout, read in input. */
@@ -60,31 +72,62 @@ private class Placed {
     var coordinates: LayoutCoordinates? = null
 }
 
+/** Watches [watchers] while [enabled], and calls [onOutside] for whatever they report off this node. */
+@Composable
+private fun Placed.watchOutside(enabled: Boolean, watchers: PointerWatchers, onOutside: () -> Unit) {
+    val latest by rememberUpdatedState(onOutside)
+    DisposableEffect(enabled) {
+        if (!enabled) return@DisposableEffect onDispose { }
+        val key = Any()
+        watchers.add(key) { screen ->
+            val node = coordinates?.takeIf { it.isAttached } ?: return@add
+            val bounds = Rect(
+                node.localToScreen(Offset.Zero),
+                node.localToScreen(Offset(node.size.width.toFloat(), node.size.height.toFloat())),
+            )
+            if (!bounds.contains(screen)) latest()
+        }
+        onDispose { watchers.remove(key) }
+    }
+}
+
 /**
- * Everything waiting for a press elsewhere, each told of every press — where,
- * on the screen — to decide for itself whether it was elsewhere: a swipe row
- * showing its actions, a chart's selection, [onPressOutside].
+ * Everything waiting for a pointer's news elsewhere, each told of every one —
+ * where, on the screen — to decide for itself whether it was elsewhere: a swipe
+ * row showing its actions, a chart's selection, [onPressOutside].
  *
  * One for the process rather than one for each `OverlayHost`: a row inside a
  * host nested in another is closed by a press in the outer one too.
  */
-internal object PressWatchers {
+internal open class PointerWatchers {
     private val watching = LinkedHashMap<Any, (Offset) -> Unit>()
 
-    fun add(key: Any, onPress: (Offset) -> Unit) {
-        watching[key] = onPress
+    fun add(key: Any, onEvent: (Offset) -> Unit) {
+        watching[key] = onEvent
     }
 
     fun remove(key: Any) {
         watching.remove(key)
     }
 
-    /** A press went down at [screen], on the screen. */
-    fun pressedAt(screen: Offset) {
+    /** Whether anything is waiting, so a root can skip the work of saying where. */
+    fun isEmpty(): Boolean = watching.isEmpty()
+
+    /** It happened at [screen], on the screen. */
+    fun at(screen: Offset) {
         if (watching.isEmpty()) return
-        for (onPress in watching.values.toList()) onPress(screen)
+        for (onEvent in watching.values.toList()) onEvent(screen)
     }
 }
+
+/** Told of every press as it goes down. */
+internal object PressWatchers : PointerWatchers() {
+    /** A press went down at [screen], on the screen. */
+    fun pressedAt(screen: Offset) = at(screen)
+}
+
+/** Told of every scroll, from a wheel or a trackpad, as it starts and as it goes on. */
+internal object ScrollWatchers : PointerWatchers()
 
 /**
  * Tells [PressWatchers] of every press that goes down in this node, before
@@ -99,6 +142,38 @@ internal fun Modifier.reportsPresses(): Modifier {
             val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
             val coordinates = placed.coordinates?.takeIf { it.isAttached } ?: return@awaitEachGesture
             PressWatchers.pressedAt(coordinates.localToScreen(down.position))
+        }
+    }
+}
+
+/**
+ * Tells [ScrollWatchers] of every scroll in this node — a wheel's notch, a
+ * trackpad's pan beginning — before anything in it sees the scroll, and takes
+ * nothing from it: on an app's root beside [reportsPresses], so a scroll
+ * anywhere reaches what is watching.
+ *
+ * A wheel's every notch is told, because a wheel's scroll has no start to tell
+ * of; a pan is told once, as it starts, and its moves are the same gesture.
+ * Either way what is watching hears of it at the first, and lets go then.
+ */
+@Composable
+internal fun Modifier.reportsScrolls(): Modifier {
+    val placed = remember { Placed() }
+    return onGloballyPositioned { placed.coordinates = it }.pointerInput(Unit) {
+        awaitPointerEventScope {
+            while (true) {
+                val event = awaitPointerEvent(PointerEventPass.Initial)
+                val scrolled = when (event.type) {
+                    PointerEventType.PanStart -> true
+                    // One with no delta says nothing has moved.
+                    PointerEventType.Scroll -> event.changes.any { it.scrollDelta != Offset.Zero }
+                    else -> false
+                }
+                if (!scrolled || ScrollWatchers.isEmpty()) continue
+                val coordinates = placed.coordinates?.takeIf { it.isAttached } ?: continue
+                val change = event.changes.firstOrNull() ?: continue
+                ScrollWatchers.at(coordinates.localToScreen(change.position))
+            }
         }
     }
 }
