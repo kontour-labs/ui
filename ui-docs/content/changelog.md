@@ -28,6 +28,29 @@ On `main`, and in the next release. Nothing yet.
 
 ---
 
+## 0.4.6 — 21 October 2026
+
+Two crashes, found in an app on 0.4.5, fixed by themselves ahead of 0.5.0.
+
+### Fixed
+
+- **A list on `rememberScrollbarListState()` no longer crashes an app as it
+  leaves.** Leaving a page, a tab or a sheet while its list was still measuring
+  its rows for the scrollbar could crash with "LayoutNode should be attached
+  to an owner": the rows it held were let go of after the list had gone, and
+  a frame already under way could still run work for it. Now they are
+  forgotten with it, since the list's leaving disposes them, a row of a list
+  that has gone is never let go of, and no work runs for a list that is
+  leaving.
+- **A `ListSection` in a lazy list no longer crashes a row's layout.** To
+  inset its header and footer beside rows, a section asked its body for an
+  alignment line while measuring, and Compose laid the body out to answer,
+  placing its rows inside the section's measure. In a lazy list on Android
+  that placed a node Compose had not filed: "LayoutNode … not found in
+  RectList". The section now reads the line where it places the body.
+
+---
+
 ## 0.4.5 — 16 October 2026
 
 Smoother on iOS: clips and shadows on Skia's fast path, a scaffold that does
