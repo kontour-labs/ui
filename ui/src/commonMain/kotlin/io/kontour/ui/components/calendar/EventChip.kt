@@ -188,7 +188,7 @@ internal fun EventChip(
 
     Box(
         modifier
-            .then(if (ghost) Modifier.clearAndSetSemantics { } else Modifier.eventControl(event, scope, byDays, presentation, focusableOn, listedOn)),
+            .then(if (ghost) Modifier.clearAndSetSemantics { } else Modifier.eventControl(event, scope, shape, byDays, presentation, focusableOn, listedOn)),
     ) {
         // Its ground and what is on it cut to its shape; its handles not, so
         // a block's grips can sit across its edges, clear of its title.
@@ -291,12 +291,14 @@ private const val UnfocusedAlpha = 0.35f
 
 /**
  * An event as a control: its press, its move — a pointer's, the keyboard's,
- * a screen reader's actions — and what it is called.
+ * a screen reader's actions — and what it is called. Its hover and press wash
+ * and its focus ring are drawn in [shape], the one its ground is cut to.
  */
 @Composable
 private fun Modifier.eventControl(
     event: CalendarEvent,
     scope: CalendarScope,
+    shape: Shape,
     byDays: Boolean,
     presentation: EventPresentation,
     focusableOn: ClosedRange<LocalDate>?,
@@ -379,7 +381,14 @@ private fun Modifier.eventControl(
         )
         .then(
             if (click != null) {
-                Modifier.pressable(onClick = { click(event) }, shape = Theme.shapes.control, enabled = scope.enabled, minimumTouchTarget = false)
+                // In the event's own shape. It was `Theme.shapes.control`, a
+                // capsule, whatever the event was drawn in, until 2026-10-21
+                // for 0.5.0: on a block, cornered as `extraSmall`, the wash's
+                // rounder corners left the block's standing out past them, and
+                // on a bar or a block cut where it runs on, square at that end,
+                // the wash was still round there. Reported as the highlight
+                // "not the same shape as the event itself".
+                Modifier.pressable(onClick = { click(event) }, shape = shape, enabled = scope.enabled, minimumTouchTarget = false)
             } else if (movable || resizable || scope.deletable(event)) {
                 // Not a button, but still somewhere the keyboard can pick it up from.
                 Modifier.focusable(enabled = scope.enabled)

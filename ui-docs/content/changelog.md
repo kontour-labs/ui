@@ -189,6 +189,15 @@ On `main`, and in the next release.
 
 ### Fixed
 
+- **An [event calendar](components/event-calendar.md)'s events are hovered and
+  pressed in their own shape.** The wash over an event was a capsule whatever
+  the event was: on a block in the hours, cornered more squarely, the block's
+  corners stood out past it, and on a bar or block that runs on into the next
+  day or week, square at that end, it was round there. It is cut to the event
+  now, square ends and all, and so is the focus ring. In the schedule the row's
+  edge was drawn over the wash and the wash shrank under a press while the row
+  stayed, so a press was a smaller box inside it; the wash covers the whole row
+  now, which no longer shrinks, as a list's row does not.
 - **A [toast](components/toast.md) waiting behind the front one is never bigger
   than it.** A card pushed back by a newer toast turned into a pill by
   animating its size, so for the length of it a three-line card stood out

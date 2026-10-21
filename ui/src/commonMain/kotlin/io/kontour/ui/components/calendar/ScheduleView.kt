@@ -289,15 +289,23 @@ private fun ScheduleEventRow(scope: CalendarScope, event: CalendarEvent, day: Lo
         modifier = Modifier
             .fillMaxWidth()
             .onGloballyPositioned { placed.coordinates = it }
-            // A block's ground, pattern and edge, as the week has it.
-            .eventGround(shape, colours.container, event.pattern, colours.onContainer, BorderStroke(Theme.sizing.borderWidth, colours.border))
+            // The press before the ground, as `pressable` asks, so its wash is
+            // over the whole of the event, edge and all; and not shrunk, as a
+            // list's row is not. Until 2026-10-21 for 0.5.0 the ground came
+            // first: its edge was drawn over the wash, and the wash shrank
+            // while the ground stayed, so a press was a smaller box inside the
+            // event's, reported as a highlight "not the same shape as the
+            // event itself".
             .pressable(
                 onClick = { click?.invoke(event) },
                 enabled = scope.enabled && (click != null || menus),
                 shape = shape,
                 onLongClick = if (menus) openMenu else null,
+                pressScale = 1f,
                 minimumTouchTarget = false,
             )
+            // A block's ground, pattern and edge, as the week has it.
+            .eventGround(shape, colours.container, event.pattern, colours.onContainer, BorderStroke(Theme.sizing.borderWidth, colours.border))
             .then(if (menus) Modifier.secondaryClick { openMenu() } else Modifier)
             .onKeyEvent { key ->
                 if (key.type != KeyEventType.KeyDown || (key.key != Key.Delete && key.key != Key.Backspace)) return@onKeyEvent false
