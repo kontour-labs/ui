@@ -84,6 +84,12 @@ class ChartHoverHapticsTest {
         val start = round(bounds, 90.0)
         scene.press(start)
         scene.frame()
+        // A finger chooses round a pie once it has been held, as a long press,
+        // and the long press is let go of if the finger moves first. Held well
+        // past the wait with nothing sent, so the wait's timer, which a scene
+        // runs on a thread of its own, fires with no move arriving beside it.
+        Thread.sleep(LongPressHeldMillis)
+        scene.frame()
         scene.walkRound { degrees -> scene.move(round(bounds, degrees)) }
         scene.release(round(bounds, 330.0))
         scene.frame()
@@ -96,13 +102,13 @@ class ChartHoverHapticsTest {
      * that clock, and the two crossings, into food and into fun, are four steps
      * and more than its 80ms apart.
      *
-     * In steps of 30° rather than 10°, and not 24 of them a frame and 20ms
-     * apart, because every chart also waits for a long press under its finger,
-     * and the scene runs that wait's timer on a thread of its own: the finger
-     * still moving past the timeout, it fired while a move came in, and Compose
-     * resumed the waiting handler twice — *"Already resumed"*, under load, on
-     * the 0.5.0 head. The first step here is past the touch slop, so the drag
-     * takes the finger and the wait is let go of before its timer can fire.
+     * Quickly, in steps of 30°, and not 24 steps a frame and 20ms apart: every
+     * chart waits for a long press under a press, and the scene runs that
+     * wait's timer on a thread of its own. A walk still under way past the
+     * timeout had the timer fire as a move came in, and Compose resumed the
+     * waiting handler twice — *"Already resumed"*, under load, on the 0.5.0
+     * head. A mouse's first step is past the touch slop and lets the wait go;
+     * a finger is held past it first, with nothing sent.
      */
     private fun Scene.walkRound(move: (Double) -> Unit) {
         for (step in 1..8) {
@@ -152,5 +158,10 @@ class ChartHoverHapticsTest {
             scene.frame()
             test(scene, bounds, selection, felt)
         }
+    }
+
+    private companion object {
+        /** Past a long press's wait, 500ms on the desktop, with room for a busy machine. */
+        const val LongPressHeldMillis = 1500L
     }
 }
