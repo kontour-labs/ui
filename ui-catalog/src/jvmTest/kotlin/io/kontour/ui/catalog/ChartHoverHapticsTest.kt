@@ -72,11 +72,7 @@ class ChartHoverHapticsTest {
         scene.frame()
         scene.press(start, PointerType.Mouse)
         scene.frame()
-        for (step in 1..24) {
-            scene.move(round(bounds, 90.0 + step * 10.0), PointerType.Mouse)
-            scene.frame()
-            Thread.sleep(20)
-        }
+        scene.walkRound { degrees -> scene.move(round(bounds, degrees), PointerType.Mouse) }
         scene.release(round(bounds, 330.0), PointerType.Mouse)
         scene.frame()
         assertEquals(2, felt.count { it == FeedbackIntent.Tick }, "round the pie from rent to fun with the button held: $felt")
@@ -88,14 +84,32 @@ class ChartHoverHapticsTest {
         val start = round(bounds, 90.0)
         scene.press(start)
         scene.frame()
-        for (step in 1..24) {
-            scene.move(round(bounds, 90.0 + step * 10.0))
-            scene.frame()
-            Thread.sleep(20)
-        }
+        scene.walkRound { degrees -> scene.move(round(bounds, degrees)) }
         scene.release(round(bounds, 330.0))
         scene.frame()
         assertTrue(felt.count { it == FeedbackIntent.Tick } >= 1, "a finger round the pie from rent to fun played no tick: $felt")
+    }
+
+    /**
+     * From 90° round to 330° in steps of 30°, a frame and 25ms of the wall's
+     * clock apart: the ticks' floor, `DetentTicker.MinimumTickInterval`, is on
+     * that clock, and the two crossings, into food and into fun, are four steps
+     * and more than its 80ms apart.
+     *
+     * In steps of 30° rather than 10°, and not 24 of them a frame and 20ms
+     * apart, because every chart also waits for a long press under its finger,
+     * and the scene runs that wait's timer on a thread of its own: the finger
+     * still moving past the timeout, it fired while a move came in, and Compose
+     * resumed the waiting handler twice — *"Already resumed"*, under load, on
+     * the 0.5.0 head. The first step here is past the touch slop, so the drag
+     * takes the finger and the wait is let go of before its timer can fire.
+     */
+    private fun Scene.walkRound(move: (Double) -> Unit) {
+        for (step in 1..8) {
+            move(90.0 + step * 30.0)
+            frame()
+            Thread.sleep(25)
+        }
     }
 
     /** At [degrees] clockwise from the top, half way out. */
