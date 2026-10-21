@@ -83,18 +83,30 @@ class PresentationMotionTest {
         assertEquals(725.0, rent.up[2], 1e-9, "September's foot should rise from zero with the rest of its stack")
     }
 
+    /**
+     * Out of a stack, the parts move apart first and then come down; into
+     * one, they rise first and then close up. They are never beside each
+     * other at the same height while they move, so none hangs in the air over
+     * the one it is to stand on, or sinks through it.
+     */
     @Test
-    fun barsSideBySideNarrowAsTheyLeaveTheStack() {
+    fun barsLeaveAStackAcrossAndThenDown() {
         val stacked = bars(ChartStacking.Stacked)
         val grouped = bars(ChartStacking.Grouped)
-        val halfway = interpolate(stacked, grouped, 0.5f)
-        val food = halfway.layers.first { it.series.name == "Food" }
-        assertEquals((1f + 1f / 3) / 2, food.groupWidth, 1e-6f, "a bar should be between a stack's width and a group's")
+        val quarter = interpolate(stacked, grouped, 0.25f)
+        val food = quarter.layers.first { it.series.name == "Food" }
+        assertEquals((1f + 1f / 3) / 2, food.groupWidth, 1e-6f, "a quarter in, the bars should be half way to a group's width")
         assertEquals(0f, food.groupOffset, 1e-6f, "the middle bar of three stays in the middle")
-        val travel = halfway.layers.first { it.series.name == "Travel" }
+        val travel = quarter.layers.first { it.series.name == "Travel" }
         assertEquals(1f / 6, travel.groupOffset, 1e-6f, "the last bar should be half way to its place in the group")
-        // And its foot comes down from the stack to zero as it goes.
-        assertEquals(2060.0 / 2, travel.base!![1], 1e-9)
+        assertEquals(2060.0, travel.base!![1], 1e-9, "and still at its height in the stack")
+        val threeQuarters = interpolate(stacked, grouped, 0.75f).layers.first { it.series.name == "Travel" }
+        assertEquals(1f / 3, threeQuarters.groupOffset, 1e-6f, "three quarters in, the bars are apart")
+        assertEquals(2060.0 / 2, threeQuarters.base!![1], 1e-9, "and half way down to zero")
+        // Into a stack, the other way round.
+        val rising = interpolate(grouped, stacked, 0.25f).layers.first { it.series.name == "Travel" }
+        assertEquals(1f / 3, rising.groupOffset, 1e-6f, "a quarter into a stack, the bars are still apart")
+        assertEquals(2060.0 / 2, rising.base!![1], 1e-9, "and half way up to their places in it")
     }
 
     @Test
@@ -166,6 +178,32 @@ class PresentationMotionTest {
         going.forEach { assertEquals(5.0, halfway.up[it], 1e-9, "a day going should be half way down to its foot") }
         val categories = interpolate(bars(ChartStacking.Grouped), bars(ChartStacking.Grouped, quarter.filter { it.month != "Sep" }), 0.5f)
         assertEquals(2, categories.layers.first().size, "a category that has gone should go at once")
+    }
+
+    /**
+     * A bar's end under another eases between square and rounded as bars move,
+     * rather than keeping its rounding the whole way into a stack and squaring
+     * off once it has stopped: *"all the sections look like the top stack, and
+     * they only snap into position once they stop"*.
+     */
+    @Test
+    fun aBarsEndSquaresAsTheBarAboveSettlesOnIt() {
+        val grouped = bars(ChartStacking.Grouped)
+        val stacked = bars(ChartStacking.Stacked)
+        // A pixel a pound, and corners that reach ten pixels in.
+        fun rentEnd(chart: ResolvedChart): Float {
+            val rent = chart.layers.first { it.series.name == "Rent" }
+            return openEndsOf(rent, chart, reach = 10f) { -it.toFloat() }[1]
+        }
+        assertEquals(1f, rentEnd(grouped), 1e-6f, "side by side, Rent's top is clear")
+        assertEquals(0f, rentEnd(stacked), 1e-6f, "in the stack, Food stands on it")
+        var last = 1f
+        for (step in 1..40) {
+            val now = rentEnd(interpolate(grouped, stacked, step / 40f))
+            assertTrue(last - now <= 0.35f, "Rent's corners should ease square, not snap: ${last} to $now at step $step")
+            last = now
+        }
+        assertTrue(rentEnd(interpolate(grouped, stacked, 0.9f)) < 1f, "and be on their way well before the move ends")
     }
 
     private fun ResolvedChart.copyOnly(kind: MarkKind) = with(x, y, layers.filter { it.mark.kind == kind })

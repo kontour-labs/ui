@@ -453,6 +453,7 @@ private fun <X : Any> ChartPlot(
                 val now = currentChart
                 nearestPlace(now.places, Mapper(current, now.x, now.y).xAt(offset))?.let(select)
             }
+            true
         },
         pick = { index -> select(currentChart.places[index]) },
         clear = { currentSelection?.clear() },
@@ -479,7 +480,7 @@ private fun <X : Any> ChartPlot(
             if (showProbe && selectedPlace != null) {
                 val shown = selectionAt(chart, selectedPlace, decode, strings, Theme.formats)
                 if (shown != null) {
-                    ChartTooltipProbe(shown, tooltip, onDismissRequest = { tip.putAway(selectedPlace) }) {
+                    ChartTooltipProbe(shown, tooltip, tip, chosen = selectedPlace) {
                         ChartTooltipBody(
                             title = shown.label,
                             rows = shown.values.map { value ->
@@ -551,14 +552,13 @@ private fun <X : Any> ChartPlot(
             }
             placeable to start
         }
-        // The tooltip stands beside what is selected, so its probe is as wide:
-        // a place's whole band among bars, which are washed that wide, and a
-        // point's ring on a line, so that the card clears what it reads out.
-        val reach = if (chart.selectsBands || chart.cells != null) {
-            cellBand(chart.placeAxis, chart.places, mapper.unitX)
-        } else {
-            config.pointSize * 2
-        }.roundToInt().coerceAtLeast(1)
+        // The tooltip stands beside what is selected, so its probe is as wide
+        // as the place: a bar's whole band, and on a line the stretch nearer
+        // this point than any other. A pointer anywhere in it chooses this
+        // place, so it can never be on the card beside it: the probe was a
+        // point's ring wide on a line, and a pointer moving on from the point
+        // ran onto the card before it was nearer the next one.
+        val reach = cellBand(chart.placeAxis, chart.places, mapper.unitX).roundToInt().coerceAtLeast(1)
         val probe = if (measurables.size > places.size) measurables[places.size].measure(Constraints.fixed(reach, 1)) else null
         layout(width, height) {
             nodes.forEach { (node, start) ->

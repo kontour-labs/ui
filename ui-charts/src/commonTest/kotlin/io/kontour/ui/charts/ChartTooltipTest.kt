@@ -6,6 +6,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.SemanticsMatcher
@@ -16,11 +17,13 @@ import androidx.compose.ui.test.isFocusable
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.performMouseInput
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.compose.ui.unit.DpRect
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.overlay.OverlayHost
+import io.kontour.ui.overlay.TooltipDefaults
 import io.kontour.ui.theme.KontourTheme
 import kotlin.math.abs
 import kotlin.test.Test
@@ -89,6 +92,56 @@ class ChartTooltipTest {
         onNodeWithContentDescription("Total, 2,060").assertDoesNotExist()
     }
 
+    private val aRow = SemanticsMatcher("a row of the tooltip") { node ->
+        val said = if (SemanticsProperties.ContentDescription in node.config) node.config[SemanticsProperties.ContentDescription] else emptyList()
+        said.any { it.startsWith("Rent, ") }
+    }
+
+    private fun ComposeUiTest.tooltipShown(): Boolean = onAllNodes(aRow, useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
+
+    /**
+     * A finger held on a chart keeps its tooltip however long it is held, and
+     * the tooltip goes [TooltipDefaults.TouchDuration] after it lifts. It went
+     * that long after it first showed, in the middle of a drag.
+     */
+    @Test
+    fun aHeldFingerKeepsItsTooltip() = runComposeUiTest {
+        bars(ChartSelectionState(null))
+        onNodeWithTag("chart").performTouchInput { down(Offset(width * 0.5f, height / 2f)) }
+        mainClock.advanceTimeBy(5_000)
+        assertTrue(tooltipShown(), "the tooltip should stay while the finger is down")
+        onNodeWithTag("chart").performTouchInput { up() }
+        mainClock.advanceTimeBy(1_000)
+        assertTrue(tooltipShown(), "and for a while after it lifts")
+        mainClock.advanceTimeBy(TooltipDefaults.TouchDuration.inWholeMilliseconds)
+        waitForIdle()
+        assertTrue(!tooltipShown(), "and then go")
+    }
+
+    /**
+     * A mouse that lands on the tooltip, as one moving fast can before the
+     * tooltip has moved on, keeps it: it chooses where it is rather than
+     * letting go. It let go, the tooltip went, and came back after a rest:
+     * *"the tooltip sometimes disappears for a sec then comes back. it also
+     * happens if i drag/hover into the tooltip"*.
+     */
+    @Test
+    fun aMouseOnTheTooltipKeepsIt() = runComposeUiTest {
+        bars(ChartSelectionState(null))
+        val chart = onNodeWithTag("chart")
+        chart.performMouseInput { moveTo(Offset(width * 0.3f, height * 0.5f)) }
+        mainClock.advanceTimeBy(1_000)
+        assertTrue(tooltipShown(), "resting, the mouse should have shown the tooltip")
+        // Straight onto the card beside the place.
+        val card = onAllNodes(aRow, useUnmergedTree = true).fetchSemanticsNodes().first().boundsInRoot
+        val root = chart.fetchSemanticsNode().boundsInRoot
+        chart.performMouseInput { moveTo(Offset(card.center.x - root.left, card.center.y - root.top)) }
+        repeat(30) { frame ->
+            mainClock.advanceTimeBy(16)
+            assertTrue(tooltipShown(), "the tooltip went $frame frames after the mouse landed on it")
+        }
+    }
+
     /**
      * A pie's tooltip stands over the finger that chose its sector, rather
      * than over the sector's middle: *"when you hover over/tap a pie chart,
@@ -125,5 +178,32 @@ class ChartTooltipTest {
         assertTrue(tapY - tip.bottom < 60.dp, "and just above it, not over the sector's top: ${tapY - tip.bottom} away")
         val middle = (tip.left + tip.right) / 2
         assertTrue(abs((middle - tapX).value) < 40f, "and over it: its middle at $middle, the finger at $tapX")
+    }
+
+    /**
+     * A mouse off a pie's circle, still in its box, lets the pie go, and the
+     * tooltip with it: *"the tooltip in the pie chart should fade out when you
+     * leave the circle, not the bounding box"*.
+     */
+    @Test
+    fun aMouseOffThePiesCircleLetsGo() = runComposeUiTest {
+        val selection = ChartSelectionState<ChartSeries>(null)
+        setContent {
+            KontourTheme(reduceMotion = true) {
+                OverlayHost(Modifier.fillMaxSize()) {
+                    SectorChart(modifier = Modifier.size(240.dp).testTag("pie"), selection = selection, showLegend = false, animateData = false) {
+                        sectors(listOf(Spend("Sep", "Rent", 50.0), Spend("Sep", "Food", 50.0)), value = { it.amount }, series = { ChartSeries(it.what) })
+                    }
+                }
+            }
+        }
+        val pie = onNodeWithTag("pie")
+        pie.performMouseInput { moveTo(Offset(width * 0.75f, height * 0.5f)) }
+        mainClock.advanceTimeBy(1_000)
+        assertTrue(selection.x == ChartSeries("Rent"), "over the circle, the mouse should choose Rent")
+        // The box's corner, outside the circle.
+        pie.performMouseInput { moveTo(Offset(width * 0.97f, height * 0.03f)) }
+        mainClock.advanceTimeBy(100)
+        assertTrue(selection.x == null, "off the circle, the pie should let go: ${selection.x}")
     }
 }

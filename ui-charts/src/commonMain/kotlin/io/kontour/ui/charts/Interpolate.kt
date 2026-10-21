@@ -218,8 +218,22 @@ private fun blendLayer(from: Layer, to: Layer, t: Double, horizontal: Boolean, s
             to.copy(up = up, base = base)
         }
 
-        MarkKind.Bar -> blendByPlace(from, to, t, lying, keepGone = sliding)
-            .copy(groupWidth = lerp(from.groupWidth, to.groupWidth, t), groupOffset = lerp(from.groupOffset, to.groupOffset, t))
+        MarkKind.Bar -> {
+            // Into a stack from side by side, each part rises to its place in
+            // the stack first, still beside the others, and then they close up
+            // into one bar; out of one, they part first and then come down.
+            // Moved both ways at once, every part hung in the air over the one
+            // it would stand on, or sank through it, and the stack came
+            // together only as it stopped: *"all the sections look like the
+            // top stack, and they only snap into position once they stop"*.
+            // In turn, the parts are at different heights all the time they
+            // move across, and meet edge to edge.
+            val regroups = from.stacked != to.stacked && (from.groupWidth != to.groupWidth || from.groupOffset != to.groupOffset)
+            val up = if (!regroups) t else if (to.stacked) firstHalf(t) else secondHalf(t)
+            val across = if (!regroups) t else if (to.stacked) secondHalf(t) else firstHalf(t)
+            blendByPlace(from, to, up, lying, keepGone = sliding)
+                .copy(groupWidth = lerp(from.groupWidth, to.groupWidth, across), groupOffset = lerp(from.groupOffset, to.groupOffset, across))
+        }
 
         MarkKind.Stem -> blendByPlace(from, to, t, lying = false)
 
@@ -425,6 +439,12 @@ internal fun sampleAt(places: DoubleArray, values: DoubleArray, place: Double): 
     if (a.isNaN() || b.isNaN()) return if (place - places[low] < places[high] - place) a else b
     return a + (b - a) * (place - places[low]) / span
 }
+
+/** How far through the first half of a move [t] is, as a move of its own. */
+private fun firstHalf(t: Double): Double = (t * 2).coerceIn(0.0, 1.0)
+
+/** How far through the second half of a move [t] is, as a move of its own. */
+private fun secondHalf(t: Double): Double = (t * 2 - 1).coerceIn(0.0, 1.0)
 
 private fun lerp(a: Float, b: Float, t: Double): Float = a + (b - a) * t.toFloat()
 

@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import io.kontour.ui.foundation.ContentScope
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.onPressOutside
+import io.kontour.ui.input.LocalInputModality
 import io.kontour.ui.overlay.OverlayAlignment
 import io.kontour.ui.overlay.OverlaySide
 import io.kontour.ui.overlay.Tooltip
@@ -61,6 +62,9 @@ internal enum class ChartSteps { Along, Round }
 internal class ChartTip {
     private var awayFrom by mutableStateOf<Any?>(NoChoice)
     var resting by mutableStateOf(false)
+
+    /** Whether a finger or a pen is down on the chart, choosing. */
+    var held by mutableStateOf(false)
     val placed = Placed()
 
     /** Whether the tooltip for [chosen] is out. */
@@ -98,7 +102,8 @@ internal fun rememberChartTip(): ChartTip {
  * @param dragsAcross Whether a plain drag across chooses too, without a hold
  *   first: a row of places is crossed that way, and a circle is not, where an
  *   upright start would be the page's scroll.
- * @param pickAt Chooses what is under a point, if anything.
+ * @param pickAt Chooses what is under a point, if anything, and says whether
+ *   anything was: a pie's corners, outside its circle, have nothing.
  * @param pick Chooses the [index]th.
  */
 @Composable
@@ -112,7 +117,7 @@ internal fun Modifier.chartSelectionInput(
     dragsAcross: Boolean,
     said: String?,
     interactionSource: MutableInteractionSource?,
-    pickAt: (Offset) -> Unit,
+    pickAt: (Offset) -> Boolean,
     pick: (Int) -> Unit,
     clear: () -> Unit,
 ): Modifier {
@@ -170,7 +175,12 @@ internal fun Modifier.chartSelectionInput(
                 while (true) {
                     val event = awaitPointerEvent()
                     val change = event.changes.firstOrNull() ?: continue
-                    if (change.type != PointerType.Mouse) continue
+                    // A finger or a pen on the chart: its tooltip's time does
+                    // not start until it lifts. See `ChartTooltipProbe`.
+                    if (change.type != PointerType.Mouse) {
+                        tip.held = event.changes.any { it.pressed }
+                        continue
+                    }
                     when (event.type) {
                         // Arriving as much as moving: the event a pointer
                         // crossing onto the chart brings is an enter.
@@ -178,14 +188,35 @@ internal fun Modifier.chartSelectionInput(
                             // A pointer arriving rests before the tooltip shows; one
                             // already showing moves with it.
                             if (latestChosen == null) tip.resting = true
-                            latestPickAt(change.position)
                             hovering = true
+                            // Off a pie's circle, though still in its box, is off
+                            // the pie: what it chose lets go, and its tooltip
+                            // fades. It stayed until the pointer left the box:
+                            // *"the tooltip in the pie chart should fade out when
+                            // you leave the circle, not the bounding box"*.
+                            if (!latestPickAt(change.position) && latestChosen != null) {
+                                tip.resting = false
+                                latestClear()
+                            }
                         }
                         // Gone off the chart, its tooltip goes with it, at once.
                         // It stayed until a scroll moved the chart under it:
                         // *"when you stop hovering, the tooltip should disappear.
                         // it shouldn't wait for you to scroll"*.
+                        //
+                        // Unless it has not gone off it, only under something
+                        // laid over it: its own tooltip, which a pointer can
+                        // reach before what it is over has moved the tooltip
+                        // on. Let go there, the tooltip went, the pointer was
+                        // on the chart again, and the tooltip came back after
+                        // a rest: *"the tooltip sometimes disappears for a sec
+                        // then comes back. it also happens if i drag/hover into
+                        // the tooltip"*. Chosen where it is instead, which
+                        // moves the tooltip on from under it.
                         PointerEventType.Exit -> if (hovering) {
+                            val at = change.position
+                            val covered = at.x >= 0f && at.y >= 0f && at.x < size.width && at.y < size.height
+                            if (covered && latestPickAt(at)) continue
                             hovering = false
                             tip.resting = false
                             if (latestChosen != null) latestClear()
@@ -232,7 +263,9 @@ internal fun Modifier.chartSelectionInput(
  * A chart's tooltip, from a probe placed where the choice is: the caller's
  * [tooltip] for [shown], or [body]. A touch's goes after
  * [TooltipDefaults.TouchDuration], as every other tooltip does, and the choice
- * stays.
+ * stays; counted from when the finger lifts, not from when it first chose.
+ * Counted from then, a finger dragging along a chart for four seconds lost its
+ * tooltip in the middle of the drag, until it reached the next place.
  *
  * A card, standing off the probe on [side]: beside a place, so that the
  * values it reads out are not covered by it, or above a pointer on a pie. It
@@ -243,17 +276,26 @@ internal fun Modifier.chartSelectionInput(
 internal fun <T : Any> ChartTooltipProbe(
     shown: ChartSelection<T>,
     tooltip: (@Composable ContentScope.(ChartSelection<T>) -> Unit)?,
-    onDismissRequest: () -> Unit,
+    tip: ChartTip,
+    chosen: Any?,
     side: OverlaySide = OverlaySide.End,
     alignment: OverlayAlignment = OverlayAlignment.Start,
     body: @Composable ContentScope.() -> Unit,
 ) {
+    val touch = LocalInputModality.current.needsLargeTargets
+    LaunchedEffect(chosen, tip.held, touch) {
+        if (touch && !tip.held) {
+            delay(TooltipDefaults.TouchDuration)
+            tip.putAway(chosen)
+        }
+    }
     Box {
         Tooltip(
             visible = true,
             side = side,
             alignment = alignment,
-            onDismissRequest = onDismissRequest,
+            // Its own time is from when it first showed: this one keeps its own. See above.
+            onDismissRequest = {},
             style = TooltipStyle.Card,
         ) {
             if (tooltip != null) tooltip(shown) else body()

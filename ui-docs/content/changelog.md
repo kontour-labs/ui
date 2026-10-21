@@ -368,8 +368,12 @@ On `main`, and in the next release.
   place is washed behind them, its whole width, where a line through them cut
   them in two. A `SectorChart`'s stands over the pointer or the finger that
   chose its sector, and moves with a pointer, rather than over the sector's
-  middle. `tooltip` still replaces what it says; the energy app's hours show
-  one of their own.
+  middle, and fades as the pointer leaves the circle rather than its box. A
+  touch's tooltip stays while the finger is down and goes four seconds after it
+  lifts, where it went four seconds into a long drag; and a pointer that lands
+  on the tooltip chooses the place under it, where the chart let go and the
+  tooltip blinked out and back. `tooltip` still replaces what it says; the
+  energy app's hours show one of their own.
 - **A chart moving between ways of drawing its data keeps its marks
   together.** A stack rises as one from its foot, where each part rose from
   its own and stood in the air over the part under it. Bars leaving a stack
@@ -378,8 +382,11 @@ On `main`, and in the next release.
   once and each part moves to its share, where its labels sat heaped at the
   foot of the plot for most of the move; and bars turned to a line or an area
   fade into it, the line going from their tops, where they sank to the floor
-  as it rose. A bar's ends are rounded by where it is in each frame, so none
-  is notched on the way. Along a date or number axis, a day that has gone goes
+  as it rose. Into a stack, bars side by side rise to their places first and
+  then close up, and out of one they part first and then come down, so no part
+  hangs over the one it lands on. A bar's end is rounded by how much of it
+  another bar covers in each frame, so corners ease square as parts meet and
+  round as they part, rather than snapping when the move stops. Along a date or number axis, a day that has gone goes
   down as the axis closes in, rather than vanishing.
 - **Side sheets take the panel's corner, 28dp**, not a sheet's 34. Facing the
   content in the middle of the window, a side sheet meets no device corner, and

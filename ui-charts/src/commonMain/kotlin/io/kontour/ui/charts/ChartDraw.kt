@@ -6,6 +6,7 @@ import io.kontour.ui.theme.leadingCornersOnly
 import io.kontour.ui.theme.bottomCornersOnly
 import io.kontour.ui.foundation.PatternBrushes
 import androidx.compose.foundation.shape.CornerBasedShape
+import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
@@ -22,6 +23,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import kotlin.math.abs
 import kotlin.math.max
@@ -56,13 +58,38 @@ internal class DrawConfig(
  * component has, and a brand that rounds less rounds its charts less. Read
  * left to right whatever the language: a bar's far end is worked out already.
  */
-internal class Corners(base: CornerBasedShape) {
+internal class Corners(private val base: CornerBasedShape) {
     val up: Shape = base.topCornersOnly()
     val down: Shape = base.bottomCornersOnly()
     val right: Shape = base.trailingCornersOnly()
     val left: Shape = base.leadingCornersOnly()
     val all: Shape = base
+
+    /** How far a corner reaches into a bar [size] across, in pixels. */
+    fun reach(size: Size, density: Density): Float = base.topStart.toPx(size, density)
+
+    // A bar's far end [open] of the way to rounded: square under another
+    // bar, rounded clear of one, and in between while it comes out from
+    // under one. See `openEndsOf`.
+    fun up(open: Float): Shape? = eased(open, up) { it.topCornersOnly() }
+    fun down(open: Float): Shape? = eased(open, down) { it.bottomCornersOnly() }
+    fun right(open: Float): Shape? = eased(open, right) { it.trailingCornersOnly() }
+    fun left(open: Float): Shape? = eased(open, left) { it.leadingCornersOnly() }
+
+    private inline fun eased(open: Float, whole: Shape, cut: (CornerBasedShape) -> Shape): Shape? = when {
+        open <= NoCorner -> null
+        open >= 1f - NoCorner -> whole
+        else -> cut(base.copy(Scaled(base.topStart, open), Scaled(base.topEnd, open), Scaled(base.bottomEnd, open), Scaled(base.bottomStart, open)))
+    }
 }
+
+/** [size], [by] of the way: a corner part rounded. */
+private class Scaled(private val size: CornerSize, private val by: Float) : CornerSize {
+    override fun toPx(shapeSize: Size, density: Density): Float = size.toPx(shapeSize, density) * by
+}
+
+/** Below this much of the way to rounded, an end is drawn square: a corner nobody could see. */
+private const val NoCorner = 0.01f
 
 /** How strongly a region is washed in its colour: a ground to read marks over, not a mark. */
 private const val RegionOpacity = 0.12f
@@ -399,13 +426,17 @@ private fun DrawScope.drawBars(layer: Layer, look: SeriesLook, chart: ResolvedCh
     // stack had square ends, and stacking is a bar's default, so nearly every
     // bar in a chart was square.
     // A floating bar stands on nothing, so both its ends are rounded.
-    val outer = if (!layer.mark.floating) outermostOf(layer, chart) else null
     val corners = config.corners
+    val open = if (!layer.mark.floating) {
+        openEndsOf(layer, chart, corners.reach(Size(thickness, thickness), this)) { if (lying) m.px(it) else m.py(it) }
+    } else {
+        null
+    }
     val path = Path()
     for (i in 0 until layer.size) {
         if (tops[i].isNaN()) continue
         val positive = tops[i] >= base[i]
-        val rounded = outer == null || outer[i]
+        val opened = open?.get(i) ?: 1f
         if (lying) {
             val centre = m.py(places[i]) + offset
             val from = m.px(base[i])
@@ -413,7 +444,7 @@ private fun DrawScope.drawBars(layer: Layer, look: SeriesLook, chart: ResolvedCh
             val rect = Rect(min(from, to), centre - thickness / 2, max(from, to), centre + thickness / 2)
             // The far end is rounded; which side that is depends on the sign
             // and on which way the language reads, both in `from` and `to`.
-            val shape = if (!rounded) null else if (to >= from) corners.right else corners.left
+            val shape = if (to >= from) corners.right(opened) else corners.left(opened)
             if (shape == null) path.addRect(rect) else addShape(path, rect, shape)
         } else {
             val direction = if (m.frame.rtl) -1f else 1f
@@ -423,9 +454,8 @@ private fun DrawScope.drawBars(layer: Layer, look: SeriesLook, chart: ResolvedCh
             val rect = Rect(centre - thickness / 2, min(from, to), centre + thickness / 2, max(from, to))
             val shape = when {
                 layer.mark.floating -> corners.all
-                !rounded -> null
-                positive -> corners.up
-                else -> corners.down
+                positive -> corners.up(opened)
+                else -> corners.down(opened)
             }
             if (shape == null) path.addRect(rect) else addShape(path, rect, shape)
         }
@@ -434,48 +464,71 @@ private fun DrawScope.drawBars(layer: Layer, look: SeriesLook, chart: ResolvedCh
 }
 
 /**
- * Whether each of [layer]'s values has its far end clear: no other bar of its
- * mark standing on it at its place. The outermost part of a stack, above zero
- * or below it, and every bar of a group.
+ * How clear each of [layer]'s far ends is, from 0, under another bar of its
+ * mark standing on it, to 1, with nothing on it: the outermost part of a stack,
+ * above zero or below it, and every bar of a group, are 1. The end is rounded
+ * that much of the way, so its corners ease in and out as bars move.
  *
  * Found from where the bars are in this frame, rather than from how the mark
  * stacks: moving from a stack to bars side by side, every part was rounded in
  * the first frame, where they were all still stacked, and notched where each
  * stood on the next; and back again, a part was squared the moment the move
  * began, while it still stood alone.
+ *
+ * And by how much rather than whether, since bars side by side moving into a
+ * stack only touched in its last frame, and every part kept a rounded top the
+ * whole way and squared off once it had stopped: *"all the sections look like
+ * the top stack, and they only snap into position once they stop"*. How much
+ * of an end is covered is how much of its width the bar on it overlaps, how
+ * near that bar's foot is, and how tall that bar is, each against how far a
+ * corner reaches, [reach]: a bar on its way out of a stack lets the end under
+ * it round as it shrinks, rather than the moment it is gone. [at] is where a
+ * value along the value axis is drawn, in pixels.
  */
-private fun outermostOf(layer: Layer, chart: ResolvedChart): BooleanArray {
+internal fun openEndsOf(layer: Layer, chart: ResolvedChart, reach: Float, at: (Double) -> Float): FloatArray {
     val lying = chart.horizontal
-    // Only the bars over this one's width: side by side, neither is over the other.
+    val corner = max(reach, 1f)
+    // Only the bars over some of this one's width: side by side, neither is over the other.
     val others = chart.layers.filter { other ->
         other.markIndex == layer.markIndex && other !== layer && other.opacity > 0f && other.base != null &&
             abs(layer.groupOffset - other.groupOffset) < (layer.groupWidth + other.groupWidth) / 2
     }
     // Each one's index at each place, found once rather than for every bar.
-    val at = others.map { other ->
+    val indices = others.map { other ->
         val otherPlaces = if (lying) other.up else other.across
         HashMap<Double, Int>(otherPlaces.size * 2).apply { otherPlaces.forEachIndexed { j, place -> getOrPut(place) { j } } }
     }
+    // How much of this one's width each overlaps.
+    val overlaps = others.map { other ->
+        val start = max(layer.groupOffset - layer.groupWidth / 2, other.groupOffset - other.groupWidth / 2)
+        val end = min(layer.groupOffset + layer.groupWidth / 2, other.groupOffset + other.groupWidth / 2)
+        ((end - start) / layer.groupWidth).coerceIn(0f, 1f)
+    }
     val places = if (lying) layer.up else layer.across
     val tops = if (lying) layer.across else layer.up
-    return BooleanArray(layer.size) { i ->
+    return FloatArray(layer.size) { i ->
         val top = tops[i]
-        val slack = SeamSlack * max(1.0, abs(top))
-        val rising = top > (layer.base?.get(i) ?: 0.0)
-        others.indices.none { k ->
+        val foot = layer.base?.get(i) ?: 0.0
+        val rising = top > foot
+        val end = at(top)
+        var covered = 0f
+        for (k in others.indices) {
             val other = others[k]
-            val j = at[k][places[i]] ?: return@none false
+            val j = indices[k][places[i]] ?: continue
             val otherTops = if (lying) other.across else other.up
-            val otherBase = other.base!!
-            !otherTops[j].isNaN() && otherTops[j] != otherBase[j] && abs(otherBase[j] - top) <= slack &&
-                // Going on the same way: up from a part above zero, down from one below.
-                (otherTops[j] > otherBase[j]) == rising
+            val otherTop = otherTops[j]
+            val otherFoot = other.base!![j]
+            if (otherTop.isNaN() || otherTop == otherFoot) continue
+            // Going on the same way, and beyond this one rather than under it.
+            if ((otherTop > otherFoot) != rising) continue
+            if (rising != (otherTop + otherFoot > top + foot)) continue
+            val near = 1f - (abs(at(otherFoot) - end) / corner).coerceAtMost(1f)
+            val tall = (abs(at(otherTop) - at(otherFoot)) / corner).coerceAtMost(1f)
+            covered = max(covered, overlaps[k] * near * tall)
         }
+        1f - covered
     }
 }
-
-/** How near one bar's foot must be to another's end to stand on it: rounding, not a gap. */
-private const val SeamSlack = 1e-9
 
 /** The smallest step between neighbouring [places], for the width of bars across a continuous axis. */
 private fun smallestStep(places: DoubleArray): Double {

@@ -281,11 +281,13 @@ fun SectorChart(
     }
     var box by remember { mutableStateOf(IntSize.Zero) }
     val geometry = remember(fractions, innerRadius, direction) { SectorGeometry(fractions, innerRadius, direction) }
-    val chooseAt: (Offset) -> Unit = { offset ->
-        geometry.partAt(offset, box.width.toFloat(), box.height.toFloat())?.let { index ->
+    val chooseAt: (Offset) -> Boolean = { offset ->
+        val index = geometry.partAt(offset, box.width.toFloat(), box.height.toFloat())
+        if (index != null) {
             choose(index)
             pointer = offset
         }
+        index != null
     }
     val tip = rememberChartTip()
     // Round the circle with a finger after a hold, so that a drag that starts
@@ -406,7 +408,8 @@ fun SectorChart(
                         ChartTooltipProbe(
                             shown,
                             tooltip,
-                            onDismissRequest = { tip.putAway(chosen) },
+                            tip,
+                            chosen = chosen,
                             side = OverlaySide.Top,
                             alignment = OverlayAlignment.Centre,
                         ) {
