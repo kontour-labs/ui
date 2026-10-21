@@ -5,12 +5,25 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toAwtImage
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.requestFocus
+import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Density as UnitDensity
 import io.kontour.icons.tabler.Tabler
 import io.kontour.icons.tabler.outline.Archive
 import io.kontour.icons.tabler.outline.Pin
@@ -19,6 +32,10 @@ import io.kontour.ui.components.list.SwipeAction
 import io.kontour.ui.components.list.SwipeActions
 import io.kontour.ui.components.list.SwipeValue
 import io.kontour.ui.components.list.rememberSwipeActionsState
+import io.kontour.ui.input.InputModality
+import io.kontour.ui.input.LocalInputModality
+import io.kontour.ui.theme.KontourTheme
+import io.kontour.ui.theme.Theme
 import java.awt.image.BufferedImage
 import kotlin.math.abs
 import kotlin.test.Test
@@ -128,4 +145,62 @@ class SwipeActionClipTest {
     @Test
     fun aRowSwipedOpenOnItsEndActionsStaysInItsColumn() =
         assertInsideItsRow(SwipeValue.End, Archive, "towards the leading edge")
+
+    /**
+     * A row the keyboard has reached shows its focus ring, its sides included.
+     *
+     * Found in the 0.5.0 review, 2026-10-21, as the ring's sides cut away by
+     * the clip that keeps a swiped row in its row. The whole ring had gone,
+     * and since before that clip: the row is clipped to its shape where it
+     * slides, and a `ListItem` draws its ring outside its bounds. Inside a
+     * `SwipeActions` it draws it just inside them, as the actions do theirs.
+     * Read just inside the row, half way down it, on each side.
+     */
+    @OptIn(ExperimentalTestApi::class)
+    @Test
+    fun aFocusedRowShowsItsRingSidesAndAll() = runComposeUiTest {
+        var ring = Color.Unspecified
+        var row = Rect.Zero
+        setContent {
+            CompositionLocalProvider(LocalDensity provides UnitDensity(Density.toFloat())) {
+                KontourTheme {
+                    ring = Theme.colours.focusRing
+                    CompositionLocalProvider(LocalInputModality provides InputModality.Keyboard) {
+                        Box(Modifier.width(Width.dp).height(Height.dp).background(Beside)) {
+                            Box(
+                                Modifier
+                                    .align(Alignment.Center)
+                                    .width(ListWidth.dp)
+                                    .fillMaxHeight()
+                                    .background(Page)
+                                    .padding(vertical = Inset.dp),
+                            ) {
+                                SwipeActions(
+                                    end = listOf(
+                                        SwipeAction(label = "Archive", icon = Tabler.Outline.Archive, onAction = {}, background = Archive),
+                                    ),
+                                    modifier = Modifier.fillMaxWidth(),
+                                ) {
+                                    ListItem(onClick = {}, modifier = Modifier.reportBounds { row = it }) {
+                                        +"Sam Whitlock"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        waitForIdle()
+        onNodeWithText("Sam Whitlock").requestFocus()
+        waitForIdle()
+        onNodeWithText("Sam Whitlock").assertIsFocused()
+        val image = onRoot().captureToImage().toAwtImage()
+        val y = row.center.y.toInt()
+        val left = row.left.toInt()
+        val right = row.right.toInt()
+        fun ringNear(xs: IntProgression) = xs.any { near(image.at(it, y), ring) }
+        assertTrue(ringNear(left..left + 6), "a focused row in a SwipeActions showed no ring at its leading side")
+        assertTrue(ringNear(right - 1 downTo right - 7), "a focused row in a SwipeActions showed no ring at its trailing side")
+    }
 }

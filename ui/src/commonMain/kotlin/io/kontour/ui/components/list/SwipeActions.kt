@@ -35,6 +35,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.ReadOnlyComposable
@@ -48,6 +49,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -1195,10 +1197,26 @@ fun SwipeActions(
                     }
                 }
         ) {
-            content()
+            // The row's focus ring drawn inside it, as its actions' are: the
+            // row is clipped to [shape] here, and a ring drawn round it, as a
+            // `ListItem` draws one anywhere else, was cut away whole.
+            CompositionLocalProvider(LocalRingInside provides true) { content() }
         }
     }
 }
+
+/**
+ * Whether a row draws its focus ring just inside its edge rather than round it,
+ * for a row in a container that clips it to its own shape.
+ *
+ * Found in the 0.5.0 review, 2026-10-21, as the sides of a `ListItem`'s ring
+ * cut away by the clip that keeps a swiped row in its row. More than the sides
+ * had gone, and since before that clip: [SwipeActions] clips the row it slides
+ * to [SwipeActions]'s shape, so that the page shows between the row and its
+ * actions, and the ring a `ListItem` draws outside its bounds never showed at
+ * all. A row a keyboard had reached said nothing of it.
+ */
+internal val LocalRingInside = staticCompositionLocalOf { false }
 
 /**
  * Where a released swipe goes. Pure, so every rule in [SwipeActions]'s "How it
