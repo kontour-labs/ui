@@ -49,8 +49,8 @@ class FeedbackFloorTest {
         val recorder = Recorder()
         // A slider and a chip, as far as this is concerned: two tickers that have
         // never heard of each other, handed the same floor by the theme.
-        val slider = DetentTicker(recorder, floor = floor)
-        val chip = DetentTicker(recorder, FeedbackIntent.Tap, floor = floor)
+        val slider = DetentTicker(recorder, floor = floor, hover = HoverWatch.Never)
+        val chip = DetentTicker(recorder, FeedbackIntent.Tap, floor = floor, hover = HoverWatch.Never)
 
         slider.at(0f)
         clock += 200.milliseconds
@@ -74,8 +74,8 @@ class FeedbackFloorTest {
         val clock = TestTimeSource()
         val floor = FeedbackFloor(clock)
         val recorder = Recorder()
-        val slider = DetentTicker(recorder, floor = floor)
-        val chip = DetentTicker(recorder, FeedbackIntent.Tap, floor = floor)
+        val slider = DetentTicker(recorder, floor = floor, hover = HoverWatch.Never)
+        val chip = DetentTicker(recorder, FeedbackIntent.Tap, floor = floor, hover = HoverWatch.Never)
 
         slider.at(0f)
         clock += 200.milliseconds
@@ -99,8 +99,8 @@ class FeedbackFloorTest {
         val clock = TestTimeSource()
         val floor = FeedbackFloor(clock)
         val recorder = Recorder()
-        val slider = DetentTicker(recorder, floor = floor)
-        val switch = DetentTicker(recorder, FeedbackIntent.DragThreshold, floor = floor)
+        val slider = DetentTicker(recorder, floor = floor, hover = HoverWatch.Never)
+        val switch = DetentTicker(recorder, FeedbackIntent.DragThreshold, floor = floor, hover = HoverWatch.Never)
 
         slider.at(0f)
         clock += 200.milliseconds

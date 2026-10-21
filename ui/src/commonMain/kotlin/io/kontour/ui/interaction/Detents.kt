@@ -115,6 +115,8 @@ class DetentTicker internal constructor(
      * driving.
      */
     private val floor: FeedbackFloor,
+    /** Whether the event in hand is a hover, which plays nothing: see `HoverWatch`. */
+    private val hover: HoverWatch,
 ) {
 
     private var last: Float = Float.NaN
@@ -138,6 +140,11 @@ class DetentTicker internal constructor(
             // fast drag — which is the only place it is needed.
             val crossing = if (index < last) back else intent
             last = index
+            // A pointer passing over is not a crossing a hand made. Asked before
+            // the floor, so a hover's silent crossing does not hold up the next
+            // real one. `last` has moved all the same: a press after it ticks
+            // for where it goes, not for where the hover went.
+            if (hover.hovering) return
             if (floor.claim(crossing)) feedback.perform(crossing)
         }
     }
@@ -192,7 +199,8 @@ fun rememberDetentTicker(
 ): DetentTicker {
     val feedback = LocalFeedback.current
     val floor = LocalFeedbackFloor.current
-    return remember(feedback, intent, back, floor) { DetentTicker(feedback, intent, back, floor = floor) }
+    val hover = LocalHoverWatch.current
+    return remember(feedback, intent, back, floor, hover) { DetentTicker(feedback, intent, back, floor, hover) }
 }
 
 /**
@@ -209,12 +217,14 @@ fun rememberDetentTicker(
 class HoldFeedback internal constructor(
     private val feedback: FeedbackDispatcher,
     private val intent: FeedbackIntent,
+    private val hover: HoverWatch,
 ) {
     private var held: SustainedFeedback? = null
 
-    /** Begins it — ending one already going first. */
+    /** Begins it — ending one already going first. Not for a hover: see `HoverWatch`. */
     fun start() {
         stop()
+        if (hover.hovering) return
         held = feedback.sustain(intent)
     }
 
@@ -240,7 +250,8 @@ class HoldFeedback internal constructor(
 @Composable
 fun rememberHoldFeedback(intent: FeedbackIntent = FeedbackIntent.Hold): HoldFeedback {
     val feedback = LocalFeedback.current
-    val hold = remember(feedback, intent) { HoldFeedback(feedback, intent) }
+    val hover = LocalHoverWatch.current
+    val hold = remember(feedback, intent, hover) { HoldFeedback(feedback, intent, hover) }
     DisposableEffect(hold) { onDispose { hold.stop() } }
     return hold
 }
@@ -281,6 +292,7 @@ internal class DragTexture(
     private val feedback: FeedbackDispatcher,
     private val floor: FeedbackFloor,
     private val clock: TimeSource.WithComparableMarks = TimeSource.Monotonic,
+    private val hover: HoverWatch = HoverWatch.Never,
 ) {
     /** Where the last grain was felt; `NaN` between gestures. */
     private var grain = Float.NaN
@@ -313,6 +325,8 @@ internal class DragTexture(
             lastAt = now
         }
         if (abs(position - grain) < GrainSpacing) return
+        // Owed, like a grain the floor refused: a hover plays nothing.
+        if (hover.hovering) return
         // `grain` moves only when one is felt: a grain the floor refused is
         // owed, and comes on the next frame it may — which, at speed, is what
         // keeps them as close as they are allowed to be.
@@ -362,7 +376,8 @@ internal class DragTexture(
 internal fun rememberDragTexture(): DragTexture {
     val feedback = LocalFeedback.current
     val floor = LocalFeedbackFloor.current
-    return remember(feedback, floor) { DragTexture(feedback, floor) }
+    val hover = LocalHoverWatch.current
+    return remember(feedback, floor, hover) { DragTexture(feedback, floor, hover = hover) }
 }
 
 /**

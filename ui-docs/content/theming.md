@@ -364,6 +364,19 @@ navigation destination, a stepped slider *tapped* rather than dragged: all
 silent, at every `HapticsLevel`, because they perform no intent at all for a
 level to let through.
 
+**Nor does a pointer passing over anything.** A Mac plays these on its trackpad,
+under the finger that is moving the pointer, and a chart that chooses the place
+under a resting pointer ticked for each place it crossed: reported as *"not
+really a fan of how hovering things on desktop causes the mac trackpad to
+rumble"*. So a hover — a pointer moving, arriving or leaving with no button or
+finger down — plays nothing, whatever it changes on screen. It is one rule, kept
+by the theme: it watches each pointer event at its root, and every helper above
+(`DetentTicker`, `rememberTapFeedback`, `rememberToggleFeedback`,
+`rememberHoldFeedback`) asks it before playing, so a component of your own that
+ticks from a hover is quiet on one too. A click, a drag with the button held, a
+scroll and a trackpad's pan are not hovers: a slider dragged on a Mac's trackpad
+ticks there as it does under a finger on a phone.
+
 **A slider's end stop was removed once and has come back.** It went on the
 grounds that a finger pushing against the end of a range is looking at a thumb that
 has stopped and is visibly squashing under the push. It came back when that turned

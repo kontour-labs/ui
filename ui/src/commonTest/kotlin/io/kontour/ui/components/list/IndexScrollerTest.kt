@@ -196,6 +196,40 @@ class IndexScrollerTest {
     }
 
     /**
+     * A mouse run down the rail with no button down shows its letters and plays
+     * nothing; pressed and dragged down it, it ticks a letter, as a finger does.
+     *
+     * Reported 2026-10-21 for 0.5.0 from a MacBook Pro, whose trackpad plays the
+     * library's haptics under the finger moving the pointer: *"not really a fan
+     * of how hovering things on desktop causes the mac trackpad to rumble"*. A
+     * hover plays nothing anywhere, by the theme's rule (`HoverWatch`), and the
+     * rail is one of the places a pointer rests and shows something.
+     */
+    @Test
+    fun aMousePassingDownTheRailPlaysNothingAndDraggedDownItTicks() = runComposeUiTest {
+        show()
+        hover("A")
+        val from = labelY(0)
+        val to = labelY(labels.indexOf("M"))
+        onNodeWithTag("index").performMouseInput {
+            for (step in 1..120) moveTo(Offset(centerX, from + (to - from) * step / 120f))
+        }
+        waitForIdle()
+        onNodeWithText("M").assertExistsCompat("no bubble saying M beside a mouse resting on it")
+        assertEquals(emptyList(), felt, "a mouse passing down the rail with no button down played $felt")
+
+        onNodeWithTag("index").performMouseInput {
+            moveTo(Offset(centerX, from))
+            press()
+            for (step in 1..120) moveTo(Offset(centerX, from + (to - from) * step / 120f))
+            release()
+        }
+        waitForIdle()
+        assertEquals(12, felt.count { it == FeedbackIntent.Tick }, "dragged from A to M with the button held: $felt")
+        assertEquals(section("M").itemIndex, list.firstVisibleItemIndex)
+    }
+
+    /**
      * A mouse moved to [label], twice: the first move makes the input a mouse's,
      * which narrows the rail to a pointer's width, and the second finds the
      * letter on the rail as it is now.

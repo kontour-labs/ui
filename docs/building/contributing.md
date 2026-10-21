@@ -325,6 +325,14 @@ gets which — and why a drag across a rating ticks rather than taps — is in
 A one-shot that is none of those is `feedback.perform(intent)` on
 `LocalFeedback.current`, and the build counts those calls.
 
+None of the helpers plays for a hover — a pointer moving with no button or
+finger down — because the theme tells them when the event in hand is one
+(`HoverWatch`). Call them from a hover handler as from a drag, and pass
+nothing: a Mac plays haptics on the trackpad under the finger moving the
+pointer, and a chart that ticked for each place a resting pointer chose was
+reported as a rumble. A `perform` of your own is not covered, so keep it to a
+press, a drag or an outcome.
+
 ---
 
 ## Tests

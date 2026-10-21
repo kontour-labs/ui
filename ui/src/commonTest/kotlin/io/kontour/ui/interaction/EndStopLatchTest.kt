@@ -26,7 +26,7 @@ class EndStopLatchTest {
     private fun latch(recorder: Recorder, intent: FeedbackIntent = FeedbackIntent.Limit): EndStopLatch {
         // A clock that never moves: a limit is not floored, and this proves it.
         val floor = FeedbackFloor(TestTimeSource())
-        return EndStopLatch(DetentTicker(recorder, intent, floor = floor))
+        return EndStopLatch(DetentTicker(recorder, intent, floor = floor, hover = HoverWatch.Never))
     }
 
     @Test

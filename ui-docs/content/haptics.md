@@ -143,7 +143,9 @@ touched the page; and a desktop browser may report it and have no motor.
 
 **The desktop** has a Mac's Force Touch trackpad, reached through Java's
 foreign-function API on Java 22 or later, and nothing on Windows or Linux. The
-trackpad plays only while a finger is on it. Run the app with
+trackpad plays only while a finger is on it — which, moving the pointer, it is,
+so the components' haptics never play for a pointer only passing over something
+(see [theming](theming.md#what-the-library-buzzes-for)). Run the app with
 `--enable-native-access=ALL-UNNAMED` to keep Java from warning about the native
 call, and keep `io.kontour.haptics.MacTrackpadFfm` in a minified build — the jar
 ships the ProGuard rule for it.

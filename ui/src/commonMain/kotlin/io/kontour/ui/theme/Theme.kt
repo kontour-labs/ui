@@ -25,6 +25,9 @@ import io.kontour.ui.input.rememberInputModalityState
 import io.kontour.ui.input.trackInputModality
 import io.kontour.ui.interaction.FeedbackDispatcher
 import io.kontour.ui.interaction.HapticsLevel
+import io.kontour.ui.interaction.HoverWatch
+import io.kontour.ui.interaction.LocalHoverWatch
+import io.kontour.ui.interaction.watchHover
 import io.kontour.ui.interaction.FeedbackFloor
 import io.kontour.ui.interaction.LocalFeedbackFloor
 import io.kontour.ui.interaction.LocalFeedback
@@ -489,16 +492,21 @@ private fun ThemeContent(alreadyTracking: Boolean, content: @Composable () -> Un
         content()
     } else {
         val modality = rememberInputModalityState()
+        // Whether the pointer event in hand is a hover, which no haptic under
+        // the theme plays for: see `HoverWatch`. Once, with the modality tracker.
+        val hover = remember { HoverWatch() }
         CompositionLocalProvider(
             LocalInputModality provides modality.current,
             LocalInputModalityInstalled provides true,
             LocalInputModalityState provides modality,
+            LocalHoverWatch provides hover,
         ) {
             // Once, at the outermost theme: see `catchRestedFlicks`.
             val trail = remember { FingerTrail() }
             Box(
                 Modifier
                     .trackInputModality(modality)
+                    .watchHover(hover)
                     .then(if (platformLosesRestedFlicks) Modifier.catchRestedFlicks(trail) else Modifier)
                     .then(if (platformGuardsHomeIndicator) Modifier.guardHomeIndicator() else Modifier)
             ) {
