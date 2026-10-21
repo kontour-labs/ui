@@ -17,6 +17,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalDensity
@@ -93,6 +94,11 @@ import kotlin.math.roundToInt
  *   chart of lying bars is read bar by bar, and is not selected by place.
  *   `null`, the default, is a picture: nothing on it answers a touch, a
  *   pointer or a key, it takes no focus, and a screen reader still reads it.
+ * @param rangeSelection Where a range marked on the chart is kept: a stretch
+ *   across, or a box, by its [mode][ChartRangeSelectionState.mode]. A pointer
+ *   marks one by dragging, a finger by holding and then dragging, and Shift
+ *   and the arrows stretch one from the selected place; a tap or Escape lets
+ *   go. `null`, the default, marks none. Not for a chart of lying bars.
  * @param seriesVisibility Which series are shown. A chart given one makes
  *   each entry in its legend a switch that hides its series and shows it
  *   again. See [ChartSeriesVisibility].
@@ -119,6 +125,7 @@ fun <X : Any, Y : Any> Chart(
     enabled: Boolean = true,
     endYAxis: ChartAxis<Y>? = null,
     selection: ChartSelectionState<X>? = null,
+    rangeSelection: ChartRangeSelectionState<X, Y>? = null,
     seriesVisibility: ChartSeriesVisibility? = null,
     contentDescription: String? = null,
     colours: ChartColours = ChartDefaults.colours(),
@@ -197,6 +204,7 @@ fun <X : Any, Y : Any> Chart(
             colours = colours,
             patterns = patterns,
             selection = selection?.takeUnless { chart.horizontal },
+            rangeSelection = rangeSelection?.takeUnless { chart.horizontal },
             enabled = enabled,
             showSelectionTooltip = showSelectionTooltip,
             strings = strings,
@@ -204,6 +212,9 @@ fun <X : Any, Y : Any> Chart(
             tooltip = tooltip,
             decode = { place -> decodePlace(place, xAxis, model) },
             encode = { x -> encodePlace(x, xAxis, model) },
+            // Up, only for a box, and so only where the axis up is a measure.
+            decodeUp = if (yAxis.kind == AxisKind.Category) null else { value -> yAxis.decode(value) },
+            encodeUp = if (yAxis.kind == AxisKind.Category) null else { y -> yAxis.encode(y) },
         )
     }
 }
@@ -370,7 +381,7 @@ private fun ChartLayout(
  * selected, a probe there for its tooltip to point at.
  */
 @Composable
-private fun <X : Any> ChartPlot(
+private fun <X : Any, Y : Any> ChartPlot(
     chart: ResolvedChart,
     transition: ChartTransition,
     fade: () -> Float,
@@ -378,6 +389,7 @@ private fun <X : Any> ChartPlot(
     colours: ChartColours,
     patterns: Boolean,
     selection: ChartSelectionState<X>?,
+    rangeSelection: ChartRangeSelectionState<X, Y>?,
     enabled: Boolean,
     showSelectionTooltip: Boolean,
     strings: ChartStrings,
@@ -385,6 +397,8 @@ private fun <X : Any> ChartPlot(
     tooltip: (@Composable ContentScope.(ChartSelection<X>) -> Unit)?,
     decode: (Double) -> X?,
     encode: (X) -> Double,
+    decodeUp: ((Double) -> Y)?,
+    encodeUp: ((Y) -> Double)?,
 ) {
     val density = LocalDensity.current
     val layoutDirection = LocalLayoutDirection.current
@@ -421,7 +435,7 @@ private fun <X : Any> ChartPlot(
         }
     }
 
-    val interactive = selection != null && enabled && chart.places.isNotEmpty()
+    val interactive = (selection != null || rangeSelection != null) && enabled && chart.places.isNotEmpty()
     val selectedX = selection?.x
     val selectedPlace = selectedX?.let { nearestPlace(chart.places, encode(it)) }
     val ticker = rememberDetentTicker()
@@ -438,6 +452,107 @@ private fun <X : Any> ChartPlot(
     val selectedIndex = selectedPlace?.let { place -> chart.places.indexOfFirst { it == place } }?.takeIf { it >= 0 }
     val selectedDescription = selectedPlace?.let { place -> places.firstOrNull { group -> group.places.any { it == place } }?.text }
 
+    // The range marked, in the chart's units, read here so that one marked by
+    // the app is drawn as one marked by hand is; and what it is said as.
+    val marked = rangeSelection?.let { range ->
+        val from = range.xStart
+        val to = range.xEnd
+        if (from == null || to == null) {
+            null
+        } else {
+            val upFrom = range.yStart?.let { y -> encodeUp?.invoke(y) }
+            val upTo = range.yEnd?.let { y -> encodeUp?.invoke(y) }
+            MarkedRange(encode(from), encode(to), upFrom, upTo)
+        }
+    }
+    val markedDescription = marked?.let { range ->
+        val across = chart.placeAxis.write
+        val upFrom = range.upFrom
+        val upTo = range.upTo
+        if (upFrom != null && upTo != null) {
+            strings.selectedBox(across(range.from), across(range.to), chart.y.write(upFrom), chart.y.write(upTo))
+        } else {
+            strings.selectedRange(across(range.from), across(range.to))
+        }
+    }
+    val sentences = Theme.strings.sentences
+    val said = listOfNotNull(selectedDescription, markedDescription).takeIf { it.isNotEmpty() }?.let(sentences)
+    val currentRange by rememberUpdatedState(rangeSelection)
+    val currentDecodeUp by rememberUpdatedState(decodeUp)
+    val currentSelectedIndex by rememberUpdatedState(selectedIndex)
+    val currentMarked by rememberUpdatedState(marked)
+    val brush = if (rangeSelection == null) {
+        null
+    } else {
+        remember {
+            // Where a drag for a range went down, and which end the keys stretch.
+            var markFrom = Offset.Zero
+            var keyAnchor = -1
+            var keyEnd = -1
+            fun markBetween(a: Offset, b: Offset) {
+                val current = frame ?: return
+                val range = currentRange ?: return
+                val now = currentChart
+                val mapper = Mapper(current, now.x, now.y)
+                val across = listOf(mapper.xAt(a), mapper.xAt(b)).sorted()
+                // Along categories, and among bars, a range is of whole places.
+                val whole = now.x.kind == AxisKind.Category || now.selectsBands
+                val (low, high) = if (whole) {
+                    (nearestPlace(now.places, across[0]) ?: return) to (nearestPlace(now.places, across[1]) ?: return)
+                } else {
+                    across[0].coerceIn(now.x.low, now.x.high) to across[1].coerceIn(now.x.low, now.x.high)
+                }
+                val start = currentDecode(low) ?: return
+                val end = currentDecode(high) ?: return
+                val decodeY = currentDecodeUp
+                if (range.mode == ChartRangeMode.Box && decodeY != null && !whole) {
+                    val up = listOf(mapper.yAt(a), mapper.yAt(b)).map { it.coerceIn(now.y.low, now.y.high) }.sorted()
+                    range.select(start, end, decodeY(up[0]), decodeY(up[1]))
+                } else {
+                    range.select(start, end)
+                }
+            }
+            ChartBrush(
+                start = { at ->
+                    markFrom = at
+                    tip.resting = false
+                    currentSelection?.clear()
+                },
+                drag = { at -> markBetween(markFrom, at) },
+                end = {},
+                clear = { currentRange?.clear() },
+                stretch = { by ->
+                    val now = currentChart
+                    val range = currentRange
+                    if (range != null && now.places.isNotEmpty()) {
+                        val shown = currentMarked
+                        if (shown == null) {
+                            // From the selected place, or the first.
+                            keyAnchor = currentSelectedIndex ?: 0
+                            keyEnd = keyAnchor
+                        } else {
+                            // From the range as it is, kept the way round the
+                            // keys last had it if they marked it.
+                            val first = now.places.indexOfFirst { it == nearestPlace(now.places, shown.from) }.coerceAtLeast(0)
+                            val last = now.places.indexOfFirst { it == nearestPlace(now.places, shown.to) }.coerceAtLeast(0)
+                            if (minOf(keyAnchor, keyEnd) != first || maxOf(keyAnchor, keyEnd) != last) {
+                                keyAnchor = first
+                                keyEnd = last
+                            }
+                        }
+                        keyEnd = (keyEnd + by).coerceIn(0, now.places.lastIndex)
+                        val low = now.places[minOf(keyAnchor, keyEnd)]
+                        val high = now.places[maxOf(keyAnchor, keyEnd)]
+                        val start = currentDecode(low)
+                        val end = currentDecode(high)
+                        if (start != null && end != null) range.select(start, end)
+                    }
+                },
+                marked = { currentMarked != null },
+            )
+        }
+    }
+
     val input = Modifier.chartSelectionInput(
         enabled = interactive,
         tip = tip,
@@ -446,7 +561,7 @@ private fun <X : Any> ChartPlot(
         count = chart.places.size,
         steps = ChartSteps.Along,
         dragsAcross = true,
-        said = selectedDescription,
+        said = said,
         interactionSource = interactionSource,
         pickAt = { offset ->
             frame?.let { current ->
@@ -457,6 +572,7 @@ private fun <X : Any> ChartPlot(
         },
         pick = { index -> select(currentChart.places[index]) },
         clear = { currentSelection?.clear() },
+        brush = brush,
     )
 
     val showProbe = interactive && showSelectionTooltip && tip.shownFor(selectedPlace)
@@ -467,7 +583,7 @@ private fun <X : Any> ChartPlot(
                     Modifier.semantics {
                         contentDescription = place.text
                         collectionItemInfo = CollectionItemInfo(rowIndex = index, rowSpan = 1, columnIndex = 0, columnSpan = 1)
-                        if (interactive) {
+                        if (interactive && selection != null) {
                             selected = place.places.any { it == selectedPlace }
                             onClick {
                                 select(place.places.first())
@@ -504,7 +620,7 @@ private fun <X : Any> ChartPlot(
                 frame?.let { target ->
                     val insets = transition.insets(target.insets)
                     transition.drawnInsets = insets
-                    drawChart(target.withInsets(insets), transition.frame(), config, fade(), selectedPlace, settled = transition.to)
+                    drawChart(target.withInsets(insets), transition.frame(), config, fade(), selectedPlace, settled = transition.to, marked = marked)
                 }
             }
             .then(input),

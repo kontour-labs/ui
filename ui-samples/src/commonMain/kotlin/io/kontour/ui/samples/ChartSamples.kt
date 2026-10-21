@@ -13,12 +13,14 @@ import io.kontour.ui.charts.Chart
 import io.kontour.ui.charts.ChartAxis
 import io.kontour.ui.charts.ChartDataTable
 import io.kontour.ui.charts.ChartInterpolation
+import io.kontour.ui.charts.ChartRangeMode
 import io.kontour.ui.charts.ChartSeries
 import io.kontour.ui.charts.ChartStacking
 import io.kontour.ui.charts.LinePattern
 import io.kontour.ui.charts.SectorChart
 import io.kontour.ui.charts.SeriesStyle
 import io.kontour.ui.charts.Sparkline
+import io.kontour.ui.charts.rememberChartRangeSelectionState
 import io.kontour.ui.charts.rememberChartSelectionState
 import io.kontour.ui.charts.rememberChartSeriesVisibility
 import io.kontour.ui.foundation.Text
@@ -190,6 +192,45 @@ fun ChartCustomTooltip() {
         bar(quarter, x = { it.month }, y = { it.amount }, series = { ChartSeries(it.category) })
     }
 }
+
+@Composable
+fun ChartRangeSelection() {
+    // Drag across the week to mark some days, and say what they came to.
+    val range = rememberChartRangeSelectionState<LocalDate, Number>()
+    val formats = Theme.formats
+    Chart(
+        xAxis = ChartAxis.date(),
+        yAxis = ChartAxis.number(title = "Riders"),
+        modifier = Modifier.fillMaxWidth().height(220.dp),
+        rangeSelection = range,
+        contentDescription = "Riders this week, by route",
+    ) {
+        bar(week, x = { it.day }, y = { it.riders }, series = { ChartSeries("Route ${it.route}") })
+    }
+    val from = range.xStart
+    val to = range.xEnd
+    if (from != null && to != null) {
+        val riders = week.filter { it.day in from..to }.sumOf { it.riders }
+        Text("${formats.decimal(riders.toDouble(), 0)} riders, ${formats.date(from)} to ${formats.date(to)}")
+    }
+}
+
+@Composable
+fun ChartBoxSelection() {
+    // A box round some of a scatter's points: the hot days that used the most.
+    val box = rememberChartRangeSelectionState<Number, Number>(ChartRangeMode.Box)
+    Chart(
+        xAxis = ChartAxis.number(title = "Hottest, °C"),
+        yAxis = ChartAxis.number(title = "kWh"),
+        modifier = Modifier.fillMaxWidth().height(220.dp),
+        rangeSelection = box,
+        contentDescription = "Each day's heat against its use",
+    ) {
+        point(heat, x = { it.first }, y = { it.second })
+    }
+}
+
+private val heat = listOf(18.0 to 9.5, 22.0 to 11.0, 26.0 to 14.5, 31.0 to 19.0, 35.0 to 23.5, 24.0 to 12.0)
 
 private class Weather(val month: String, val low: Int, val high: Int)
 

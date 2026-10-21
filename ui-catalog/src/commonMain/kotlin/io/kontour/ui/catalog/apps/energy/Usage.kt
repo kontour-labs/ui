@@ -23,7 +23,10 @@ import io.kontour.ui.charts.ChartAxis
 import io.kontour.ui.charts.ChartDataTable
 import io.kontour.ui.charts.ChartScope
 import io.kontour.ui.charts.ChartSeries
+import io.kontour.ui.charts.ChartRangeMode
+import io.kontour.ui.charts.ChartRangeSelectionState
 import io.kontour.ui.charts.ChartStacking
+import io.kontour.ui.charts.rememberChartRangeSelectionState
 import io.kontour.ui.charts.rememberChartSelectionState
 import io.kontour.ui.components.selection.SegmentedControl
 import io.kontour.ui.components.selection.Switch
@@ -184,17 +187,44 @@ private fun HeatAndUse(patterns: Boolean) {
     val heat = remember { ChartAxis.number(title = "Hottest day, °C") }
     val used = remember { ChartAxis.number(title = "kWh used") }
     val selection = rememberChartSelectionState<Number>()
+    // A box drawn round some of the months says what they come to: the heat
+    // of a run of hot months against what they cost, say.
+    val box = rememberChartRangeSelectionState<Number, Number>(ChartRangeMode.Box)
+    val formats = Theme.formats
     Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs)) {
-        EnergyHeading("Heat and use", supporting = "A month a point, by its season")
+        EnergyHeading("Heat and use", supporting = "A month a point, by its season. Drag round some to add them up")
         Chart(
             xAxis = heat,
             yAxis = used,
             modifier = Modifier.fillMaxWidth().height(ChartHeight).testTag("energy-scatter"),
             selection = selection,
+            rangeSelection = box,
             contentDescription = "Each month's hottest day against what the house used",
             showPatterns = patterns,
         ) {
             point(months, x = { it.maxTemp }, y = { it.used }, series = { ChartSeries(seasonOf(it.name)) })
         }
+        val inBox = boxed(box)
+        Text(
+            if (inBox == null) {
+                "Drag, or hold and drag, round some months"
+            } else if (inBox.isEmpty()) {
+                "No months in the box"
+            } else {
+                val average = inBox.sumOf { it.used } / inBox.size
+                "${inBox.size} months, ${formats.decimal(average, 0)} kWh on average"
+            },
+            style = Theme.typography.bodySmall,
+            colour = Theme.colours.contentMuted,
+        )
     }
+}
+
+/** The months inside [box], or `null` with nothing marked. */
+private fun boxed(box: ChartRangeSelectionState<Number, Number>): List<EnergyMonth>? {
+    val xStart = box.xStart?.toDouble() ?: return null
+    val xEnd = box.xEnd?.toDouble() ?: return null
+    val yStart = box.yStart?.toDouble() ?: Double.NEGATIVE_INFINITY
+    val yEnd = box.yEnd?.toDouble() ?: Double.POSITIVE_INFINITY
+    return months.filter { it.maxTemp.toDouble() in xStart..xEnd && it.used.toDouble() in yStart..yEnd }
 }

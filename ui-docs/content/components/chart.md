@@ -379,6 +379,65 @@ Chart(
 `showSelectionTooltip = false` keeps the selection and its highlight with no
 card, for a page that says the selected values somewhere of its own.
 
+### Marking a range
+
+Give a chart a `rememberChartRangeSelectionState()` as its `rangeSelection`
+and a reader can mark a stretch of it: a pointer by dragging across it, a
+finger by holding and then dragging, since a plain drag across moves the
+selected place, and the keyboard with Shift and the arrows, stretching a range
+a place at a time from the selected one. A tap lets go of it, and so does
+Escape, before it lets go of the place. Along categories, or among bars, a
+range is of whole places. It is drawn behind the marks, edged in the
+selection's colour, and a screen reader hears it after the selected place:
+"Selected Feb to Apr".
+
+<!--sample:ChartRangeSelection-->
+```kotlin
+// Drag across the week to mark some days, and say what they came to.
+val range = rememberChartRangeSelectionState<LocalDate, Number>()
+val formats = Theme.formats
+Chart(
+    xAxis = ChartAxis.date(),
+    yAxis = ChartAxis.number(title = "Riders"),
+    modifier = Modifier.fillMaxWidth().height(220.dp),
+    rangeSelection = range,
+    contentDescription = "Riders this week, by route",
+) {
+    bar(week, x = { it.day }, y = { it.riders }, series = { ChartSeries("Route ${it.route}") })
+}
+val from = range.xStart
+val to = range.xEnd
+if (from != null && to != null) {
+    val riders = week.filter { it.day in from..to }.sumOf { it.riders }
+    Text("${formats.decimal(riders.toDouble(), 0)} riders, ${formats.date(from)} to ${formats.date(to)}")
+}
+```
+
+`ChartRangeMode.Box` marks a box instead, across and up, for a scatter plot's
+points in a corner. It needs a measure both ways, numbers or times; where
+either axis is a category it marks a range across. The keys stretch a box
+across only.
+
+<!--sample:ChartBoxSelection-->
+```kotlin
+// A box round some of a scatter's points: the hot days that used the most.
+val box = rememberChartRangeSelectionState<Number, Number>(ChartRangeMode.Box)
+Chart(
+    xAxis = ChartAxis.number(title = "Hottest, °C"),
+    yAxis = ChartAxis.number(title = "kWh"),
+    modifier = Modifier.fillMaxWidth().height(220.dp),
+    rangeSelection = box,
+    contentDescription = "Each day's heat against its use",
+) {
+    point(heat, x = { it.first }, y = { it.second })
+}
+```
+
+The range is of the axes, not of the data: `xStart` and `xEnd`, and a box's
+`yStart` and `yEnd`, each in order, and the page reads its data against them.
+It is optional and separate from `selection`: a chart can have either, both or
+neither.
+
 ### A chart with no interaction
 
 A chart without a `selection`, the default, is a picture. Nothing on it
@@ -544,7 +603,9 @@ rising."). The `contentDescription` goes before it. Then come the places
 along the chart, one node each, with every series' value there: "13 Oct 2026: Route 950, 720 and
 Route 951, 380". Past sixty places, which nobody swipes through one at a time,
 each node covers a run of them, with the least and the most of each series in
-it. With a selection, a place is chosen from there as it is by touch. There
+it. With a selection, a place is chosen from there as it is by touch, and with
+a range selection, Shift and the arrow keys mark a range from it, which is
+said with the place: "Selected Feb to Apr". There
 are no custom actions, so a chart of a year costs no more to navigate than a
 chart of a week. A chart with no selection is read the same way and takes no
 focus, so a page of them is passed by the keyboard as text is.

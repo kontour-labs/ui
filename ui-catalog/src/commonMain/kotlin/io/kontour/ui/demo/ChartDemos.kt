@@ -21,9 +21,11 @@ import io.kontour.ui.charts.ChartAxis
 import io.kontour.ui.charts.ChartInterpolation
 import io.kontour.ui.charts.ChartLegendPosition
 import io.kontour.ui.charts.ChartSeries
+import io.kontour.ui.charts.ChartRangeMode
 import io.kontour.ui.charts.ChartStacking
 import io.kontour.ui.charts.SectorChart
 import io.kontour.ui.charts.Sparkline
+import io.kontour.ui.charts.rememberChartRangeSelectionState
 import io.kontour.ui.charts.rememberChartSelectionState
 import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.ButtonVariant
@@ -46,6 +48,8 @@ private val chartAnimated = Knob.Flag("Animated", initial = true)
 private val chartDonut = Knob.Flag("Donut", initial = true)
 private val chartReferences = Knob.Flag("References", initial = true)
 private val chartHides = Knob.Flag("Legend hides series", initial = true)
+private val chartMarks = Knob.Flag("Mark a range")
+private val chartRangeMode = Knob.Choice("Range", ChartRangeMode.entries.toList(), initial = ChartRangeMode.Across)
 
 /** A month's riders on one route. */
 private class Riders(val month: String, val route: String, val riders: Int)
@@ -101,6 +105,8 @@ internal val ChartDemo = ComponentDemo(
         chartDonut,
         chartReferences,
         chartHides,
+        chartMarks,
+        chartRangeMode,
     ),
 ) {
     var seed by remember { mutableIntStateOf(0) }
@@ -123,6 +129,10 @@ internal val ChartDemo = ComponentDemo(
     val hides = this[chartHides]
     val visibility = shownRoutes.takeIf { hides }
     val selection = rememberChartSelectionState<String>()
+    // Months, so a box is a range across here: a box wants a measure both
+    // ways, which the energy app's heat and use has.
+    val range = rememberChartRangeSelectionState<String, Number>(this[chartRangeMode])
+    val marks = this[chartMarks]
     val spacing = Theme.spacing
 
     Column(verticalArrangement = Arrangement.spacedBy(spacing.lg)) {
@@ -208,6 +218,7 @@ internal val ChartDemo = ComponentDemo(
                 yAxis = ChartAxis.number(title = "Riders"),
                 modifier = chartModifier,
                 selection = selection,
+                rangeSelection = range.takeIf { marks },
                 contentDescription = "Riders by month",
                 legendPosition = legendPosition,
                 showLegend = showLegend,
@@ -289,8 +300,13 @@ internal val ChartDemo = ComponentDemo(
 
         Row(horizontalArrangement = Arrangement.spacedBy(spacing.md), verticalAlignment = Alignment.CenterVertically) {
             Button(onClick = { seed = (seed + 1) % 4 }, variant = ButtonVariant.Secondary) { +"New data" }
+            val marked = range.xStart?.takeIf { marks }?.let { from -> "Marked: $from to ${range.xEnd}" }
             Text(
-                selection.x?.let { "Selected: $it" } ?: "Tap, drag or use the arrow keys to select a month",
+                marked ?: selection.x?.let { "Selected: $it" } ?: if (marks) {
+                    "Drag, or hold and drag, to mark months; Shift and the arrows stretch from the selected one"
+                } else {
+                    "Tap, drag or use the arrow keys to select a month"
+                },
                 style = Theme.typography.bodySmall,
                 colour = Theme.colours.contentMuted,
             )

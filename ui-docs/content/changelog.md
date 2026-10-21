@@ -92,6 +92,14 @@ On `main`, and in the next release.
   elsewhere. A chart's selection does.
 - **`Modifier.tooltip { … }`**: a tooltip's slots, an icon or a painter beside
   its words, from the modifier as well as the component.
+- **A range marked on a `Chart`.** `rangeSelection`, from
+  `rememberChartRangeSelectionState()`, lets a reader mark a stretch across
+  the chart, or with `ChartRangeMode.Box` a box across and up for a scatter
+  plot's points: a pointer drags, a finger holds and then drags, and Shift and
+  the arrows stretch one from the selected place. A tap or Escape lets go, a
+  screen reader hears it with the place, and its words are
+  `ChartStrings.selectedRange` and `selectedBox`. Optional, and separate from
+  `selection`. See [Chart](components/chart.md#marking-a-range).
 - **`Tooltip(style = TooltipStyle.Card)`**: a tooltip drawn as a small card,
   on the raised surface a menu takes, edged and shadowed, standing off what it
   is about with no arrow, for a few lines with figures in them. It opens on the

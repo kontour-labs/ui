@@ -97,6 +97,15 @@ private const val RegionOpacity = 0.12f
 /** How strongly a band is filled: lighter than an area, which is a value, where a band is a range. */
 private const val BandOpacity = 0.22f
 
+/** How strongly a marked range is washed: a little more than a region, which it may lie over. */
+private const val MarkedOpacity = 0.16f
+
+/**
+ * A range the reader has marked, in the chart's own units: [from] and [to]
+ * across, and for a box [upFrom] and [upTo] up.
+ */
+internal class MarkedRange(val from: Double, val to: Double, val upFrom: Double?, val upTo: Double?)
+
 /** How strongly a selected place among bars is washed: enough to find, not enough to tint the bars it is behind. */
 private const val SelectionWashOpacity = 0.1f
 
@@ -130,6 +139,8 @@ internal fun DrawScope.drawChart(
     selected: Double?,
     /** The chart a move is heading to, which decides where the words go: see below. */
     settled: ResolvedChart = chart,
+    /** A range marked on it, if one is. */
+    marked: MarkedRange? = null,
 ) {
     // And up the end axis, for what is on it: see [Mapper.up].
     val m = Mapper(frame, chart.x, chart.y, chart.yEnd)
@@ -207,6 +218,32 @@ internal fun DrawScope.drawChart(
                 pins += Triple(rect, pin, colour)
             }
         }
+    }
+
+    // A range marked by the reader, behind the marks as a region is, and
+    // edged in the selection's colour at every tier: a region is the chart's
+    // own, washed only, and this is the reader's, which they will want to see
+    // the bounds of as they drag them. Among bars and categories it takes the
+    // whole of the places at its ends.
+    if (marked != null) {
+        val whole = chart.x.kind == AxisKind.Category || chart.selectsBands
+        val half = if (whole) cellBand(chart.placeAxis, chart.places, m.unitX) / 2 else 0f
+        val a = m.px(marked.from)
+        val b = m.px(marked.to)
+        val upFrom = marked.upFrom
+        val upTo = marked.upTo
+        val top = if (upFrom != null && upTo != null) min(m.py(upFrom), m.py(upTo)) else plot.top
+        val bottom = if (upFrom != null && upTo != null) max(m.py(upFrom), m.py(upTo)) else plot.bottom
+        val rect = Rect(
+            (min(a, b) - half).coerceAtLeast(plot.left),
+            top.coerceAtLeast(plot.top),
+            (max(a, b) + half).coerceAtMost(plot.right),
+            bottom.coerceAtMost(plot.bottom),
+        )
+        val shape = Path()
+        addShape(shape, rect, config.corners.all)
+        drawPath(shape, colours.selection, alpha = MarkedOpacity)
+        drawPath(shape, colours.selection, style = Stroke(config.hairline * 1.5f))
     }
 
     // A selected place among bars is washed behind them, the width of its

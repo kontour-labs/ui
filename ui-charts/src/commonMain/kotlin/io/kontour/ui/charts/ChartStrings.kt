@@ -58,6 +58,10 @@ import io.kontour.ui.theme.phrase
  * @property noData What a chart with nothing to show says it shows.
  * @property total What the whole of a stack is called in its tooltip: a
  *   stacked bar's or area's, at the place chosen.
+ * @property selectedRange What a range marked across a chart is said as:
+ *   "Selected 3 Mar to 9 Mar".
+ * @property selectedBox What a box marked on a chart is said as, across and
+ *   then up: "Selected 14 to 22, 2 to 6".
  * @property otherSectors The sector that gathers what is too small to draw.
  * @property dateColumn The heading of a [ChartDataTable]'s first column, over
  *   dates, where the axis has no title.
@@ -121,6 +125,9 @@ data class ChartStrings(
     val outliersColumn: String = "Outliers",
     val seriesColumn: (series: String, column: String) -> String = { series, column -> "$series, $column" },
     val total: String = "Total",
+    val selectedRange: (from: String, to: String) -> String = { from, to -> "Selected $from to $to" },
+    val selectedBox: (fromAcross: String, toAcross: String, fromUp: String, toUp: String) -> String =
+        { fromAcross, toAcross, fromUp, toUp -> "Selected $fromAcross to $toAcross, $fromUp to $toUp" },
 ) {
     companion object {
         /**
@@ -190,6 +197,13 @@ data class ChartStrings(
                 lookup.phrase("seriesColumn", null, series, column) ?: fallback.seriesColumn(series, column)
             },
             total = lookup.text("total") ?: fallback.total,
+            selectedRange = { from, to ->
+                lookup.phrase("selectedRange", null, from, to) ?: fallback.selectedRange(from, to)
+            },
+            selectedBox = { fromAcross, toAcross, fromUp, toUp ->
+                lookup.phrase("selectedBox", null, fromAcross, toAcross, fromUp, toUp)
+                    ?: fallback.selectedBox(fromAcross, toAcross, fromUp, toUp)
+            },
         )
     }
 }
@@ -243,4 +257,6 @@ internal fun ChartStrings.mapped(transform: (String) -> String): ChartStrings = 
     outliersColumn = transform(outliersColumn),
     seriesColumn = { a0, a1 -> transform(seriesColumn(a0, a1)) },
     total = transform(total),
+    selectedRange = { a0, a1 -> transform(selectedRange(a0, a1)) },
+    selectedBox = { a0, a1, a2, a3 -> transform(selectedBox(a0, a1, a2, a3)) },
 )

@@ -25,6 +25,8 @@ import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.PointerType
+import androidx.compose.ui.input.key.isShiftPressed
+import androidx.compose.ui.input.pointer.isPrimaryPressed
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
@@ -105,6 +107,8 @@ internal fun rememberChartTip(): ChartTip {
  * @param pickAt Chooses what is under a point, if anything, and says whether
  *   anything was: a pie's corners, outside its circle, have nothing.
  * @param pick Chooses the [index]th.
+ * @param brush How a range is marked, for a chart that marks one; see
+ *   [ChartBrush].
  */
 @Composable
 internal fun Modifier.chartSelectionInput(
@@ -120,8 +124,10 @@ internal fun Modifier.chartSelectionInput(
     pickAt: (Offset) -> Boolean,
     pick: (Int) -> Unit,
     clear: () -> Unit,
+    brush: ChartBrush? = null,
 ): Modifier {
     val source = interactionSource ?: remember { MutableInteractionSource() }
+    val latestBrush by rememberUpdatedState(brush)
     if (!enabled) return this
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     // The gestures are keyed on nothing that changes, and read these as they
@@ -146,7 +152,14 @@ internal fun Modifier.chartSelectionInput(
             tip.placed.at = now
             if (before != null && (now - before).getDistance() > tip.placed.slop) tip.putAway(latestChosen)
         }
-        .pointerInput(Unit) { detectTapGestures { latestTouched(it) } }
+        // A tap lets go of a range as well as choosing a place: it is what
+        // a reader does to start again.
+        .pointerInput(Unit) {
+            detectTapGestures {
+                latestBrush?.clear?.invoke()
+                latestTouched(it)
+            }
+        }
         .then(
             if (dragsAcross) {
                 Modifier.pointerInput(Unit) {
@@ -160,17 +173,28 @@ internal fun Modifier.chartSelectionInput(
             },
         )
         // Held, then dragged any way: a drag that starts upright is the page's
-        // scroll, so this is the one that can wander off the line.
+        // scroll, so this is the one that can wander off the line. On a chart
+        // that marks ranges it marks one: a plain drag across still moves the
+        // selected place, which is what a finger does more often.
         .pointerInput(Unit) {
-            detectDragGesturesAfterLongPress(onDragStart = { latestTouched(it) }) { change, _ ->
+            detectDragGesturesAfterLongPress(
+                onDragStart = { at -> latestBrush?.start?.invoke(at) ?: latestTouched(at) },
+                onDragEnd = { latestBrush?.end?.invoke() },
+                onDragCancel = { latestBrush?.end?.invoke() },
+            ) { change, _ ->
                 change.consume()
-                latestTouched(change.position)
+                val marking = latestBrush
+                if (marking != null) marking.drag(change.position) else latestTouched(change.position)
             }
         }
         .pointerInput(Unit) {
             // Whether what is chosen was chosen by the mouse resting on it,
             // which it lets go of as it leaves.
             var hovering = false
+            // A mouse marks a range by dragging: where the button went down,
+            // and whether it has moved far enough from there to be marking.
+            var downAt: Offset? = null
+            var marking = false
             awaitPointerEventScope {
                 while (true) {
                     val event = awaitPointerEvent()
@@ -182,9 +206,35 @@ internal fun Modifier.chartSelectionInput(
                         continue
                     }
                     when (event.type) {
+                        PointerEventType.Press -> if (latestBrush != null && event.buttons.isPrimaryPressed) {
+                            downAt = change.position
+                        }
+                        PointerEventType.Release -> {
+                            if (marking) {
+                                latestBrush?.end?.invoke()
+                                change.consume()
+                            }
+                            marking = false
+                            downAt = null
+                        }
                         // Arriving as much as moving: the event a pointer
                         // crossing onto the chart brings is an enter.
                         PointerEventType.Enter, PointerEventType.Move -> {
+                            val from = downAt
+                            val ranges = latestBrush
+                            if (from != null && ranges != null && change.pressed) {
+                                if (!marking && (change.position - from).getDistance() > viewConfiguration.touchSlop) {
+                                    marking = true
+                                    ranges.start(from)
+                                }
+                                // Marking, the drag is the range's alone: not the
+                                // place's under it, nor a drag across's.
+                                if (marking) {
+                                    ranges.drag(change.position)
+                                    change.consume()
+                                    continue
+                                }
+                            }
                             // A pointer arriving rests before the tooltip shows; one
                             // already showing moves with it.
                             if (latestChosen == null) tip.resting = true
@@ -230,6 +280,20 @@ internal fun Modifier.chartSelectionInput(
             if (event.type != KeyEventType.KeyDown || count == 0) return@onKeyEvent false
             val at = index ?: -1
             val last = count - 1
+            // Shift and an arrow across stretch a range a place at a time, on
+            // a chart that marks one.
+            val ranges = latestBrush
+            if (ranges != null && event.isShiftPressed && steps == ChartSteps.Along) {
+                val by = when (event.key) {
+                    Key.DirectionRight -> if (rtl) -1 else 1
+                    Key.DirectionLeft -> if (rtl) 1 else -1
+                    else -> 0
+                }
+                if (by != 0) {
+                    ranges.stretch(by)
+                    return@onKeyEvent true
+                }
+            }
             val next = when (event.key) {
                 Key.DirectionRight -> if (rtl) at - 1 else at + 1
                 Key.DirectionLeft -> if (rtl) at + 1 else if (at < 0) last else at - 1
@@ -239,8 +303,11 @@ internal fun Modifier.chartSelectionInput(
                 Key.MoveHome -> 0
                 Key.MoveEnd -> last
                 Key.Escape -> {
-                    if (at < 0) return@onKeyEvent false
-                    latestClear()
+                    val ranges = latestBrush
+                    val marked = ranges != null && ranges.marked()
+                    if (at < 0 && !marked) return@onKeyEvent false
+                    // A range first, then the place: one thing let go a press.
+                    if (marked) ranges.clear() else latestClear()
                     return@onKeyEvent true
                 }
                 else -> return@onKeyEvent false
@@ -258,6 +325,20 @@ internal fun Modifier.chartSelectionInput(
         .focusable(enabled = true, interactionSource = source)
         .semantics { if (said != null) stateDescription = said }
 }
+
+/**
+ * How a chart marks a range: a drag that [start]s at a point and [drag]s to
+ * another, its [end], a tap or Escape that [clear]s it, Shift and an arrow
+ * that [stretch] it by a place either way, and whether anything is [marked].
+ */
+internal class ChartBrush(
+    val start: (Offset) -> Unit,
+    val drag: (Offset) -> Unit,
+    val end: () -> Unit,
+    val clear: () -> Unit,
+    val stretch: (Int) -> Unit,
+    val marked: () -> Boolean,
+)
 
 /**
  * A chart's tooltip, from a probe placed where the choice is: the caller's
