@@ -433,7 +433,16 @@ categories whose bands it reaches into, or on a date axis the days its ends
 fall in. A range set with `select`, or stretched by the keys, is of whole
 places along categories and among bars. It is drawn behind the marks, edged in
 the selection's colour, and a screen reader hears it after the selected place:
-"Selected Feb to Apr". A chart with a range selection and no `selection`
+"Selected Feb to Apr".
+
+While a range is marked, the marks outside it fade to 60%, so the ones inside
+stand out at full strength against the rest. A bar, a point, a box or a cell
+is inside by its place, and in a box by its value too; a line or an area is
+cut at the range's edges, the stretch inside it whole. Along categories the
+range holds the whole of each category it is read as, so what fades is what
+`xStart` and `xEnd` leave out. The fade comes in and goes as the range is
+marked and let go, and at once under reduced motion. At the high contrast tier
+it fades to 80%, where every series' colour still holds 3:1 against the page. A chart with a range selection and no `selection`
 chooses no place, so a plain drag across it is the page's and scrolls what it
 is in, and the arrows, Home and End go on to what is round it.
 

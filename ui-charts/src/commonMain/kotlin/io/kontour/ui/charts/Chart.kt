@@ -11,6 +11,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -35,6 +36,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.a11y.highContrast
 import io.kontour.ui.foundation.ContentScope
 import io.kontour.ui.interaction.rememberDetentTicker
 import io.kontour.ui.theme.Theme
@@ -427,6 +429,7 @@ private fun <X : Any, Y : Any> ChartPlot(
 ) {
     val density = LocalDensity.current
     val layoutDirection = LocalLayoutDirection.current
+    val motion = Theme.motion
     val measurer = rememberTextMeasurer()
     val typography = Theme.typography
     val labelStyle = typography.labelSmall
@@ -442,7 +445,8 @@ private fun <X : Any, Y : Any> ChartPlot(
     // A heat map's value is written in its cell in whichever of the page's
     // ink and the page itself stands out more from the cell's shade.
     val inks = Theme.colours.content to Theme.colours.background
-    val config = remember(colours, patterns, density, sizing, shapes, patternWeight, inks) {
+    val highContrast = highContrast()
+    val config = remember(colours, patterns, density, sizing, shapes, patternWeight, inks, highContrast) {
         with(density) {
             DrawConfig(
                 colours = colours,
@@ -456,6 +460,7 @@ private fun <X : Any, Y : Any> ChartPlot(
                 tiles = tiles,
                 cellGap = ChartDefaults.SectorGap.toPx(),
                 cellInks = inks,
+                highContrast = highContrast,
             )
         }
     }
@@ -515,6 +520,18 @@ private fun <X : Any, Y : Any> ChartPlot(
             strings.selectedRange(across(range.from), across(range.to))
         }
     }
+    // What is outside a marked range fades as one is marked, and comes back as
+    // it is let go, from the range it was: see [MarkFocus]. At once under
+    // reduced motion, where a chart's whole look changing is not a movement.
+    val focusing = remember { Animatable(0f) }
+    val lastMarked = remember { LastMarked() }
+    SideEffect { if (marked != null) lastMarked.range = marked }
+    val focused = marked != null
+    LaunchedEffect(focused, motion.reduceMotion) {
+        val target = if (focused) 1f else 0f
+        if (motion.reduceMotion) focusing.snapTo(target) else focusing.animateTo(target, motion.tweenFast())
+    }
+
     val sentences = Theme.strings.sentences
     val said = listOfNotNull(selectedDescription, markedDescription).takeIf { it.isNotEmpty() }?.let(sentences)
     val currentRange by rememberUpdatedState(rangeSelection)
@@ -670,7 +687,17 @@ private fun <X : Any, Y : Any> ChartPlot(
                 frame?.let { target ->
                     val insets = transition.insets(target.insets)
                     transition.drawnInsets = insets
-                    drawChart(target.withInsets(insets), transition.frame(), config, fade(), selectedPlace, settled = transition.to, marked = marked)
+                    drawChart(
+                        target.withInsets(insets),
+                        transition.frame(),
+                        config,
+                        fade(),
+                        selectedPlace,
+                        settled = transition.to,
+                        marked = marked,
+                        focused = marked ?: lastMarked.range,
+                        focusing = focusing.value,
+                    )
                 }
             }
             .then(input),
@@ -735,6 +762,15 @@ private fun <X : Any, Y : Any> ChartPlot(
             }
         }
     }
+}
+
+/**
+ * The range last marked on a chart, kept while what was outside it comes back:
+ * let go, the range is gone at once and its marks' fade is not. Not state:
+ * written after a composition that marked one, and read while drawing.
+ */
+private class LastMarked {
+    var range: MarkedRange? = null
 }
 
 /** What is at [place], for the tooltip. */

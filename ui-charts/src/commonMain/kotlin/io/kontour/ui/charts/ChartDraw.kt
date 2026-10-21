@@ -12,6 +12,7 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.geometry.translate
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.ClipOp
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.Path
@@ -28,8 +29,11 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import kotlin.math.abs
+import kotlin.math.ceil
+import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.roundToInt
 
 /** What a chart is drawn with, in pixels, for one density. */
 internal class DrawConfig(
@@ -49,12 +53,89 @@ internal class DrawConfig(
     val cellGap: Float = 0f,
     /** The two inks a heat map's value can be written in: whichever stands out more from its cell. */
     val cellInks: Pair<Color, Color> = Color.Black to Color.White,
+    /** Whether the theme is at its high contrast tier, where what is outside a marked range fades less. */
+    highContrast: Boolean = false,
 ) {
     /** The squircles a bar's end, a rectangle and a region are cut from, made once. */
     val corners = Corners(cornerShape)
 
     /** Paths drawn into and emptied again for each bar that is cut from its stack: see [addCut]. */
     val cutting = CutPaths()
+
+    /** Paths each kind of mark is drawn into, emptied for each layer: see [MarkPaths]. */
+    val marks = MarkPaths()
+
+    /** How strongly a mark outside a marked range is drawn, once the range has faded it. */
+    val outsideRange: Float = if (highContrast) OutsideRangeOpacityHighContrast else OutsideRangeOpacity
+
+    /** Where this frame's marked range holds its marks whole: see [MarkFocus]. */
+    val focus = MarkFocus()
+}
+
+/**
+ * The paths a layer's marks are drawn into, kept from frame to frame and
+ * emptied for each layer, so that a frame does not make a path for every kind
+ * of mark it draws, and twice over for one with a range marked on it, whose
+ * marks are drawn in two parts: see [MarkFocus].
+ */
+internal class MarkPaths {
+    private val paths = Array(5) { Path() }
+
+    /** The [n]th path, emptied. */
+    fun empty(n: Int): Path = paths[n].apply { rewind() }
+}
+
+/**
+ * Where a marked range holds the marks drawn at full strength, in pixels, and
+ * how strongly those outside it are drawn: [faded], 1 for not at all. Set for
+ * each frame, rather than made for each, from the range and how far it has
+ * faded in.
+ *
+ * Across a range, a mark is inside it where its place is; in a box, where its
+ * place is and its value is. A line or an area is cut at the range's edges,
+ * so the stretch of it inside is whole and the rest faded.
+ */
+internal class MarkFocus {
+    var left = 0f
+    var top = 0f
+    var right = 0f
+    var bottom = 0f
+    var faded = 1f
+
+    fun holds(x: Float, y: Float): Boolean = x >= left && x <= right && y >= top && y <= bottom
+}
+
+/** Whether a mark at [x], [y] is drawn in this pass: every mark for [inside] `null`, otherwise those in or out of the range as it says. */
+private fun MarkFocus?.keeps(inside: Boolean?, x: Float, y: Float): Boolean =
+    inside == null || this == null || holds(x, y) == inside
+
+/**
+ * Draws a layer's marks by [draw], once, or with a range marked, twice: what
+ * is outside it faded, then what is inside it at full strength. [draw] is told
+ * which part, `null` for all of it, and the alpha to draw it at.
+ */
+private inline fun byFocus(focus: MarkFocus?, alpha: Float, draw: (inside: Boolean?, alpha: Float) -> Unit) {
+    if (focus == null) {
+        draw(null, alpha)
+    } else {
+        draw(false, alpha * focus.faded)
+        draw(true, alpha)
+    }
+}
+
+/**
+ * Draws a line's or an area's path by [draw], once, or with a range marked,
+ * twice: clipped to what is outside the range and faded, then to what is
+ * inside it and whole. Cut by clipping, so the path is made once a frame and
+ * not again for each part.
+ */
+private inline fun DrawScope.splitAt(focus: MarkFocus?, alpha: Float, draw: DrawScope.(alpha: Float) -> Unit) {
+    if (focus == null) {
+        draw(alpha)
+        return
+    }
+    clipRect(focus.left, focus.top, focus.right, focus.bottom, ClipOp.Difference) { draw(alpha * focus.faded) }
+    clipRect(focus.left, focus.top, focus.right, focus.bottom) { draw(alpha) }
 }
 
 /**
@@ -117,6 +198,24 @@ private const val BandOpacity = 0.22f
 private const val MarkedOpacity = 0.16f
 
 /**
+ * How strongly a mark outside a marked range is drawn: the range's marks
+ * stand out at full strength, and the rest are there still, to read the range
+ * against. Asked for as *"i'd like to subtly highlight the sections of chart
+ * we do have selected"*: enough to see at once which marks are in it, not so
+ * much that the rest of the chart goes.
+ */
+private const val OutsideRangeOpacity = 0.6f
+
+/**
+ * The same at the high contrast tier, which fades less. Its palettes hold
+ * 4.5:1 against their ground, and at 60% the teal and the rust fell to under
+ * 2.7:1, below the 3:1 a mark must hold to be seen at all. At 80% every colour
+ * of both still holds 3.4:1, and the range is told by its edge and its wash
+ * as much as by the fade.
+ */
+private const val OutsideRangeOpacityHighContrast = 0.8f
+
+/**
  * A range the reader has marked, in the chart's own units: [from] and [to]
  * across, and for a box [upFrom] and [upTo] up. [whole] for one drawn out to
  * the whole of the places at its ends, as one set by its values is among bars
@@ -155,6 +254,10 @@ private fun DrawScope.addShape(path: Path, rect: Rect, shape: Shape) {
  *
  * [alpha] fades the marks in, for an entrance under reduced motion; the frame
  * itself — gridlines, labels — is there from the first frame.
+ *
+ * [focusing] is how far the marks outside [focused] have faded, from 0, not
+ * at all, to 1, to [DrawConfig.outsideRange]: the range marked, or the one
+ * that was, while its marks come back as it is let go.
  */
 internal fun DrawScope.drawChart(
     frame: ChartFrame,
@@ -166,6 +269,8 @@ internal fun DrawScope.drawChart(
     settled: ResolvedChart = chart,
     /** A range marked on it, if one is. */
     marked: MarkedRange? = null,
+    focused: MarkedRange? = marked,
+    focusing: Float = 0f,
 ) {
     // And up the end axis, for what is on it: see [Mapper.up].
     val m = Mapper(frame, chart.x, chart.y, chart.yEnd)
@@ -293,6 +398,7 @@ internal fun DrawScope.drawChart(
     // Every bar layer's width and open ends, worked out once this frame for
     // all of them: see [BarFrame].
     val bars = BarFrame(chart, m, config, this)
+    val focus = focusOn(focused, focusing, chart, m, config)
     clipRect(plot.left - pad, plot.top - pad, plot.right + pad, plot.bottom + pad) {
         chart.layers.forEach { layer ->
             val look = lookOf(layer.slot, colours.series, config.patterns, layer.mark.style, layer.series.style)
@@ -301,20 +407,20 @@ internal fun DrawScope.drawChart(
             if (alpha <= 0f) return@forEach
             val mapped = m.up(layer.mark.onEnd)
             when (layer.mark.kind) {
-                MarkKind.Area -> drawArea(layer, look, mapped, config, alpha)
-                MarkKind.Band -> drawArea(layer, look, mapped, config, alpha, band = true)
+                MarkKind.Area -> drawArea(layer, look, mapped, config, alpha, focus = focus)
+                MarkKind.Band -> drawArea(layer, look, mapped, config, alpha, band = true, focus = focus)
                 MarkKind.Line -> {
-                    drawLineMark(layer, look, mapped, config, alpha)
+                    drawLineMark(layer, look, mapped, config, alpha, focus)
                     if (layer.mark.showPoints || (config.patterns && seriesCount > 1)) {
-                        drawSymbols(layer, look.symbol, look.colour, mapped, config, alpha)
+                        drawSymbols(layer, look.symbol, look.colour, mapped, config, alpha, focus)
                     }
                 }
-                MarkKind.Bar -> drawBars(layer, look, chart, mapped, config, alpha, bars)
-                MarkKind.Point -> drawSymbols(layer, layer.mark.symbol ?: look.symbol, look.colour, mapped, config, alpha)
-                MarkKind.Rectangle -> drawRectangles(layer, look, mapped, config, alpha)
-                MarkKind.Stem -> drawStems(layer, look, mapped, config, alpha)
-                MarkKind.Box -> drawBoxes(layer, look, chart, mapped, config, alpha)
-                MarkKind.Cell -> drawCells(layer, frame, chart, mapped, config, alpha)
+                MarkKind.Bar -> drawBars(layer, look, chart, mapped, config, alpha, bars, focus)
+                MarkKind.Point -> drawSymbols(layer, layer.mark.symbol ?: look.symbol, look.colour, mapped, config, alpha, focus)
+                MarkKind.Rectangle -> drawRectangles(layer, look, mapped, config, alpha, focus)
+                MarkKind.Stem -> drawStems(layer, look, mapped, config, alpha, focus)
+                MarkKind.Box -> drawBoxes(layer, look, chart, mapped, config, alpha, focus)
+                MarkKind.Cell -> drawCells(layer, frame, chart, mapped, config, alpha, focus)
             }
         }
     }
@@ -427,37 +533,77 @@ internal fun DrawScope.drawChart(
     drawLabels(frame, m, colours)
 }
 
+/**
+ * Where [range] holds its marks whole this frame, set in [config]'s
+ * [MarkFocus]; `null` for no range, or one not faded in at all.
+ *
+ * Along categories it reaches out to the whole of the bands at its ends, the
+ * places it is read as: a drag from most of the way across February's band
+ * reports February, and February's bar faded while the range said it was in
+ * it. Elsewhere it is where the range is drawn, to the nearest pixel, so the
+ * two parts of a line meet on a pixel's edge and not across one.
+ */
+private fun DrawScope.focusOn(range: MarkedRange?, focusing: Float, chart: ResolvedChart, m: Mapper, config: DrawConfig): MarkFocus? {
+    if (range == null || focusing <= 0f || chart.horizontal) return null
+    val focus = config.focus
+    focus.faded = 1f - (1f - config.outsideRange) * focusing.coerceAtMost(1f)
+    val categories = chart.x.kind == AxisKind.Category
+    val half = if (categories || range.whole) cellBand(chart.placeAxis, chart.step, m.unitX) / 2 else 0f
+    fun place(at: Double): Double =
+        if (categories) at.roundToInt().coerceIn(ceil(chart.x.low).toInt(), floor(chart.x.high).toInt()).toDouble() else at
+    val a = m.px(place(range.from))
+    val b = m.px(place(range.to))
+    focus.left = floor(min(a, b) - half)
+    focus.right = ceil(max(a, b) + half)
+    val upFrom = range.upFrom
+    val upTo = range.upTo
+    if (upFrom != null && upTo != null) {
+        focus.top = floor(min(m.py(upFrom), m.py(upTo)))
+        focus.bottom = ceil(max(m.py(upFrom), m.py(upTo)))
+    } else {
+        focus.top = 0f
+        focus.bottom = size.height
+    }
+    return focus
+}
+
 private fun DrawScope.fill(path: Path, look: SeriesLook, config: DrawConfig, alpha: Float, opacity: Float = 1f) {
     drawPath(path, look.colour, alpha = alpha * opacity)
     val pattern: Brush? = config.tiles.brush(look.pattern, config.colours.patternInk, this, config.patternWeight)
     if (pattern != null) drawPath(path, pattern, alpha = alpha)
 }
 
-private fun DrawScope.drawLineMark(layer: Layer, look: SeriesLook, m: Mapper, config: DrawConfig, alpha: Float) {
+private fun DrawScope.drawLineMark(layer: Layer, look: SeriesLook, m: Mapper, config: DrawConfig, alpha: Float, focus: MarkFocus?) {
     val points = (0 until layer.size).map { i ->
         val y = layer.up[i]
         if (y.isNaN()) null else Offset(m.px(layer.across[i]), m.py(y))
     }
     val path = linePath(decimate(points, m.frame.plot.width), layer.mark.interpolation)
-    drawPath(
-        path,
-        look.colour,
-        alpha = alpha,
-        style = Stroke(
-            width = config.lineWidth,
-            cap = StrokeCap.Round,
-            join = StrokeJoin.Round,
-            pathEffect = look.line.effect(config.lineWidth),
-        ),
+    val stroke = Stroke(
+        width = config.lineWidth,
+        cap = StrokeCap.Round,
+        join = StrokeJoin.Round,
+        pathEffect = look.line.effect(config.lineWidth),
     )
+    // Cut at a marked range's edges, the same path both times, so its dashes
+    // run on across the cut.
+    splitAt(focus, alpha) { part -> drawPath(path, look.colour, alpha = part, style = stroke) }
 }
 
-private fun DrawScope.drawArea(layer: Layer, look: SeriesLook, m: Mapper, config: DrawConfig, alpha: Float, band: Boolean = false) {
+private fun DrawScope.drawArea(
+    layer: Layer,
+    look: SeriesLook,
+    m: Mapper,
+    config: DrawConfig,
+    alpha: Float,
+    band: Boolean = false,
+    focus: MarkFocus? = null,
+) {
     val base = layer.base ?: DoubleArray(layer.size)
     val stacked = layer.mark.stacking == ChartStacking.Stacked || layer.mark.stacking == ChartStacking.Normalised ||
         layer.mark.stacking == ChartStacking.Centred
-    val fillPath = Path()
-    val outline = Path()
+    val fillPath = config.marks.empty(0)
+    val outline = config.marks.empty(1)
     // One closed shape per unbroken run of values.
     var start = 0
     while (start < layer.size) {
@@ -476,14 +622,16 @@ private fun DrawScope.drawArea(layer: Layer, look: SeriesLook, m: Mapper, config
     // Unstacked areas overlap, so each lets the others show through; stacked
     // ones tile, and are near solid. A band is a range, not a value, and has
     // no edge of its own: the line drawn through it is the value.
-    fill(fillPath, look, config, alpha, opacity = if (band) BandOpacity else if (stacked) 0.85f else 0.3f)
-    if (band) return
-    drawPath(
-        outline,
-        look.colour,
-        alpha = alpha,
-        style = Stroke(width = config.lineWidth, cap = StrokeCap.Round, join = StrokeJoin.Round, pathEffect = look.line.effect(config.lineWidth)),
-    )
+    val opacity = if (band) BandOpacity else if (stacked) 0.85f else 0.3f
+    val stroke = if (band) {
+        null
+    } else {
+        Stroke(width = config.lineWidth, cap = StrokeCap.Round, join = StrokeJoin.Round, pathEffect = look.line.effect(config.lineWidth))
+    }
+    splitAt(focus, alpha) { part ->
+        fill(fillPath, look, config, part, opacity = opacity)
+        if (stroke != null) drawPath(outline, look.colour, alpha = part, style = stroke)
+    }
 }
 
 /**
@@ -528,7 +676,16 @@ private fun placeIndexOf(layer: Layer, lying: Boolean): Map<Double, Int> {
     return HashMap<Double, Int>(places.size * 2).apply { places.forEachIndexed { j, place -> getOrPut(place) { j } } }
 }
 
-private fun DrawScope.drawBars(layer: Layer, look: SeriesLook, chart: ResolvedChart, m: Mapper, config: DrawConfig, alpha: Float, bars: BarFrame) {
+private fun DrawScope.drawBars(
+    layer: Layer,
+    look: SeriesLook,
+    chart: ResolvedChart,
+    m: Mapper,
+    config: DrawConfig,
+    alpha: Float,
+    bars: BarFrame,
+    focus: MarkFocus?,
+) {
     val lying = chart.horizontal
     val places = if (lying) layer.up else layer.across
     val tops = if (lying) layer.across else layer.up
@@ -546,50 +703,57 @@ private fun DrawScope.drawBars(layer: Layer, look: SeriesLook, chart: ResolvedCh
     val at = bars.at(layer)
     val open = if (!layer.mark.floating) bars.openEnds(layer) else null
     val stack = if (!layer.mark.floating) StackEnds(layer, chart, reach, at, bars::openEnds, bars::placeIndex) else null
-    val path = Path()
-    for (i in 0 until layer.size) {
-        if (tops[i].isNaN()) continue
-        val positive = tops[i] >= base[i]
-        val opened = open?.get(i) ?: 1f
-        // A part under another, near enough to the stack's end to be inside
-        // its corner, is cut from the stack's rounded outline: see [StackEnds].
-        val end = stack?.endOver(i, opened)
-        if (lying) {
-            val centre = m.py(places[i]) + offset
-            val from = m.px(base[i])
-            val to = m.px(tops[i])
-            val rect = Rect(min(from, to), centre - thickness / 2, max(from, to), centre + thickness / 2)
-            // The far end is rounded; which side that is depends on the sign
-            // and on which way the language reads, both in `from` and `to`.
-            if (end != null) {
-                val far = m.px(end.value)
-                val whole = Rect(min(from, far), rect.top, max(from, far), rect.bottom)
-                addCut(path, rect, whole, if (far >= from) corners.right(end.open) else corners.left(end.open), config.cutting)
-            } else {
-                val shape = if (to >= from) corners.right(opened) else corners.left(opened)
-                if (shape == null) path.addRect(rect) else addShape(path, rect, shape)
-            }
-        } else {
-            val direction = if (m.frame.rtl) -1f else 1f
-            val centre = m.px(places[i]) + offset * direction
-            val from = m.py(base[i])
-            val to = m.py(tops[i])
-            val rect = Rect(centre - thickness / 2, min(from, to), centre + thickness / 2, max(from, to))
-            if (end != null) {
-                val far = m.py(end.value)
-                val whole = Rect(rect.left, min(from, far), rect.right, max(from, far))
-                addCut(path, rect, whole, if (positive) corners.up(end.open) else corners.down(end.open), config.cutting)
-            } else {
-                val shape = when {
-                    layer.mark.floating -> corners.all
-                    positive -> corners.up(opened)
-                    else -> corners.down(opened)
+    // In a marked range by its place, and in a box by its value too: its top,
+    // or a floating bar's middle, since it stands for the range between.
+    fun value(i: Int): Double = if (layer.mark.floating) (base[i] + tops[i]) / 2 else tops[i]
+    byFocus(focus, alpha) { inside, part ->
+        val path = config.marks.empty(0)
+        for (i in 0 until layer.size) {
+            if (tops[i].isNaN()) continue
+            val held = if (lying) focus.keeps(inside, m.px(value(i)), m.py(places[i])) else focus.keeps(inside, m.px(places[i]), m.py(value(i)))
+            if (!held) continue
+            val positive = tops[i] >= base[i]
+            val opened = open?.get(i) ?: 1f
+            // A part under another, near enough to the stack's end to be inside
+            // its corner, is cut from the stack's rounded outline: see [StackEnds].
+            val end = stack?.endOver(i, opened)
+            if (lying) {
+                val centre = m.py(places[i]) + offset
+                val from = m.px(base[i])
+                val to = m.px(tops[i])
+                val rect = Rect(min(from, to), centre - thickness / 2, max(from, to), centre + thickness / 2)
+                // The far end is rounded; which side that is depends on the sign
+                // and on which way the language reads, both in `from` and `to`.
+                if (end != null) {
+                    val far = m.px(end.value)
+                    val whole = Rect(min(from, far), rect.top, max(from, far), rect.bottom)
+                    addCut(path, rect, whole, if (far >= from) corners.right(end.open) else corners.left(end.open), config.cutting)
+                } else {
+                    val shape = if (to >= from) corners.right(opened) else corners.left(opened)
+                    if (shape == null) path.addRect(rect) else addShape(path, rect, shape)
                 }
-                if (shape == null) path.addRect(rect) else addShape(path, rect, shape)
+            } else {
+                val direction = if (m.frame.rtl) -1f else 1f
+                val centre = m.px(places[i]) + offset * direction
+                val from = m.py(base[i])
+                val to = m.py(tops[i])
+                val rect = Rect(centre - thickness / 2, min(from, to), centre + thickness / 2, max(from, to))
+                if (end != null) {
+                    val far = m.py(end.value)
+                    val whole = Rect(rect.left, min(from, far), rect.right, max(from, far))
+                    addCut(path, rect, whole, if (positive) corners.up(end.open) else corners.down(end.open), config.cutting)
+                } else {
+                    val shape = when {
+                        layer.mark.floating -> corners.all
+                        positive -> corners.up(opened)
+                        else -> corners.down(opened)
+                    }
+                    if (shape == null) path.addRect(rect) else addShape(path, rect, shape)
+                }
             }
         }
+        fill(path, look, config, part)
     }
-    fill(path, look, config, alpha)
 }
 
 /**
@@ -763,45 +927,62 @@ private fun smallestStep(places: DoubleArray): Double {
     return if (step == Double.MAX_VALUE || step <= 0) 1.0 else step
 }
 
-private fun DrawScope.drawSymbols(layer: Layer, symbol: PointSymbol, colour: Color, m: Mapper, config: DrawConfig, alpha: Float) {
-    val halo = Path()
-    val marks = Path()
-    for (i in 0 until layer.size) {
-        val y = layer.up[i]
-        if (y.isNaN() || layer.across[i].isNaN()) continue
-        val centre = Offset(m.px(layer.across[i]), m.py(y))
-        // A ring of the page's ground round each, so neighbouring points of
-        // two series stay two points where they overlap.
-        addSymbol(halo, symbol, centre, config.pointSize + config.hairline * 3)
-        addSymbol(marks, symbol, centre, config.pointSize)
+private fun DrawScope.drawSymbols(layer: Layer, symbol: PointSymbol, colour: Color, m: Mapper, config: DrawConfig, alpha: Float, focus: MarkFocus?) {
+    // A line's points by their own places, not cut where the line is: a
+    // point half faded at the range's edge is neither in it nor out.
+    byFocus(focus, alpha) { inside, part ->
+        val halo = config.marks.empty(0)
+        val marks = config.marks.empty(1)
+        for (i in 0 until layer.size) {
+            val y = layer.up[i]
+            if (y.isNaN() || layer.across[i].isNaN()) continue
+            val centre = Offset(m.px(layer.across[i]), m.py(y))
+            if (!focus.keeps(inside, centre.x, centre.y)) continue
+            // A ring of the page's ground round each, so neighbouring points of
+            // two series stay two points where they overlap.
+            addSymbol(halo, symbol, centre, config.pointSize + config.hairline * 3)
+            addSymbol(marks, symbol, centre, config.pointSize)
+        }
+        drawPath(halo, config.colours.ground, alpha = part)
+        drawPath(marks, colour, alpha = part)
     }
-    drawPath(halo, config.colours.ground, alpha = alpha)
-    drawPath(marks, colour, alpha = alpha)
 }
 
-private fun DrawScope.drawRectangles(layer: Layer, look: SeriesLook, m: Mapper, config: DrawConfig, alpha: Float) {
+private fun DrawScope.drawRectangles(layer: Layer, look: SeriesLook, m: Mapper, config: DrawConfig, alpha: Float, focus: MarkFocus?) {
     val ends = layer.acrossEnd ?: return
     val tops = layer.upEnd ?: return
-    val path = Path()
-    for (i in 0 until layer.size) {
-        val x0 = m.px(layer.across[i])
-        val x1 = m.px(ends[i])
-        val y0 = m.py(layer.up[i])
-        val y1 = m.py(tops[i])
-        addShape(path, Rect(min(x0, x1), min(y0, y1), max(x0, x1), max(y0, y1)), config.corners.all)
+    // In a marked range by its middle, which has no one place of its own.
+    byFocus(focus, alpha) { inside, part ->
+        val path = config.marks.empty(0)
+        for (i in 0 until layer.size) {
+            val x0 = m.px(layer.across[i])
+            val x1 = m.px(ends[i])
+            val y0 = m.py(layer.up[i])
+            val y1 = m.py(tops[i])
+            if (!focus.keeps(inside, (x0 + x1) / 2, (y0 + y1) / 2)) continue
+            addShape(path, Rect(min(x0, x1), min(y0, y1), max(x0, x1), max(y0, y1)), config.corners.all)
+        }
+        fill(path, look, config, part, opacity = 0.85f)
     }
-    fill(path, look, config, alpha, opacity = 0.85f)
 }
 
 /** Each of [layer]'s stems: a line from its foot to its top, as wide as a line and as round at its ends. */
-private fun DrawScope.drawStems(layer: Layer, look: SeriesLook, m: Mapper, config: DrawConfig, alpha: Float) {
+private fun DrawScope.drawStems(layer: Layer, look: SeriesLook, m: Mapper, config: DrawConfig, alpha: Float, focus: MarkFocus?) {
     val base = layer.base ?: return
-    val path = Path()
-    for (i in 0 until layer.size) {
-        if (layer.up[i].isNaN() || base[i].isNaN()) continue
-        addStem(path, m.px(layer.across[i]), m.py(base[i]), m.py(layer.up[i]), config.lineWidth, capHalf = 0f)
+    // In a marked range by its place, and in a box by its middle, as a
+    // floating bar is.
+    byFocus(focus, alpha) { inside, part ->
+        val path = config.marks.empty(0)
+        for (i in 0 until layer.size) {
+            if (layer.up[i].isNaN() || base[i].isNaN()) continue
+            val x = m.px(layer.across[i])
+            val foot = m.py(base[i])
+            val top = m.py(layer.up[i])
+            if (!focus.keeps(inside, x, (foot + top) / 2)) continue
+            addStem(path, x, foot, top, config.lineWidth, capHalf = 0f)
+        }
+        drawPath(path, look.colour, alpha = part)
     }
-    drawPath(path, look.colour, alpha = alpha)
 }
 
 /**
@@ -810,39 +991,44 @@ private fun DrawScope.drawStems(layer: Layer, look: SeriesLook, m: Mapper, confi
  * across it in the page's ground, which reads on a hatched box and at the high
  * tier alike; and its outliers as the series' points.
  */
-private fun DrawScope.drawBoxes(layer: Layer, look: SeriesLook, chart: ResolvedChart, m: Mapper, config: DrawConfig, alpha: Float) {
+private fun DrawScope.drawBoxes(layer: Layer, look: SeriesLook, chart: ResolvedChart, m: Mapper, config: DrawConfig, alpha: Float, focus: MarkFocus?) {
     val base = layer.base ?: return
     val box = layer.box ?: return
     val band = cellBand(chart.placeAxis, chart.step, m.unitX)
     val thickness = band * ChartDefaults.BarFraction * layer.groupWidth
     val direction = if (m.frame.rtl) -1f else 1f
     val offset = band * ChartDefaults.BarFraction * layer.groupOffset * direction
-    val whiskers = Path()
-    val boxes = Path()
-    val medians = Path()
-    val halo = Path()
-    val outliers = Path()
-    for (i in 0 until layer.size) {
-        if (layer.up[i].isNaN() || base[i].isNaN()) continue
-        val centre = m.px(layer.across[i]) + offset
-        val top = m.py(layer.up[i])
-        val foot = m.py(base[i])
-        addStem(whiskers, centre, top, m.py(box.high[i]), config.lineWidth, capHalf = thickness * WhiskerCapShare / 2)
-        addStem(whiskers, centre, foot, m.py(box.low[i]), config.lineWidth, capHalf = thickness * WhiskerCapShare / 2)
-        addShape(boxes, Rect(centre - thickness / 2, min(top, foot), centre + thickness / 2, max(top, foot)), config.corners.all)
-        val median = m.py(layer.values[i])
-        medians.addRect(Rect(centre - thickness / 2, median - config.lineWidth / 2, centre + thickness / 2, median + config.lineWidth / 2))
-        box.outliers[i].forEach { value ->
-            val at = Offset(centre, m.py(value))
-            addSymbol(halo, look.symbol, at, config.pointSize + config.hairline * 3)
-            addSymbol(outliers, look.symbol, at, config.pointSize)
+    // In a marked range by its place, and in a box by its median too: its
+    // whiskers and its outliers go with it, as one mark.
+    byFocus(focus, alpha) { inside, part ->
+        val whiskers = config.marks.empty(0)
+        val boxes = config.marks.empty(1)
+        val medians = config.marks.empty(2)
+        val halo = config.marks.empty(3)
+        val outliers = config.marks.empty(4)
+        for (i in 0 until layer.size) {
+            if (layer.up[i].isNaN() || base[i].isNaN()) continue
+            if (!focus.keeps(inside, m.px(layer.across[i]), m.py(layer.values[i]))) continue
+            val centre = m.px(layer.across[i]) + offset
+            val top = m.py(layer.up[i])
+            val foot = m.py(base[i])
+            addStem(whiskers, centre, top, m.py(box.high[i]), config.lineWidth, capHalf = thickness * WhiskerCapShare / 2)
+            addStem(whiskers, centre, foot, m.py(box.low[i]), config.lineWidth, capHalf = thickness * WhiskerCapShare / 2)
+            addShape(boxes, Rect(centre - thickness / 2, min(top, foot), centre + thickness / 2, max(top, foot)), config.corners.all)
+            val median = m.py(layer.values[i])
+            medians.addRect(Rect(centre - thickness / 2, median - config.lineWidth / 2, centre + thickness / 2, median + config.lineWidth / 2))
+            box.outliers[i].forEach { value ->
+                val at = Offset(centre, m.py(value))
+                addSymbol(halo, look.symbol, at, config.pointSize + config.hairline * 3)
+                addSymbol(outliers, look.symbol, at, config.pointSize)
+            }
         }
+        drawPath(whiskers, look.colour, alpha = part)
+        fill(boxes, look, config, part, opacity = 0.85f)
+        drawPath(medians, config.colours.ground, alpha = part)
+        drawPath(halo, config.colours.ground, alpha = part)
+        drawPath(outliers, look.colour, alpha = part)
     }
-    drawPath(whiskers, look.colour, alpha = alpha)
-    fill(boxes, look, config, alpha, opacity = 0.85f)
-    drawPath(medians, config.colours.ground, alpha = alpha)
-    drawPath(halo, config.colours.ground, alpha = alpha)
-    drawPath(outliers, look.colour, alpha = alpha)
 }
 
 /**
@@ -850,18 +1036,29 @@ private fun DrawScope.drawBoxes(layer: Layer, look: SeriesLook, chart: ResolvedC
  * shaded along the ramp by its value; with patterns on, edged and with its
  * value written in it, where it fits, so it is read by more than its shade.
  */
-private fun DrawScope.drawCells(layer: Layer, frame: ChartFrame, chart: ResolvedChart, m: Mapper, config: DrawConfig, alpha: Float) {
+private fun DrawScope.drawCells(
+    layer: Layer,
+    frame: ChartFrame,
+    chart: ResolvedChart,
+    m: Mapper,
+    config: DrawConfig,
+    alpha: Float,
+    focus: MarkFocus?,
+) {
     val scale = chart.cells ?: return
     val width = cellBand(chart.x, chart.step, m.unitX) - config.cellGap
     val height = cellBand(chart.y, smallestStep(layer.up), m.unitY) - config.cellGap
     if (width <= 0f || height <= 0f) return
     val labels = frame.cellLabels
     // One path, emptied for each cell, which is drawn in a shade of its own.
-    val path = Path()
+    val path = config.marks.empty(0)
     for (i in 0 until layer.size) {
         val value = layer.values[i]
         if (value.isNaN()) continue
         val centre = Offset(m.px(layer.across[i]), m.py(layer.up[i]))
+        // Drawn one at a time already, so each at its own strength: its
+        // column's place in a marked range, or not.
+        val alpha = if (focus == null || focus.holds(centre.x, centre.y)) alpha else alpha * focus.faded
         val rect = Rect(centre.x - width / 2, centre.y - height / 2, centre.x + width / 2, centre.y + height / 2)
         val shade = rampAt(config.colours.ramp, scale.fraction(value))
         path.rewind()
