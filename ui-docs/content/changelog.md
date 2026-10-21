@@ -145,9 +145,10 @@ window — see **Changed**.
 - **Swipe actions let go of a trackpad's swipe as it ends**: carried past the
   point of no return by a scroll, the row runs its action at once, and the
   scroll a trackpad coasts on after the fingers lift no longer holds it there or
-  cancels the settle under way. And a sideways scroll keeps the whole of
-  itself: its ups and downs no longer scroll the list out from under the row
-  being swiped, until it has been let go of.
+  cancels the settle under way, while slow notches of a sideways wheel each
+  still move the row. And a sideways scroll keeps the whole of itself: its ups
+  and downs no longer scroll the list out from under the row being swiped,
+  until it has been let go of.
 - **Swipe actions close at a scroll anywhere else**, from a wheel or a
   trackpad, as they do at a press: a carousel, a table or a row of chips
   scrolled across, or the list scrolled down. Asked for as *"can we apply that
@@ -208,8 +209,8 @@ window — see **Changed**.
   you type into, with a `ListItem`'s ground, corners and `position`. A label at
   the start and the value at the end, or with no label the field from the start
   and its placeholder. A leading icon, a supporting or error line, a trailing
-  slot, and `imeChain`. `field` on `ListGroup` and `listGroup` draws one in
-  place.
+  slot, and `imeChain`. Focused, read-only or not, it takes a field's focused
+  edge. `field` on `ListGroup` and `listGroup` draws one in place.
 - **`ModalBottomSheet(recedes = false)`**, and `ModalSideSheet`'s: the page
   behind stays where it is, still dimmed, for a screen with a map, a video or
   another platform view behind the sheet, which Android and iOS move on every
@@ -330,7 +331,8 @@ window — see **Changed**.
   share the width down to a minimum and then scroll, and drag: along the strip
   with a detent at each place, or, with `movesBetweenStrips`, pulled off it
   into another strip, as a split view's panes exchange them. Middle click,
-  Delete, the arrow keys and a screen reader's actions all work.
+  Delete (which hands the focus to the next tab, or the previous at the end),
+  the arrow keys and a screen reader's actions all work.
 - **`KeyValueList(compact = true)`**, for a small container of its own: the
   rows take the style around them and the list is as wide as its rows.
 - **`FillPatternDefaults`**, the spacing and weight a pattern is drawn with and
@@ -397,6 +399,10 @@ window — see **Changed**.
   a phone, and nothing in a list pane, where a chat swiped open on Pin drew its
   avatar, name and time over the conversation beside the list. The slide is
   clipped to the row's sides now.
+- **A focused row in `SwipeActions` shows its focus ring.** The row is clipped
+  to its shape where it slides, which cut away the ring a `ListItem` draws
+  outside itself, so a keyboard's focus on a swipeable row showed nothing. The
+  ring is drawn just inside the row there now.
 - **A sheet opening with the keyboard rises with it.** A field focused as a
   sheet opened made the sheet stand still for the whole of the keyboard's
   slide, then come up after it, while the page behind receded, came forward
@@ -416,10 +422,13 @@ window — see **Changed**.
   a trackpad over a list in a sheet that was not fully open opened the sheet
   to full height first, and only then scrolled the list, as a finger dragging
   the list up does on a phone. It scrolls the list now, both ways, and the
-  sheet stays where it is. At the end of the list, if the sheet's content
-  carries on below the screen, a turn further down opens the sheet a detent. A
-  turn up at the list's top never closes the sheet or moves it down. A finger
-  still opens the sheet first. See
+  sheet stays where it is; a Mac's trackpad, which pans rather than scrolls, as
+  well as a wheel. At the end of the list, if the sheet's content carries on
+  below the screen, a turn further down opens the sheet a detent. A turn up at
+  the list's top never closes the sheet or moves it down, a wheel or trackpad
+  that stops never flings the sheet, even under a list with a fling of its
+  own, and a scrollbar's thumb let go however fast leaves it where it is. A
+  finger still opens the sheet first. See
   [Sheets](components/sheets.md#nested-scrolling).
 - **A scrollbar in a half-height sheet is the height of what the sheet
   shows.** A sheet's content is as tall as the window at every detent, so at
