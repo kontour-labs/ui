@@ -4,6 +4,7 @@ import io.kontour.ui.foundation.FillPattern
 import io.kontour.ui.foundation.FillPatternDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.unit.Dp
@@ -86,12 +87,16 @@ object ChartDefaults {
     /**
      * The words a chart says on its own: [LocalChartStrings]', in the
      * pseudo-locale the gallery is drawing in, if it is drawing in one.
+     *
+     * Remembered in a pseudo-locale: its phrases are new functions each time
+     * they are made, so made at every call, each chart took them for new words
+     * and wrote its description again at every recomposition.
      */
     @Composable
-    @ReadOnlyComposable
     fun strings(): ChartStrings {
         val strings = LocalChartStrings.current
-        return LocalPseudoLocale.current?.let { strings.pseudoLocalised(it) } ?: strings
+        val pseudo = LocalPseudoLocale.current ?: return strings
+        return remember(strings, pseudo) { strings.pseudoLocalised(pseudo) }
     }
 
     /** The size of a point's symbol. */
@@ -123,7 +128,7 @@ internal class SeriesLook(
     val colour: Color,
     val line: LinePattern,
     val symbol: PointSymbol,
-    val fill: FillPattern,
+    val pattern: FillPattern,
 )
 
 /**
@@ -147,7 +152,7 @@ internal fun lookOf(
             ?: palette[slot % palette.size],
         line = override.firstNotNullOfOrNull { it.line } ?: pick(LinePattern.entries, LinePattern.Solid),
         symbol = override.firstNotNullOfOrNull { it.symbol } ?: pick(PointSymbol.entries, PointSymbol.Circle),
-        fill = override.firstNotNullOfOrNull { it.fill } ?: pick(FillPatternDefaults.Series, FillPattern.Solid),
+        pattern = override.firstNotNullOfOrNull { it.pattern } ?: pick(FillPatternDefaults.Series, FillPattern.Solid),
     )
 }
 

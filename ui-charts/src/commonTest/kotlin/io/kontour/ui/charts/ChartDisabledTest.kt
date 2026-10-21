@@ -50,7 +50,7 @@ class ChartDisabledTest {
     /** The page the chart is drawn on, as the theme has it. */
     private var page = Color.Unspecified
 
-    private fun ComposeUiTest.bars(enabled: Boolean, visibility: ChartSeriesVisibility) {
+    private fun ComposeUiTest.bars(enabled: Boolean, visibility: ChartSeriesVisibilityState) {
         setContent {
             KontourTheme(reduceMotion = true) {
                 page = Theme.colours.background
@@ -77,7 +77,7 @@ class ChartDisabledTest {
      */
     @Test
     fun aDisabledChartSaysWhatIsChosenAndThatItIsUnavailable() = runComposeUiTest {
-        bars(enabled = false, visibility = ChartSeriesVisibility(emptySet()))
+        bars(enabled = false, visibility = ChartSeriesVisibilityState(emptySet()))
         onNodeWithContentDescription("Aug: ", substring = true).assert(selected).assert(disabled)
         onNodeWithContentDescription("Jul: ", substring = true).assert(SemanticsMatcher.expectValue(SemanticsProperties.Selected, false))
     }
@@ -85,7 +85,7 @@ class ChartDisabledTest {
     /** Disabled, its legend hides nothing: it was a switch whatever the chart was. */
     @Test
     fun aDisabledChartsLegendHidesNothing() = runComposeUiTest {
-        val visibility = ChartSeriesVisibility(emptySet())
+        val visibility = ChartSeriesVisibilityState(emptySet())
         bars(enabled = false, visibility = visibility)
         val entry = onNode(isToggleable() and hasText("Food"))
         entry.assert(disabled)
@@ -96,7 +96,7 @@ class ChartDisabledTest {
     /** The same for a pie. */
     @Test
     fun aDisabledPieSaysWhatIsChosenAndItsLegendHidesNothing() = runComposeUiTest {
-        val visibility = ChartSeriesVisibility(emptySet())
+        val visibility = ChartSeriesVisibilityState(emptySet())
         setContent {
             KontourTheme(reduceMotion = true) {
                 OverlayHost(Modifier.fillMaxSize()) {
@@ -124,7 +124,7 @@ class ChartDisabledTest {
      */
     @Test
     fun aHiddenSeriesNameCanStillBeRead() = runComposeUiTest {
-        val visibility = ChartSeriesVisibility(setOf(ChartSeries("Food")))
+        val visibility = ChartSeriesVisibilityState(setOf(ChartSeries("Food")))
         bars(enabled = true, visibility = visibility)
         val name = onNode(hasText("Food"), useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
         val pixels = onRoot().captureToImage().toPixelMap()

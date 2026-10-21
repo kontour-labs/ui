@@ -1,6 +1,6 @@
 package io.kontour.ui.demo
 
-import io.kontour.ui.charts.rememberChartSeriesVisibility
+import io.kontour.ui.charts.rememberChartSeriesVisibilityState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.FlowRow
@@ -124,8 +124,8 @@ internal val ChartDemo = ComponentDemo(
     val references = this[chartReferences]
     // One for the charts across months and one for the circle: a route hidden
     // from the lines stays in the circle until it is hidden there too.
-    val shownRoutes = rememberChartSeriesVisibility()
-    val shownSectors = rememberChartSeriesVisibility()
+    val shownRoutes = rememberChartSeriesVisibilityState()
+    val shownSectors = rememberChartSeriesVisibilityState()
     val hides = this[chartHides]
     val visibility = shownRoutes.takeIf { hides }
     val selection = rememberChartSelectionState<String>()

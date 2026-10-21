@@ -22,7 +22,7 @@ import io.kontour.ui.charts.SeriesStyle
 import io.kontour.ui.charts.Sparkline
 import io.kontour.ui.charts.rememberChartRangeSelectionState
 import io.kontour.ui.charts.rememberChartSelectionState
-import io.kontour.ui.charts.rememberChartSeriesVisibility
+import io.kontour.ui.charts.rememberChartSeriesVisibilityState
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.theme.Theme
 import kotlinx.datetime.LocalDate
@@ -65,7 +65,7 @@ fun ChartBasics() {
 fun ChartHidingSeries() {
     // The legend's entries become switches: a tap hides a route, and the
     // chart closes in on the one that is left.
-    val shown = rememberChartSeriesVisibility()
+    val shown = rememberChartSeriesVisibilityState()
     Chart(
         xAxis = ChartAxis.date(),
         yAxis = ChartAxis.number(title = "Riders"),

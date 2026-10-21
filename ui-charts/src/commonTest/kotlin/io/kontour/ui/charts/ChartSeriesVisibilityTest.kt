@@ -37,8 +37,8 @@ import kotlin.test.assertTrue
 
 /**
  * A legend whose entries hide and show their series: a tap takes a series off
- * the chart and out of what a screen reader hears, keeps its entry, faded, to
- * bring it back, and leaves every other series its colour.
+ * the chart and out of what a screen reader hears, keeps its entry, its swatch
+ * an outline, to bring it back, and leaves every other series its colour.
  *
  * Asked for as *"the option to hide a series when you tap its box or label in
  * the legend"*.
@@ -54,7 +54,7 @@ class ChartSeriesVisibilityTest {
         Riders(3, "950", 690), Riders(3, "951", 1_455),
     )
 
-    private fun androidx.compose.ui.test.ComposeUiTest.lines(visibility: ChartSeriesVisibility?, minTouchTarget: Dp? = null) {
+    private fun androidx.compose.ui.test.ComposeUiTest.lines(visibility: ChartSeriesVisibilityState?, minTouchTarget: Dp? = null) {
         setContent {
             KontourTheme(reduceMotion = true) {
                 val sizing = LocalSizing.current
@@ -80,7 +80,7 @@ class ChartSeriesVisibilityTest {
 
     @Test
     fun aTapOnALegendEntryHidesItsSeriesAndAnotherShowsIt() = runComposeUiTest {
-        val visibility = ChartSeriesVisibility(emptySet())
+        val visibility = ChartSeriesVisibilityState(emptySet())
         lines(visibility)
         assertTrue("Route 951" in summary(), "both routes should be said to start with: ${summary()}")
 
@@ -110,7 +110,7 @@ class ChartSeriesVisibilityTest {
      */
     @Test
     fun aLegendOfSwitchesTakesNoMoreRoom() = runComposeUiTest {
-        val visibility = ChartSeriesVisibility(emptySet())
+        val visibility = ChartSeriesVisibilityState(emptySet())
         // A phone's minimum, not the JVM's 24dp, under which nothing grew.
         lines(visibility, minTouchTarget = 48.dp)
         val entry = onNode(isToggleable() and hasText("Route 951"))
@@ -179,7 +179,7 @@ class ChartSeriesVisibilityTest {
     /** A hidden sector leaves the circle, and the others grow into its share. */
     @Test
     fun aHiddenSectorsShareGoesToTheOthers() = runComposeUiTest {
-        val visibility = ChartSeriesVisibility(emptySet())
+        val visibility = ChartSeriesVisibilityState(emptySet())
         setContent {
             KontourTheme(reduceMotion = true) {
                 OverlayHost(Modifier.fillMaxSize()) {

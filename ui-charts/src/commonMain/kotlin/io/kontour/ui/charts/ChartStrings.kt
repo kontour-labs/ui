@@ -16,13 +16,21 @@ import io.kontour.ui.theme.phrase
  * the module is: an app without a chart carries none of these. English by
  * default. An app in another language builds its own with [from], over the same
  * `StringLookup` it gives `Strings.from`, and provides it with
- * [LocalChartStrings]:
+ * [LocalChartStrings], built again only when its language changes:
  *
  * ```kotlin
- * CompositionLocalProvider(LocalChartStrings provides ChartStrings.from(appStrings)) {
+ * val chartStrings = remember(locale) { ChartStrings.from(lookupFor(locale)) }
+ * CompositionLocalProvider(LocalChartStrings provides chartStrings) {
  *     App()
  * }
  * ```
+ *
+ * Remembered, because its phrases are functions, and two built apart are
+ * never equal: built in the composition, every chart below took them for new
+ * words at each recomposition, and wrote its whole description again.
+ *
+ * `python3 docs/export-strings.py` writes these with the library's own, as
+ * `kontour_` resources in one `strings.xml`, for a translator to start from.
  *
  * A phrase with a number in it takes a `Quantity`, which carries the number as
  * the reader writes it and its plural form in their language, so a translation
@@ -62,7 +70,6 @@ import io.kontour.ui.theme.phrase
  *   "Selected 3 Mar to 9 Mar".
  * @property selectedBox What a box marked on a chart is said as, across and
  *   then up: "Selected 14 to 22, 2 to 6".
- * @property otherSectors The sector that gathers what is too small to draw.
  * @property dateColumn The heading of a [ChartDataTable]'s first column, over
  *   dates, where the axis has no title.
  * @property categoryColumn The same, over categories.
@@ -106,7 +113,6 @@ data class ChartStrings(
     val valueRange: (from: String, to: String) -> String = { from, to -> "$from to $to" },
     val sectorShare: (name: String, percent: String) -> String = { name, percent -> "$name, $percent" },
     val noData: String = "No data",
-    val otherSectors: String = "Other",
     val dateColumn: String = "Date",
     val categoryColumn: String = "Category",
     val valueColumn: String = "Value",
@@ -176,7 +182,6 @@ data class ChartStrings(
                 lookup.phrase("sectorShare", null, name, percent) ?: fallback.sectorShare(name, percent)
             },
             noData = lookup.text("noData") ?: fallback.noData,
-            otherSectors = lookup.text("otherSectors") ?: fallback.otherSectors,
             dateColumn = lookup.text("dateColumn") ?: fallback.dateColumn,
             categoryColumn = lookup.text("categoryColumn") ?: fallback.categoryColumn,
             valueColumn = lookup.text("valueColumn") ?: fallback.valueColumn,
@@ -241,7 +246,6 @@ internal fun ChartStrings.mapped(transform: (String) -> String): ChartStrings = 
     valueRange = { a0, a1 -> transform(valueRange(a0, a1)) },
     sectorShare = { a0, a1 -> transform(sectorShare(a0, a1)) },
     noData = transform(noData),
-    otherSectors = transform(otherSectors),
     dateColumn = transform(dateColumn),
     categoryColumn = transform(categoryColumn),
     valueColumn = transform(valueColumn),

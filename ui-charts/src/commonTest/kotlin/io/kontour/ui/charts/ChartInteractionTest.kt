@@ -242,7 +242,7 @@ class ChartInteractionTest {
      */
     @Test
     fun aPieToggledTwiceInASweepGoesOnFromWhereItIs() = runComposeUiTest {
-        val visibility = ChartSeriesVisibility(emptySet())
+        val visibility = ChartSeriesVisibilityState(emptySet())
         val a = ChartSeries("A")
         val b = ChartSeries("B")
         mainClock.autoAdvance = false

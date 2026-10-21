@@ -1,6 +1,6 @@
 package io.kontour.ui.catalog.apps.energy
 
-import io.kontour.ui.charts.rememberChartSeriesVisibility
+import io.kontour.ui.charts.rememberChartSeriesVisibilityState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -90,7 +90,7 @@ private fun ByAppliance(patterns: Boolean) {
     val selection = rememberChartSelectionState<LocalDate>()
     // A tap on an appliance in the legend takes it off the bars, and another
     // puts it back: the car's days, without the car.
-    val appliances = rememberChartSeriesVisibility()
+    val appliances = rememberChartSeriesVisibilityState()
     val average = remember(uses, span) { uses.sumOf { it.kwh } / span.days }
     // One content for the chart and its table, so the two never disagree.
     val content: ChartScope<LocalDate, Number>.() -> Unit = remember(uses, stacking, average) {

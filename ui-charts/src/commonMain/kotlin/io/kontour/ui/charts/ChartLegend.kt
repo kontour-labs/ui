@@ -57,7 +57,7 @@ internal fun ChartLegend(
     stacked: Boolean,
     enabled: Boolean,
     scale: CellScale? = null,
-    visibility: ChartSeriesVisibility? = null,
+    visibility: ChartSeriesVisibilityState? = null,
 ) {
     val named = model.series.filter { it.name.isNotBlank() }
     val spacing = Theme.spacing
@@ -213,7 +213,7 @@ internal fun FillSwatch(look: SeriesLook, colours: ChartColours) {
         Modifier
             .size(SwatchSize)
             .background(look.colour, SwatchShape)
-            .fillPattern(look.fill, colours.patternInk, SwatchShape, scale = SwatchScale),
+            .fillPattern(look.pattern, colours.patternInk, SwatchShape, scale = SwatchScale),
     )
 }
 

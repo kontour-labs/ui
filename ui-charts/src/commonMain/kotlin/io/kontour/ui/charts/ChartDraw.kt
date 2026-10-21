@@ -427,7 +427,7 @@ internal fun DrawScope.drawChart(
 
 private fun DrawScope.fill(path: Path, look: SeriesLook, config: DrawConfig, alpha: Float, opacity: Float = 1f) {
     drawPath(path, look.colour, alpha = alpha * opacity)
-    val pattern: Brush? = config.tiles.brush(look.fill, config.colours.patternInk, this, config.patternWeight)
+    val pattern: Brush? = config.tiles.brush(look.pattern, config.colours.patternInk, this, config.patternWeight)
     if (pattern != null) drawPath(path, pattern, alpha = alpha)
 }
 

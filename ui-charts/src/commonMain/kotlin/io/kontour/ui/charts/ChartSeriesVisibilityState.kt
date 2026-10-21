@@ -13,7 +13,7 @@ import androidx.compose.runtime.setValue
  * reader's action hides its series, and another shows it again.
  *
  * ```kotlin
- * val shown = rememberChartSeriesVisibility()
+ * val shown = rememberChartSeriesVisibilityState()
  * Chart(xAxis = ChartAxis.date(), yAxis = ChartAxis.number(), seriesVisibility = shown) {
  *     line(week, x = { it.day }, y = { it.riders }, series = { ChartSeries("Route ${it.route}") })
  * }
@@ -22,13 +22,13 @@ import androidx.compose.runtime.setValue
  * A hidden series leaves the chart as new data would: the axes close in on
  * what is left, a stack closes up, and a pie's other sectors grow into its
  * share. It keeps its colour and its pattern, so it comes back as itself, and
- * it stays in the legend, faded, to be shown again.
+ * it stays in the legend, its swatch an empty outline, to be shown again.
  *
  * Asked for as *"the option to hide a series when you tap its box or label in
  * the legend"*.
  */
 @Stable
-class ChartSeriesVisibility internal constructor(initialHidden: Set<ChartSeries>) {
+class ChartSeriesVisibilityState internal constructor(initialHidden: Set<ChartSeries>) {
     /** The series hidden, by their keys: everything else is shown. */
     var hidden: Set<ChartSeries> by mutableStateOf(initialHidden)
         private set
@@ -58,12 +58,12 @@ class ChartSeriesVisibility internal constructor(initialHidden: Set<ChartSeries>
 }
 
 /**
- * A [ChartSeriesVisibility], remembered, with [initialHidden] hidden to start
+ * A [ChartSeriesVisibilityState], remembered, with [initialHidden] hidden to start
  * with.
  */
 @Composable
-fun rememberChartSeriesVisibility(initialHidden: Set<ChartSeries> = emptySet()): ChartSeriesVisibility =
-    remember { ChartSeriesVisibility(initialHidden) }
+fun rememberChartSeriesVisibilityState(initialHidden: Set<ChartSeries> = emptySet()): ChartSeriesVisibilityState =
+    remember { ChartSeriesVisibilityState(initialHidden) }
 
 /** [this] without [hidden]'s runs; every series keeps its slot, and so its colour. */
 internal fun ChartModel.without(hidden: Set<ChartSeries>): ChartModel {

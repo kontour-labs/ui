@@ -122,7 +122,8 @@ val strings = Strings.from(object : StringLookup {
 ```
 
 `python3 docs/export-strings.py` writes the English as an Android
-`strings.xml`, `<plurals>` included, for a translator to start from. Compose
+`strings.xml`, `<plurals>` included, for a translator to start from: the
+library's words and the charts' together, since one lookup reads both. Compose
 Multiplatform resources and moko-resources plug in the same way: a
 `StringLookup` is two functions.
 
@@ -139,8 +140,13 @@ KontourTheme(locale = locale, strings = strings) { App() }
 A key the lookup has nothing for falls back to the English, so a translation
 that is missing one says it in English rather than saying nothing. The charts
 have words of their own, `ChartStrings`, built the same way with
-`ChartStrings.from(lookup)` over the same lookup, and provided with
-`LocalChartStrings`.
+`ChartStrings.from(lookup)` over the same lookup, remembered as `Strings` is,
+and provided with `LocalChartStrings`:
+
+```kotlin
+val chartStrings = remember(locale) { ChartStrings.from(lookupFor(locale)) }
+CompositionLocalProvider(LocalChartStrings provides chartStrings) { App() }
+```
 
 ## Scripts and fonts
 

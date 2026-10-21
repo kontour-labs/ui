@@ -192,13 +192,13 @@ class ResolveTest {
         val looks = (0 until 5).map { lookOf(it, palette, patterns = true) }
         assertEquals(5, looks.map { it.line }.distinct().size)
         assertEquals(5, looks.map { it.symbol }.distinct().size)
-        assertEquals(5, looks.map { it.fill }.distinct().size)
+        assertEquals(5, looks.map { it.pattern }.distinct().size)
         assertEquals(LinePattern.Solid, looks[0].line)
-        assertEquals(FillPattern.Solid, looks[0].fill)
+        assertEquals(FillPattern.Solid, looks[0].pattern)
         // Past the palette, colours repeat — and patterns come on to tell the
         // second round from the first.
         val seventh = lookOf(palette.size, palette, patterns = false)
         assertEquals(palette[0], seventh.colour)
-        assertTrue(seventh.fill != FillPattern.Solid || seventh.line != LinePattern.Solid)
+        assertTrue(seventh.pattern != FillPattern.Solid || seventh.line != LinePattern.Solid)
     }
 }

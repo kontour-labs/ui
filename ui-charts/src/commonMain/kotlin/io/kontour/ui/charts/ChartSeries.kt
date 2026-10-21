@@ -68,14 +68,15 @@ private object UnnamedSeries
  *   and a series that cannot be seen cannot be read.
  * @property line How a line is stroked.
  * @property symbol The mark at each point, where points are drawn.
- * @property fill How a bar, an area, a rectangle or a sector is filled.
+ * @property pattern How a bar, an area, a rectangle or a sector is filled: its
+ *   hatching over its colour, as a calendar event's `pattern` is.
  */
 @Immutable
 data class SeriesStyle(
     val colour: Color = Color.Unspecified,
     val line: LinePattern? = null,
     val symbol: PointSymbol? = null,
-    val fill: FillPattern? = null,
+    val pattern: FillPattern? = null,
 )
 
 /**

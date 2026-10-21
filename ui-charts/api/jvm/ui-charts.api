@@ -91,7 +91,7 @@ public final class io/kontour/ui/charts/ChartInterpolation : java/lang/Enum {
 }
 
 public final class io/kontour/ui/charts/ChartKt {
-	public static final fun Chart (Lio/kontour/ui/charts/ChartAxis;Lio/kontour/ui/charts/ChartAxis;Landroidx/compose/ui/Modifier;ZLio/kontour/ui/charts/ChartAxis;Lio/kontour/ui/charts/ChartSelectionState;Lio/kontour/ui/charts/ChartRangeSelectionState;Lio/kontour/ui/charts/ChartSeriesVisibility;Ljava/lang/String;Lio/kontour/ui/charts/ChartColours;Lio/kontour/ui/charts/ChartLegendPosition;ZZZZLio/kontour/ui/charts/ChartStrings;Landroidx/compose/foundation/interaction/MutableInteractionSource;Lkotlin/jvm/functions/Function4;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;III)V
+	public static final fun Chart (Lio/kontour/ui/charts/ChartAxis;Lio/kontour/ui/charts/ChartAxis;Landroidx/compose/ui/Modifier;ZLio/kontour/ui/charts/ChartAxis;Lio/kontour/ui/charts/ChartSelectionState;Lio/kontour/ui/charts/ChartRangeSelectionState;Lio/kontour/ui/charts/ChartSeriesVisibilityState;Ljava/lang/String;Lio/kontour/ui/charts/ChartColours;Lio/kontour/ui/charts/ChartLegendPosition;ZZZZLio/kontour/ui/charts/ChartStrings;Landroidx/compose/foundation/interaction/MutableInteractionSource;Lkotlin/jvm/functions/Function4;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;III)V
 }
 
 public final class io/kontour/ui/charts/ChartLegendPosition : java/lang/Enum {
@@ -218,7 +218,7 @@ public final class io/kontour/ui/charts/ChartSeries$Companion {
 	public final fun getDefault ()Lio/kontour/ui/charts/ChartSeries;
 }
 
-public final class io/kontour/ui/charts/ChartSeriesVisibility {
+public final class io/kontour/ui/charts/ChartSeriesVisibilityState {
 	public static final field $stable I
 	public final fun getHidden ()Ljava/util/Set;
 	public final fun hide (Lio/kontour/ui/charts/ChartSeries;)V
@@ -228,8 +228,8 @@ public final class io/kontour/ui/charts/ChartSeriesVisibility {
 	public final fun toggle (Lio/kontour/ui/charts/ChartSeries;)V
 }
 
-public final class io/kontour/ui/charts/ChartSeriesVisibilityKt {
-	public static final fun rememberChartSeriesVisibility (Ljava/util/Set;Landroidx/compose/runtime/Composer;II)Lio/kontour/ui/charts/ChartSeriesVisibility;
+public final class io/kontour/ui/charts/ChartSeriesVisibilityStateKt {
+	public static final fun rememberChartSeriesVisibilityState (Ljava/util/Set;Landroidx/compose/runtime/Composer;II)Lio/kontour/ui/charts/ChartSeriesVisibilityState;
 }
 
 public final class io/kontour/ui/charts/ChartStacking : java/lang/Enum {
@@ -247,8 +247,8 @@ public final class io/kontour/ui/charts/ChartStrings {
 	public static final field $stable I
 	public static final field Companion Lio/kontour/ui/charts/ChartStrings$Companion;
 	public fun <init> ()V
-	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function4;Lkotlin/jvm/functions/Function3;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function5;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function2;Ljava/lang/String;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function4;)V
-	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function4;Lkotlin/jvm/functions/Function3;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function5;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function2;Ljava/lang/String;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function4;IILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function4;Lkotlin/jvm/functions/Function3;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function5;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function2;Ljava/lang/String;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function4;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function4;Lkotlin/jvm/functions/Function3;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function5;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function2;Ljava/lang/String;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function4;IILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Ljava/lang/String;
 	public final fun component10 ()Ljava/lang/String;
 	public final fun component11 ()Ljava/lang/String;
@@ -269,28 +269,27 @@ public final class io/kontour/ui/charts/ChartStrings {
 	public final fun component25 ()Ljava/lang/String;
 	public final fun component26 ()Ljava/lang/String;
 	public final fun component27 ()Ljava/lang/String;
-	public final fun component28 ()Ljava/lang/String;
-	public final fun component29 ()Lkotlin/jvm/functions/Function5;
+	public final fun component28 ()Lkotlin/jvm/functions/Function5;
+	public final fun component29 ()Lkotlin/jvm/functions/Function1;
 	public final fun component3 ()Ljava/lang/String;
-	public final fun component30 ()Lkotlin/jvm/functions/Function1;
+	public final fun component30 ()Ljava/lang/String;
 	public final fun component31 ()Ljava/lang/String;
 	public final fun component32 ()Ljava/lang/String;
 	public final fun component33 ()Ljava/lang/String;
 	public final fun component34 ()Ljava/lang/String;
 	public final fun component35 ()Ljava/lang/String;
-	public final fun component36 ()Ljava/lang/String;
-	public final fun component37 ()Lkotlin/jvm/functions/Function2;
-	public final fun component38 ()Ljava/lang/String;
-	public final fun component39 ()Lkotlin/jvm/functions/Function2;
+	public final fun component36 ()Lkotlin/jvm/functions/Function2;
+	public final fun component37 ()Ljava/lang/String;
+	public final fun component38 ()Lkotlin/jvm/functions/Function2;
+	public final fun component39 ()Lkotlin/jvm/functions/Function4;
 	public final fun component4 ()Ljava/lang/String;
-	public final fun component40 ()Lkotlin/jvm/functions/Function4;
 	public final fun component5 ()Ljava/lang/String;
 	public final fun component6 ()Ljava/lang/String;
 	public final fun component7 ()Ljava/lang/String;
 	public final fun component8 ()Ljava/lang/String;
 	public final fun component9 ()Lkotlin/jvm/functions/Function1;
-	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function4;Lkotlin/jvm/functions/Function3;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function5;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function2;Ljava/lang/String;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function4;)Lio/kontour/ui/charts/ChartStrings;
-	public static synthetic fun copy$default (Lio/kontour/ui/charts/ChartStrings;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function4;Lkotlin/jvm/functions/Function3;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function5;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function2;Ljava/lang/String;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function4;IILjava/lang/Object;)Lio/kontour/ui/charts/ChartStrings;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function4;Lkotlin/jvm/functions/Function3;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function5;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function2;Ljava/lang/String;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function4;)Lio/kontour/ui/charts/ChartStrings;
+	public static synthetic fun copy$default (Lio/kontour/ui/charts/ChartStrings;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function4;Lkotlin/jvm/functions/Function3;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function5;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function2;Ljava/lang/String;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function4;IILjava/lang/Object;)Lio/kontour/ui/charts/ChartStrings;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getAreaChart ()Ljava/lang/String;
 	public final fun getAtPosition ()Lkotlin/jvm/functions/Function2;
@@ -311,7 +310,6 @@ public final class io/kontour/ui/charts/ChartStrings {
 	public final fun getLowerQuartileColumn ()Ljava/lang/String;
 	public final fun getMedianColumn ()Ljava/lang/String;
 	public final fun getNoData ()Ljava/lang/String;
-	public final fun getOtherSectors ()Ljava/lang/String;
 	public final fun getOutliersColumn ()Ljava/lang/String;
 	public final fun getPieChart ()Ljava/lang/String;
 	public final fun getScatterChart ()Ljava/lang/String;
@@ -371,7 +369,7 @@ public final class io/kontour/ui/charts/PointSymbol : java/lang/Enum {
 }
 
 public final class io/kontour/ui/charts/SectorChartKt {
-	public static final fun SectorChart (Landroidx/compose/ui/Modifier;ZLio/kontour/ui/charts/ChartSelectionState;Lio/kontour/ui/charts/ChartSeriesVisibility;FLjava/lang/String;Lio/kontour/ui/charts/ChartColours;Lio/kontour/ui/charts/ChartLegendPosition;ZZZZLio/kontour/ui/charts/ChartStrings;Landroidx/compose/foundation/interaction/MutableInteractionSource;Lkotlin/jvm/functions/Function4;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;III)V
+	public static final fun SectorChart (Landroidx/compose/ui/Modifier;ZLio/kontour/ui/charts/ChartSelectionState;Lio/kontour/ui/charts/ChartSeriesVisibilityState;FLjava/lang/String;Lio/kontour/ui/charts/ChartColours;Lio/kontour/ui/charts/ChartLegendPosition;ZZZZLio/kontour/ui/charts/ChartStrings;Landroidx/compose/foundation/interaction/MutableInteractionSource;Lkotlin/jvm/functions/Function4;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;III)V
 }
 
 public abstract interface class io/kontour/ui/charts/SectorChartScope {
@@ -395,8 +393,8 @@ public final class io/kontour/ui/charts/SeriesStyle {
 	public static synthetic fun copy-Iv8Zu3U$default (Lio/kontour/ui/charts/SeriesStyle;JLio/kontour/ui/charts/LinePattern;Lio/kontour/ui/charts/PointSymbol;Lio/kontour/ui/foundation/FillPattern;ILjava/lang/Object;)Lio/kontour/ui/charts/SeriesStyle;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getColour-0d7_KjU ()J
-	public final fun getFill ()Lio/kontour/ui/foundation/FillPattern;
 	public final fun getLine ()Lio/kontour/ui/charts/LinePattern;
+	public final fun getPattern ()Lio/kontour/ui/foundation/FillPattern;
 	public final fun getSymbol ()Lio/kontour/ui/charts/PointSymbol;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;

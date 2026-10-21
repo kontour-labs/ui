@@ -96,7 +96,7 @@ import kotlin.math.sqrt
  *   a picture with a description.
  * @param seriesVisibility Which sectors are shown. A chart given one makes each
  *   entry in its legend a switch: a hidden sector leaves the circle, and the
- *   others grow into its share. See [ChartSeriesVisibility].
+ *   others grow into its share. See [ChartSeriesVisibilityState].
  * @param innerRadius The hole, as a fraction of the radius: `0` for a pie,
  *   about `0.6` for a donut.
  * @param contentDescription What the whole is, said before its parts: "Spending
@@ -119,7 +119,7 @@ fun SectorChart(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     selection: ChartSelectionState<ChartSeries>? = null,
-    seriesVisibility: ChartSeriesVisibility? = null,
+    seriesVisibility: ChartSeriesVisibilityState? = null,
     innerRadius: Float = 0f,
     contentDescription: String? = null,
     colours: ChartColours = ChartDefaults.colours(),
@@ -355,7 +355,7 @@ fun SectorChart(
                         val origin = Offset(circle.x + out * cos(middle), circle.y + out * sin(middle))
                         val path = sectorPath(origin, radius, hole, angle, extent * direction, corner.toPx(size, this) * SectorCornerShare)
                         drawPath(path, look.colour, alpha = fade.value)
-                        tiles.brush(look.fill, colours.patternInk, this, patternWeight)
+                        tiles.brush(look.pattern, colours.patternInk, this, patternWeight)
                             ?.let { drawPath(path, it, alpha = fade.value) }
                         if (pull > 0f) {
                             drawPath(

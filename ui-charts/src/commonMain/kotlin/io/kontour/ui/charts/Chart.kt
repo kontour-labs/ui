@@ -105,7 +105,7 @@ import kotlin.math.roundToInt
  *   go. `null`, the default, marks none. Not for a chart of lying bars.
  * @param seriesVisibility Which series are shown. A chart given one makes
  *   each entry in its legend a switch that hides its series and shows it
- *   again. See [ChartSeriesVisibility].
+ *   again. See [ChartSeriesVisibilityState].
  * @param contentDescription What the chart shows, in a sentence, said before
  *   the summary the chart writes itself: "Riders this week, by route".
  * @param legendPosition Where the legend goes, when there is one.
@@ -130,7 +130,7 @@ fun <X : Any, Y : Any> Chart(
     endYAxis: ChartAxis<Y>? = null,
     selection: ChartSelectionState<X>? = null,
     rangeSelection: ChartRangeSelectionState<X, Y>? = null,
-    seriesVisibility: ChartSeriesVisibility? = null,
+    seriesVisibility: ChartSeriesVisibilityState? = null,
     contentDescription: String? = null,
     colours: ChartColours = ChartDefaults.colours(),
     legendPosition: ChartLegendPosition = ChartLegendPosition.Bottom,

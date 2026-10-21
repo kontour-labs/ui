@@ -106,31 +106,33 @@ violet and are chosen to stay apart under each kind of colour blindness, and
 they hold 3:1 against every ground (4.5:1 at the high tier). An app with a data
 palette of its own provides `LocalSeriesColours`.
 
-`SeriesStyle` overrides a series' colour, dash, symbol or fill, on a
+`SeriesStyle` overrides a series' colour, dash, symbol or fill pattern, on a
 `ChartSeries` for everywhere it appears or on a mark for that mark alone.
 
-With patterns on, a series' fill can be any `FillPattern`: the named ones,
-lines further apart or heavier, dots in staggered rows, or a tile of your own.
+With patterns on, a series' `pattern` can be any `FillPattern`, as a calendar
+event's can: the named ones, lines further apart or heavier, dots in staggered
+rows, or a tile of your own.
 
 ```kotlin
-val hatched = SeriesStyle(fill = FillPattern.lines(PatternDirection.Rising, spacing = 12.dp, weight = 2.dp))
+val hatched = SeriesStyle(pattern = FillPattern.lines(PatternDirection.Rising, spacing = 12.dp, weight = 2.dp))
 ```
 
 ## Hiding a series
 
-Give a chart a `rememberChartSeriesVisibility()` and each entry in its legend
-becomes a switch. A tap, a click or a screen reader's action hides that
+Give a chart a `rememberChartSeriesVisibilityState()` and each entry in its
+legend becomes a switch. A tap, a click or a screen reader's action hides that
 series, and another shows it again. The chart is worked out again from what is
 left, the same move as a change of data: the axes close in, a stack closes up,
 and in a `SectorChart` the other sectors grow into the hidden one's share. A
-hidden series keeps its colour and its pattern, and its legend entry stays,
-faded, so it can be brought back.
+hidden series keeps its colour and its pattern, and its legend entry stays, its
+swatch an empty outline and its name still readable, so it can be brought back.
+On a chart that is not `enabled` the legend hides nothing.
 
 <!--sample:ChartHidingSeries-->
 ```kotlin
 // The legend's entries become switches: a tap hides a route, and the
 // chart closes in on the one that is left.
-val shown = rememberChartSeriesVisibility()
+val shown = rememberChartSeriesVisibilityState()
 Chart(
     xAxis = ChartAxis.date(),
     yAxis = ChartAxis.number(title = "Riders"),
