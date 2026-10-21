@@ -546,8 +546,7 @@ private fun <V : Any> resolveAxis(
     AxisKind.Category -> {
         @Suppress("UNCHECKED_CAST")
         val write: (Double) -> String = { position ->
-            val index = position.roundToInt()
-            val value = categories.getOrNull(index)
+            val value = if (position.isFinite()) categories.getOrNull(position.roundToInt()) else null
             when {
                 value == null -> ""
                 axis.categoryLabel != null -> axis.categoryLabel.invoke(value as V)

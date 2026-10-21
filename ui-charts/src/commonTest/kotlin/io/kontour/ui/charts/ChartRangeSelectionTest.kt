@@ -2,6 +2,7 @@ package io.kontour.ui.charts
 
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.key.Key
@@ -214,5 +215,39 @@ class ChartRangeSelectionTest {
         onAllNodes(SemanticsMatcher.keyIsDefined(androidx.compose.ui.semantics.SemanticsActions.OnClick)).fetchSemanticsNodes().let {
             assertEquals(0, it.size, "no place should offer to be chosen")
         }
+    }
+
+    /**
+     * A range kept while the data changes can name a category the data no
+     * longer has. It encoded as NaN, and writing it for a screen reader
+     * rounded NaN to an index and threw: now it is neither drawn nor said.
+     */
+    @Test
+    fun aRangeWhoseCategoriesHaveGoneIsNeitherDrawnNorSaid() = runComposeUiTest {
+        val range = ChartRangeSelectionState<String, Number>(ChartRangeMode.Across)
+        val data = mutableStateOf(spending)
+        setContent {
+            KontourTheme(reduceMotion = true) {
+                OverlayHost(Modifier.fillMaxSize()) {
+                    Chart(
+                        xAxis = ChartAxis.category<String>(),
+                        yAxis = ChartAxis.number(),
+                        modifier = Modifier.size(360.dp, 240.dp).testTag("chart"),
+                        rangeSelection = range,
+                        showLegend = false,
+                        animateData = false,
+                    ) {
+                        bar(data.value, x = { it.month }, y = { it.amount })
+                    }
+                }
+            }
+        }
+        range.select("Feb", "Apr")
+        waitForIdle()
+        data.value = spending.filter { it.month !in listOf("Feb", "Mar", "Apr") }
+        waitForIdle()
+        val chart = onNode(isFocusable())
+        val said = chart.fetchSemanticsNode().config.getOrElseNullable(SemanticsProperties.StateDescription) { null }
+        assertTrue(said == null || "Selected" !in said, "a range of categories that have gone should not be said: $said")
     }
 }

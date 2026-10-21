@@ -458,12 +458,16 @@ private fun <X : Any, Y : Any> ChartPlot(
     val marked = rangeSelection?.let { range ->
         val from = range.xStart
         val to = range.xEnd
-        if (from == null || to == null) {
+        // A range kept across a change of data can name a category the data no
+        // longer has, which encodes as NaN: nothing of it is drawn or said.
+        val start = from?.let(encode)?.takeIf { it.isFinite() }
+        val end = to?.let(encode)?.takeIf { it.isFinite() }
+        if (start == null || end == null) {
             null
         } else {
-            val upFrom = range.yStart?.let { y -> encodeUp?.invoke(y) }
-            val upTo = range.yEnd?.let { y -> encodeUp?.invoke(y) }
-            MarkedRange(encode(from), encode(to), upFrom, upTo)
+            val upFrom = range.yStart?.let { y -> encodeUp?.invoke(y) }?.takeIf { it.isFinite() }
+            val upTo = range.yEnd?.let { y -> encodeUp?.invoke(y) }?.takeIf { it.isFinite() }
+            MarkedRange(start, end, upFrom, upTo)
         }
     }
     val markedDescription = marked?.let { range ->
