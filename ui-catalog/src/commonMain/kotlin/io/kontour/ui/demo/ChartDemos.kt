@@ -22,12 +22,14 @@ import io.kontour.ui.charts.ChartInterpolation
 import io.kontour.ui.charts.ChartLegendPosition
 import io.kontour.ui.charts.ChartSeries
 import io.kontour.ui.charts.ChartRangeMode
+import io.kontour.ui.charts.ChartRangeSelectionState
 import io.kontour.ui.charts.ChartStacking
 import io.kontour.ui.charts.SectorChart
 import io.kontour.ui.charts.Sparkline
 import io.kontour.ui.charts.rememberChartRangeSelectionState
 import io.kontour.ui.charts.rememberChartSelectionState
 import io.kontour.ui.components.action.Button
+import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.theme.Theme
@@ -49,7 +51,16 @@ private val chartDonut = Knob.Flag("Donut", initial = true)
 private val chartReferences = Knob.Flag("References", initial = true)
 private val chartHides = Knob.Flag("Legend hides series", initial = true)
 private val chartMarks = Knob.Flag("Mark a range")
-private val chartRangeMode = Knob.Choice("Range", ChartRangeMode.entries.toList(), initial = ChartRangeMode.Across)
+
+// A box wants a measure both ways, so it is the points' alone, on their two
+// number axes; every other chart here is across months, where a box is a
+// range across, and the knob offered one that did nothing different.
+private val chartRangeMode = Knob.Choice(
+    "Range",
+    ChartRangeMode.entries.toList(),
+    initial = ChartRangeMode.Across,
+    name = { if (it == ChartRangeMode.Box) "Box, on points" else "Across" },
+)
 
 /** A month's riders on one route. */
 private class Riders(val month: String, val route: String, val riders: Int)
@@ -78,6 +89,17 @@ private fun tripsFor(month: Int, route: Int, seed: Int): List<Int> = List(24) { 
     val spread = listOf(6, 8, 12)[route]
     val wobble = ((k * 41 + month * 13 + route * 29 + seed * 17) % (spread * 2 + 1)) - spread
     middle + wobble + if ((k + month + seed) % 11 == 0) spread * 3 else 0
+}
+
+/**
+ * A month on one route as a point: how many rode it against how long its
+ * typical trip took, which a box can be drawn round, both being measures.
+ */
+private class Busy(val month: String, val route: String, val riders: Int, val minutes: Int)
+
+private fun busyFor(data: List<Riders>, seed: Int): List<Busy> = data.map { item ->
+    val trips = tripsFor(months.indexOf(item.month), routes.indexOf(item.route), seed).sorted()
+    Busy(item.month, item.route, item.riders, trips[trips.size / 2])
 }
 
 /** People by age group and sex, for a population pyramid: men drawn to the left as negatives. */
@@ -129,11 +151,15 @@ internal val ChartDemo = ComponentDemo(
     val hides = this[chartHides]
     val visibility = shownRoutes.takeIf { hides }
     val selection = rememberChartSelectionState<String>()
-    // Months, so a box is a range across here: a box wants a measure both
-    // ways, which the energy app's heat and use has.
-    val range = rememberChartRangeSelectionState<String, Number>(this[chartRangeMode])
+    // Across months for every chart but the points, which are on two
+    // measures and so can take a box.
+    val range = rememberChartRangeSelectionState<String, Number>(ChartRangeMode.Across)
+    val pointSelection = rememberChartSelectionState<Number>()
+    val pointRange = rememberChartRangeSelectionState<Number, Number>(this[chartRangeMode])
     val marks = this[chartMarks]
     val spacing = Theme.spacing
+    val formats = Theme.formats
+    val busy = remember(data, seed) { busyFor(data, seed) }
 
     Column(verticalArrangement = Arrangement.spacedBy(spacing.lg)) {
         val chartModifier = Modifier.fillMaxWidth().height(260.dp)
@@ -198,6 +224,25 @@ internal val ChartDemo = ComponentDemo(
                     series = { ChartSeries(it.route) },
                 )
             }
+        } else if (kind == ChartKindDemo.Points) {
+            // Each route's months as points, riders against trip time: on
+            // two measures, so a range here can be a box.
+            Chart(
+                xAxis = ChartAxis.number(title = "Riders"),
+                yAxis = ChartAxis.number(title = "Typical trip, minutes"),
+                modifier = chartModifier,
+                selection = pointSelection,
+                rangeSelection = pointRange.takeIf { marks },
+                contentDescription = "Riders against trip time, a month a point",
+                legendPosition = legendPosition,
+                showLegend = showLegend,
+                seriesVisibility = visibility,
+                showPatterns = patterns,
+                showSelectionTooltip = tooltip,
+                animateData = animated,
+            ) {
+                point(busy, x = { it.riders }, y = { it.minutes }, series = { ChartSeries(it.route) })
+            }
         } else if (kind == ChartKindDemo.LyingBars) {
             Chart(
                 xAxis = ChartAxis.number(title = "Riders in August"),
@@ -247,8 +292,6 @@ internal val ChartDemo = ComponentDemo(
                         area(data, x = { it.month }, y = { it.riders }, series = series, stacking = stacking, interpolation = interpolation)
                     ChartKindDemo.Bars ->
                         bar(data, x = { it.month }, y = { it.riders }, series = series, stacking = stacking)
-                    ChartKindDemo.Points ->
-                        point(data, x = { it.month }, y = { it.riders }, series = series)
                     ChartKindDemo.Mixed -> {
                         bar(data.filter { it.route == routes[0] }, x = { it.month }, y = { it.riders }, series = series)
                         line(
@@ -276,7 +319,7 @@ internal val ChartDemo = ComponentDemo(
                         point(first, x = { it.month }, y = { it.riders - 140 }, series = { ChartSeries("Quietest") })
                         point(first, x = { it.month }, y = { it.riders + 90 }, series = { ChartSeries("Busiest") })
                     }
-                    ChartKindDemo.LyingBars, ChartKindDemo.Boxes, ChartKindDemo.HeatMap, ChartKindDemo.Pyramid -> Unit
+                    ChartKindDemo.LyingBars, ChartKindDemo.Points, ChartKindDemo.Boxes, ChartKindDemo.HeatMap, ChartKindDemo.Pyramid -> Unit
                 }
                 // A normalised chart reads in shares, and so do its rules: the
                 // capacity in riders would be far off its end. A centred one
@@ -298,15 +341,52 @@ internal val ChartDemo = ComponentDemo(
             }
         }
 
+        // What the range takes in, worked out from the data the way an app
+        // would: the months it covers and what they came to, or the points
+        // inside it and what they average. It said only "Marked: Feb to Apr".
+        val shown = { route: String -> !hides || shownRoutes.isShown(ChartSeries(route)) }
+        val onPoints = kind == ChartKindDemo.Points
+        val marked: String? = when {
+            !marks -> null
+            onPoints -> pointRange.xStart?.let { _ ->
+                val inside = busy.filter { shown(it.route) && it.inside(pointRange) }
+                if (inside.isEmpty()) {
+                    "No months inside"
+                } else {
+                    val riders = inside.sumOf { it.riders } / inside.size.toDouble()
+                    val minutes = inside.sumOf { it.minutes } / inside.size.toDouble()
+                    "${inside.size} months inside, averaging ${formats.decimal(riders, 0)} riders and " +
+                        "${formats.decimal(minutes, 0)} minutes a trip"
+                }
+            }
+            else -> range.xStart?.let { from ->
+                val to = range.xEnd ?: from
+                val covered = months.subList(months.indexOf(from), months.indexOf(to) + 1)
+                val riders = data.filter { it.month in covered && shown(it.route) }.sumOf { it.riders }
+                val span = if (covered.size == 1) from else "$from to $to"
+                "$span: ${covered.size} ${if (covered.size == 1) "month" else "months"}, ${formats.decimal(riders.toDouble(), 0)} riders"
+            }
+        }
         Row(horizontalArrangement = Arrangement.spacedBy(spacing.md), verticalAlignment = Alignment.CenterVertically) {
             Button(onClick = { seed = (seed + 1) % 4 }, variant = ButtonVariant.Secondary) { +"New data" }
-            val marked = range.xStart?.takeIf { marks }?.let { from -> "Marked: $from to ${range.xEnd}" }
+            if (marked != null) {
+                // A tap on the chart or Escape lets go too; this is the way
+                // that says so.
+                Button(
+                    onClick = { if (onPoints) pointRange.clear() else range.clear() },
+                    variant = ButtonVariant.Tertiary,
+                    size = ButtonSize.Small,
+                ) { +"Clear" }
+            }
             Text(
-                marked ?: selection.x?.let { "Selected: $it" } ?: if (marks) {
-                    "Drag, or hold and drag, to mark months; Shift and the arrows stretch from the selected one"
-                } else {
-                    "Tap, drag or use the arrow keys to select a month"
-                },
+                marked ?: (if (onPoints) pointSelection.x?.let { "Selected: ${formats.decimal(it.toDouble(), 0)} riders" } else selection.x?.let { "Selected: $it" })
+                    ?: when {
+                        marks && onPoints && pointRange.mode == ChartRangeMode.Box ->
+                            "Drag, or hold and drag, a box round some months"
+                        marks -> "Drag, or hold and drag, across the chart; Shift and the arrows stretch from the selected place"
+                        onPoints -> "Tap, drag or use the arrow keys to select a point"
+                        else -> "Tap, drag or use the arrow keys to select a month"
+                    },
                 style = Theme.typography.bodySmall,
                 colour = Theme.colours.contentMuted,
             )
@@ -345,6 +425,13 @@ internal val ChartDemo = ComponentDemo(
             }
         }
     }
+}
+
+/** Whether this month is inside [range]: across it, and up it where it is a box. */
+private fun Busy.inside(range: ChartRangeSelectionState<Number, Number>): Boolean {
+    val across = (range.xStart?.toDouble() ?: return false)..(range.xEnd?.toDouble() ?: return false)
+    val up = range.yStart?.toDouble()?.let { low -> low..(range.yEnd?.toDouble() ?: low) }
+    return riders.toDouble() in across && (up == null || minutes.toDouble() in up)
 }
 
 /** The Charts family: one page, which shows the three of them. */
