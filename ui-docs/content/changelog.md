@@ -59,10 +59,10 @@ window — see **Changed**.
   theme built against 0.4.5 recompiles; one that names its arguments, or gives
   them by position, needs nothing.
 - **`ModalBottomSheet` and `ModalSideSheet` have a new parameter**,
-  `recedes`, defaulted, after `scrim`, so anything built against 0.4.5
-  recompiles. A call that passed `dismissible` by position still compiles and
-  sets `recedes` instead, so it names it. See
-  [Migrating](migrating.md#modalbottomsheet-has-recedes-after-scrim).
+  `recedes`, defaulted, at the end of their looks: after `fadeUnder` and after
+  `paneTitle`. Anything built against 0.4.5 recompiles, and a call that passed
+  the arguments after it by position names them; none compiles to something
+  else. See [Migrating](migrating.md#name-the-arguments-after-a-new-parameter).
 - **`SystemIcons` is a class, read as `Theme.icons`.** `SystemIcons.Close` is
   `Theme.icons.close`, every glyph in lower camel case, and
   `DatePickerDefaults.TodayIcon` is `Theme.icons.today`. `KontourTheme` and

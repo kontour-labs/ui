@@ -123,14 +123,6 @@ fun ModalSideSheet(
     containerColour: Color = Theme.colours.surfaceRaised,
     contentColour: Color = Theme.colours.content,
     scrim: ScrimStyle = ScrimStyle.Dimmed,
-    /**
-     * Whether the screen behind shrinks back as the sheet comes in, under a
-     * [ScrimStyle.Dimmed] scrim, as a [ModalBottomSheet]'s does. `false` leaves it
-     * where it is, still dimmed: for a screen with a map, a video or another
-     * platform view behind, which Android and iOS move on every frame the screen
-     * shrinks. See [ModalBottomSheet]'s.
-     */
-    recedes: Boolean = true,
     dismissible: Boolean = true,
     dismissLabel: String = Theme.strings.close,
     /**
@@ -148,6 +140,14 @@ fun ModalSideSheet(
     backLabel: String = Theme.strings.back,
     backIcon: ImageVector = Theme.icons.chevronBack,
     paneTitle: String? = null,
+    /**
+     * Whether the screen behind shrinks back as the sheet comes in, under a
+     * [ScrimStyle.Dimmed] scrim, as a [ModalBottomSheet]'s does. `false` leaves it
+     * where it is, still dimmed: for a screen with a map, a video or another
+     * platform view behind, which Android and iOS move on every frame the screen
+     * shrinks. See [ModalBottomSheet]'s.
+     */
+    recedes: Boolean = true,
     /**
      * What the sheet's *content* keeps clear of. Every edge including the
      * keyboard: a side sheet is full height, so it meets the status bar and the

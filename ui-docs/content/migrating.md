@@ -17,29 +17,14 @@ from the version the app is on.
 
 ## 0.4.5 to 0.5.0
 
-Unreleased, and growing. `SystemIcons` is the theme's now, so code that named
-one of its glyphs changes; `Strings` has new fields and `CalendarEvent` a
-new parameter, each defaulted and last, `Table` a new one after
-`stickyColumns`, the modal sheets one after `scrim`, and `Tooltip` one before
-its content. Thirteen components take the glyphs they draw, and the stepped
-progress indicators `stepProgress` and `weights`, partway through their
-parameters, so an argument after one, passed by position, is named.
-Charts are a new module, which an app takes only if it wants them.
-
-### `ModalBottomSheet` has `recedes` after `scrim`
-
-`ModalSideSheet` too. Defaulted, so a call that names its arguments needs
-nothing. One that passed `dismissible` by position names it: the place after
-`scrim` is `recedes` now, and a `false` meant to make the sheet undismissable
-still compiles, and keeps the page from receding instead.
-
-```kotlin
-// 0.4.5
-ModalSideSheet(open, { open = false }, Modifier, SheetSide.End, 480.dp, shape, surface, content, ScrimStyle.Dimmed, false) { /* … */ }
-
-// 0.5.0
-ModalSideSheet(open, { open = false }, Modifier, SheetSide.End, 480.dp, shape, surface, content, ScrimStyle.Dimmed, dismissible = false) { /* … */ }
-```
+`SystemIcons` is the theme's now, so code that named one of its glyphs changes;
+`Strings` has new fields and `CalendarEvent` a new parameter, each defaulted
+and last, `Table` a new one after `stickyColumns`, the modal sheets one among
+their looks, and `Tooltip` one before its content. Thirteen components take the
+glyphs they draw, and the stepped progress indicators `stepProgress` and
+`weights`, partway through their parameters, so an argument after one, passed
+by position, is named. Charts are a new module, which an app takes only if it
+wants them.
 
 ### `Table` has `narrowStickyColumns` after `stickyColumns`
 
@@ -79,7 +64,9 @@ for:
 - `Table`'s after `onSortChange`, where `sortAscendingIcon` and
   `sortDescendingIcon` are;
 - `StepProgress`'s and `CircularStepProgress`'s after `working`, where
-  `stepProgress` is, and their `gap` after `weights`.
+  `stepProgress` is, and their `gap` after `weights`;
+- `ModalBottomSheet`'s after `fadeUnder`, and `ModalSideSheet`'s after
+  `paneTitle`, where `recedes` is.
 
 Each fails to compile rather than meaning something else. Name the argument.
 `EventCalendarDefaults.Header`'s `previousIcon`, `nextIcon` and `todayIcon`
