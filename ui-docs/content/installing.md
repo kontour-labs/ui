@@ -10,19 +10,20 @@ no token, no credentials, nothing to set up in CI.
 
 ## The modules
 
-Three artifacts, all in the group `io.kontour`, all released together under one
+Four artifacts, all in the group `io.kontour`, all released together under one
 version number:
 
 | Artifact | What it is | Add it when |
 |---|---|---|
 | `io.kontour:ui` | The design system: the theme, the tokens and every component | Always |
 | `io.kontour:ui-nav3` | [Navigation 3](navigation3.md) scene strategies over the pane scaffolds, and page transitions that follow the back gesture | The app navigates with Navigation 3 |
+| `io.kontour:ui-charts` | [Charts](components/charts.md): `Chart`, `SectorChart`, `Sparkline` and `ChartDataTable` | The app draws a chart. From 0.5.0 |
 | `io.kontour:haptics` | [Platform haptics](haptics.md), with no Compose in it | Never beside `:ui`, which brings it. On its own, for code that wants haptics without the design system |
 
 **Keep them on the same version.** They are built together from one commit and
 call each other's internals freely; `ui-nav3:0.3.0` over `ui:0.4.0` can compile
 and then fail at run time with a missing method. A version catalog entry for all
-three, below, is the simplest way to make that impossible.
+four, below, is the simplest way to make that impossible.
 
 Each is published for **Android** (minSdk 29), **iOS** (`iosArm64` and
 `iosSimulatorArm64` — no Intel simulator), the **desktop JVM**, and the web as
@@ -76,7 +77,7 @@ credentials: [migrating](migrating.md#044-to-045) has the diff.
 
 ## Adding the modules
 
-One version for all three, in the version catalog:
+One version for all four, in the version catalog:
 
 ```toml
 # gradle/libs.versions.toml
@@ -86,6 +87,7 @@ kontour = "0.4.6"
 [libraries]
 kontour-ui = { module = "io.kontour:ui", version.ref = "kontour" }
 kontour-ui-nav3 = { module = "io.kontour:ui-nav3", version.ref = "kontour" }
+kontour-ui-charts = { module = "io.kontour:ui-charts", version.ref = "kontour" }  # from 0.5.0
 kontour-haptics = { module = "io.kontour:haptics", version.ref = "kontour" }
 ```
 
@@ -98,6 +100,7 @@ kotlin {
         commonMain.dependencies {
             implementation(libs.kontour.ui)
             implementation(libs.kontour.ui.nav3)   // with Navigation 3
+            implementation(libs.kontour.ui.charts) // with charts
         }
     }
 }
@@ -313,7 +316,7 @@ time.
 
 An app that has this repository checked out beside it can substitute the
 sources for the published artifacts, to change the library and the app
-together. The pattern is a conditional `includeBuild`, which swaps all three
+together. The pattern is a conditional `includeBuild`, which swaps all four
 modules at once:
 
 ```kotlin

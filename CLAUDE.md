@@ -2,7 +2,8 @@
 
 A Compose Multiplatform design system on Compose **Foundation**, with no
 Material, for Android, iOS, desktop and the web. Published as `io.kontour:ui`,
-`io.kontour:ui-nav3` and `io.kontour:haptics` to `https://maven.kontour.io`.
+`io.kontour:ui-nav3`, `io.kontour:ui-charts` and `io.kontour:haptics` to
+`https://maven.kontour.io`.
 
 This file is the working summary and the list of traps. The full reasons are
 in these files, which win where this file disagrees with them:
@@ -21,6 +22,7 @@ in these files, which win where this file disagrees with them:
 |---|---|
 | `ui/` | The library: theme, tokens, every component. `src/commonMain/kotlin/io/kontour/ui/` |
 | `ui-nav3/` | Navigation 3 scene strategies over the pane scaffolds |
+| `ui-charts/` | Charts: `Chart`, `SectorChart`, `Sparkline`, `ChartDataTable`. New in 0.5.0 |
 | `haptics/` | Platform haptics, no Compose in it |
 | `ui-catalog/` | The gallery's demos, and most of the tests: the contract suite, the screenshot goldens, the sweeps |
 | `ui-samples/` | The documentation's examples, compiled against `:ui` and copied into the pages |
@@ -41,9 +43,9 @@ in these files, which win where this file disagrees with them:
   among the optionals, `enabled` straight after it, `interactionSource` after
   every non-slot. Its nineteen rules are listed in `contributing.md`.
 - **Every public change goes into the API dump**: run `./gradlew :ui:updateKotlinAbi`
-  (and `:ui-nav3:`, `:haptics:`) and read the diff. A break gets a **Breaking**
-  line in `ui-docs/content/changelog.md`'s Unreleased section and a before and
-  after in `ui-docs/content/migrating.md`.
+  (and `:ui-nav3:`, `:ui-charts:`, `:haptics:`) and read the diff. A break gets
+  a **Breaking** line in `ui-docs/content/changelog.md`'s Unreleased section
+  and a before and after in `ui-docs/content/migrating.md`.
 - **Comments and docs say why**, in plain sentences, and the long ones carry
   history ("Raised 2026-10-08 for 0.4.3 …"). Match the voice of the file you're in.
 - **Commit messages** are `Area: what changed, in words`, with a body that

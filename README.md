@@ -53,6 +53,8 @@ kontour = "0.4.6"
 kontour-ui = { module = "io.kontour:ui", version.ref = "kontour" }
 # Navigation 3 scene strategies over the pane scaffolds, if the app uses it
 kontour-ui-nav3 = { module = "io.kontour:ui-nav3", version.ref = "kontour" }
+# Charts, from 0.5.0, if the app draws any
+kontour-ui-charts = { module = "io.kontour:ui-charts", version.ref = "kontour" }
 ```
 
 ```kotlin
@@ -74,9 +76,10 @@ change.
 |---|---|
 | `io.kontour:ui` | The theme, the tokens and every component |
 | `io.kontour:ui-nav3` | [Navigation 3](ui-docs/content/navigation3.md) scene strategies, and page transitions that follow the back gesture |
+| `io.kontour:ui-charts` | [Charts](ui-docs/content/components/charts.md): `Chart`, `SectorChart` and `Sparkline`, in a module of their own so an app with none carries none. From 0.5.0 |
 | `io.kontour:haptics` | [Platform haptics](ui-docs/content/haptics.md) with no Compose in it. `:ui` brings it; on its own for an app that wants only the effects |
 
-Keep all three on the same version. Each is published for Android (minSdk 29),
+Keep all four on the same version. Each is published for Android (minSdk 29),
 iOS (`iosArm64`, `iosSimulatorArm64`), the desktop JVM, and the web as JS and
 Wasm, built with **Kotlin 2.4.10** against **Compose Multiplatform 1.12.1**,
 which is the floor: an app on 1.11 hits binary incompatibility.

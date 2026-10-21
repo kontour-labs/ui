@@ -78,7 +78,7 @@ break a section in the migrating guide, and push a tag:
 git tag v0.4.5 && git push origin v0.4.5
 ```
 
-CI runs what has not passed for that tree, publishes all three modules to
+CI runs what has not passed for that tree, publishes all four modules to
 `maven.kontour.io`, and deploys the documentation labelled with the version.
 [`releasing.md`](docs/building/releasing.md) has the rest: the version rule,
 what to do when a release fails, and setting up the repository.
