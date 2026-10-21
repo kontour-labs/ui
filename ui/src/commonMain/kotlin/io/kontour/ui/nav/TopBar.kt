@@ -134,6 +134,10 @@ enum class TopBarStyle {
     /**
      * Two lines: actions on the first, a large title on the second.
      *
+     * With no back button, navigation or actions the first line is left out,
+     * and the title keeps the margin it has at its sides, `Theme.spacing.md`,
+     * above it — or the status bar, where that is deeper, rather than both.
+     *
      * Collapses to [Small] as the content scrolls: the bar grows shorter, and
      * the title travels up into the first line, shrinking as it goes, to where
      * a [Small] bar's title sits — beside the back button when there is one.
@@ -388,11 +392,14 @@ fun TopBar(
                     // The first line is left out when it would be empty, so the
                     // large title takes the space the back button would have
                     // had: a bar with nothing to put on that line was drawing
-                    // 56dp of nothing above its own title.
+                    // 56dp of nothing above its own title. It keeps a margin
+                    // above the title instead, where no status bar gives it
+                    // one; see `LargeBar`.
                     hasControls = onBack != null || navigation != null || actions != null,
                     leading = { BarNavigation(onBack, backLabel, backIcon, navigation) },
                     actions = actions,
                     slots = slots,
+                    windowInsets = windowInsets,
                     minExpanded = floor,
                 )
             }
@@ -559,6 +566,7 @@ private fun HeroBar(
                                 leading = { BarNavigation(onBack, backLabel, backIcon, navigation) },
                                 actions = actions,
                                 slots = slots,
+                                windowInsets = windowInsets,
                                 minExpanded = (open - insetTop).coerceAtLeast(0.dp),
                                 hero = geometry,
                                 endReserve = dotsReserve,
@@ -834,6 +842,11 @@ private fun LargeBar(
     actions: (@Composable RowScope.() -> Unit)?,
     slots: ListItemScope,
     /**
+     * What the bar is padded by above, read only for a bar with no first line,
+     * whose title keeps [Theme.spacing]'s `md` above it where the inset is less.
+     */
+    windowInsets: WindowInsets,
+    /**
      * The least the bar is open: a [TopBarStyle.Hero] bar's picture's height, or
      * the height asked of a [TopBarStyle.Large] one, less the inset above. The
      * title then rests at the bottom of it.
@@ -858,6 +871,7 @@ private fun LargeBar(
     val gutter = Theme.spacing.xs
     val margin = Theme.spacing.md
     val below = Theme.spacing.sm
+    val above = Theme.spacing.md
     val title = slots.label
     val subtitle = slots.supporting
     // Where the large title's first line ends, measured below and drawn from.
@@ -976,7 +990,18 @@ private fun LargeBar(
         // centred in the bar together, and the bar at least a row tall.
         val stack = (tiny?.height ?: 0) + (subSmall?.height ?: 0)
         val collapsed = maxOf(row, stack)
-        val top = if (hasControls) row else 0
+        // Above the title, the first line; or, with nothing to put on it, the
+        // large title's margin, less whatever the inset already gives. Without
+        // the first line the status bar was the only room above the title, and
+        // in a desktop window, with none, the title's line box started on the
+        // window's top edge, higher than a Small bar's title sits: *"on desktop
+        // in your mini-apps, the large top bar has no spacing above it"*,
+        // 2026-10-21. The larger of the two rather than both, so a phone's bar,
+        // whose status bar is deeper than the margin, is what it was. The open
+        // bar's alone: collapsed, the bar is a Small one, with no more above it.
+        // Read here, in layout, and only for a bar with no first line, so an
+        // ordinary one does not take on a read of the insets.
+        val top = if (hasControls) row else (above.roundToPx() - windowInsets.getTop(this)).coerceAtLeast(0)
         val needed = top + (big?.height ?: 0) + (sub?.height ?: 0) + below.roundToPx()
         val expanded = maxOf(needed, collapsed, minExpanded.roundToPx())
         // A hero's room above the title: the title rests at the bottom of the

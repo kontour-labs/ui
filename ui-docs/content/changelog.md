@@ -198,6 +198,14 @@ On `main`, and in the next release.
   edge was drawn over the wash and the wash shrank under a press while the row
   stayed, so a press was a smaller box inside it; the wash covers the whole row
   now, which no longer shrinks, as a list's row does not.
+- **A large [top bar](components/top-bar.md#large-and-how-it-collapses) with
+  no controls keeps room above its title.** With no back button, navigation or
+  actions, a `Large` bar leaves its first line out, and the status bar was all
+  that stood above the title: in a desktop window, with none, the title started
+  on the window's top edge, higher than a `Small` bar's. It keeps
+  `Theme.spacing.md` above it now, or the status bar where that is deeper,
+  rather than both, so a bar on a phone is as it was. Collapsed, it is a
+  `Small` bar as before.
 - **A [toast](components/toast.md) waiting behind the front one is never bigger
   than it.** A card pushed back by a newer toast turned into a pill by
   animating its size, so for the length of it a three-line card stood out

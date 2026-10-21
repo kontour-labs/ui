@@ -33,7 +33,11 @@ Column(Modifier.topBarCollapse(collapse)) {
 ### `Large`, and how it collapses
 
 `Large` puts the actions on a first line and a large title on a second, and
-collapses into a `Small` bar as the content scrolls. **The title travels**: it
+collapses into a `Small` bar as the content scrolls. **With nothing for the
+first line** — no back button, navigation or actions — the line is left out,
+and the title keeps the margin it has at its sides above it: `Theme.spacing.md`,
+or the status bar where that is deeper, not the two added. In a desktop window,
+with no status bar, the title used to start on the window's top edge. **The title travels**: it
 rises into the first line, shrinking from the large type to the small as it
 goes, and lands where a `Small` bar's title sits — beside the back button when
 there is one, at the margin when there is not, so without one it rises straight
