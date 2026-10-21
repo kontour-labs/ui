@@ -46,6 +46,12 @@ that the stack is taller than the thing it is reporting on and the ones at the
 back are a stripe of colour rather than a message, so `ToastDefaults.MaxVisible`
 caps it and the rest wait their turn.
 
+**Nothing behind the front card is bigger than it.** The ones behind take its
+shape, stepped back: a pill behind an "OK" is held to the card's width, and a
+card pushed back by a newer, shorter toast takes the new one's size the moment
+it arrives rather than shrinking down past it. Only the front one is its own
+size, and a toast that comes back to the front grows back to it.
+
 **Every toast runs its own clock whether or not it is on screen.** A toast queued
 behind the visible ones is counting down from the moment it was shown, so a burst
 of confirmations clears in one round of the timer rather than in as many rounds

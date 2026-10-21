@@ -15,6 +15,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.layout.union
 import androidx.compose.ui.layout.findRootCoordinates
 import androidx.compose.ui.layout.onPlaced
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.unit.Density
 import io.kontour.ui.interaction.banded
 import io.kontour.ui.motion.sizeSpec
@@ -499,6 +500,10 @@ object ToastDefaults {
      *
      * Wide enough to read as a toast rather than as a chip: at 48dp the thing
      * peeking out above the card looked like a badge that had come off it.
+     *
+     * The most it is drawn, not always what: behind a card narrower or shorter
+     * than a pill — an "OK" — it is held to the card's size, since a pill
+     * standing out round the toast it is behind reads as the bigger of the two.
      */
     val PillWidth: Dp
         @Composable @ReadOnlyComposable get() = Theme.componentDefaults.toastPillWidth
@@ -984,6 +989,77 @@ private data class ToastHostConfig(
     val countdown: ToastCountdown,
 )
 
+/** How tall the front card measured, and which toast it was. See `ToastStack`. */
+private data class FrontMeasure(val id: Long, val heightPx: Int)
+
+/** Where a card was last sent in the stack, for the frame the front is unknown. */
+private class DepthTarget {
+    var value: Dp = 0.dp
+}
+
+/**
+ * The stack's `Box`, with the one rule a `Box` cannot keep: **nothing behind
+ * the front card is measured bigger than it.**
+ *
+ * Reported: *"i've seen scenarios where the toast at the top (i.e. the one
+ * being displayed) is smaller than the ones at the back"*. Two of them, and
+ * they are one fault. A card pushed back by a newer toast becomes a pill by
+ * animating its size, so for the length of that animation a three-line card
+ * stood out round a one-line "Saved" on every side. And a pill is a fixed
+ * [ToastDefaults.PillWidth], which behind an "OK" stood out at its sides for
+ * as long as the two were stacked.
+ *
+ * The stacked notifications this follows answer it the same way, and it is the
+ * reading of a stack that holds up: the ones behind are the *front's* shape,
+ * stepped back, and only the front one is its own. So a card behind is measured
+ * no wider and no taller than the card in front, which a `Surface` clips to its
+ * shape, and its taper and its `Peek` are taken from there. A card pushed back
+ * takes the front's footprint on the frame the new one arrives, behind it, and
+ * the pill it is turning into shrinks inside that; promoted again, it is
+ * measured free and grows back to its own size. Held rather than scaled to fit:
+ * a three-line card scaled down to a one-line toast's width is a card a fifth
+ * of its size with its words still on it, which reads as a thumbnail rather
+ * than as something waiting.
+ *
+ * A layout and not a `sizeIn` on each card, because the front is measured here
+ * first, in the same pass. A size carried down as state arrives a frame late,
+ * and the late frame is exactly the one the report is about: the new card has
+ * not been measured yet and the old one is still its full size.
+ *
+ * Otherwise a `Box`: every child loose, each placed by [alignment], back to
+ * front in the order they were given.
+ */
+@Composable
+private fun HeldToTheFront(
+    alignment: Alignment,
+    modifier: Modifier,
+    content: @Composable () -> Unit,
+) {
+    Layout(content, modifier) { measurables, constraints ->
+        val loose = constraints.copy(minWidth = 0, minHeight = 0)
+        // The list is oldest first, so the front card is the last one.
+        val front = measurables.lastOrNull()?.measure(loose)
+        val behind = if (front == null) {
+            loose
+        } else {
+            loose.copy(
+                maxWidth = minOf(front.width, loose.maxWidth),
+                maxHeight = minOf(front.height, loose.maxHeight),
+            )
+        }
+        val placeables = measurables.mapIndexed { index, it ->
+            if (index == measurables.lastIndex) requireNotNull(front) else it.measure(behind)
+        }
+        val width = if (constraints.hasBoundedWidth) constraints.maxWidth else placeables.maxOfOrNull { it.width } ?: 0
+        val height = if (constraints.hasBoundedHeight) constraints.maxHeight else placeables.maxOfOrNull { it.height } ?: 0
+        layout(width, height) {
+            placeables.forEach {
+                it.place(alignment.align(IntSize(it.width, it.height), IntSize(width, height), layoutDirection))
+            }
+        }
+    }
+}
+
 @Composable
 private fun ToastStack(state: ToastHostState, config: ToastHostConfig) {
     // The stack grows away from the edge it is anchored to: a bottom-anchored
@@ -1026,8 +1102,15 @@ private fun ToastStack(state: ToastHostState, config: ToastHostConfig) {
     // card's, measured now — not the tallest any card has ever been. It falls
     // when the front toast is replaced by a shorter one, which is the whole
     // difference between this and what it replaces.
-    var frontHeightPx by remember { mutableIntStateOf(0) }
-    val frontHeight = with(density) { frontHeightPx.toDp() }
+    //
+    // Kept with the id of the toast it was measured from, and handed down only
+    // while that toast is still the front. On the frame a new toast arrives it
+    // has not been measured yet, and the number here is the *old* front's — the
+    // three-line card that has just been pushed back. Aimed at that, the pills
+    // set off toward a peek worked out from the wrong card and were turned
+    // round a frame later, which is a spring overshooting the place it should
+    // have gone to. Unknown for a frame, they hold where they were going.
+    var frontMeasured by remember { mutableStateOf(FrontMeasure(id = -1L, heightPx = 0)) }
 
     // How far the front card has been *pulled*, owned here so the pills behind it
     // travel with it. Reported as the stack coming apart under a finger: only
@@ -1060,7 +1143,7 @@ private fun ToastStack(state: ToastHostState, config: ToastHostConfig) {
     val swipe = {
         toastTravel(
             pull = pull.value,
-            limit = frontHeightPx * ToastDefaults.RubberBand,
+            limit = frontMeasured.heightPx * ToastDefaults.RubberBand,
             towardEdge = towardEdge,
         )
     }
@@ -1253,13 +1336,16 @@ private fun ToastStack(state: ToastHostState, config: ToastHostConfig) {
         }
     }
 
-    Box(
-        Modifier
+    val frontHeight = with(density) {
+        frontMeasured.heightPx.toDp().takeIf { frontMeasured.id == frontId }
+    }
+    HeldToTheFront(
+        alignment = config.position.alignmentFor(config.alignment),
+        modifier = Modifier
             .fillMaxSize()
             .onPlaced { barLift.rootHeight = it.findRootCoordinates().size.height.toFloat() }
             .overlappingInsetsPadding(config.windowInsets.union(WindowInsets(bottom = barLift.value.roundToInt())))
             .standingOffItsEdge(towardEdge, edgeShift),
-        contentAlignment = config.position.alignmentFor(config.alignment),
     ) {
         visible.forEachIndexed { index, toast ->
             key(toast.id) {
@@ -1274,7 +1360,7 @@ private fun ToastStack(state: ToastHostState, config: ToastHostConfig) {
                     closeLabel = config.closeLabel,
                     closeIcon = config.closeIcon,
                     frontHeight = frontHeight,
-                    onFrontMeasured = { frontHeightPx = it },
+                    onFrontMeasured = { frontMeasured = FrontMeasure(toast.id, it) },
                     swipe = swipe,
                     pull = pull,
                     settle = settle,
@@ -1299,8 +1385,11 @@ private fun ToastCard(
     showClose: Boolean,
     closeLabel: String,
     closeIcon: ImageVector,
-    /** How tall the card in front is — see `ToastStack`. Zero until it reports. */
-    frontHeight: Dp,
+    /**
+     * How tall the card in front is — see `ToastStack`. Null until the card
+     * that is in front now has reported, which is the frame it arrives on.
+     */
+    frontHeight: Dp?,
     onFrontMeasured: (Int) -> Unit,
     /**
      * How far the front card has been dragged, in pixels.
@@ -1391,13 +1480,25 @@ private fun ToastCard(
 
     // Measured from the front card's edge rather than from the pill's own, so a
     // pill shorter than the card still clears it by `Peek`.
+    //
+    // A pill is never taller than the card in front — `HeldToTheFront` measures
+    // it no bigger — so behind a front card shorter than `PillHeight` it is the
+    // card's height, and there is no shortfall left to take off. Taken off
+    // anyway, it sank the pill that much further behind the card than `Peek`.
+    //
+    // While the front card is unknown, which is the one frame a new toast takes
+    // to be measured, the target is the one it last had: see `ToastStack`.
     val towards = if (towardEdge) -1 else 1
+    val lastTarget = remember { DepthTarget() }
     val depthOffset by animateDpAsState(
-        targetValue = if (depth == 0) {
-            0.dp
-        } else {
-            (ToastDefaults.Peek * depth + (frontHeight - ToastDefaults.PillHeight)) * towards
-        },
+        targetValue = when {
+            depth == 0 -> 0.dp
+            frontHeight == null -> lastTarget.value
+            else -> {
+                val clear = (frontHeight - ToastDefaults.PillHeight).coerceAtLeast(0.dp)
+                (ToastDefaults.Peek * depth + clear) * towards
+            }
+        }.also { lastTarget.value = it },
         animationSpec = motion.springOrTween(motion.springDefault),
         label = "toastDepthOffset",
     )

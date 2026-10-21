@@ -181,6 +181,15 @@ On `main`, and in the next release.
 
 ### Fixed
 
+- **A [toast](components/toast.md) waiting behind the front one is never bigger
+  than it.** A card pushed back by a newer toast turned into a pill by
+  animating its size, so for the length of it a three-line card stood out
+  round a one-line "Saved" on every side; and a pill is 72dp wide whatever is
+  in front of it, so behind an "OK" it stood out at the sides for as long as
+  the two were stacked. The ones behind are measured no bigger than the front
+  card now, in the same pass as it, so a card pushed back takes the new one's
+  size on the frame it arrives and only its peek shows. Brought back to the
+  front, it grows back to its own size.
 - **A swiped row stays inside its row.** A
   [`SwipeActions`](components/swipe-actions.md) row slid open drew whatever it
   carried past its own edge, cut off only by what stood round it: the screen on
