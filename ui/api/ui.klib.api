@@ -4858,6 +4858,8 @@ final object io.kontour.ui.components.list/ScrollbarDefaults { // io.kontour.ui.
 final object io.kontour.ui.components.list/SwipeActionsDefaults { // io.kontour.ui.components.list/SwipeActionsDefaults|null[0]
     final const val MaxActionsPerSide // io.kontour.ui.components.list/SwipeActionsDefaults.MaxActionsPerSide|{}MaxActionsPerSide[0]
         final fun <get-MaxActionsPerSide>(): kotlin/Int // io.kontour.ui.components.list/SwipeActionsDefaults.MaxActionsPerSide.<get-MaxActionsPerSide>|<get-MaxActionsPerSide>(){}[0]
+    final const val TrackpadGain // io.kontour.ui.components.list/SwipeActionsDefaults.TrackpadGain|{}TrackpadGain[0]
+        final fun <get-TrackpadGain>(): kotlin/Float // io.kontour.ui.components.list/SwipeActionsDefaults.TrackpadGain.<get-TrackpadGain>|<get-TrackpadGain>(){}[0]
 
     final val ActionWidth // io.kontour.ui.components.list/SwipeActionsDefaults.ActionWidth|{}ActionWidth[0]
         final fun <get-ActionWidth>(androidx.compose.runtime/Composer?, kotlin/Int): androidx.compose.ui.unit/Dp // io.kontour.ui.components.list/SwipeActionsDefaults.ActionWidth.<get-ActionWidth>|<get-ActionWidth>(androidx.compose.runtime.Composer?;kotlin.Int){}[0]

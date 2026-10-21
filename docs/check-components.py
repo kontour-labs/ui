@@ -1102,7 +1102,12 @@ MAX_SILENT_FOCUS_TRAPS = 0
 #
 # **107**, lowered 2026-10-17: a bar's corner was one of the nine, and is
 # the theme's small shape now, as every other corner in the library is.
-MAX_DEFAULTS_LITERALS = 107
+#
+# **108**, raised 2026-10-21 for 0.5.0: `SwipeActionsDefaults.TrackpadGain`,
+# the 0.6 of a pixel a swipe row moves for each pixel of a trackpad's pan, which
+# had been 1 and was reported as "really sensitive". A fact about how the row
+# reads a trackpad, beside its `ScrollStep`, rather than a dial a brand turns.
+MAX_DEFAULTS_LITERALS = 108
 
 # Every field on `ComponentDefaults` is read by something.
 #

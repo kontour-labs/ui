@@ -37,4 +37,16 @@ class SideScrollDistanceTest {
         assertEquals(48f, sideScrollDistance(100f, step, density, inPixels = true))
         assertEquals(-48f, sideScrollDistance(-120f, step, density, inPixels = true))
     }
+
+    /**
+     * A swipe row takes a browser's pixels at its trackpad gain, as it takes a
+     * Mac's pan: pixel for pixel was *"really sensitive"*, 2026-10-21. A wheel's
+     * click is still a whole step, and a notch is not pixels at all.
+     */
+    @Test
+    fun aGainSlowsABrowsersPixelsButNotAWheel() {
+        assertEquals(12f, sideScrollDistance(10f, step, density, inPixels = true, gain = 0.6f), 0.001f)
+        assertEquals(48f, sideScrollDistance(100f, step, density, inPixels = true, gain = 0.6f))
+        assertEquals(48f, sideScrollDistance(1f, step, density, inPixels = false, gain = 0.6f))
+    }
 }

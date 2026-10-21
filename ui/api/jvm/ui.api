@@ -1584,6 +1584,7 @@ public final class io/kontour/ui/components/list/SwipeActionsDefaults {
 	public static final field $stable I
 	public static final field INSTANCE Lio/kontour/ui/components/list/SwipeActionsDefaults;
 	public static final field MaxActionsPerSide I
+	public static final field TrackpadGain F
 	public final fun getActionWidth (Landroidx/compose/runtime/Composer;I)F
 	public final fun getGap (Landroidx/compose/runtime/Composer;I)F
 	public final fun getMaxActionHeight (Landroidx/compose/runtime/Composer;I)F

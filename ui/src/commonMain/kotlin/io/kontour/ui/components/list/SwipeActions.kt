@@ -306,15 +306,33 @@ object SwipeActionsDefaults {
      * gesture than a scroll, so a row moves further: two clicks open a single
      * action, and four bring the first of several out in full, which is where a
      * released row opens. A trackpad on a Mac pans instead, and follows the
-     * fingers.
+     * fingers at [TrackpadGain].
      *
      * On the web it is a ceiling rather than a step. A browser's scroll comes in
-     * CSS pixels, not notches, so a pixel moves the row a dp and follows the
-     * trackpad the way a pan does, and no one event moves it further than this —
-     * which is about what one click of a mouse wheel reports. Treated as notches,
-     * as they were, one trackpad event of ten pixels moved the row 240dp.
+     * CSS pixels, not notches, so a pixel moves the row [TrackpadGain] of a dp
+     * and follows the trackpad the way a pan does, and no one event moves it
+     * further than this — which is about what one click of a mouse wheel
+     * reports, so a wheel's click moves the row a whole step there too. Treated
+     * as notches, as they were, one trackpad event of ten pixels moved the row
+     * 240dp.
      */
     val ScrollStep: Dp = 24.dp
+
+    /**
+     * How far the row moves for each pixel a trackpad moves it: a Mac's pan,
+     * and a browser's scroll in pixels.
+     *
+     * It was 1, the row following the fingers pixel for pixel as it follows a
+     * finger on glass, and that was reported 2026-10-21 for 0.5.0 as *"the side
+     * scrolling for swipe actions is really sensitive"*. A finger on glass
+     * moves the row exactly as far as it moves; a trackpad's pixels are
+     * accelerated, so a quick flick of two fingers covers far more of them than
+     * the fingers travelled, and it carried the row across its actions and
+     * past the point of no return. At 0.6 a deliberate push still opens the row
+     * all the way and carries it on to a full swipe, and a flick no longer
+     * does. A wheel's notches are not pixels, and still move it [ScrollStep].
+     */
+    const val TrackpadGain: Float = 0.6f
 
     /** How long after the last scroll event the row settles onto an anchor. */
     val SettleAfterScroll: Duration = 120.milliseconds
@@ -468,6 +486,7 @@ fun SwipeActions(
     val actionWidthPx = with(density) { actionWidth.toPx() }
     val gapPx = with(density) { SwipeActionsDefaults.Gap.toPx() }
     val flickVelocityPx = with(density) { SwipeFlickVelocity.toPx() }
+    val trackpadFlickVelocityPx = with(density) { SwipeTrackpadFlickVelocity.toPx() }
     val flickTravelPx = with(density) { SwipeFlickTravel.toPx() }
     val commitMarginPx = with(density) { SwipeCommitMargin.toPx() }
     val commitInsetPx = with(density) { SwipeCommitInset.toPx() }
@@ -693,7 +712,7 @@ fun SwipeActions(
     val settleSpec: AnimationSpec<Float> = motion.springOrTween(motion.springDefault)
     val commitSpec: AnimationSpec<Float> = motion.springOrTween(motion.springSnappy)
 
-    fun settle(velocity: Float) {
+    fun settle(velocity: Float, flickVelocity: Float = flickVelocityPx) {
         // The give comes home on the row's own spring, from rest: it was never a
         // place the row was, so there is nothing to carry through it.
         if (band.stretched) scope.launch { band.release(motion.springOrTween(motion.springDefault)) }
@@ -708,7 +727,7 @@ fun SwipeActions(
             startCount = start.size,
             endCount = end.size,
             committing = committing,
-            flickVelocity = flickVelocityPx,
+            flickVelocity = flickVelocity,
             flickTravel = flickTravelPx,
             revealShare = revealShare,
         )
@@ -911,13 +930,29 @@ fun SwipeActions(
              * event threw the row a couple of hundred dp. See
              * [sideScrollDistance].
              *
+             * **And then too easy on a Mac's trackpad as well**, reported
+             * 2026-10-21 for 0.5.0 as *"the side scrolling for swipe actions is
+             * really sensitive"*, for three reasons that added up. The row
+             * followed a pan pixel for pixel, and a trackpad's pixels are
+             * accelerated, so a flick of the fingers carried it across its
+             * actions and on past the point of no return: now it moves at
+             * [SwipeActionsDefaults.TrackpadGain]. It took a pan as sideways
+             * after 0.4 of the touch slop, a finger's share, on whichever way
+             * had gone further, so a push upward that drifted as the fingers
+             * landed was a swipe: now it waits for the whole slop, and for twice
+             * as much across as up or down. And let go, it was thrown open at
+             * a finger's flick speed, which a trackpad's pan nearly always has:
+             * now a pan has to go at [SwipeTrackpadFlickVelocity].
+             *
              * **Sideways, or not at all.** Each gesture — a pan from its start,
              * a burst of scroll from the first event after a quiet spell — is
-             * the row's if it begins mostly sideways, and the list's otherwise,
-             * for the whole of it. A vertical scroll with a little drift in it
-             * used to move the row and swallow the scroll. And the other way: a
-             * sideways scroll's events that were only up or down went on to the
-             * list, which scrolled out from under the row being swiped.
+             * the row's if it begins clearly sideways, at least
+             * [SideScrollDirectionRatio] times as far across as up or down, and
+             * the list's otherwise, for the whole of it. A vertical scroll with
+             * a little drift in it used to move the row and swallow the scroll.
+             * And the other way: a sideways scroll's events that were only up or
+             * down went on to the list, which scrolled out from under the row
+             * being swiped.
              *
              * A pan ends with an event of its own and settles then, flicked by
              * how it was moving; a scroll has no end, and settles once it has
@@ -935,7 +970,13 @@ fun SwipeActions(
                     Modifier.pointerInput(state, scope, isRtl, startTravel, endTravel, actionWidthPx) {
                         val stepPx = SwipeActionsDefaults.ScrollStep.toPx()
                         val dpPx = 1.dp.toPx()
-                        val decidePx = viewConfiguration.touchSlop * SideScrollDecisionShare
+                        // The whole slop, and not the 0.4 of it a finger's drag
+                        // decides on: a pan has no press to begin with, so this
+                        // is all there is to tell a swipe from a scroll by, and
+                        // its first few pixels are the fingers landing. In a
+                        // browser's pixels, which are dp, for its scroll.
+                        val decidePx = viewConfiguration.touchSlop
+                        val decideCssPx = viewConfiguration.touchSlop / dpPx
                         var waiting: Job? = null
                         // The gesture's direction: undecided, the row's, or the list's.
                         var ours: Boolean? = null
@@ -991,7 +1032,9 @@ fun SwipeActions(
                         fun decide(delta: Offset, threshold: Float): Boolean? {
                             if (ours == null) {
                                 gathered += delta
-                                if (gathered.getDistance() >= threshold) ours = abs(gathered.x) > abs(gathered.y)
+                                if (gathered.getDistance() >= threshold) {
+                                    ours = abs(gathered.x) >= abs(gathered.y) * SideScrollDirectionRatio
+                                }
                             }
                             return ours
                         }
@@ -1019,17 +1062,21 @@ fun SwipeActions(
                                         val pan = changes.fold(Offset.Zero) { sum, it -> sum + it.panOffset }
                                         if (decide(pan, decidePx) != true) continue
                                         changes.forEach { it.consume() }
-                                        // Pixels that follow the fingers: the row
-                                        // goes with them, as it does with one.
-                                        move(pan.x)
-                                        panned += pan.x
+                                        // Pixels that follow the fingers, at the
+                                        // trackpad's gain: they are accelerated,
+                                        // and a finger's are not. The speed is
+                                        // the row's, so it is what the throw is
+                                        // judged on.
+                                        val moved = pan.x * SwipeActionsDefaults.TrackpadGain
+                                        move(moved)
+                                        panned += moved
                                         panVelocity.addDataPoint(changes.first().uptimeMillis, panned)
                                     }
                                     PointerEventType.PanEnd -> {
                                         if (ours == true) {
                                             changes.forEach { it.consume() }
                                             val velocity = panVelocity.calculateVelocity()
-                                            settle(if (isRtl) -velocity else velocity)
+                                            settle(if (isRtl) -velocity else velocity, trackpadFlickVelocityPx)
                                             // Its momentum may follow as scroll.
                                             coasting = true
                                             lastScroll = changes.first().uptimeMillis
@@ -1055,8 +1102,11 @@ fun SwipeActions(
                                         }
                                         if (quiet || settledQuietly) begin()
                                         settledQuietly = false
-                                        // A notch is a whole decision on its own.
-                                        if (decide(delta, 0f) != true) continue
+                                        // A notch is a whole decision on its own;
+                                        // a browser's pixels gather the slop
+                                        // first, as a pan's do.
+                                        val threshold = if (platformScrollDeltaInPixels) decideCssPx else 0f
+                                        if (decide(delta, threshold) != true) continue
                                         // The row's, up and down included, until it
                                         // is let go of. A trackpad's fingers drift,
                                         // and an event that was only up or down went
@@ -1070,7 +1120,12 @@ fun SwipeActions(
                                             settleWhenQuiet()
                                             continue
                                         }
-                                        move(-sideScrollDistance(delta.x, stepPx, dpPx, platformScrollDeltaInPixels))
+                                        move(
+                                            -sideScrollDistance(
+                                                delta.x, stepPx, dpPx, platformScrollDeltaInPixels,
+                                                gain = SwipeActionsDefaults.TrackpadGain,
+                                            )
+                                        )
                                         // Carried past the point of no return, it is let
                                         // go of now, not once the scroll has been quiet,
                                         // which on a trackpad is once its coasting has
@@ -1715,6 +1770,16 @@ private fun Modifier.clickableAction(onClick: () -> Unit, label: String, interac
  */
 private val SwipeFlickVelocity: Dp = 400.dp
 
+/**
+ * The same, for a trackpad's pan, which is judged on the row's speed rather
+ * than the fingers'. Three times a finger's, set 2026-10-21 for 0.5.0: a pan let
+ * go at a finger's flick speed threw the row open, and nearly every pan is that
+ * fast, so a flick of 72px across a row of two actions opened both. At this a
+ * pan let go quickly still throws the row, and one let go at an ordinary pace
+ * settles by where it is.
+ */
+private val SwipeTrackpadFlickVelocity: Dp = 1200.dp
+
 /** How far a flick has to have travelled for its direction to mean anything. */
 private val SwipeFlickTravel: Dp = 12.dp
 
@@ -1836,19 +1901,22 @@ private class ConfirmDraw {
  * How far one scroll event moves a swipe row, in pixels, from its delta.
  *
  * A delta in notches — everywhere but the web — moves the row [stepPx] a notch.
- * A delta in CSS pixels — the web, see [platformScrollDeltaInPixels] — moves it one
- * dp a pixel, and never more than [stepPx] in one event: a trackpad's few pixels
- * follow the fingers, and a mouse wheel's hundred-pixel click moves the row as far
- * as a notch does anywhere else.
+ * A delta in CSS pixels — the web, see [platformScrollDeltaInPixels] — moves it
+ * [gain] of a dp a pixel, and never more than [stepPx] in one event: a trackpad's
+ * few pixels follow the fingers, and a mouse wheel's hundred-pixel click moves the
+ * row as far as a notch does anywhere else. A swipe row's gain is
+ * [SwipeActionsDefaults.TrackpadGain]; a top bar's is 1.
  */
-internal fun sideScrollDistance(delta: Float, stepPx: Float, density: Float, inPixels: Boolean): Float =
-    if (inPixels) (delta * density).coerceIn(-stepPx, stepPx) else delta * stepPx
+internal fun sideScrollDistance(delta: Float, stepPx: Float, density: Float, inPixels: Boolean, gain: Float = 1f): Float =
+    if (inPixels) (delta * density * gain).coerceIn(-stepPx, stepPx) else delta * stepPx
 
 /**
- * How much of the touch slop a trackpad's pan gathers before the row decides
- * whether it is sideways — the share a finger's drag uses, for the same reason.
+ * How many times as far across as up or down a pan or a scroll has to have gone
+ * for the row to take it as sideways. It took whichever way had gone further, so
+ * a push upward that drifted 8px as the fingers landed was a swipe: see
+ * [SwipeActionsDefaults.TrackpadGain] for the report.
  */
-private const val SideScrollDecisionShare = 0.4f
+private const val SideScrollDirectionRatio = 2f
 
 /** A scroll quiet for this long has ended, and the next is a new gesture to decide. */
 private const val SideScrollQuietMillis = 250L
