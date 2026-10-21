@@ -635,6 +635,7 @@ private fun <X : Any, Y : Any> ChartPlot(
         },
         pick = if (selection != null) { index -> select(currentChart.places[index]) } else null,
         clear = { currentSelection?.clear() },
+        marked = marked != null,
         brush = brush,
     )
 

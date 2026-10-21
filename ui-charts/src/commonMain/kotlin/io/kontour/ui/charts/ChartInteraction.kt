@@ -153,6 +153,13 @@ internal fun Modifier.chartSelectionInput(
     pick: ((Int) -> Unit)?,
     clear: () -> Unit,
     brush: ChartBrush? = null,
+    /**
+     * Whether a range is marked now, read by the caller from its own value: not
+     * from [ChartBrush.marked], which reads a state the chart writes afresh on
+     * every composition, so that asking it here, in the same composition,
+     * recomposed the chart for ever and no test with a range in it went idle.
+     */
+    marked: Boolean = false,
 ): Modifier {
     val source = interactionSource ?: remember { MutableInteractionSource() }
     val latestBrush by rememberUpdatedState(brush)
@@ -181,7 +188,7 @@ internal fun Modifier.chartSelectionInput(
         // it was aimed at. The range's was asked for 2026-10-21: *"if I have a
         // range marked on the graph and I click/tap elsewhere, it should
         // deselect"*.
-        .onPressOutside(enabled = chosen != null || brush?.marked?.invoke() == true) {
+        .onPressOutside(enabled = chosen != null || marked) {
             latestClear()
             latestBrush?.clear?.invoke()
         }
