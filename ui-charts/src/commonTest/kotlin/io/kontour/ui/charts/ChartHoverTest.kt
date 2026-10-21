@@ -43,7 +43,7 @@ class ChartHoverTest {
     private fun ComposeUiTest.line(
         selection: ChartSelectionState<String>,
         range: ChartRangeSelectionState<String, Number>? = null,
-        selectsOnHover: Boolean? = null,
+        selectOnHover: Boolean? = null,
     ) {
         setContent {
             KontourTheme(reduceMotion = true) {
@@ -54,7 +54,7 @@ class ChartHoverTest {
                         modifier = Modifier.size(360.dp, 240.dp).testTag("chart"),
                         selection = selection,
                         rangeSelection = range,
-                        selectsOnHover = selectsOnHover ?: (range == null),
+                        selectOnHover = selectOnHover ?: (range == null),
                         colours = ChartDefaults.colours(series = listOf(Line), grid = Color.Transparent, selection = Probe),
                         showLegend = false,
                         animateData = false,
@@ -87,7 +87,7 @@ class ChartHoverTest {
     @Test
     fun aMouseOverAChartThatDoesNotSelectOnHoverSelectsNothing() = runComposeUiTest {
         val selection = ChartSelectionState<String>(null)
-        line(selection, selectsOnHover = false)
+        line(selection, selectOnHover = false)
         hoverAcross()
         assertNull(selection.x, "hovering should select nothing")
         assertTrue(!drawsSelection(), "and draw no line through a place")
@@ -100,7 +100,7 @@ class ChartHoverTest {
     @Test
     fun aClickStillSelectsAndTheMouseMovingOnLeavesIt() = runComposeUiTest {
         val selection = ChartSelectionState<String>(null)
-        line(selection, selectsOnHover = false)
+        line(selection, selectOnHover = false)
         val chart = onNodeWithTag("chart")
         chart.performMouseInput {
             moveTo(Offset(width * 0.5f, height * 0.5f))
@@ -127,7 +127,7 @@ class ChartHoverTest {
     }
 
     @Test
-    fun aChartThatMarksNoRangesSelectsOnHoverByDefault() = runComposeUiTest {
+    fun aChartThatMarksNoRangesSelectOnHoverByDefault() = runComposeUiTest {
         val selection = ChartSelectionState<String>(null)
         line(selection)
         hoverAcross()
@@ -144,7 +144,7 @@ class ChartHoverTest {
     fun aDragMarksItsRangeUndisturbedBySelectingOnHover() = runComposeUiTest {
         val selection = ChartSelectionState<String>(null)
         val range = ChartRangeSelectionState<String, Number>(ChartRangeMode.Across)
-        line(selection, range, selectsOnHover = true)
+        line(selection, range, selectOnHover = true)
         val chart = onNodeWithTag("chart")
         val root = chart.fetchSemanticsNode().boundsInRoot
         // Just short of where February's stretch gives way to March's.

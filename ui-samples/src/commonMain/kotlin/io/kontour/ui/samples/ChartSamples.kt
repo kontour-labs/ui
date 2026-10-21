@@ -203,7 +203,7 @@ fun ChartSelectOnClick() {
         yAxis = ChartAxis.number(title = "Riders"),
         modifier = Modifier.fillMaxWidth().height(220.dp),
         selection = selection,
-        selectsOnHover = false,
+        selectOnHover = false,
         contentDescription = "Riders this week, by route",
     ) {
         line(week, x = { it.day }, y = { it.riders }, series = { ChartSeries("Route ${it.route}") })

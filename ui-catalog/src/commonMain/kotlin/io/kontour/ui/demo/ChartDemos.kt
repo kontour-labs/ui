@@ -197,7 +197,7 @@ internal val ChartDemo = ComponentDemo(
                 showSelectionTooltip = tooltip,
                 animateData = animated,
                 selection = selection,
-                selectsOnHover = hoverChoice ?: true,
+                selectOnHover = hoverChoice ?: true,
             ) {
                 cell(data, x = { it.month }, y = { it.route }, value = { it.riders })
             }
@@ -229,7 +229,7 @@ internal val ChartDemo = ComponentDemo(
                 yAxis = ChartAxis.number(title = "Trip, minutes"),
                 modifier = chartModifier,
                 selection = selection,
-                selectsOnHover = hoverChoice ?: true,
+                selectOnHover = hoverChoice ?: true,
                 contentDescription = "Trip times by month",
                 legendPosition = legendPosition,
                 showLegend = showLegend,
@@ -254,7 +254,7 @@ internal val ChartDemo = ComponentDemo(
                 modifier = chartModifier,
                 selection = pointSelection,
                 rangeSelection = pointRange.takeIf { marks },
-                selectsOnHover = hover,
+                selectOnHover = hover,
                 contentDescription = "Riders against trip time, a month a point",
                 legendPosition = legendPosition,
                 showLegend = showLegend,
@@ -286,7 +286,7 @@ internal val ChartDemo = ComponentDemo(
                 modifier = chartModifier,
                 selection = selection,
                 rangeSelection = range.takeIf { marks },
-                selectsOnHover = hover,
+                selectOnHover = hover,
                 contentDescription = "Riders by month",
                 legendPosition = legendPosition,
                 showLegend = showLegend,

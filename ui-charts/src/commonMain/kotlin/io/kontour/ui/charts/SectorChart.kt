@@ -85,7 +85,7 @@ import kotlin.math.sqrt
  * ### Selection
  *
  * Give it a [selection] and a sector is chosen as a [Chart]'s place is: by a
- * tap on it, a pointer over it (or a click, without [selectsOnHover]), the
+ * tap on it, a pointer over it (or a click, without [selectOnHover]), the
  * arrow keys round the circle in the order it is drawn, or a screen reader on
  * its node. The chosen sector stands out from
  * the centre and is outlined, so it is told apart by its shape as well as its
@@ -95,7 +95,7 @@ import kotlin.math.sqrt
  *   from its legend, and it is still read, its chosen sector with it.
  * @param selection Which sector is chosen, by its series. Null, the default, is
  *   a picture with a description.
- * @param selectsOnHover Whether a pointer resting over a sector chooses it, or
+ * @param selectOnHover Whether a pointer resting over a sector chooses it, or
  *   only a click does, as a tap, the keys and a screen reader do whatever this
  *   says: for a pie on a page where sectors standing out as a pointer crosses
  *   them would be a distraction.
@@ -124,7 +124,7 @@ fun SectorChart(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     selection: ChartSelectionState<ChartSeries>? = null,
-    selectsOnHover: Boolean = true,
+    selectOnHover: Boolean = true,
     seriesVisibility: ChartSeriesVisibilityState? = null,
     innerRadius: Float = 0f,
     contentDescription: String? = null,
@@ -315,7 +315,7 @@ fun SectorChart(
         count = parts.size,
         steps = ChartSteps.Round,
         dragsAcross = false,
-        selectsOnHover = selectsOnHover,
+        selectOnHover = selectOnHover,
         said = chosen?.let { shares[it] },
         interactionSource = interactionSource,
         pickAt = chooseAt,
