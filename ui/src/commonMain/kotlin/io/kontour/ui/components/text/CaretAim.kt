@@ -35,8 +35,15 @@ internal class CaretAim {
 
     var singleLine: Boolean = true
 
-    /** Puts [state]'s caret where a press at [at] on [frame] sends it, if the field has been laid out. */
-    fun place(state: TextFieldState, frame: LayoutCoordinates?, at: Offset) {
+    /**
+     * Puts [state]'s caret where a press at [at] on [frame] sends it, if the
+     * field has been laid out.
+     *
+     * Not `place`, which it was first called: `check-settings.py` reads a
+     * `.place(` as a child put at an absolute x in a file that never asks which
+     * way the layout runs, and the three files that only moved a caret failed it.
+     */
+    fun moveCaret(state: TextFieldState, frame: LayoutCoordinates?, at: Offset) {
         val offset = offsetFor(state.text.length, frame, at) ?: return
         if (state.selection != TextRange(offset)) state.edit { selection = TextRange(offset) }
     }

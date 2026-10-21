@@ -372,7 +372,7 @@ internal fun TextFieldImpl(
         onFrameTap = if (enabled) {
             remember(requester, state, aim) {
                 { frame, at ->
-                    aim.place(state, frame, at)
+                    aim.moveCaret(state, frame, at)
                     requester.requestFocus()
                 }
             }

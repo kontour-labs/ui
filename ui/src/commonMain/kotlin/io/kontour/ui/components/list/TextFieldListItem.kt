@@ -153,7 +153,7 @@ fun TextFieldListItem(
     val spot = remember { FrameSpot() }
     val focusOnTap: (LayoutCoordinates?, Offset) -> Unit = remember(requester, state, aim) {
         { frame, at ->
-            aim.place(state, frame, at)
+            aim.moveCaret(state, frame, at)
             requester.requestFocus()
         }
     }
