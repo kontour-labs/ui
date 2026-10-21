@@ -173,7 +173,7 @@ private fun PatternSwatch(pattern: FillPattern, ink: Color, ground: Color, shape
             .size(PatternSwatchSize)
             .clip(shape)
             .background(ground)
-            .fillPattern(pattern, ink = ink, shape = shape),
+            .fillPattern(pattern, colour = ink, shape = shape),
     )
 }
 
@@ -184,13 +184,13 @@ private val madeToOrder = listOf(
     FillPattern.dots(spacing = 9.dp, size = 4.dp, staggered = true),
     FillPattern.lines(PatternDirection.Vertical, spacing = 5.dp, weight = 1.dp),
     // A little sun: a dot with four rays, the app's own mark.
-    FillPattern.custom(DpSize(16.dp, 16.dp), key = "energy-sun") { ink ->
+    FillPattern.custom(DpSize(16.dp, 16.dp), key = "energy-sun") { colour ->
         val middle = Offset(size.width / 2, size.height / 2)
         val ray = size.minDimension * 0.42f
         val stroke = size.minDimension * 0.08f
-        drawCircle(ink, radius = size.minDimension * 0.16f, center = middle)
-        drawLine(ink, middle - Offset(ray, 0f), middle + Offset(ray, 0f), strokeWidth = stroke)
-        drawLine(ink, middle - Offset(0f, ray), middle + Offset(0f, ray), strokeWidth = stroke)
+        drawCircle(colour, radius = size.minDimension * 0.16f, center = middle)
+        drawLine(colour, middle - Offset(ray, 0f), middle + Offset(ray, 0f), strokeWidth = stroke)
+        drawLine(colour, middle - Offset(0f, ray), middle + Offset(0f, ray), strokeWidth = stroke)
     },
 )
 

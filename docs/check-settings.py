@@ -340,6 +340,8 @@ MOVEMENT_ALLOWED = {
     "Backdrop.kt:drawAround": "draws the band round a receding page at the scale the page is already at; "
     "the recede is zero under reduced motion, see `resolvedInset`",
     "Indication.kt:draw": "the press wash's scale, drawn inside the control's own bounds",
+    "FillPattern.kt:tile": "draws a custom pattern's tile at its own size onto a smaller bitmap, "
+    "for a legend's key; nothing animates",
     "TableRows.kt:fadedWhereCut": "stretches one fade over the cut end of each narrowed pinned column; "
     "the narrowing follows the scroll the reader is making",
     # Small by construction: inside the control's own bounds, a few pixels.

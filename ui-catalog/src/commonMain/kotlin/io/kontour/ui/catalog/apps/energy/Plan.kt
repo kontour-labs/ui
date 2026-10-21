@@ -216,7 +216,7 @@ private fun Swatch(label: String, pattern: FillPattern, tone: StatusColours) {
                 .size(SwatchSize)
                 .clip(shape)
                 .background(if (pattern == FillPattern.Solid) tone.solid else tone.container)
-                .fillPattern(pattern, ink = tone.solid, shape = shape),
+                .fillPattern(pattern, colour = tone.solid, shape = shape),
         )
         Text(label, style = Theme.typography.labelMedium)
     }

@@ -52,9 +52,9 @@ import kotlin.math.roundToInt
  * // Dots in staggered rows, like a halftone.
  * val halftone = FillPattern.dots(spacing = 8.dp, staggered = true)
  * // A tile of an app's own, repeated: a little plus.
- * val plus = FillPattern.custom(DpSize(10.dp, 10.dp), key = "plus") { ink ->
- *     drawLine(ink, Offset(size.width / 2, 2f), Offset(size.width / 2, size.height - 2f), strokeWidth = 2f)
- *     drawLine(ink, Offset(2f, size.height / 2), Offset(size.width - 2f, size.height / 2), strokeWidth = 2f)
+ * val plus = FillPattern.custom(DpSize(10.dp, 10.dp), key = "plus") { colour ->
+ *     drawLine(colour, Offset(size.width / 2, 2f), Offset(size.width / 2, size.height - 2f), strokeWidth = 2f)
+ *     drawLine(colour, Offset(2f, size.height / 2), Offset(size.width - 2f, size.height / 2), strokeWidth = 2f)
  * }
  * ```
  *
@@ -76,7 +76,7 @@ class FillPattern private constructor(
     private val staggered: Boolean = false,
     private val tile: DpSize = DpSize.Unspecified,
     private val key: Any? = null,
-    private val draw: (DrawScope.(ink: Color) -> Unit)? = null,
+    private val draw: (DrawScope.(colour: Color) -> Unit)? = null,
 ) {
     private enum class Kind { Solid, Lines, Dots, Custom }
 
@@ -104,30 +104,38 @@ class FillPattern private constructor(
     }
 
     /**
-     * One repeat of this pattern in [ink], [spacingPx] by [spacingPx] — or a
-     * custom tile's own size, by [scale] — with lines [weightPx] wide where
+     * One repeat of this pattern in [colour], [spacingPx] by [spacingPx] — or
+     * a custom tile's own size, by [scale] — with lines [weightPx] wide where
      * the pattern does not say.
      */
-    internal fun tile(ink: Color, density: Density, spacingPx: Int, weightPx: Float, scale: Float): ImageBitmap? {
+    internal fun tile(colour: Color, density: Density, spacingPx: Int, weightPx: Float, scale: Float): ImageBitmap? {
         return when (kind) {
             Kind.Solid -> null
             Kind.Custom -> {
-                val width = with(density) { (tile.width.toPx() * scale).roundToInt() }
-                val height = with(density) { (tile.height.toPx() * scale).roundToInt() }
+                val tileWidth = with(density) { tile.width.toPx() }
+                val tileHeight = with(density) { tile.height.toPx() }
+                val width = (tileWidth * scale).roundToInt()
+                val height = (tileHeight * scale).roundToInt()
                 if (width <= 0 || height <= 0) return null
                 ImageBitmap(width, height).also { image ->
-                    CanvasDrawScope().draw(density, LayoutDirection.Ltr, Canvas(image), Size(width.toFloat(), height.toFloat())) {
-                        draw?.invoke(this, ink)
+                    // Drawn at the tile's own size and scaled onto the bitmap,
+                    // so a tile drawn smaller is the same picture smaller.
+                    // Drawn straight onto the smaller bitmap, a tile that put
+                    // its mark at its middle in dp had it at the bitmap's
+                    // corner, cut off, in a legend's key.
+                    CanvasDrawScope().draw(density, LayoutDirection.Ltr, Canvas(image), Size(tileWidth, tileHeight)) {
+                        drawContext.transform.scale(scaleX = width / tileWidth, scaleY = height / tileHeight, pivot = Offset.Zero)
+                        draw?.invoke(this, colour)
                     }
                 }
             }
-            else -> ImageBitmap(spacingPx, spacingPx).also { image -> drawRepeat(Canvas(image), ink, spacingPx.toFloat(), weightPx) }
+            else -> ImageBitmap(spacingPx, spacingPx).also { image -> drawRepeat(Canvas(image), colour, spacingPx.toFloat(), weightPx) }
         }
     }
 
-    private fun drawRepeat(canvas: Canvas, ink: Color, s: Float, weight: Float) {
+    private fun drawRepeat(canvas: Canvas, colour: Color, s: Float, weight: Float) {
         val paint = Paint().apply {
-            color = ink
+            color = colour
             strokeWidth = weight
             isAntiAlias = true
             style = PaintingStyle.Stroke
@@ -202,16 +210,18 @@ class FillPattern private constructor(
             FillPattern(Kind.Dots, spacing = spacing, weight = size, staggered = staggered)
 
         /**
-         * A tile [size] big, drawn once by [draw] in the ink it is given and
-         * repeated. Drawn from its top start and laid in the window's own
-         * space, as the others are, so neighbouring surfaces line up.
+         * A tile [size] big, drawn once by [draw] in the colour it is given
+         * and repeated. Drawn from its top start and laid in the window's own
+         * space, as the others are, so neighbouring surfaces line up. Drawn
+         * smaller, as a legend's key is, the whole tile is scaled, so [draw]
+         * always draws at [size].
          *
          * @param key What makes two custom patterns the same one, so the tile
          *   is drawn once and kept. Without it the pattern is the same only as
          *   itself, and one made afresh in each composition draws its tile
          *   afresh too: remember it, or give it a key.
          */
-        fun custom(size: DpSize, key: Any? = null, draw: DrawScope.(ink: Color) -> Unit): FillPattern =
+        fun custom(size: DpSize, key: Any? = null, draw: DrawScope.(colour: Color) -> Unit): FillPattern =
             FillPattern(Kind.Custom, tile = size, key = key, draw = draw)
     }
 }
@@ -230,7 +240,7 @@ enum class PatternDirection {
 }
 
 /**
- * [pattern] drawn over what is under it, in [ink], cut to [shape]: nothing for
+ * [pattern] drawn over what is under it, in [colour], cut to [shape]: nothing for
  * [FillPattern.Solid]. After the node's own background, so the pattern lies on
  * its ground and under its content.
  *
@@ -241,23 +251,29 @@ enum class PatternDirection {
  * The pattern is laid in the window's own space rather than each node's, so the
  * hatching of two surfaces side by side lines up and reads as one.
  *
- * @param ink The pattern's colour: a wash of the content's colour reads over
- *   the ground without fighting the text on it.
+ * @param colour The pattern's colour: a wash of the content's colour reads
+ *   over the ground without fighting the text on it.
  * @param scale How big the repeat is drawn, as a share of the pattern's own:
  *   a key smaller than what it keys, as a chart's legend draws them.
  */
 @Composable
 fun Modifier.fillPattern(
     pattern: FillPattern,
-    ink: Color,
+    colour: Color,
     shape: Shape = RectangleShape,
     scale: Float = 1f,
 ): Modifier {
     if (pattern.isSolid) return this
-    val brushes = remember { PatternBrushes() }
+    // One tile for the node, the last it drew: a node draws one pattern in one
+    // colour at a time. It kept every tile it had ever drawn, and through a
+    // theme's fade, which moves the colour on every frame, each patterned
+    // event on a calendar kept a new bitmap a frame for as long as it was on
+    // screen. Kept here rather than made afresh in the cache below, which a
+    // change of size alone empties, as an event being dragged longer does.
+    val brushes = remember { PatternBrushes(capacity = 1) }
     val weight = FillPatternDefaults.Weight
     return drawWithCache {
-        val brush = brushes.brush(pattern, ink, this, weight, scale)
+        val brush = brushes.brush(pattern, colour, this, weight, scale)
         val outline = shape.createOutline(size, layoutDirection, this)
         onDrawWithContent {
             if (brush != null) drawOutline(outline, brush)
@@ -309,24 +325,41 @@ private val OpenDots = FillPattern.dots(spacing = PatternSpacing * 1.5f, stagger
 private val OpenDiagonal = FillPattern.lines(PatternDirection.Rising, spacing = PatternSpacing * 2)
 
 /**
- * The tiles [FillPattern]s are drawn from, one brush for each pattern, ink and
- * size, made once and kept. For a canvas of an app's own, as a chart's.
+ * The tiles [FillPattern]s are drawn from, one brush for each pattern, colour
+ * and size, made once and kept. For a canvas of an app's own, as a chart's.
  *
  * A shader rather than a clip and a loop of lines: a large area costs one fill
  * however many lines would cross it, and because the shader is laid in the
  * canvas's own space, the hatching of neighbouring shapes lines up, so a stack
  * reads as one surface with lines across it rather than as bricks.
+ *
+ * It keeps the last few dozen it made, the oldest going first, rather than
+ * every one: room for each series of a chart to keep its own, and a bound for
+ * a colour that moves, as one does on every frame of a theme's fade, where
+ * each frame asks for tiles that nothing will ask for again.
  */
-class PatternBrushes {
-    private val tiles = HashMap<TileKey, Brush>()
+class PatternBrushes() {
+    private var capacity = PatternTileCapacity
+
+    /** One that keeps only the last [capacity] tiles: one, for a node that draws one pattern. */
+    internal constructor(capacity: Int) : this() {
+        this.capacity = capacity
+    }
+
+    // In the order they were made, so the oldest is the first to go.
+    private val tiles = LinkedHashMap<TileKey, Brush>()
+
+    /** How many tiles it holds now. */
+    internal val size: Int get() = tiles.size
 
     /**
-     * [pattern] in [ink] at [density], its lines [weight] heavy where it does
-     * not say; `null` for [FillPattern.Solid].
+     * [pattern] in [colour] at [density], its lines [weight] heavy where it
+     * does not say; `null` for [FillPattern.Solid].
      */
-    fun brush(pattern: FillPattern, ink: Color, density: Density, weight: Dp): Brush? = brush(pattern, ink, density, weight, 1f)
+    fun brush(pattern: FillPattern, colour: Color, density: Density, weight: Dp): Brush? =
+        brush(pattern, colour, density, weight, 1f)
 
-    internal fun brush(pattern: FillPattern, ink: Color, density: Density, weight: Dp, scale: Float): Brush? {
+    internal fun brush(pattern: FillPattern, colour: Color, density: Density, weight: Dp, scale: Float): Brush? {
         if (pattern.isSolid) return null
         val spacing = with(density) {
             max(MinRepeat, ((if (pattern.spacing.isSpecified) pattern.spacing else FillPatternDefaults.Spacing).toPx() * scale).roundToInt())
@@ -336,21 +369,25 @@ class PatternBrushes {
             // A dot is twice a line's weight across, unless it says.
             own?.toPx() ?: (weight.toPx() * if (pattern.isDots) DotShare else 1f)
         }
-        val key = TileKey(pattern, ink, spacing, lineWeight, density.density, scale)
+        val key = TileKey(pattern, colour, spacing, lineWeight, density.density, scale)
         tiles[key]?.let { return it }
-        val image = pattern.tile(ink, density, spacing, lineWeight, scale) ?: return null
+        val image = pattern.tile(colour, density, spacing, lineWeight, scale) ?: return null
+        while (tiles.size >= capacity) tiles.remove(tiles.keys.first())
         return ShaderBrush(ImageShader(image, TileMode.Repeated, TileMode.Repeated)).also { tiles[key] = it }
     }
 
     private data class TileKey(
         val pattern: FillPattern,
-        val ink: Color,
+        val colour: Color,
         val spacing: Int,
         val weight: Float,
         val density: Float,
         val scale: Float,
     )
 }
+
+/** How many tiles a [PatternBrushes] keeps: room for a chart's ten series' three times over. */
+internal const val PatternTileCapacity = 32
 
 /** The fewest pixels a repeat is drawn in: below this a pattern is a smear. */
 private const val MinRepeat = 3

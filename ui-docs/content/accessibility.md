@@ -238,8 +238,10 @@ val halftone = FillPattern.dots(spacing = 8.dp, staggered = true)
 ```
 
 `PatternBrushes` is the cache of tiles behind both, for a canvas of an app's
-own: one brush for each pattern, ink and size, laid in the canvas's space so
-neighbouring shapes' hatching lines up.
+own: one brush for each pattern, colour and size, laid in the canvas's space so
+neighbouring shapes' hatching lines up. It keeps the last 32 it made, so a
+colour that moves, as one does through a theme's fade, does not leave a tile
+behind for every frame.
 
 ---
 
