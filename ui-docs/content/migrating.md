@@ -21,7 +21,9 @@ Unreleased, and growing. `SystemIcons` is the theme's now, so code that named
 one of its glyphs changes; `Strings` has new fields and `CalendarEvent` a
 new parameter, each defaulted and last, `Table` a new one after
 `stickyColumns`, the modal sheets one after `scrim`, and `Tooltip` one before
-its content.
+its content. Thirteen components take the glyphs they draw, and the stepped
+progress indicators `stepProgress` and `weights`, partway through their
+parameters, so an argument after one, passed by position, is named.
 Charts are a new module, which an app takes only if it wants them.
 
 ### `ModalBottomSheet` has `recedes` after `scrim`
@@ -42,7 +44,7 @@ ModalSideSheet(open, { open = false }, Modifier, SheetSide.End, 480.dp, shape, s
 ### `Table` has `narrowStickyColumns` after `stickyColumns`
 
 Defaulted, so a call that names its arguments needs nothing. One that passed
-the arguments after `stickyColumns` by position names them: the eighth place
+the arguments after `stickyColumns` by position names them: the seventh place
 is `narrowStickyColumns` now, and a `true` meant for `striped` still compiles,
 and narrows the pinned columns instead of striping the rows.
 
@@ -53,6 +55,36 @@ Table(rows, Modifier, true, null, rememberTableState(), 1, true) { /* columns */
 // 0.5.0
 Table(rows, Modifier, true, null, rememberTableState(), 1, striped = true) { /* columns */ }
 ```
+
+### Name the arguments after a new parameter
+
+Each of these is defaulted, so a call that names its arguments needs nothing.
+One that passes the arguments after it by position names them:
+
+```diff
+- Pagination(page, pageCount, { page = it }, Modifier, true, 2, "Back", "Next")
++ Pagination(page, pageCount, { page = it }, Modifier, true, 2, previousLabel = "Back", nextLabel = "Next")
+```
+
+`Pagination`'s labels come after `previousIcon` and `nextIcon` now. The same
+for:
+
+- `Select`'s, `MultiSelect`'s and `Combobox`'s arguments after `leadingIcon`,
+  where `chevron` is new;
+- `FileField`'s after `leadingIcon`, where `attachIcon` and `removeIcon` are;
+- `Stepper`'s after `format`, where `decrementIcon` and `incrementIcon` are;
+- `ToastHost`'s after `showDismiss`, where `dismissIcon` is;
+- `TopBar`'s, `SheetHeader`'s, `SideSheet`'s and `ModalSideSheet`'s after
+  `backLabel`, where `backIcon` is;
+- `Table`'s after `onSortChange`, where `sortAscendingIcon` and
+  `sortDescendingIcon` are;
+- `StepProgress`'s and `CircularStepProgress`'s after `working`, where
+  `stepProgress` is, and their `gap` after `weights`.
+
+Each fails to compile rather than meaning something else. Name the argument.
+`EventCalendarDefaults.Header`'s `previousIcon`, `nextIcon` and `todayIcon`
+come last, and `KeyValueList`'s `compact` just before its content, so a call
+to either compiles as it is.
 
 ### `SystemIcons.Close` is `Theme.icons.close`
 

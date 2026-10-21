@@ -1,7 +1,8 @@
 # Changelog
 
-What changed in each release, newest first. `io.kontour:ui`, `:ui-nav3` and
-`:haptics` are released together at one version, so one entry covers all three.
+What changed in each release, newest first. `io.kontour:ui`, `:ui-nav3`,
+`:ui-charts` and `:haptics` are released together at one version, so one entry
+covers all four. `:ui-charts` is new in 0.5.0.
 
 The library is before 1.0, and a release can break its API. When one does, the
 break is listed under **Breaking** with what to write instead. There are no
@@ -26,6 +27,168 @@ The version an app is on is the `kontour` entry in its version catalog. See
 
 On `main`, and in the next release.
 
+Charts, in a module of their own, `io.kontour:ui-charts`: a `Chart` of lines,
+areas, bars, points, ranges and rules, mixed as it needs, a `SectorChart` and
+a `Sparkline`, each read out to a screen reader place by place and told apart
+by more than colour. The fill patterns they are told apart with are in `:ui`
+for any surface, and an event calendar's events take them. Every glyph the
+library draws on its own is the theme's, `Theme.icons`, for an app to replace.
+
+And alongside them: [`DocumentTabs`](components/document-tabs.md), a browser's
+or an editor's tabs; a list row you type into; a tooltip drawn as a card; a
+step measured within itself, and steps of different lengths; pinned columns
+that narrow as a table scrolls across; and a modal sheet that leaves the page
+behind it where it is, over a map or a video. An event calendar's three days
+swipe a day at a time, and outline where a carried event will land.
+
+Then a round of fixes: a sheet takes a mouse's wheel and the keyboard as it
+should, a swiped row stays inside its row, a toast behind another is never
+bigger than it, and a good deal more is said to a screen reader in the
+reader's own words: a sortable column, a command palette's arrows, a coach
+mark, an activity calendar's cursor.
+
+`SystemIcons` is `Theme.icons`, and a good many components,
+`ComponentDefaults`, `Strings`, `CalendarEvent` and `Tooltip` have new
+parameters — see **Breaking** and [Migrating](migrating.md#045-to-050). Side
+sheets take the panel's corner, and a modal bottom sheet is wider on a wide
+window — see **Changed**.
+
+### Breaking
+
+- **`ComponentDefaults` has `modalSheetMaxWidth`**, 560dp, at the end, so a
+  theme built against 0.4.5 recompiles; one that names its arguments, or gives
+  them by position, needs nothing.
+- **`ModalBottomSheet` and `ModalSideSheet` have a new parameter**,
+  `recedes`, defaulted, after `scrim`, so anything built against 0.4.5
+  recompiles. A call that passed `dismissible` by position still compiles and
+  sets `recedes` instead, so it names it. See
+  [Migrating](migrating.md#modalbottomsheet-has-recedes-after-scrim).
+- **`SystemIcons` is a class, read as `Theme.icons`.** `SystemIcons.Close` is
+  `Theme.icons.close`, every glyph in lower camel case, and
+  `DatePickerDefaults.TodayIcon` is `Theme.icons.today`. `KontourTheme` and
+  `ProvideTokens` take `icons`. See
+  [Migrating](migrating.md#systemiconsclose-is-themeiconsclose).
+- **Glyphs by default where there were none.** `SearchField`'s search and clear
+  icons, `NavSearch`'s search icon, the password and secret fields' reveal, and
+  `Accordion`'s and `ExpandingListItem`'s chevron default to `Theme.icons`
+  rather than to `null`, so each has its control without being given a glyph.
+  A side sheet's back is the chevron a top bar's is.
+- **`Strings` has new fields**, `labelledValue`, `selectAllRows`,
+  `sortAscending`, `sortDescending`, `notSorted`, `showDay`, `moveLeft`,
+  `moveRight`, `newTab` and `closeTab`, at the end,
+  so an app that builds its own with named arguments needs nothing; one that
+  passes them by position, or overrides `Strings.from`'s keys, recompiles. See
+  [Migrating](migrating.md#045-to-050).
+- **`CalendarEvent` has a new parameter**, `pattern`, defaulted and last, so
+  anything built against 0.4.5 recompiles; every call site still compiles as it
+  is.
+- **`Tooltip` has a new parameter**, `style`, defaulted, before `content`, so
+  anything built against 0.4.5 recompiles. A call that passes its content as
+  the trailing lambda, as every one in these docs does, needs nothing.
+- **`Table` has a new parameter**, `narrowStickyColumns`, defaulted, after
+  `stickyColumns`, so anything built against 0.4.5 recompiles. A call that
+  names its arguments, as every one in these docs does, needs nothing; one that
+  passed `striped` by position still compiles, and narrows the pinned columns
+  instead, so it names it. See
+  [Migrating](migrating.md#table-has-narrowstickycolumns-after-stickycolumns).
+- **New parameters partway through.** `Select`, `MultiSelect` and `Combobox`
+  have `chevron`; `FileField` `attachIcon` and `removeIcon`; `Stepper`
+  `decrementIcon` and `incrementIcon`; `Pagination` `previousIcon` and
+  `nextIcon`; `ToastHost` `dismissIcon`; `TopBar`, `SheetHeader`, `SideSheet`
+  and `ModalSideSheet` `backIcon`; `EventCalendarDefaults.Header`
+  `previousIcon`, `nextIcon` and `todayIcon`; `Table` `sortAscendingIcon` and
+  `sortDescendingIcon`; `StepProgress` and `CircularStepProgress`
+  `stepProgress` and `weights`; and `KeyValueList` `compact`. Each is
+  defaulted, so anything built against 0.4.5 recompiles, and a call that names
+  its arguments needs nothing. One that passes the arguments after a new one
+  by position names them: it fails to compile rather than meaning something
+  else. See
+  [Migrating](migrating.md#name-the-arguments-after-a-new-parameter).
+
+### Changed
+
+- **An [event calendar](components/event-calendar.md)'s three days swipe a day
+  at a time.** Asked for: *"snap to any starting day, not just days that land on
+  a multiple of 3"*. Let go, they come to rest on the day nearest where the
+  finger left them, where a swipe used to turn a page of three or nothing; a
+  flick carries them on as a fling would, at least a day and at most three. The
+  title, `visibleDates` and the state's `date` go with them, and the arrows
+  still step three from there. The week and the day page as they did.
+- **An [event calendar](components/event-calendar.md) outlines where a carry
+  would land.** Asked for: *"can we show a faint outline of the event where
+  we're going to drop the event?"* While an event is carried, an edge dragged
+  or a new event drawn out, a faint dashed outline of it in its tone sits on
+  the step it would land on, under the lifted copy, which leans toward the
+  pointer off it. In the hours, the all-day strip and the month alike, in the
+  event's shape, and at high contrast in the tone at full strength.
+- **Side sheets take the panel's corner, 28dp**, not a sheet's 34. Facing the
+  content in the middle of the window, a side sheet meets no device corner, and
+  at 34dp its smoothed top corner crowded the title and the back button in it.
+  `Theme.shapes.sideSheet` is `large.leadingCornersOnly()`; pass `shape` for the
+  old corner.
+- **A top bar opens as far as a wheel or a trackpad went** at a list's top,
+  rather than all the way at the first piece of scroll the list declined, which
+  made a slow trackpad scroll jump.
+- **A modal bottom sheet holds the page back the whole way once it is open**,
+  at any detent, as a side sheet does. Resting at `Half` or a peek it pushed the
+  page back and dimmed it only as far as it showed, with a corner part of the
+  way between the screen's and the card's.
+- **A modal bottom sheet is wider on a wide window**: it stops at
+  `ComponentDefaults.modalSheetMaxWidth`, 560dp, rather than the 480 a
+  `BottomSheet` beside the page keeps, at which it stood in the middle of a
+  tablet as a narrow strip. Set it to `sheetMaxWidth`'s for the old width.
+- **A receding page costs a modal sheet much less to draw.** The black band
+  round the page and its rounded corners were one screen-sized path, cut and
+  filled afresh on every frame the sheet arrived, left or was dragged. They are
+  four rectangles and four corner pieces now, cut once per step of the corner's
+  ramp and drawn under each frame's scale. The picture is the same.
+- **Swipe actions let go of a trackpad's swipe as it ends**: carried past the
+  point of no return by a scroll, the row runs its action at once, and the
+  scroll a trackpad coasts on after the fingers lift no longer holds it there or
+  cancels the settle under way. And a sideways scroll keeps the whole of
+  itself: its ups and downs no longer scroll the list out from under the row
+  being swiped, until it has been let go of.
+- **Swipe actions close at a scroll anywhere else**, from a wheel or a
+  trackpad, as they do at a press: a carousel, a table or a row of chips
+  scrolled across, or the list scrolled down. Asked for as *"can we apply that
+  too if you start side-scrolling somewhere else?"*. A finger's scroll starts
+  with a press and always closed the row; a mouse's and a trackpad's left it
+  open. Seen at the app's `OverlayHost`, as presses are. See
+  [Swipe actions](components/swipe-actions.md).
+- **A mouse on a reorderable row decides before it carries**: it goes a few dp
+  first, and mostly up or down, as a swipe decides. At a mouse's own slop a
+  pixel of jitter in a click picked the row up and lost the click, and a drag
+  sideways lifted the row before the swipe inside it could take it. A grip still
+  takes the mouse at once, and a mouse no longer waits for a hold because a
+  touch was the last input used.
+- **A press on a destination or a tab no longer leans the marker toward it.**
+  A nav bar's, a nav rail's and a tab bar's marker waits for the tap and then
+  goes; switched between all day, its twitch toward each before it went looked
+  eager. A drag still leans it as it goes, and a segmented control's thumb
+  still leans toward a segment pressed.
+- **A mouse drags a nav rail's or a tab bar's marker when the row scrolls**,
+  as it does when the row fits. A mouse scrolls the row with its wheel, so the
+  drag has nothing to take from; a finger's drag along a row that scrolls
+  still scrolls it.
+- **An index scroller shows its bubble for the letter a mouse rests on**,
+  before it is clicked, and moves nothing until it is.
+- **A drop list laid out as a row says "Move left" and "Move right"** to a
+  screen reader, the other way round right to left, rather than a column's
+  "Move up" and "Move down".
+- **A mouse picks things up with its own button only.** A right press is a
+  context menu's and a middle one closes a tab; either dragged a row or a card
+  away with it.
+- **A lone coach mark is a tour's bubble.** `Modifier.coachmark` and a tour's
+  steps drew their bubbles apart, and only the tour's way on was filled in the
+  bubble's ink, where a ghost button on the accent read as words. "Got it" is
+  filled now, and a tour's step scrolls when its words run past the room beside
+  what it points at, as a lone mark's did.
+- **An app on the web is about 18 KB smaller.** Six small regular expressions
+  in the theme's formats, plurals and keyboard handling brought a
+  regular-expression engine into every web app. Each is a loop now, with the
+  same answers. `KontourTheme` alone costs 18,533 gzip bytes less, measured by
+  the [`theme` probe](https://github.com/kontour-labs/ui/tree/main/probes).
+
 ### Added
 
 - **A second axis up on a `Chart`.** `endYAxis` puts one down the end edge,
@@ -33,9 +196,6 @@ On `main`, and in the next release.
   series in different units, each on its own scale, the end axis's labels on
   the start axis's gridlines. `ChartDataTable` takes it too. See
   [Chart](components/chart.md#two-axes-up).
-- **A `Sparkline` moves to new values.** When its values change, the line
-  moves from the shape it had to the new one, as a `Chart` does, rather than
-  being replaced. Not under reduced motion or `animateData = false`.
 - **Steps of different lengths.** `StepProgress` and `CircularStepProgress`
   take `weights`, one a step, for a short step before a long one. Even by
   default, as before.
@@ -61,15 +221,61 @@ On `main`, and in the next release.
   the table returns to its start.
 - **Charts**, in their own module, `io.kontour:ui-charts`. A
   [`Chart`](components/chart.md) is made of marks, `line`, `area`, `bar`,
-  `point`, `rectangle` and `rule`, as many and as mixed as it needs, over number,
-  date or category axes written by `Theme.formats`. Bars and areas stack, group
-  or normalise. Series take their colours from a palette chosen to stay apart
-  under colour blindness, and with `showPatterns`, on at the high contrast tier
-  and where the reader asks, a dash, a symbol and a hatching each as well. A
-  change of data moves from the old chart to the new. A screen reader hears a
-  summary and then each place along the chart, and a selection moves by touch,
-  pointer, keys or screen reader. `SectorChart` draws a pie or a donut, and
-  `Sparkline` a trend the size of a word.
+  `point`, `rectangle` and `rule`, as many and as mixed as it needs, over
+  number, date or category axes written by `Theme.formats`. Bars and areas
+  stack, group or normalise. Series take their colours from a palette chosen
+  to stay apart under colour blindness, and with `showPatterns`, on at the
+  high contrast tier and where the reader asks, a dash, a symbol and a
+  hatching each as well. A change of data moves from the old chart to the new.
+  A screen reader hears a summary and then each place along the chart, and a
+  selection moves by touch, pointer, keys or screen reader. `SectorChart`
+  draws a pie or a donut, and `Sparkline` a trend the size of a word.
+
+  **How they move.** A `Sparkline`'s line moves from the shape it had to the
+  new one when its values change, as a `Chart` does, except under reduced
+  motion or with `animateData = false`. First data rises into place: a
+  `Chart`'s marks rise from their baseline as its first data arrives, whether
+  that is at once or after a wait while it loads, and a series added later
+  rises too; a `Sparkline` draws itself in when its first values come, and
+  under reduced motion each fades in. Along a date or number axis, a day that
+  has gone goes down as the axis closes in.
+
+  Moving between ways of drawing its data, a chart keeps its marks together. A
+  stack rises as one from its foot. Bars leaving a stack for side by side
+  narrow and move apart as they come down; a stack turned to shares takes its
+  percent axis at once and each part moves to its share; and bars turned to a
+  line or an area fade into it, the line going from their tops. Into a stack,
+  bars side by side rise to their places first and then close up, and out of
+  one they part first and then come down, so no part hangs over the one it
+  lands on. A bar's end is rounded by how much of it another bar covers in
+  each frame, so corners ease square as parts meet and round as they part. A
+  part within a corner's reach of its stack's end is cut from the whole
+  stack's rounded outline, so a thin top part is not a cap on a square column.
+  Bars along a date or a time axis end half a bar past the first and the last,
+  as along a number axis.
+
+  A rule's label sits at the first end of its line with no data under it,
+  chosen from where the data is going, so it stays put while the data moves,
+  and rules and regions move with their axes; a region's label likewise. A
+  legend whose entries hide series is laid out as one whose entries do not,
+  and a touch just off an entry still reaches it. A sector at 100% is drawn as
+  the whole circle, with no dividing line across it.
+
+  **The tooltip is a card beside the selected place.** The place, quietly,
+  over a row for each series with its value at the card's end, in figures of
+  one width written to one number of digits, the total's too, so that they
+  line up, and a stack's total under a rule; a name takes the room the figure
+  leaves. It stands to the end of the place, or to its start where it does not
+  fit, never over the bars and the line it reads out. Among bars the selected
+  place is washed behind them, its whole width. A `SectorChart`'s stands over
+  the pointer or the finger that chose its sector, moves with a pointer, and
+  fades as the pointer leaves the circle. A touch's tooltip stays while the
+  finger is down and goes four seconds after it lifts; a pointer that lands on
+  the tooltip chooses the place under it; and a mouse leaving the chart takes
+  the tooltip, and the place it rested on, with it. A line's value is ringed
+  only where the line is, and a stacked area's only where it has some
+  thickness. `tooltip` replaces what it says; the energy app's hours show one
+  of their own.
 - **`ChartDataTable`**: a chart's numbers as a table, from the same axes and
   content, a row for each place and a column for each series, for the readers
   a picture does not serve. **`SectorChart` takes a selection**, chosen by tap,
@@ -122,9 +328,9 @@ On `main`, and in the next release.
   page by feet that curve into it; the others sit flat, each with a ×, and a
   "+" opens another. Tabs grow in as they open and shrink away as they close,
   share the width down to a minimum and then scroll, and drag: along the strip
-  with a detent at each place, or, with `movesBetweenStrips`, pulled off it into
-  another strip, as a split view's panes exchange them. Middle click, Delete, the arrow keys and a screen
-  reader's actions all work.
+  with a detent at each place, or, with `movesBetweenStrips`, pulled off it
+  into another strip, as a split view's panes exchange them. Middle click,
+  Delete, the arrow keys and a screen reader's actions all work.
 - **`KeyValueList(compact = true)`**, for a small container of its own: the
   rows take the style around them and the list is as wide as its rows.
 - **`FillPatternDefaults`**, the spacing and weight a pattern is drawn with and
@@ -133,13 +339,14 @@ On `main`, and in the next release.
   `topCornersOnly()` and `leadingCornersOnly()`, which the charts' bars use.
 - **`Theme.icons`**: every glyph the library draws on its own behalf, Tabler's
   unless `KontourTheme(icons = SystemIcons(…))` replaces some. A select's
-  chevron, a toast's close, a stepper's minus and plus, a sorted column's arrow
-  and a calendar's today were Tabler's and nothing else. The components that
-  draw them also take them: `Select`, `MultiSelect` and `Combobox` a `chevron`,
-  `ToastHost` a `dismissIcon`, `Pagination` and `EventCalendarDefaults.Header`
-  a `previousIcon` and `nextIcon`, `Stepper` a `decrementIcon` and
-  `incrementIcon`, `Table` its two sort arrows, `FileField` an `attachIcon` and
-  `removeIcon`, and `TopBar`, `SheetHeader` and both side sheets a `backIcon`.
+  chevron, a toast's close, a stepper's minus and plus, a sorted column's
+  arrow and a calendar's today were Tabler's and nothing else. The components
+  that draw them also take them: `Select`, `MultiSelect` and `Combobox` a
+  `chevron`, `ToastHost` a `dismissIcon`, `Pagination` a `previousIcon` and
+  `nextIcon`, `EventCalendarDefaults.Header` those and a `todayIcon`,
+  `Stepper` a `decrementIcon` and `incrementIcon`, `Table` its two sort
+  arrows, `FileField` an `attachIcon` and `removeIcon`, and `TopBar`,
+  `SheetHeader` and both side sheets a `backIcon`.
 - **`differentiateWithoutColour()`**, from iOS's *Differentiate Without
   Colour* and Android's colour correction, with `LocalDifferentiateWithoutColour`
   for an app's own answer.
@@ -147,45 +354,14 @@ On `main`, and in the next release.
   On the web, iOS and Android, a component or an icon the app never uses is
   not in it at all; on the desktop that needs ProGuard, and the section gives
   the one rule the library needs there.
-
-### Breaking
-
-- **`ComponentDefaults` has `modalSheetMaxWidth`**, 560dp, after
-  `sheetMaxWidth`, so a theme built against 0.4.5 recompiles; one that names its
-  arguments needs nothing.
-- **`ModalBottomSheet` and `ModalSideSheet` have a new parameter**,
-  `recedes`, defaulted, after `scrim`, so anything built against 0.4.5
-  recompiles. A call that passed `dismissible` by position still compiles and
-  sets `recedes` instead, so it names it. See
-  [Migrating](migrating.md#modalbottomsheet-has-recedes-after-scrim).
-- **`SystemIcons` is a class, read as `Theme.icons`.** `SystemIcons.Close` is
-  `Theme.icons.close`, every glyph in lower camel case, and
-  `DatePickerDefaults.TodayIcon` is `Theme.icons.today`. `KontourTheme` and
-  `ProvideTokens` take `icons`. See
-  [Migrating](migrating.md#systemiconsclose-is-themeiconsclose).
-- **Glyphs by default where there were none.** `SearchField`'s search and clear
-  icons, `NavSearch`'s search icon, the password and secret fields' reveal, and
-  `Accordion`'s and `ExpandingListItem`'s chevron default to `Theme.icons`
-  rather than to `null`, so each has its control without being given a glyph.
-  A side sheet's back is the chevron a top bar's is.
-- **`Strings` has new fields**, `labelledValue`, `selectAllRows`,
-  `sortAscending`, `sortDescending`, `notSorted`, `showDay`, `moveLeft`,
-  `moveRight`, `newTab` and `closeTab`, at the end,
-  so an app that builds its own with named arguments needs nothing; one that
-  passes them by position, or overrides `Strings.from`'s keys, recompiles. See
-  [Migrating](migrating.md#045-to-050).
-- **`CalendarEvent` has a new parameter**, `pattern`, defaulted and last, so
-  anything built against 0.4.5 recompiles; every call site still compiles as it
-  is.
-- **`Tooltip` has a new parameter**, `style`, defaulted, before `content`, so
-  anything built against 0.4.5 recompiles. A call that passes its content as
-  the trailing lambda, as every one in these docs does, needs nothing.
-- **`Table` has a new parameter**, `narrowStickyColumns`, defaulted, after
-  `stickyColumns`, so anything built against 0.4.5 recompiles. A call that
-  names its arguments, as every one in these docs does, needs nothing; one that
-  passed `striped` by position still compiles, and narrows the pinned columns
-  instead, so it names it. See
-  [Migrating](migrating.md#table-has-narrowstickycolumns-after-stickycolumns).
+- **`StringLookup.phrase`**: a key's translation from an app's lookup, in its
+  plural form where it has one and filled with its arguments, read as
+  `Strings.from` reads its own. For a module with words of its own beside
+  `Theme.strings`; the charts' `ChartStrings` read theirs with it.
+- **`LocalPseudoLocale`**: the pseudo-locale a `PseudoLocalised` is drawing
+  in, or `null` outside one, so that a module's own words follow it as
+  `Theme.strings` does and the gallery's sweeps catch an English word there
+  too. The charts' do.
 
 ### Fixed
 
@@ -237,15 +413,14 @@ On `main`, and in the next release.
   now goes through the chain, as a swipe does, and the bar settles when it is
   let go.
 - **A wheel over a half-height sheet scrolls what is in it.** A mouse wheel or
-  a trackpad over a list in a sheet that was not fully open opened the sheet to
-  full height first, and only then scrolled the list, as a finger dragging the
-  list up does on a phone. It scrolls the list now, both ways, and the sheet
-  stays where it is. At the end of the list, if the sheet's content carries on
-  below the screen, a turn further down opens the sheet a detent. A turn up at
-  the list's top never closes the sheet or moves it down. Dragging a
-  scrollbar's thumb in a sheet scrolls the list too, where it had opened the
-  sheet since the drag went through the scroll chain. A finger still opens the
-  sheet first. See [Sheets](components/sheets.md#nested-scrolling).
+  a trackpad over a list in a sheet that was not fully open opened the sheet
+  to full height first, and only then scrolled the list, as a finger dragging
+  the list up does on a phone. It scrolls the list now, both ways, and the
+  sheet stays where it is. At the end of the list, if the sheet's content
+  carries on below the screen, a turn further down opens the sheet a detent. A
+  turn up at the list's top never closes the sheet or moves it down. A finger
+  still opens the sheet first. See
+  [Sheets](components/sheets.md#nested-scrolling).
 - **A scrollbar in a half-height sheet is the height of what the sheet
   shows.** A sheet's content is as tall as the window at every detent, so at
   half height a list's lower half is below the screen, and so was its
@@ -262,20 +437,6 @@ On `main`, and in the next release.
   `TextFieldListItem`'s label, focused it with the caret wherever it was last
   left. It now goes to the end of the text nearer the press, and in a
   `TextArea` to the nearer end of the line level with it.
-- **A chart legend whose entries hide series is laid out as one whose
-  entries do not.** Each entry reserved a finger's height of room, so the
-  legend's rows stood twice as far apart once it could hide a series. A touch
-  just off an entry still reaches it.
-- **A rule's label stays put while its chart's data moves.** Its place, the
-  first end of its line with no data under it, was worked out on every frame
-  of a move, and it hopped between them; and the rule itself was at its new
-  value on axes still easing from the old, so a label could leave the plot
-  for the first frames. The place is now chosen from where the data is going,
-  and rules and regions move with their axes. A region's label likewise.
-- **A sector at 100% is drawn as the whole circle.** The last series shown in
-  a `SectorChart` vanished: a whole turn was one arc of 360 degrees, which
-  Skia takes as no turn at all. It also has no dividing line across it now,
-  since it has no neighbour.
 - **A drop list that refuses what is carried over it makes no room for it.**
   A full column moved its items aside for a card it was about to send home.
   It now shows the refusal and keeps its items where they are.
@@ -355,8 +516,8 @@ On `main`, and in the next release.
 - **An arrow at the end of its bubble meets it.** A tooltip's or a popover's
   arrow was kept one arrow's width from its panel's ends, and the panel's
   squircle corner curves away for further than that, so an arrow pushed to the
-  end — a chart's tooltip at the edge of its plot — floated off its bubble. It
-  is kept past the corner's whole curve now.
+  end — a popover's beside a button at the window's edge — floated off its
+  bubble. It is kept past the corner's whole curve now.
 - **A tooltip never takes a tap.** Its bubble scrolls, for text too long for
   its side at a large type size, and the scroller took every tap on the bubble
   whether it had anywhere to scroll or not, so a tap on whatever was under a
@@ -380,134 +541,6 @@ On `main`, and in the next release.
   is now painted behind the selection rather than over it, for
   [`richText`](components/text.md)'s `code` and `highlight` and for any
   background a caller gives a span.
-
-### Changed
-
-- **An [event calendar](components/event-calendar.md)'s three days swipe a day
-  at a time.** Asked for: *"snap to any starting day, not just days that land on
-  a multiple of 3"*. Let go, they come to rest on the day nearest where the
-  finger left them, where a swipe used to turn a page of three or nothing; a
-  flick carries them on as a fling would, at least a day and at most three. The
-  title, `visibleDates` and the state's `date` go with them, and the arrows
-  still step three from there. The week and the day page as they did.
-- **An [event calendar](components/event-calendar.md) outlines where a carry
-  would land.** Asked for: *"can we show a faint outline of the event where
-  we're going to drop the event?"* While an event is carried, an edge dragged
-  or a new event drawn out, a faint dashed outline of it in its tone sits on
-  the step it would land on, under the lifted copy, which leans toward the
-  pointer off it. In the hours, the all-day strip and the month alike, in the
-  event's shape, and at high contrast in the tone at full strength.
-- **A chart's tooltip is a card beside the selected place.** The place,
-  quietly, over a row for each series with its value at the card's end, in
-  figures of one width so that they line up, and a stack's total under a rule.
-  It stands to the end of the place, or to its start where it does not fit,
-  rather than over the bars and the line it reads out. Among bars the selected
-  place is washed behind them, its whole width, where a line through them cut
-  them in two. A `SectorChart`'s stands over the pointer or the finger that
-  chose its sector, and moves with a pointer, rather than over the sector's
-  middle, and fades as the pointer leaves the circle rather than its box. A
-  touch's tooltip stays while the finger is down and goes four seconds after it
-  lifts, where it went four seconds into a long drag; and a pointer that lands
-  on the tooltip chooses the place under it, where the chart let go and the
-  tooltip blinked out and back. Its column of figures is written to one number
-  of digits, the total's too, so "2" no longer stands over "2.42", nor "0%"
-  over "2.7%"; and a name takes the room the figure leaves, where a squeezed
-  card cut it short beside a gap. A line's value is ringed only where the line
-  is, and a stacked area's only where it has some thickness. `tooltip` still
-  replaces what it says; the energy app's hours show one of their own.
-- **A chart moving between ways of drawing its data keeps its marks
-  together.** A stack rises as one from its foot, where each part rose from
-  its own and stood in the air over the part under it. Bars leaving a stack
-  for side by side narrow and move apart as they come down, where they took
-  their new width at once; a stack turned to shares takes its percent axis at
-  once and each part moves to its share, where its labels sat heaped at the
-  foot of the plot for most of the move; and bars turned to a line or an area
-  fade into it, the line going from their tops, where they sank to the floor
-  as it rose. Into a stack, bars side by side rise to their places first and
-  then close up, and out of one they part first and then come down, so no part
-  hangs over the one it lands on. A bar's end is rounded by how much of it
-  another bar covers in each frame, so corners ease square as parts meet and
-  round as they part, rather than snapping when the move stops. A part within
-  a corner's reach of its stack's end is cut from the whole stack's rounded
-  outline, so a thin top part is not a cap on a square column. Bars along a
-  date or a time axis end half a bar past the first and the last, as along a
-  number axis, where the axis ran back to the week's tick before the first. Along a date or number axis, a day that has gone goes
-  down as the axis closes in, rather than vanishing.
-- **Side sheets take the panel's corner, 28dp**, not a sheet's 34. Facing the
-  content in the middle of the window, a side sheet meets no device corner, and
-  at 34dp its smoothed top corner crowded the title and the back button in it.
-  `Theme.shapes.sideSheet` is `large.leadingCornersOnly()`; pass `shape` for the
-  old corner.
-- **A top bar opens as far as a wheel or a trackpad went** at a list's top,
-  rather than all the way at the first piece of scroll the list declined, which
-  made a slow trackpad scroll jump.
-- **A modal bottom sheet holds the page back the whole way once it is open**,
-  at any detent, as a side sheet does. Resting at `Half` or a peek it pushed the
-  page back and dimmed it only as far as it showed, with a corner part of the
-  way between the screen's and the card's.
-- **A modal bottom sheet is wider on a wide window**: it stops at
-  `ComponentDefaults.modalSheetMaxWidth`, 560dp, rather than the 480 a
-  `BottomSheet` beside the page keeps, at which it stood in the middle of a
-  tablet as a narrow strip. Set it to `sheetMaxWidth`'s for the old width.
-- **A receding page costs a modal sheet much less to draw.** The black band
-  round the page and its rounded corners were one screen-sized path, cut and
-  filled afresh on every frame the sheet arrived, left or was dragged. They are
-  four rectangles and four corner pieces now, cut once per step of the corner's
-  ramp and drawn under each frame's scale. The picture is the same.
-- **Swipe actions let go of a trackpad's swipe as it ends**: carried past the
-  point of no return by a scroll, the row runs its action at once, and the
-  scroll a trackpad coasts on after the fingers lift no longer holds it there or
-  cancels the settle under way. And a sideways scroll keeps the whole of
-  itself: its ups and downs no longer scroll the list out from under the row
-  being swiped, until it has been let go of.
-- **Swipe actions close at a scroll anywhere else**, from a wheel or a
-  trackpad, as they do at a press: a carousel, a table or a row of chips
-  scrolled across, or the list scrolled down. Asked for as *"can we apply that
-  too if you start side-scrolling somewhere else?"*. A finger's scroll starts
-  with a press and always closed the row; a mouse's and a trackpad's left it
-  open. Seen at the app's `OverlayHost`, as presses are. See
-  [Swipe actions](components/swipe-actions.md).
-- **A mouse on a reorderable row decides before it carries**: it goes a few dp
-  first, and mostly up or down, as a swipe decides. At a mouse's own slop a
-  pixel of jitter in a click picked the row up and lost the click, and a drag
-  sideways lifted the row before the swipe inside it could take it. A grip still
-  takes the mouse at once, and a mouse no longer waits for a hold because a
-  touch was the last input used.
-- **A press on a destination or a tab no longer leans the marker toward it.**
-  A nav bar's, a nav rail's and a tab bar's marker waits for the tap and then
-  goes; switched between all day, its twitch toward each before it went looked
-  eager. A drag still leans it as it goes, and a segmented control's thumb
-  still leans toward a segment pressed.
-- **A mouse drags a nav rail's or a tab bar's marker when the row scrolls**,
-  as it does when the row fits. A mouse scrolls the row with its wheel, so the
-  drag has nothing to take from; a finger's drag along a row that scrolls
-  still scrolls it.
-- **A chart's tooltip goes as the mouse leaves the chart**, and the place it
-  rested on with it, rather than staying until a scroll moved the chart.
-- **An index scroller shows its bubble for the letter a mouse rests on**,
-  before it is clicked, and moves nothing until it is.
-- **Charts' first data rises into place**: a `Chart` that had no data, loading
-  say, raises its marks from their baseline as its first data arrives, as one
-  with data from the start does; they used to appear at once and fall from above
-  the plot as its axes opened. A series added later rises too, a `Sparkline`
-  draws itself in when its first values come, and under reduced motion each
-  fades in instead.
-- **A drop list laid out as a row says "Move left" and "Move right"** to a
-  screen reader, the other way round right to left, rather than a column's
-  "Move up" and "Move down".
-- **A mouse picks things up with its own button only.** A right press is a
-  context menu's and a middle one closes a tab; either dragged a row or a card
-  away with it.
-- **A lone coach mark is a tour's bubble.** `Modifier.coachmark` and a tour's
-  steps drew their bubbles apart, and only the tour's way on was filled in the
-  bubble's ink, where a ghost button on the accent read as words. "Got it" is
-  filled now, and a tour's step scrolls when its words run past the room beside
-  what it points at, as a lone mark's did.
-- **An app on the web is about 18 KB smaller.** Six small regular expressions
-  in the theme's formats, plurals and keyboard handling brought a
-  regular-expression engine into every web app. Each is a loop now, with the
-  same answers. `KontourTheme` alone costs 18,533 gzip bytes less, measured by
-  the [`theme` probe](https://github.com/kontour-labs/ui/tree/main/probes).
 
 ---
 
