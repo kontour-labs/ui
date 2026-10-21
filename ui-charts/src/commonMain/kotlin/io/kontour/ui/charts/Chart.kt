@@ -101,8 +101,10 @@ import kotlin.math.roundToInt
  * @param rangeSelection Where a range marked on the chart is kept: a stretch
  *   across, or a box, by its [mode][ChartRangeSelectionState.mode]. A pointer
  *   marks one by dragging, a finger by holding and then dragging, and Shift
- *   and the arrows stretch one from the selected place; a tap or Escape lets
- *   go. `null`, the default, marks none. Not for a chart of lying bars.
+ *   and the arrows stretch one from the selected place, or the first; a tap or
+ *   Escape lets go. Without a [selection], a plain drag across is the page's,
+ *   and the arrows, Home and End are left to what is round the chart. `null`,
+ *   the default, marks none. Not for a chart of lying bars.
  * @param seriesVisibility Which series are shown. A chart given one makes
  *   each entry in its legend a switch that hides its series and shows it
  *   again. See [ChartSeriesVisibilityState].
@@ -296,9 +298,16 @@ internal class ChartTransition(initial: ResolvedChart, animate: Boolean) {
 internal fun moveFrom(current: ResolvedChart, next: ResolvedChart, frame: () -> ResolvedChart): ResolvedChart =
     if (current.empty && !next.empty) collapsed(next) else frame()
 
+/**
+ * The value at [place] across: a number or a time as it is, a category by the
+ * band it falls in. A range's end at the axis's edge, half a band past the
+ * first or the last category, is that category's.
+ */
 @Suppress("UNCHECKED_CAST")
-private fun <X : Any> decodePlace(place: Double, axis: ChartAxis<X>, model: ChartModel): X? = when (axis.kind) {
-    AxisKind.Category -> model.xCategories.getOrNull(place.roundToInt()) as X?
+private fun <X : Any> decodePlace(place: Double, axis: ChartAxis<X>, model: ChartModel): X? = when {
+    place.isNaN() -> null
+    axis.kind == AxisKind.Category ->
+        model.xCategories.takeIf { it.isNotEmpty() }?.let { it[place.roundToInt().coerceIn(0, it.lastIndex)] } as X?
     else -> axis.decode(place)
 }
 
@@ -461,9 +470,16 @@ private fun <X : Any, Y : Any> ChartPlot(
     val selectedIndex = selectedPlace?.let { place -> chart.places.indexOfFirst { it == place } }?.takeIf { it >= 0 }
     val selectedDescription = selectedPlace?.let { place -> places.firstOrNull { group -> group.places.any { it == place } }?.text }
 
-    // The range marked, in the chart's units, read here so that one marked by
-    // the app is drawn as one marked by hand is; and what it is said as.
+    // The range marked, in the chart's units, and what it is said as: as a
+    // drag marked it, where it did; otherwise from its values, so that one
+    // marked by the app or the keys is drawn whole places among bars and
+    // categories.
     val marked = rangeSelection?.let { range ->
+        val acrossFrom = range.acrossFrom
+        val acrossTo = range.acrossTo
+        if (acrossFrom != null && acrossTo != null) {
+            return@let MarkedRange(acrossFrom, acrossTo, range.upFrom, range.upTo)
+        }
         val from = range.xStart
         val to = range.xEnd
         // A range kept across a change of data can name a category the data no
@@ -475,7 +491,7 @@ private fun <X : Any, Y : Any> ChartPlot(
         } else {
             val upFrom = range.yStart?.let { y -> encodeUp?.invoke(y) }?.takeIf { it.isFinite() }
             val upTo = range.yEnd?.let { y -> encodeUp?.invoke(y) }?.takeIf { it.isFinite() }
-            MarkedRange(start, end, upFrom, upTo)
+            MarkedRange(start, end, upFrom, upTo, whole = chart.x.kind == AxisKind.Category || chart.selectsBands)
         }
     }
     val markedDescription = marked?.let { range ->
@@ -502,27 +518,29 @@ private fun <X : Any, Y : Any> ChartPlot(
             var markFrom = Offset.Zero
             var keyAnchor = -1
             var keyEnd = -1
+            // From exactly where the drag went down to where it is, on every
+            // chart, and read as the axis's values at its ends: along
+            // categories, the ones whose bands it reaches into. It was
+            // snapped to whole places among bars and categories, and a box
+            // there lost its height: *"i don't like how the select is locked
+            // to like a grid, it should just start selecting from where i
+            // start and stop where i stop"*.
             fun markBetween(a: Offset, b: Offset) {
                 val current = frame ?: return
                 val range = currentRange ?: return
                 val now = currentChart
                 val mapper = Mapper(current, now.x, now.y)
-                val across = listOf(mapper.xAt(a), mapper.xAt(b)).sorted()
-                // Along categories, and among bars, a range is of whole places.
-                val whole = now.x.kind == AxisKind.Category || now.selectsBands
-                val (low, high) = if (whole) {
-                    (nearestPlace(now.places, across[0]) ?: return) to (nearestPlace(now.places, across[1]) ?: return)
-                } else {
-                    across[0].coerceIn(now.x.low, now.x.high) to across[1].coerceIn(now.x.low, now.x.high)
-                }
-                val start = currentDecode(low) ?: return
-                val end = currentDecode(high) ?: return
+                val across = listOf(mapper.xAt(a), mapper.xAt(b)).map { it.coerceIn(now.x.low, now.x.high) }.sorted()
+                val start = currentDecode(across[0]) ?: return
+                val end = currentDecode(across[1]) ?: return
                 val decodeY = currentDecodeUp
-                if (range.mode == ChartRangeMode.Box && decodeY != null && !whole) {
+                // A box wants a measure both ways; across categories it is a
+                // range across, as `ChartRangeMode.Box` says.
+                if (range.mode == ChartRangeMode.Box && decodeY != null && now.x.kind != AxisKind.Category) {
                     val up = listOf(mapper.yAt(a), mapper.yAt(b)).map { it.coerceIn(now.y.low, now.y.high) }.sorted()
-                    range.select(start, end, decodeY(up[0]), decodeY(up[1]))
+                    range.mark(across[0], across[1], up[0], up[1], start, end, decodeY(up[0]), decodeY(up[1]))
                 } else {
-                    range.select(start, end)
+                    range.mark(across[0], across[1], null, null, start, end, null, null)
                 }
             }
             ChartBrush(

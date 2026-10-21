@@ -4,6 +4,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toPixelMap
+import androidx.compose.ui.test.captureToImage
+import kotlin.math.abs
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.platform.testTag
@@ -90,21 +94,143 @@ class ChartRangeSelectionTest {
         }
     }
 
-    @Test
-    fun aMouseDragMarksWholePlacesAcrossBars() = runComposeUiTest {
-        val range = ChartRangeSelectionState<String, Number>(ChartRangeMode.Across)
-        bars(range)
+    /** Where a place's node is across the chart: its band. */
+    private fun ComposeUiTest.band(month: String): Pair<Float, Float> {
+        val chart = onNodeWithTag("chart").fetchSemanticsNode().boundsInRoot
+        val node = onNode(SemanticsMatcher("$month's place") { node ->
+            SemanticsProperties.ContentDescription in node.config &&
+                node.config[SemanticsProperties.ContentDescription].any { it.startsWith("$month: ") }
+        }).fetchSemanticsNode().boundsInRoot
+        return node.left - chart.left to node.right - chart.left
+    }
+
+    /** A mouse dragged across, from [from] to [to] in the chart's pixels, along [y] of its height. */
+    private fun ComposeUiTest.drag(from: Float, to: Float, y: Float = 0.5f) {
         onNodeWithTag("chart").performMouseInput {
-            // From over Feb to over Apr.
-            moveTo(Offset(width * 0.3f, height * 0.5f))
+            moveTo(Offset(from, height * y))
             press()
-            for (step in 1..10) moveTo(Offset(width * (0.3f + 0.032f * step), height * 0.5f))
+            for (step in 1..10) moveTo(Offset(from + (to - from) * step / 10f, height * y))
             release()
         }
         waitForIdle()
-        assertTrue(range.xStart in listOf("Feb", "Jan"), "the range should start at the place it was dragged from: ${range.xStart}")
-        assertTrue(range.xEnd in listOf("Apr", "May"), "and end at the place it was dragged to: ${range.xEnd}")
+    }
+
+    /**
+     * A drag across bars reports the months whose bands it reaches into: from
+     * the far side of February's to the near side of April's is February to
+     * April.
+     */
+    @Test
+    fun aDragReportsThePlacesItReachesInto() = runComposeUiTest {
+        val range = ChartRangeSelectionState<String, Number>(ChartRangeMode.Across)
+        bars(range)
+        val feb = band("Feb")
+        val apr = band("Apr")
+        drag(feb.first + (feb.second - feb.first) * 0.85f, apr.first + (apr.second - apr.first) * 0.15f)
+        assertEquals("Feb", range.xStart, "the range should start in the band it was dragged from")
+        assertEquals("Apr", range.xEnd, "and end in the band it was let go in")
         assertNull(range.yStart, "a range across has no extent up")
+    }
+
+    /**
+     * Among bars a drag's range is drawn from where it went down to where it
+     * was let go. It was snapped to whole bars, so it jumped a band at a time
+     * under the pointer: *"it should just start selecting from where i start
+     * and stop where i stop"*.
+     */
+    @Test
+    fun aDragAcrossBarsIsDrawnWhereItWent() = runComposeUiTest {
+        val range = ChartRangeSelectionState<String, Number>(ChartRangeMode.Across)
+        setContent {
+            KontourTheme(reduceMotion = true) {
+                OverlayHost(Modifier.fillMaxSize()) {
+                    Chart(
+                        xAxis = ChartAxis.category<String>(),
+                        yAxis = ChartAxis.number(domain = 0.0..400.0),
+                        modifier = Modifier.size(360.dp, 240.dp).testTag("chart"),
+                        rangeSelection = range,
+                        colours = ChartDefaults.colours(series = listOf(Bars), grid = Color.Transparent, selection = Probe),
+                        showLegend = false,
+                        animateData = false,
+                    ) {
+                        bar(spending, x = { it.month }, y = { it.amount })
+                    }
+                }
+            }
+        }
+        val feb = band("Feb")
+        val apr = band("Apr")
+        val from = feb.first + (feb.second - feb.first) * 0.7f
+        val to = apr.first + (apr.second - apr.first) * 0.3f
+        drag(from, to)
+        // Above the bars, which reach no higher than a little over half way.
+        val (left, right) = edgesAcross(0.2f)
+        assertTrue(abs(left - from) <= 2f, "the range's start should be where the drag went down, $from, not at $left")
+        assertTrue(abs(right - to) <= 2f, "and its end where it was let go, $to, not at $right")
+    }
+
+    /** A box on number axes, drawn from corner to corner where the drag went. */
+    @Test
+    fun aBoxIsDrawnWhereTheDragWent() = runComposeUiTest {
+        val range = ChartRangeSelectionState<Number, Number>(ChartRangeMode.Box)
+        setContent {
+            KontourTheme(reduceMotion = true) {
+                OverlayHost(Modifier.fillMaxSize()) {
+                    Chart(
+                        xAxis = ChartAxis.number(domain = 0.0..50.0),
+                        yAxis = ChartAxis.number(domain = 0.0..20.0),
+                        modifier = Modifier.size(360.dp, 240.dp).testTag("chart"),
+                        rangeSelection = range,
+                        colours = ChartDefaults.colours(series = listOf(Bars), grid = Color.Transparent, selection = Probe),
+                        showLegend = false,
+                        animateData = false,
+                    ) {
+                        point(listOf(Day(1.0, 1.0)), x = { it.temperature }, y = { it.use })
+                    }
+                }
+            }
+        }
+        val chart = onNodeWithTag("chart").fetchSemanticsNode().boundsInRoot
+        val width = chart.right - chart.left
+        val height = chart.bottom - chart.top
+        val start = Offset(width * 0.3f, height * 0.7f)
+        val end = Offset(width * 0.65f, height * 0.35f)
+        onNodeWithTag("chart").performMouseInput {
+            moveTo(start)
+            press()
+            for (step in 1..10) moveTo(start + (end - start) * (step / 10f))
+            release()
+        }
+        waitForIdle()
+        val (left, right) = edgesAcross(0.5f)
+        val (top, bottom) = edgesUp(0.5f)
+        assertTrue(abs(left - start.x) <= 2f && abs(right - end.x) <= 2f, "across from ${start.x} to ${end.x}, not $left to $right")
+        assertTrue(abs(top - end.y) <= 2f && abs(bottom - start.y) <= 2f, "up from ${start.y} to ${end.y}, not $bottom to $top")
+    }
+
+    /** The first and last columns of the range's edge along the row [y] of the way down the chart. */
+    private fun ComposeUiTest.edgesAcross(y: Float): Pair<Float, Float> {
+        val pixels = onNodeWithTag("chart").captureToImage().toPixelMap()
+        val row = (pixels.height * y).toInt()
+        val edge = (0 until pixels.width).filter { near(pixels[it, row], Probe) }
+        assertTrue(edge.isNotEmpty(), "no range was drawn")
+        return edge.first().toFloat() to edge.last().toFloat() + 1f
+    }
+
+    /** The first and last rows of the range's edge down the column [x] of the way across the chart. */
+    private fun ComposeUiTest.edgesUp(x: Float): Pair<Float, Float> {
+        val pixels = onNodeWithTag("chart").captureToImage().toPixelMap()
+        val column = (pixels.width * x).toInt()
+        val edge = (0 until pixels.height).filter { near(pixels[column, it], Probe) }
+        assertTrue(edge.isNotEmpty(), "no range was drawn")
+        return edge.first().toFloat() to edge.last().toFloat() + 1f
+    }
+
+    private fun near(a: Color, b: Color) = abs(a.red - b.red) < 0.3f && abs(a.green - b.green) < 0.3f && abs(a.blue - b.blue) < 0.3f
+
+    private companion object {
+        val Probe = Color(0xFFFF00FF)
+        val Bars = Color(0xFF2060C0)
     }
 
     @Test

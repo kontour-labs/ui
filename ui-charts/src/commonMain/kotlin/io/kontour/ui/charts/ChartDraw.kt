@@ -118,9 +118,11 @@ private const val MarkedOpacity = 0.16f
 
 /**
  * A range the reader has marked, in the chart's own units: [from] and [to]
- * across, and for a box [upFrom] and [upTo] up.
+ * across, and for a box [upFrom] and [upTo] up. [whole] for one drawn out to
+ * the whole of the places at its ends, as one set by its values is among bars
+ * and categories; a drag's is drawn where the drag was.
  */
-internal class MarkedRange(val from: Double, val to: Double, val upFrom: Double?, val upTo: Double?)
+internal class MarkedRange(val from: Double, val to: Double, val upFrom: Double?, val upTo: Double?, val whole: Boolean = false)
 
 /** How strongly a selected place among bars is washed: enough to find, not enough to tint the bars it is behind. */
 private const val SelectionWashOpacity = 0.1f
@@ -246,11 +248,11 @@ internal fun DrawScope.drawChart(
     // A range marked by the reader, behind the marks as a region is, and
     // edged in the selection's colour at every tier: a region is the chart's
     // own, washed only, and this is the reader's, which they will want to see
-    // the bounds of as they drag them. Among bars and categories it takes the
-    // whole of the places at its ends.
+    // the bounds of as they drag them. One set by its values takes the whole
+    // of the places at its ends among bars and categories; a drag's ends are
+    // where the drag's were.
     if (marked != null) {
-        val whole = chart.x.kind == AxisKind.Category || chart.selectsBands
-        val half = if (whole) cellBand(chart.placeAxis, chart.step, m.unitX) / 2 else 0f
+        val half = if (marked.whole) cellBand(chart.placeAxis, chart.step, m.unitX) / 2 else 0f
         val a = m.px(marked.from)
         val b = m.px(marked.to)
         val upFrom = marked.upFrom
