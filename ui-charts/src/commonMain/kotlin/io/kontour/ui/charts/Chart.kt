@@ -443,10 +443,14 @@ private fun <X : Any, Y : Any> ChartPlot(
     val currentSelection by rememberUpdatedState(selection)
     val currentChart by rememberUpdatedState(chart)
     val currentDecode by rememberUpdatedState(decode)
+    // Only a chart that chooses places ticks as one is chosen: one that only
+    // marks ranges chose nothing, and ticked for it.
     val select: (Double) -> Unit = { place ->
-        currentDecode(place)?.let { x ->
+        val chosen = currentSelection
+        val x = currentDecode(place)
+        if (chosen != null && x != null) {
             ticker.at(currentChart.places.indexOfFirst { it == place })
-            currentSelection?.select(x)
+            chosen.select(x)
         }
     }
     val tip = rememberChartTip()
@@ -565,7 +569,10 @@ private fun <X : Any, Y : Any> ChartPlot(
         index = selectedIndex,
         count = chart.places.size,
         steps = ChartSteps.Along,
-        dragsAcross = true,
+        // A plain drag across chooses a place, so only on a chart that
+        // chooses one: on one that only marks ranges, which a finger does
+        // after a hold, it is the page's, and scrolls what the chart is in.
+        dragsAcross = selection != null,
         said = said,
         interactionSource = interactionSource,
         pickAt = { offset ->
@@ -575,7 +582,7 @@ private fun <X : Any, Y : Any> ChartPlot(
             }
             true
         },
-        pick = { index -> select(currentChart.places[index]) },
+        pick = if (selection != null) { index -> select(currentChart.places[index]) } else null,
         clear = { currentSelection?.clear() },
         brush = brush,
     )

@@ -13,6 +13,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -55,10 +56,11 @@ internal enum class ChartSteps { Along, Round }
 
 /**
  * Whether a chart's tooltip is out. Put away when the chart moves under it, by
- * a scroll or anything else, until the next thing is chosen: a tooltip left
- * where its place was is pointing at nothing. A pointer's first choice waits
- * [TooltipDefaults.HoverDelay] for it to rest, as every other tooltip does; a
- * touch's goes after [TooltipDefaults.TouchDuration], as every other does.
+ * a scroll or anything else, until the next thing is chosen or the same thing
+ * is chosen again: a tooltip left where its place was is pointing at nothing.
+ * A pointer's first choice waits [TooltipDefaults.HoverDelay] for it to rest,
+ * as every other tooltip does; a touch's goes after
+ * [TooltipDefaults.TouchDuration], as every other does.
  */
 @Stable
 internal class ChartTip {
@@ -75,6 +77,26 @@ internal class ChartTip {
     /** Puts the tooltip for [chosen] away, until something else is chosen. */
     fun putAway(chosen: Any?) {
         awayFrom = chosen
+    }
+
+    /**
+     * How many times a tap or a key has asked for the tooltip again: its time
+     * on a touch screen starts again from each, though what is chosen is the
+     * same.
+     */
+    var asked by mutableIntStateOf(0)
+        private set
+
+    /**
+     * Brings the tooltip back for whatever is chosen, by a tap or a key that
+     * chose it again. A tooltip timed out or put away stayed away until
+     * something else was chosen, so a tap on the same place again did nothing:
+     * the reader had to choose another place and come back. A resting mouse
+     * does not ask: one still over its place has had its tooltip already.
+     */
+    fun bringBack() {
+        awayFrom = NoChoice
+        asked++
     }
 
     /** Nothing put away yet: unlike `null`, which is a chart with nothing chosen. */
@@ -106,7 +128,9 @@ internal fun rememberChartTip(): ChartTip {
  *   upright start would be the page's scroll.
  * @param pickAt Chooses what is under a point, if anything, and says whether
  *   anything was: a pie's corners, outside its circle, have nothing.
- * @param pick Chooses the [index]th.
+ * @param pick Chooses the [index]th; `null` for a chart with nothing to
+ *   choose, one that only marks ranges, whose arrows, Home and End are then
+ *   left to what is round it.
  * @param brush How a range is marked, for a chart that marks one; see
  *   [ChartBrush].
  */
@@ -122,7 +146,7 @@ internal fun Modifier.chartSelectionInput(
     said: String?,
     interactionSource: MutableInteractionSource?,
     pickAt: (Offset) -> Boolean,
-    pick: (Int) -> Unit,
+    pick: ((Int) -> Unit)?,
     clear: () -> Unit,
     brush: ChartBrush? = null,
 ): Modifier {
@@ -157,6 +181,7 @@ internal fun Modifier.chartSelectionInput(
         .pointerInput(Unit) {
             detectTapGestures {
                 latestBrush?.clear?.invoke()
+                tip.bringBack()
                 latestTouched(it)
             }
         }
@@ -295,7 +320,11 @@ internal fun Modifier.chartSelectionInput(
                 }
             }
             val next = when (event.key) {
-                Key.DirectionRight -> if (rtl) at - 1 else at + 1
+                // From nothing, the way across the reading goes starts at its
+                // far end, Left left to right and Right right to left. Right
+                // to left it started from the first place, as Right does
+                // left to right.
+                Key.DirectionRight -> if (rtl) (if (at < 0) last else at - 1) else at + 1
                 Key.DirectionLeft -> if (rtl) at + 1 else if (at < 0) last else at - 1
                 // Round a circle the way it is drawn, with Down on and Up back.
                 Key.DirectionDown -> if (steps == ChartSteps.Round) at + 1 else return@onKeyEvent false
@@ -312,8 +341,13 @@ internal fun Modifier.chartSelectionInput(
                 }
                 else -> return@onKeyEvent false
             }
+            // Nothing to choose, on a chart that only marks ranges: the keys
+            // that move a choice are not the chart's, and go on to what is
+            // round it. They were taken, and did nothing.
+            val choose = pick ?: return@onKeyEvent false
             tip.resting = false
-            pick(
+            tip.bringBack()
+            choose(
                 when (steps) {
                     ChartSteps.Along -> next.coerceIn(0, last)
                     ChartSteps.Round -> if (next < 0) last else next % count
@@ -364,7 +398,7 @@ internal fun <T : Any> ChartTooltipProbe(
     body: @Composable ContentScope.() -> Unit,
 ) {
     val touch = LocalInputModality.current.needsLargeTargets
-    LaunchedEffect(chosen, tip.held, touch) {
+    LaunchedEffect(chosen, tip.held, touch, tip.asked) {
         if (touch && !tip.held) {
             delay(TooltipDefaults.TouchDuration)
             tip.putAway(chosen)

@@ -148,13 +148,20 @@ fun SectorChart(
     val animate = animateData && !motion.reduceMotion
     val sweep = remember { Animatable(if (animate) 0f else 1f) }
     val fractions = parts.map { if (total > 0) (it.value.coerceAtLeast(0.0) / total).toFloat() else 0f }
-    val previous = remember { mutableListOf<Pair<ChartSeries, Float>>() }
+    // Each part's share as it was last drawn, written as it draws: where a
+    // move to new shares starts. Not state: written in drawing, read once as
+    // a move begins.
+    //
+    // It was written once a sweep had finished, so a second change in the
+    // middle of one, two legend entries toggled quickly, swept from where the
+    // pie was before the first: it jumped back, and then moved.
+    val previous = remember { HashMap<ChartSeries, Float>() }
     // Keyed on what the parts are rather than on the list: recorded again for
     // a recomposition that changed nothing, they are a new list and the same
     // chart, and swept round again for it — a selection made in the first
     // sweep started it over.
     val shape = parts.map { it.series to it.value }
-    val from = remember(shape) { previous.toList() }
+    val from = remember(shape) { previous.toMap() }
     // Drawn from the start until the sweep has been put back to it. New parts
     // and their `from` arrive in the composition, the sweep's reset only once
     // the effect runs, and a frame between them drew the new shares at the
@@ -183,8 +190,6 @@ fun SectorChart(
         } else {
             sweep.snapTo(1f)
         }
-        previous.clear()
-        previous += drawn.map { (part, share) -> part.series to share }
     }
     val fade = rememberChartFade(animateData, empty = parts.isEmpty())
 
@@ -328,10 +333,14 @@ fun SectorChart(
                     val gap = ChartDefaults.SectorGap.toPx()
                     val t = if (restarting.value) 0f else sweep.value
                     var angle = -90f
+                    // Only what this frame draws: a part gone from the data
+                    // comes back, if it does, from nothing.
+                    previous.clear()
                     drawn.forEach { (part, share) ->
-                        val start = from.firstOrNull { it.first == part.series }?.second ?: 0f
-                        val fraction = start + (share - start) * t
-                        val extent = fraction * 360f * (if (from.isEmpty()) t else 1f)
+                        val start = from[part.series] ?: 0f
+                        val fraction = (start + (share - start) * t) * (if (from.isEmpty()) t else 1f)
+                        previous[part.series] = fraction
+                        val extent = fraction * 360f
                         if (extent <= 0f) return@forEach
                         // Hidden, or on its way out: not chosen, and not a node.
                         val index = parts.indexOf(part)
