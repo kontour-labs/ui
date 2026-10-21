@@ -92,6 +92,11 @@ On `main`, and in the next release.
   elsewhere. A chart's selection does.
 - **`Modifier.tooltip { … }`**: a tooltip's slots, an icon or a painter beside
   its words, from the modifier as well as the component.
+- **`Tooltip(style = TooltipStyle.Card)`**: a tooltip drawn as a small card,
+  on the raised surface a menu takes, edged and shadowed, standing off what it
+  is about with no arrow, for a few lines with figures in them. It opens on the
+  other side where it does not fit whole on its own. A chart's tooltip is one.
+  See [Tooltip](components/tooltip.md#a-card-to-read-off).
 - **A chart's references beside its data**: `region` shades and names a span,
   a launch's fortnight or everything after today; `band` fills a forecast's or
   a day's range between two values at each place; and a `rule` up the plot is
@@ -165,6 +170,9 @@ On `main`, and in the next release.
 - **`CalendarEvent` has a new parameter**, `pattern`, defaulted and last, so
   anything built against 0.4.5 recompiles; every call site still compiles as it
   is.
+- **`Tooltip` has a new parameter**, `style`, defaulted, before `content`, so
+  anything built against 0.4.5 recompiles. A call that passes its content as
+  the trailing lambda, as every one in these docs does, needs nothing.
 - **`Table` has a new parameter**, `narrowStickyColumns`, defaulted, after
   `stickyColumns`, so anything built against 0.4.5 recompiles. A call that
   names its arguments, as every one in these docs does, needs nothing; one that

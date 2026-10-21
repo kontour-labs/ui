@@ -20,7 +20,8 @@ from the version the app is on.
 Unreleased, and growing. `SystemIcons` is the theme's now, so code that named
 one of its glyphs changes; `Strings` has new fields and `CalendarEvent` a
 new parameter, each defaulted and last, `Table` a new one after
-`stickyColumns`, and the modal sheets one after `scrim`.
+`stickyColumns`, the modal sheets one after `scrim`, and `Tooltip` one before
+its content.
 Charts are a new module, which an app takes only if it wants them.
 
 ### `ModalBottomSheet` has `recedes` after `scrim`
@@ -98,6 +99,22 @@ To use another icon set's glyphs throughout, give the theme a set:
   the control itself. Pass `null` to keep the old look.
 - **A side sheet's back is a chevron**, `Theme.icons.chevronBack`, as a top
   bar's and a sheet header's are. It was the one arrow in the library.
+- **A `Tooltip` given its content by position.** `style` comes before
+  `content`, so a call that passed every argument by position, the content
+  last inside the parentheses, no longer compiles; pass the content as the
+  trailing lambda, or name it.
+
+  What compiled against 0.4.5, and does not now:
+
+  ```
+  Tooltip(open, Modifier, OverlaySide.Top, OverlayAlignment.Centre, {}, { +"Recentre" })
+  ```
+
+  And in 0.5.0:
+
+  ```kotlin
+  Tooltip(open, Modifier, OverlaySide.Top, OverlayAlignment.Centre, {}) { +"Recentre" }
+  ```
 
 ---
 

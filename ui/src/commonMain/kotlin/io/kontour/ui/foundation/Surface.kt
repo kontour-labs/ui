@@ -136,9 +136,11 @@ internal fun PassThroughSurface(
     shape: Shape,
     containerColour: Color,
     contentColour: Color,
+    border: BorderStroke? = null,
+    shadow: Shadow = Shadow.None,
     content: @Composable () -> Unit,
 ) = SurfaceBox(
-    modifier, shape, containerColour, contentColour, border = null, shadow = Shadow.None,
+    modifier, shape, containerColour, contentColour, border, shadow,
     contentAlignment = Alignment.TopStart, propagateMinConstraints = false, Presses.PassedThrough, content,
 )
 

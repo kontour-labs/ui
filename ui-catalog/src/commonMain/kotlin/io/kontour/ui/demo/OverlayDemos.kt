@@ -77,6 +77,7 @@ import io.kontour.ui.overlay.ToastHost
 import io.kontour.ui.overlay.ToastPosition
 import io.kontour.ui.theme.Tone
 import io.kontour.ui.overlay.Tooltip
+import io.kontour.ui.overlay.TooltipStyle
 import io.kontour.ui.overlay.rememberToastHostState
 import io.kontour.ui.overlay.tooltip
 import io.kontour.ui.theme.Theme
@@ -371,8 +372,12 @@ internal val ContextMenuAreaDemo = ComponentDemo(slug = "context-menu-area") {
     }
 }
 
-internal val TooltipDemo = ComponentDemo(slug = "tooltip") {
+/** The bubble, or a card for something to read off. */
+private val tooltipStyle = Knob.Choice("Style", TooltipStyle.entries.toList(), TooltipStyle.Plain)
+
+internal val TooltipDemo = ComponentDemo(slug = "tooltip", knobs = listOf(tooltipStyle)) {
     var open by remember { mutableStateOf(false) }
+    val style = this[tooltipStyle]
     Stage {
         Column(
             modifier = Modifier.align(Alignment.Center),
@@ -387,7 +392,7 @@ internal val TooltipDemo = ComponentDemo(slug = "tooltip") {
                 )
                 // The bubble's slots: an icon beside the words, sized and inked
                 // as the bubble's own.
-                Tooltip(visible = open) {
+                Tooltip(visible = open, style = style) {
                     +Tabler.Outline.Star
                     +"Saved trips show on Home"
                 }
