@@ -35,6 +35,7 @@ import androidx.compose.ui.semantics.CollectionItemInfo
 import androidx.compose.ui.semantics.collectionInfo
 import androidx.compose.ui.semantics.collectionItemInfo
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.selected
@@ -89,7 +90,8 @@ import kotlin.math.sqrt
  * the centre and is outlined, so it is told apart by its shape as well as its
  * ink, and the tooltip says its value and share.
  *
- * @param enabled Off, the chart cannot be selected from, and is still read.
+ * @param enabled Off, the chart cannot be selected from, nor a sector hidden
+ *   from its legend, and it is still read, its chosen sector with it.
  * @param selection Which sector is chosen, by its series. Null, the default, is
  *   a picture with a description.
  * @param seriesVisibility Which sectors are shown. A chart given one makes each
@@ -240,6 +242,7 @@ fun SectorChart(
                 colours = colours,
                 patterns = patterns,
                 stacked = legendPosition == ChartLegendPosition.Start || legendPosition == ChartLegendPosition.End,
+                enabled = enabled,
                 visibility = seriesVisibility,
             )
         }
@@ -391,13 +394,16 @@ fun SectorChart(
                             Modifier.semantics {
                                 this.contentDescription = shares[index]
                                 collectionItemInfo = CollectionItemInfo(rowIndex = index, rowSpan = 1, columnIndex = 0, columnSpan = 1)
+                                // Said chosen whether or not it can be chosen
+                                // again, as a [Chart]'s place is.
+                                if (selection != null) selected = index == chosen
                                 if (interactive) {
-                                    selected = index == chosen
                                     onClick {
                                         choose(index)
                                         true
                                     }
                                 }
+                                if (!enabled && selection != null) disabled()
                             },
                         )
                     }

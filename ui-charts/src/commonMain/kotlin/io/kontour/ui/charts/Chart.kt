@@ -27,6 +27,7 @@ import androidx.compose.ui.semantics.CollectionItemInfo
 import androidx.compose.ui.semantics.collectionInfo
 import androidx.compose.ui.semantics.collectionItemInfo
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.selected
@@ -83,7 +84,9 @@ import kotlin.math.roundToInt
  *
  * @param xAxis The axis across: what the content's `x` values are.
  * @param yAxis The axis up: what its `y` values are.
- * @param enabled Whether a reader can select. A chart is drawn the same either way.
+ * @param enabled Whether a reader can select, mark a range and hide a series
+ *   from the legend. A chart is drawn the same either way, and what is chosen
+ *   on it is still said, with each place marked unavailable.
  * @param endYAxis A second axis up, down the end edge of the plot, for what
  *   the content puts [on it][ChartScope.onEndAxis]: a series in other units,
  *   with its own scale and labels. Its ticks are the start axis's in number,
@@ -180,6 +183,7 @@ fun <X : Any, Y : Any> Chart(
                     colours = colours,
                     patterns = patterns,
                     stacked = legendPosition == ChartLegendPosition.Start || legendPosition == ChartLegendPosition.End,
+                    enabled = enabled,
                     scale = chart.cells,
                     visibility = seriesVisibility,
                 )
@@ -595,13 +599,17 @@ private fun <X : Any, Y : Any> ChartPlot(
                     Modifier.semantics {
                         contentDescription = place.text
                         collectionItemInfo = CollectionItemInfo(rowIndex = index, rowSpan = 1, columnIndex = 0, columnSpan = 1)
+                        // What is chosen is said whether or not it can be
+                        // chosen again: drawn chosen on a disabled chart, it
+                        // was said as nothing.
+                        if (selection != null) selected = place.places.any { it == selectedPlace }
                         if (interactive && selection != null) {
-                            selected = place.places.any { it == selectedPlace }
                             onClick {
                                 select(place.places.first())
                                 true
                             }
                         }
+                        if (!enabled && (selection != null || rangeSelection != null)) disabled()
                     },
                 )
             }

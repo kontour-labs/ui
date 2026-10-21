@@ -4,7 +4,6 @@ import io.kontour.ui.interaction.rememberToggleFeedback
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.input.focusRing
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.draw.alpha
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.key
 import androidx.compose.foundation.selection.toggleable
@@ -46,8 +45,9 @@ import io.kontour.ui.theme.Theme
  * Kept out of what a screen reader hears, which names every series already in
  * the chart's summary; read again, the legend would be the same words twice.
  * Except with a [visibility] to answer to: then each entry is a switch, read as
- * one — "Route 950, checkbox, checked" — and a hidden series' entry stays,
- * faded, to be shown again.
+ * one — "Route 950, checkbox, checked" — and a hidden series' entry stays, its
+ * swatch an empty outline and its name in the muted ink, to be shown again.
+ * Off while the chart is not [enabled], as the chart is: it hides nothing.
  */
 @Composable
 internal fun ChartLegend(
@@ -55,6 +55,7 @@ internal fun ChartLegend(
     colours: ChartColours,
     patterns: Boolean,
     stacked: Boolean,
+    enabled: Boolean,
     scale: CellScale? = null,
     visibility: ChartSeriesVisibility? = null,
 ) {
@@ -62,6 +63,7 @@ internal fun ChartLegend(
     val spacing = Theme.spacing
     val toggled = rememberToggleFeedback()
     val focusShape = Theme.shapes.extraSmall
+    val muted = Theme.colours.contentMuted
     val item: @Composable (ChartSeries) -> Unit = { series ->
         val shown = visibility?.isShown(series) ?: true
         val interactions = remember { MutableInteractionSource() }
@@ -77,11 +79,12 @@ internal fun ChartLegend(
             // finger's reach without the room. See `ChartSeriesVisibilityTest`.
             Modifier
                 .focusRing(interactions, focusShape)
-                .pointerCursor()
+                .then(if (enabled) Modifier.pointerCursor() else Modifier)
                 .toggleable(
                     value = shown,
                     interactionSource = interactions,
                     indication = null,
+                    enabled = enabled,
                     role = Role.Checkbox,
                     onValueChange = { on ->
                         toggled(on)
@@ -89,13 +92,16 @@ internal fun ChartLegend(
                     },
                 )
         }
+        // A hidden series is told by its swatch, an outline with nothing in
+        // it, and its name stays to be read, in the muted ink. The whole entry
+        // was faded to 38%, its name with it, to under 3:1 on the page.
         Row(
-            toggle.then(if (shown) Modifier else Modifier.alpha(HiddenAlpha)),
+            toggle,
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(spacing.xxs),
         ) {
-            SeriesSwatch(model, series, colours, patterns)
-            Text(series.name, style = Theme.typography.labelMedium)
+            SeriesSwatch(model, series, colours, patterns, shown = shown)
+            Text(series.name, colour = if (shown) Color.Unspecified else muted, style = Theme.typography.labelMedium)
         }
     }
     val hidden = Modifier.clearAndSetSemantics { }
@@ -142,14 +148,27 @@ private fun ScaleKey(scale: CellScale, ramp: List<Color>) {
 /**
  * A series' key, drawn the way the series is — a dash of its line with its
  * symbol, or a square of its fill — for the legend and a tooltip's rows alike,
- * so that a series is told by the same mark wherever it is named.
+ * so that a series is told by the same mark wherever it is named. Not [shown],
+ * hidden from the chart by its legend, it is the same shape's outline in the
+ * series' colour, with nothing in it: there to be shown again, and plainly off.
  */
 @Composable
-internal fun SeriesSwatch(model: ChartModel, series: ChartSeries, colours: ChartColours, patterns: Boolean) {
+internal fun SeriesSwatch(model: ChartModel, series: ChartSeries, colours: ChartColours, patterns: Boolean, shown: Boolean = true) {
+    // A hidden series' mark is gone from the model the chart draws, but not
+    // from the legend's, which is the whole.
     val mark = model.marks.firstOrNull { mark -> mark.runs.any { it.series == series } }
     val look = lookOf(model.slotOf(series), colours.series, patterns, mark?.style, series.style)
     // Read once: a series with no mark yet has a square swatch, as a bar's.
     val kind = mark?.kind
+    if (!shown) {
+        val line = kind == MarkKind.Line || kind == MarkKind.Point
+        Box(
+            Modifier
+                .size(width = if (kind == MarkKind.Line) LineSwatchWidth else SwatchSize, height = SwatchSize)
+                .border(Theme.sizing.borderWidthStrong, look.colour, if (line) Theme.shapes.capsule else SwatchShape),
+        )
+        return
+    }
     if (mark == null || (kind != MarkKind.Line && kind != MarkKind.Point)) {
         FillSwatch(look, colours)
         return
@@ -214,9 +233,6 @@ internal fun ShadeSwatch(shade: Color) {
             .then(if (edge != null) Modifier.border(edge, shape) else Modifier),
     )
 }
-
-/** How faint a hidden series' entry is drawn: there, to be shown again, and plainly not on the chart. */
-private const val HiddenAlpha = 0.38f
 
 /**
  * A legend's swatch: the size of a small label's capital letters, so it sits

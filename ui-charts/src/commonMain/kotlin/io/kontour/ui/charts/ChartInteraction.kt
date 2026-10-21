@@ -152,7 +152,8 @@ internal fun Modifier.chartSelectionInput(
 ): Modifier {
     val source = interactionSource ?: remember { MutableInteractionSource() }
     val latestBrush by rememberUpdatedState(brush)
-    if (!enabled) return this
+    // Off, it takes nothing, and still says what is chosen and marked on it.
+    if (!enabled) return if (said != null) semantics { stateDescription = said } else this
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     // The gestures are keyed on nothing that changes, and read these as they
     // are now. Keyed on the chart, a gesture was torn down whenever it was
