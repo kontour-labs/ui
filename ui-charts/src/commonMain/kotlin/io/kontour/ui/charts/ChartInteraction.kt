@@ -126,6 +126,9 @@ internal fun rememberChartTip(): ChartTip {
  * @param dragsAcross Whether a plain drag across chooses too, without a hold
  *   first: a row of places is crossed that way, and a circle is not, where an
  *   upright start would be the page's scroll.
+ * @param selectsOnHover Whether a resting mouse chooses what it is over. Off,
+ *   a mouse chooses by a click, as a finger does by a tap, and moving over the
+ *   chart chooses nothing and lets go of nothing.
  * @param pickAt Chooses what is under a point, if anything, and says whether
  *   anything was: a pie's corners, outside its circle, have nothing.
  * @param pick Chooses the [index]th; `null` for a chart with nothing to
@@ -143,6 +146,7 @@ internal fun Modifier.chartSelectionInput(
     count: Int,
     steps: ChartSteps,
     dragsAcross: Boolean,
+    selectsOnHover: Boolean,
     said: String?,
     interactionSource: MutableInteractionSource?,
     pickAt: (Offset) -> Boolean,
@@ -162,11 +166,15 @@ internal fun Modifier.chartSelectionInput(
     val latestPickAt by rememberUpdatedState(pickAt)
     val latestClear by rememberUpdatedState(clear)
     val latestChosen by rememberUpdatedState(chosen)
+    val latestSelectsOnHover by rememberUpdatedState(selectsOnHover)
     val touched: (Offset) -> Unit = { offset ->
         tip.resting = false
         latestPickAt(offset)
     }
     val latestTouched by rememberUpdatedState(touched)
+    // Where a mouse's button went down on a chart that marks ranges, while it
+    // is down: from there a drag is the range's. See the pointer's own loop.
+    val mouse = remember { MousePress() }
     return this
         // A tap elsewhere lets go, as a tap elsewhere puts any tooltip away;
         // it still presses whatever it was aimed at.
@@ -189,7 +197,13 @@ internal fun Modifier.chartSelectionInput(
         .then(
             if (dragsAcross) {
                 Modifier.pointerInput(Unit) {
-                    detectHorizontalDragGestures(onDragStart = { latestTouched(it) }) { change, _ ->
+                    // Not a mouse's, on a chart that marks ranges: its drag is
+                    // the range's from the press, and this one, starting
+                    // sooner, moved the place under it until the range took
+                    // over, so the first stretch of every range drew the
+                    // selected place's line and tooltip under the pointer.
+                    detectHorizontalDragGestures(onDragStart = { if (mouse.at == null) latestTouched(it) }) { change, _ ->
+                        if (mouse.at != null) return@detectHorizontalDragGestures
                         change.consume()
                         latestTouched(change.position)
                     }
@@ -218,8 +232,8 @@ internal fun Modifier.chartSelectionInput(
             // which it lets go of as it leaves.
             var hovering = false
             // A mouse marks a range by dragging: where the button went down,
-            // and whether it has moved far enough from there to be marking.
-            var downAt: Offset? = null
+            // in [mouse], and whether it has moved far enough from there to be
+            // marking.
             var marking = false
             awaitPointerEventScope {
                 while (true) {
@@ -233,7 +247,7 @@ internal fun Modifier.chartSelectionInput(
                     }
                     when (event.type) {
                         PointerEventType.Press -> if (latestBrush != null && event.buttons.isPrimaryPressed) {
-                            downAt = change.position
+                            mouse.at = change.position
                         }
                         PointerEventType.Release -> {
                             if (marking) {
@@ -241,12 +255,12 @@ internal fun Modifier.chartSelectionInput(
                                 change.consume()
                             }
                             marking = false
-                            downAt = null
+                            mouse.at = null
                         }
                         // Arriving as much as moving: the event a pointer
                         // crossing onto the chart brings is an enter.
                         PointerEventType.Enter, PointerEventType.Move -> {
-                            val from = downAt
+                            val from = mouse.at
                             val ranges = latestBrush
                             if (from != null && ranges != null && change.pressed) {
                                 if (!marking && (change.position - from).getDistance() > viewConfiguration.touchSlop) {
@@ -261,6 +275,24 @@ internal fun Modifier.chartSelectionInput(
                                     continue
                                 }
                             }
+                            // A pointer that does not choose by hovering is only a
+                            // pointer: it chooses with a click, as a finger does
+                            // with a tap. It was the place under it whatever
+                            // the chart said, so a chart that marks ranges drew
+                            // its bar and its tooltip wherever a drag was about
+                            // to start or had just ended: *"how do i disable the
+                            // hover bar that comes up in charts? even if i turn
+                            // tooltips off, it's still on"*.
+                            //
+                            // Nor while its button is down on a chart that marks
+                            // ranges, short of the drag that marks one: it is a
+                            // click on its way or the start of a drag, and the
+                            // place under it moving with it fought the range.
+                            if (!latestSelectsOnHover) {
+                                hovering = false
+                                continue
+                            }
+                            if (from != null) continue
                             // A pointer arriving rests before the tooltip shows; one
                             // already showing moves with it.
                             if (latestChosen == null) tip.resting = true
@@ -359,6 +391,11 @@ internal fun Modifier.chartSelectionInput(
         .focusRing(source, shape = Theme.shapes.small)
         .focusable(enabled = true, interactionSource = source)
         .semantics { if (said != null) stateDescription = said }
+}
+
+/** Where a mouse's button went down on a chart, while it is down; `null` while it is not. Not state: written and read by the gestures. */
+private class MousePress {
+    var at: Offset? = null
 }
 
 /**

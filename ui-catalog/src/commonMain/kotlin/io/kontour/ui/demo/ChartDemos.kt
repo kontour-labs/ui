@@ -52,6 +52,21 @@ private val chartReferences = Knob.Flag("References", initial = true)
 private val chartHides = Knob.Flag("Legend hides series", initial = true)
 private val chartMarks = Knob.Flag("Mark a range")
 
+// Whether a pointer resting over a place selects it: the chart's own choice
+// by default, which is not to while it marks ranges, or either way to try
+// the other. A switch could only show one of the two the default is.
+private val chartHover = Knob.Choice<Boolean?>(
+    "Hover",
+    listOf(null, true, false),
+    name = { hover ->
+        when (hover) {
+            null -> "Selects, unless marking"
+            true -> "Selects"
+            false -> "Selects nothing"
+        }
+    },
+)
+
 // A box wants a measure both ways, so it is the points' alone, on their two
 // number axes; every other chart here is across months, where a box is a
 // range across, and the knob offered one that did nothing different.
@@ -129,6 +144,7 @@ internal val ChartDemo = ComponentDemo(
         chartHides,
         chartMarks,
         chartRangeMode,
+        chartHover,
     ),
 ) {
     var seed by remember { mutableIntStateOf(0) }
@@ -157,6 +173,9 @@ internal val ChartDemo = ComponentDemo(
     val pointSelection = rememberChartSelectionState<Number>()
     val pointRange = rememberChartRangeSelectionState<Number, Number>(this[chartRangeMode])
     val marks = this[chartMarks]
+    // The chart's default spelled out, since a knob cannot leave a parameter out.
+    val hoverChoice = this[chartHover]
+    val hover = hoverChoice ?: !marks
     val spacing = Theme.spacing
     val formats = Theme.formats
     val busy = remember(data, seed) { busyFor(data, seed) }
@@ -178,6 +197,7 @@ internal val ChartDemo = ComponentDemo(
                 showSelectionTooltip = tooltip,
                 animateData = animated,
                 selection = selection,
+                selectsOnHover = hoverChoice ?: true,
             ) {
                 cell(data, x = { it.month }, y = { it.route }, value = { it.riders })
             }
@@ -209,6 +229,7 @@ internal val ChartDemo = ComponentDemo(
                 yAxis = ChartAxis.number(title = "Trip, minutes"),
                 modifier = chartModifier,
                 selection = selection,
+                selectsOnHover = hoverChoice ?: true,
                 contentDescription = "Trip times by month",
                 legendPosition = legendPosition,
                 showLegend = showLegend,
@@ -233,6 +254,7 @@ internal val ChartDemo = ComponentDemo(
                 modifier = chartModifier,
                 selection = pointSelection,
                 rangeSelection = pointRange.takeIf { marks },
+                selectsOnHover = hover,
                 contentDescription = "Riders against trip time, a month a point",
                 legendPosition = legendPosition,
                 showLegend = showLegend,
@@ -264,6 +286,7 @@ internal val ChartDemo = ComponentDemo(
                 modifier = chartModifier,
                 selection = selection,
                 rangeSelection = range.takeIf { marks },
+                selectsOnHover = hover,
                 contentDescription = "Riders by month",
                 legendPosition = legendPosition,
                 showLegend = showLegend,

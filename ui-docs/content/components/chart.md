@@ -386,6 +386,39 @@ Chart(
 `showSelectionTooltip = false` keeps the selection and its highlight with no
 card, for a page that says the selected values somewhere of its own.
 
+### Selecting by hovering, or by clicking
+
+A pointer resting over a place selects it, and the selection follows the
+pointer across the chart. `selectsOnHover = false` leaves it to a click, as a
+finger leaves it to a tap: moving across the chart then selects nothing and
+lets go of nothing, and the selected place, its highlight and its tooltip stay
+where the click put them. The keys and a screen reader choose as they always
+do. A `SectorChart` takes the same switch.
+
+<!--sample:ChartSelectOnClick-->
+```kotlin
+// A pointer selects a day by clicking it, as a finger does by tapping:
+// moving across the chart leaves the selected day where it is.
+val selection = rememberChartSelectionState<LocalDate>()
+Chart(
+    xAxis = ChartAxis.date(),
+    yAxis = ChartAxis.number(title = "Riders"),
+    modifier = Modifier.fillMaxWidth().height(220.dp),
+    selection = selection,
+    selectsOnHover = false,
+    contentDescription = "Riders this week, by route",
+) {
+    line(week, x = { it.day }, y = { it.riders }, series = { ChartSeries("Route ${it.route}") })
+}
+```
+
+It is off by default on a chart that also marks a range, below. There a
+pointer is mostly dragging, and the place under it was selected wherever a
+drag was about to start or had just let go, its line and tooltip over the
+range being marked. Pass `selectsOnHover = true` to have both. While the
+button is down on such a chart, moving the pointer never selects a place: it
+is a click on its way, or the start of a range.
+
 ### Marking a range
 
 Give a chart a `rememberChartRangeSelectionState()` as its `rangeSelection`

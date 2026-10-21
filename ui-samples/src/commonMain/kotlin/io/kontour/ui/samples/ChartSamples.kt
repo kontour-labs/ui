@@ -194,6 +194,23 @@ fun ChartCustomTooltip() {
 }
 
 @Composable
+fun ChartSelectOnClick() {
+    // A pointer selects a day by clicking it, as a finger does by tapping:
+    // moving across the chart leaves the selected day where it is.
+    val selection = rememberChartSelectionState<LocalDate>()
+    Chart(
+        xAxis = ChartAxis.date(),
+        yAxis = ChartAxis.number(title = "Riders"),
+        modifier = Modifier.fillMaxWidth().height(220.dp),
+        selection = selection,
+        selectsOnHover = false,
+        contentDescription = "Riders this week, by route",
+    ) {
+        line(week, x = { it.day }, y = { it.riders }, series = { ChartSeries("Route ${it.route}") })
+    }
+}
+
+@Composable
 fun ChartRangeSelection() {
     // Drag across the week to mark some days, and say what they came to.
     val range = rememberChartRangeSelectionState<LocalDate, Number>()
