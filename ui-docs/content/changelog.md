@@ -155,12 +155,14 @@ window — see **Changed**.
   still move the row. And a sideways scroll keeps the whole of itself: its ups
   and downs no longer scroll the list out from under the row being swiped,
   until it has been let go of.
-- **Swipe actions are calmer on a trackpad.** A Mac's pan and a browser's
-  pixel scroll move the row at `SwipeActionsDefaults.TrackpadGain`, 0.6, not
-  pixel for pixel, so a small flick no longer carries it past its actions; a
-  pan or scroll is the row's only once it has gone a whole touch slop and
-  twice as far across as up or down; and a pan let go is thrown open only at
-  1200dp/s. A mouse wheel's notches are as they were.
+- **Swipe actions are calmer on a trackpad.** A pan, a browser's pixel scroll,
+  and on the desktop a Mac's trackpad, which comes as fractions of a wheel's
+  notch and was moving the row two and a half times as far as a list, now
+  follow the fingers as a list on that platform scrolls, at
+  `SwipeActionsDefaults.TrackpadGain`, 0.6, so a small flick no longer carries
+  it past its actions; a pan or scroll is the row's only once it has gone a
+  whole touch slop and twice as far across as up or down; and a pan let go is
+  thrown open only at 1200dp/s. A mouse wheel's notches are as they were.
 - **A pointer passing over something plays no haptic.** A mouse or trackpad
   moving over a chart, a pie or anything else with no button down is silent,
   where a Mac's trackpad ticked under each place. A click, and a drag with the
@@ -323,10 +325,12 @@ window — see **Changed**.
   chart, or with `ChartRangeMode.Box` a box across and up for a scatter plot's
   points: a pointer drags, a finger holds and then drags, marking from exactly
   where it started to where it stops on any chart, and Shift and the arrows
-  stretch one a place at a time from the selected place, or the first. Along
-  categories it reports the categories it reaches into, and on a date axis the
-  day each end falls in. A chart with only a range leaves plain drags and the
-  arrows to the page. A tap, on the chart or off it, or Escape lets go, a
+  stretch one a place at a time from the selected place, or the first. Lines,
+  areas and bands are whole exactly to its edges and points only where they are
+  inside it, while bars, box plots, cells and rectangles are taken where it
+  reaches into them; along categories it reports the same, and on a date axis
+  the day each end falls in. A chart with only a range leaves plain drags and
+  the arrows to the page. A tap, on the chart or off it, or Escape lets go, a
   screen reader hears it with the place, and its words are
   `ChartStrings.selectedRange` and `selectedBox`. Optional, and separate from
   `selection`. While a range is marked, the marks outside it fade to 60%, 80%
@@ -335,7 +339,7 @@ window — see **Changed**.
   [Chart](components/chart.md#marking-a-range).
 - **`SwipeActionsDefaults.TrackpadGain`**, how far a trackpad's pan or a
   browser's pixel scroll moves a swiped row for each pixel it scrolls.
-- **`selectsOnHover`** on `Chart` and `SectorChart`: off, a pointer chooses a
+- **`selectOnHover`** on `Chart` and `SectorChart`: off, a pointer chooses a
   place by clicking, and moving over the chart chooses nothing. It is off by
   default on a `Chart` that also marks ranges, where the hover's bar sat where
   every drag starts, and while a mouse button is down on such a chart the
