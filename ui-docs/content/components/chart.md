@@ -295,7 +295,9 @@ Chart(
 end at the most, with a scale under the plot. With `showPatterns`, the default,
 each cell has its number written in it too, so it isn't read by its shade
 alone. A reader hears a column at a time, "Mon: 6am, 120, 7am, 340 and 8am,
-410", and `ChartDataTable` has a row for each column.
+410", and `ChartDataTable` has a row for each column. The axis across can be a
+date or a number axis as well: a calendar of weeks across and the days of the
+week up is read a week at a time, each week with its own days.
 
 <!--sample:ChartHeatMap-->
 ```kotlin
@@ -338,8 +340,11 @@ Chart(
 Give a chart a `rememberChartSelectionState()` and it is interactive. A tap or
 a drag selects the nearest place along it, a pointer selects what it is over,
 and with focus the arrow keys move between places, Home and End jump to the
-ends, and Escape clears. Everything at the selected place is selected together,
-every series' value there, and the chart shows it in a tooltip.
+ends, and Escape clears. With nothing selected, Left starts from the last
+place, and so does Right in a right-to-left language. Everything at the
+selected place is selected together, every series' value there, and the chart
+shows it in a tooltip. A finger's tooltip goes a few seconds after it lifts,
+and a tap on the same place brings it back.
 `selection.x` is the selected value.
 
 The tooltip is a card beside the selected place: the place, quietly, over a
@@ -387,11 +392,17 @@ Give a chart a `rememberChartRangeSelectionState()` as its `rangeSelection`
 and a reader can mark a stretch of it: a pointer by dragging across it, a
 finger by holding and then dragging, since a plain drag across moves the
 selected place, and the keyboard with Shift and the arrows, stretching a range
-a place at a time from the selected one. A tap lets go of it, and so does
-Escape, before it lets go of the place. Along categories, or among bars, a
-range is of whole places. It is drawn behind the marks, edged in the
-selection's colour, and a screen reader hears it after the selected place:
-"Selected Feb to Apr".
+a place at a time from the selected one, or from the first. A tap lets go of
+it, and so does Escape, before it lets go of the place. A drag marks from
+exactly where it went down to where it was let go, on any chart, and a box,
+where both axes are measures, both ways: `xStart` and `xEnd` are the
+categories whose bands it reaches into, or on a date axis the days its ends
+fall in. A range set with `select`, or stretched by the keys, is of whole
+places along categories and among bars. It is drawn behind the marks, edged in
+the selection's colour, and a screen reader hears it after the selected place:
+"Selected Feb to Apr". A chart with a range selection and no `selection`
+chooses no place, so a plain drag across it is the page's and scrolls what it
+is in, and the arrows, Home and End go on to what is round it.
 
 <!--sample:ChartRangeSelection-->
 ```kotlin
@@ -447,8 +458,9 @@ answers a tap, a drag, a pointer or a key, it takes no focus, and it shows no
 tooltip, so a page of small charts scrolls and tabs past them as it does past
 text. A screen reader still hears all of it: the summary, then each place and
 its values. `enabled = false` does the same for a chart that has a selection
-it should not change for now. The legend's switches are a separate choice, made
-with `seriesVisibility`.
+it should not change for now, and turns its legend's switches off with it.
+What is selected stays drawn, and said, each place marked unavailable. The
+legend's switches are a separate choice, made with `seriesVisibility`.
 
 ## Two axes up
 
@@ -500,9 +512,10 @@ in a chart that had none, loading say, and a series added later rises from its
 baseline while the rest move. A change of data moves from the old chart to
 the new one. A bar for March becomes the new bar for March, and a line of
 twelve points becomes one of thirty by being read at the new places, so
-nothing jumps. The plot's edges move with it: when the axis's labels grow a
-digit, the plot narrows over the same move rather than jumping across.
-`animateData = false` draws each chart at once.
+nothing jumps. Points and rectangles, which have no baseline, fade in, and a
+rectangle moves by both its corners. The plot's edges move with it: when the
+axis's labels grow a digit, the plot narrows over the same move rather than
+jumping across. `animateData = false` draws each chart at once.
 
 A stack rises as one, from its foot, and a new place's stack does too. Moving
 between ways of drawing the same data keeps every mark where it can be
@@ -511,7 +524,10 @@ they come down; a stack turned to shares takes its percent axis at once and
 each part moves to its share; and a series drawn as bars, then as a line or an
 area, fades from one to the other, the line going to the bars' tops and from
 them, while a stack holds its place. Along a date or number axis a place that
-has gone goes down to its foot as the axis closes in, rather than vanishing.
+has gone goes down to its foot as the axis closes in, rather than vanishing,
+and every bar is as wide as the chart's closest places allow, whichever series
+it is in: a series with a bar a week stacked on daily ones is as wide as they
+are.
 
 ## `SectorChart`
 
@@ -633,9 +649,11 @@ left of the place, or to its right where it does not fit, with each value at
 the card's left end.
 
 **At 200% text**, tick labels that would touch are thinned out evenly and never
-turned on their side, and the legend wraps.
+turned on their side, and the legend wraps. A label that is kept says its date,
+or a month its year, wherever that has changed since the label kept before it.
 
 The words a chart says on its own are `ChartStrings`, English by default. Build
 your own with `ChartStrings.from(lookup)` over the same `StringLookup` you give
-`Strings.from`, and provide it with `LocalChartStrings`. Among them is
-`total`, the word over a stack's total in the tooltip.
+`Strings.from`, remembered by locale, and provide it with `LocalChartStrings`;
+`python3 docs/export-strings.py` writes their English with the library's for a
+translator. Among them is `total`, the word over a stack's total in the tooltip.
