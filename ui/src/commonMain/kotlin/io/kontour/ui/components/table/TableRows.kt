@@ -26,6 +26,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
@@ -37,6 +38,7 @@ import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.IntrinsicMeasurable
@@ -589,35 +591,46 @@ private class StartOf(private val width: Int) : Shape {
  * a cut title fades: whatever is in the cell, its text and its icons alike.
  * Only while they are narrowed, when the group is drawn on a layer of its own
  * for the fade to cut into; never at rest.
+ *
+ * One ramp a pixel wide, made once for the node and stretched over each cut,
+ * rather than a gradient made for each pinned column on every frame: the cuts
+ * move on every frame of a scroll across, and the ramp's ends were all that
+ * changed.
  */
-private fun Modifier.fadedWhereCut(columns: TableColumnsLayout, narrowing: State<Float>): Modifier =
-    graphicsLayer {
+private fun Modifier.fadedWhereCut(columns: TableColumnsLayout, narrowing: State<Float>): Modifier {
+    return graphicsLayer {
         compositingStrategy = if (narrowing.value > 0f) CompositingStrategy.Offscreen else CompositingStrategy.Auto
-    }.drawWithContent {
-        drawContent()
-        val fraction = narrowing.value
-        if (fraction <= 0f) return@drawWithContent
+    }.drawWithCache {
         val ltr = layoutDirection == LayoutDirection.Ltr
+        val ramp = Brush.horizontalGradient(
+            colors = if (ltr) listOf(Color.Black, Color.Transparent) else listOf(Color.Transparent, Color.Black),
+            startX = 0f,
+            endX = 1f,
+        )
         val reach = CutFade.toPx()
-        for (index in 0 until columns.pinned) {
-            val shown = columns.shownWidth(index, fraction)
-            if (shown >= columns.widths[index]) continue
-            val end = (columns.shownStart(index, fraction) + shown).toFloat()
-            val from = end - minOf(reach, shown.toFloat())
-            val left = if (ltr) from else size.width - end
-            val right = if (ltr) end else size.width - from
-            drawRect(
-                brush = Brush.horizontalGradient(
-                    colors = if (ltr) listOf(Color.Black, Color.Transparent) else listOf(Color.Transparent, Color.Black),
-                    startX = left,
-                    endX = right,
-                ),
-                topLeft = Offset(left, 0f),
-                size = Size(right - left, size.height),
-                blendMode = BlendMode.DstIn,
-            )
+        val height = size.height
+        onDrawWithContent {
+            drawContent()
+            val fraction = narrowing.value
+            if (fraction <= 0f) return@onDrawWithContent
+            for (index in 0 until columns.pinned) {
+                val shown = columns.shownWidth(index, fraction)
+                if (shown >= columns.widths[index]) continue
+                val end = (columns.shownStart(index, fraction) + shown).toFloat()
+                val from = end - minOf(reach, shown.toFloat())
+                val left = if (ltr) from else size.width - end
+                val right = if (ltr) end else size.width - from
+                if (right <= left) continue
+                withTransform({
+                    translate(left = left)
+                    scale(scaleX = right - left, scaleY = 1f, pivot = Offset.Zero)
+                }) {
+                    drawRect(brush = ramp, size = Size(1f, height), blendMode = BlendMode.DstIn)
+                }
+            }
         }
     }
+}
 
 /** How far in from where it is cut a narrowed pinned cell fades out. */
 private val CutFade = 16.dp

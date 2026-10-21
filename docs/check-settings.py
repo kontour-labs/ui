@@ -340,6 +340,8 @@ MOVEMENT_ALLOWED = {
     "Backdrop.kt:drawAround": "draws the band round a receding page at the scale the page is already at; "
     "the recede is zero under reduced motion, see `resolvedInset`",
     "Indication.kt:draw": "the press wash's scale, drawn inside the control's own bounds",
+    "TableRows.kt:fadedWhereCut": "stretches one fade over the cut end of each narrowed pinned column; "
+    "the narrowing follows the scroll the reader is making",
     # Small by construction: inside the control's own bounds, a few pixels.
     "IconButton.kt:IconButtonSurface": "an icon's own turn inside its button, as a toggle's state",
     "LoadingSwap.kt:LoadingSwap": "a label shrinking into a spinner inside the same button",
