@@ -203,7 +203,13 @@ as a date range's end does: it sits on its step, leaning a little toward the
 pointer in the same frame the pointer moves, and as the pointer crosses into
 the next step, day or week it hops there — a tenth of a second, with no
 overshoot, from wherever it was. It never trails the pointer within a step,
-and never goes back the way it came.
+and never goes back the way it came. Under it, a faint dashed outline of the
+event in its own tone marks exactly where it would land if let go now: on the
+step, the copy's size and shape, square where it runs on past midnight or the
+edge of the week. It goes straight to the next step rather than easing there,
+and the copy hops after it. A dragged edge is outlined where it would end,
+however far the copy's edge stretches toward the pointer. At high contrast the
+outline's edge is the tone at full strength, at the stronger line.
 
 An event the app only shows, such as a holiday from a subscribed calendar,
 says so with `editable = false` and can't be moved or resized, though it can
@@ -304,7 +310,8 @@ the edits the app takes. After each edit, a screen reader is told where the
 event now is.
 
 While an event is carried, the copy left behind is faded and the place it
-would land is drawn as a lifted copy in its own tone with a stronger edge. In
+would land is drawn as a lifted copy in its own tone with a stronger edge,
+over a faint dashed outline on the step itself. In
 a month and in the all-day strip, that copy is a bar the event's length whose
 ends spring from day to day as the carry passes each one, a tick for each
 day, as a date range's end does. The copy has the event's own shape: square

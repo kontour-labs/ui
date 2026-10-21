@@ -58,6 +58,7 @@ import io.kontour.ui.motion.scrollSpec
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.Measurable
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -1101,6 +1102,11 @@ internal val NearReach = 12.dp
  * never from what this composed with: the lean is state, and read beside a
  * start a composition behind it, a crossing put the copy back past the step it
  * had left for a frame — *"they feel like they're going backwards"*.
+ *
+ * **Outlined where it lands.** Under the copy, on the step itself and the
+ * same size, a faint outline of each piece: the copy leaning and hopping is
+ * near where the event will land, and the outline is where it will. See
+ * [LandingOutline].
  */
 @Composable
 private fun TimeGhost(scope: CalendarScope, period: Int, days: Int) {
@@ -1156,6 +1162,15 @@ private fun TimeGhost(scope: CalendarScope, period: Int, days: Int) {
                         val opening = event == null || edit.widened != event.id || edit.widen.targetValue == 1f
                         (if (opening) column - gapPx else column * edit.widenedLane.second - gapPx).roundToInt()
                     },
+                )
+            }
+            // Where each piece would land, outlined under it: see [LandingOutline].
+            for ((day) in composed) {
+                LandingOutline(
+                    tone = shown.tone,
+                    presentation = EventPresentation.Block,
+                    clippedStart = day > firstComposed,
+                    clippedEnd = day < lastComposed,
                 )
             }
         },
@@ -1216,12 +1231,27 @@ private fun TimeGhost(scope: CalendarScope, period: Int, days: Int) {
         // In from midnight by the gap only where it starts or ends there.
         fun topGap(day: Int) = if (day > firstDay) 0f else gapPx / 2
         fun footGap(day: Int) = if (day < lastDay) 0f else gapPx / 2
-        val placeables = measurables.take(pieces.size).mapIndexed { i, measurable ->
-            val (day, from, to) = pieces[i]
-            val rect = if (day == leanDay) drawn else box(day, from, to)
+        // The copies first, then their outlines, as composed: as many of each.
+        val copies = measurables.subList(0, composed.size)
+        val outlines = measurables.subList(composed.size, measurables.size)
+        fun measure(measurable: Measurable, day: Int, rect: Rect) =
             measurable.measure(Constraints.fixed((pieceWidth - gapPx).roundToInt().coerceAtLeast(0), (rect.height - topGap(day) - footGap(day)).roundToInt().coerceAtLeast(0)))
+        val placeables = copies.take(pieces.size).mapIndexed { i, measurable ->
+            val (day, from, to) = pieces[i]
+            measure(measurable, day, if (day == leanDay) drawn else box(day, from, to))
+        }
+        // On the step, not leaning and not hopping: where it lands.
+        val landings = outlines.take(pieces.size).mapIndexed { i, measurable ->
+            val (day, from, to) = pieces[i]
+            measure(measurable, day, box(day, from, to))
         }
         layout(w, h) {
+            // Under the copies.
+            landings.forEachIndexed { i, placeable ->
+                val (day, from, to) = pieces[i]
+                val rect = box(day, from, to)
+                placeable.place((rect.left + inset + gapPx / 2).roundToInt(), (rect.top + topGap(day)).roundToInt())
+            }
             placeables.forEachIndexed { i, placeable ->
                 val (day, from, to) = pieces[i]
                 val rect = if (day == leanDay) drawn else box(day, from, to).translate(dx, dy)

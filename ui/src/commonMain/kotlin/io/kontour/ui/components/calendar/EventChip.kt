@@ -5,6 +5,11 @@ import io.kontour.ui.foundation.fillPattern
 import io.kontour.ui.theme.clipProxy
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.addOutline
+import io.kontour.ui.theme.Tone
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
@@ -282,6 +287,82 @@ private fun DrawScope.drawRing(shape: Shape, colour: Color, width: Float) {
     val outline = shape.createOutline(Size(size.width + width, size.height + width), layoutDirection, this)
     translate(-width / 2, -width / 2) { drawOutline(outline, colour, style = Stroke(width)) }
 }
+
+/**
+ * Where an edit in hand would put what it holds if let go now: a faint outline
+ * of it on the step, under the copy the edit draws. The copy leans toward the
+ * pointer, half a step at most, and hops from step to step after it, so it is
+ * near where the event will land rather than on it; this is on it.
+ *
+ * Asked for 2026-10-21, for 0.5.0: *"can we show a faint outline of the event
+ * where we're going to drop the event?"*
+ *
+ * **In the event's shape, as the copy is**: a [presentation]'s corners, square
+ * at an end it runs on past — see [cutShape] — and the size of the copy
+ * standing on its step. Dashed, in its tone's colour, with the faintest wash
+ * of its ground inside: a place, not a second event, and not the event left
+ * behind, which is the event itself faded.
+ *
+ * **It goes straight to the next step**, and does not ease there: it is the
+ * answer to where the event lands, and the copy over it is what moves. One that
+ * eased after the step it marks was, for its ease, marking a step the event
+ * would not land on.
+ *
+ * At high contrast its edge is the tone's colour at full strength, at the
+ * tier's stronger line — 3:1 on the page, as the copy's own edge is — rather
+ * than faded.
+ */
+@Composable
+internal fun LandingOutline(
+    tone: Tone,
+    presentation: EventPresentation,
+    clippedStart: Boolean,
+    clippedEnd: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val colours = toneColours(tone)
+    val shape = cutShape(
+        if (presentation == EventPresentation.Block) Theme.shapes.extraSmall else Theme.shapes.control,
+        presentation,
+        clippedStart,
+        clippedEnd,
+    )
+    val strong = highContrast()
+    val edge = if (strong) colours.solid else colours.solid.copy(alpha = LandingEdgeAlpha)
+    val ground = colours.container.copy(alpha = LandingGroundAlpha)
+    val width = Theme.sizing.borderWidthStrong
+    Box(
+        modifier
+            .clearAndSetSemantics { }
+            .drawWithCache {
+                val fill = shape.createOutline(size, layoutDirection, this)
+                // Inside the bounds, so it is the copy's size and no larger: a
+                // stroke centred on the edge put half of it outside.
+                val stroke = width.toPx()
+                val outline = shape.createOutline(
+                    Size((size.width - stroke).coerceAtLeast(0f), (size.height - stroke).coerceAtLeast(0f)),
+                    layoutDirection,
+                    this,
+                )
+                val path = Path().apply { addOutline(outline) }
+                val style = Stroke(width = stroke, pathEffect = PathEffect.dashPathEffect(floatArrayOf(LandingDashOn.toPx(), LandingDashOff.toPx())))
+                onDrawBehind {
+                    drawOutline(fill, ground)
+                    translate(stroke / 2f, stroke / 2f) { drawPath(path, edge, style = style) }
+                }
+            },
+    )
+}
+
+/** How strong a landing outline's edge is, at the standard tier: faint, but still the event's colour. */
+private const val LandingEdgeAlpha = 0.6f
+
+/** How strong the wash of the event's ground inside its landing outline is: barely there. */
+private const val LandingGroundAlpha = 0.35f
+
+/** A landing outline's dash and the gap after it: short, for a quarter-hour's 16dp block to have a few. */
+private val LandingDashOn = 6.dp
+private val LandingDashOff = 4.dp
 
 /** How faded the event left behind is while an edit carries it. */
 private const val CarriedAlpha = 0.4f

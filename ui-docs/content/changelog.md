@@ -394,6 +394,13 @@ On `main`, and in the next release.
   flick carries them on as a fling would, at least a day and at most three. The
   title, `visibleDates` and the state's `date` go with them, and the arrows
   still step three from there. The week and the day page as they did.
+- **An [event calendar](components/event-calendar.md) outlines where a carry
+  would land.** Asked for: *"can we show a faint outline of the event where
+  we're going to drop the event?"* While an event is carried, an edge dragged
+  or a new event drawn out, a faint dashed outline of it in its tone sits on
+  the step it would land on, under the lifted copy, which leans toward the
+  pointer off it. In the hours, the all-day strip and the month alike, in the
+  event's shape, and at high contrast in the tone at full strength.
 - **A chart's tooltip is a card beside the selected place.** The place,
   quietly, over a row for each series with its value at the card's end, in
   figures of one width so that they line up, and a stack's total under a rule.
