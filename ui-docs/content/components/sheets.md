@@ -220,8 +220,10 @@ for a finger, and on a desk a half-height sheet stays half height while the
 list in it scrolls, both ways. At the end of the list, if the sheet's content
 carries on below the screen, a turn further down opens the sheet a detent, which
 shows the rest. A turn up at the list's top does nothing, so a wheel never
-closes a sheet or moves it down. Dragging a scrollbar's thumb scrolls the list
-too, and leaves the sheet where it is.
+closes a sheet or moves it down, and a wheel or a trackpad that stops hands the
+sheet no fling, under a list with a fling of its own as under any other.
+Dragging a scrollbar's thumb scrolls the list too, and leaves the sheet where it
+is, however fast the thumb was moving when it was let go.
 
 A sheet's content is as tall as the window at every detent, and a sheet that
 is not fully open is pushed down with part of its content below the screen. A

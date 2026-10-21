@@ -29,6 +29,9 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import io.kontour.ui.components.list.scrollbar
 import io.kontour.ui.input.InputModality
 import io.kontour.ui.input.LocalInputModality
+import io.kontour.ui.motion.LocalScrollFeel
+import io.kontour.ui.motion.ScrollDefaults
+import io.kontour.ui.motion.ScrollFeel
 import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.sheet.ModalBottomSheet
 import io.kontour.ui.sheet.SheetDetent
@@ -78,6 +81,7 @@ class SheetWheelTest {
         content: Content = Content.Lazy,
         direction: LayoutDirection = LayoutDirection.Ltr,
         reduceMotion: Boolean = false,
+        ownFling: Boolean = false,
         test: Run.() -> Unit,
     ) {
         lateinit var state: SheetState
@@ -91,6 +95,9 @@ class SheetWheelTest {
             CompositionLocalProvider(
                 LocalInputModality provides InputModality.Mouse,
                 LocalLayoutDirection provides direction,
+                // A fling of the library's own rather than Compose's, as iOS
+                // has by default: see [aWheelThatStopsHandsTheSheetNoFling].
+                LocalScrollFeel provides if (ownFling) ScrollFeel() else null,
             ) {
                 OverlayHost(Modifier.fillMaxSize()) {
                     Box(Modifier.fillMaxSize().background(Color.White))
@@ -114,6 +121,7 @@ class SheetWheelTest {
                                         .reportBounds { list = it }
                                         .scrollbar(scrolled, colour = Thumb, alwaysVisible = true),
                                     state = scrolled,
+                                    flingBehavior = ScrollDefaults.flingBehavior(),
                                 ) {
                                     items(Rows) { Box(Modifier.fillMaxWidth().height(RowDp.dp)) }
                                 }
@@ -126,7 +134,7 @@ class SheetWheelTest {
                                         .fillMaxWidth()
                                         .reportBounds { list = it }
                                         .scrollbar(scrolled, colour = Thumb, alwaysVisible = true)
-                                        .verticalScroll(scrolled),
+                                        .verticalScroll(scrolled, flingBehavior = ScrollDefaults.flingBehavior()),
                                 ) {
                                     repeat(Rows) { Box(Modifier.fillMaxWidth().height(RowDp.dp)) }
                                 }
@@ -230,6 +238,90 @@ class SheetWheelTest {
             assertTrue(scroll() > 0f, "dragging the thumb never scrolled the list")
             assertEquals(SheetDetent.Half, state.currentDetent, "dragging the thumb moved the sheet to ${state.currentDetent}")
             assertEquals(top, state.offset, 0.5f, "dragging the thumb moved the sheet from $top to ${state.offset}")
+        }
+    }
+
+    /**
+     * And let go while it is still moving fast, the sheet stays where it is.
+     *
+     * Found in the 0.5.0 review, 2026-10-21: the thumb let go hands the
+     * content's scroll chain a fling of nothing, so that whatever collapses
+     * as the content scrolls settles, and the sheet read that fling as a
+     * release of its own. The thumb's drag never moved the sheet, so nothing
+     * said it was the list's, and the sheet's finger, which follows a mouse's
+     * press as it does a finger's, had the mouse still moving when it let go.
+     * So the sheet was thrown with the mouse's speed: at two thousand pixels
+     * a second, down closed it, and up opened it to full height. The test
+     * above moves at five hundred, under what counts as a flick.
+     */
+    @Test
+    fun aThumbLetGoWhileMovingFastLeavesTheSheetWhereItIs() {
+        for (down in listOf(true, false)) sheet {
+            if (!down) {
+                // At the list's end, where the thumb has room to go up.
+                toEnd()
+                scene.frames(30)
+            }
+            val top = state.offset
+            val thumb = thumbRows(scene.frame())
+            assertTrue(thumb != null, "no thumb was drawn")
+            val at = Offset(Width - 6f, (thumb.first + thumb.last) / 2f)
+            val way = if (down) 1f else -1f
+            val before = scroll()
+            scene.move(at, PointerType.Mouse)
+            scene.frames(4)
+            scene.press(at, PointerType.Mouse)
+            scene.frame()
+            // 32px a 16ms frame: two thousand pixels a second, and let go
+            // a frame after the last move, still moving.
+            repeat(4) {
+                scene.move(at.copy(y = at.y + way * 32f * (it + 1)), PointerType.Mouse)
+                scene.frame()
+            }
+            scene.release(at.copy(y = at.y + way * 128f), PointerType.Mouse)
+            scene.frames(90)
+            val which = if (down) "down" else "up"
+            assertTrue(scroll() != before, "dragging the thumb $which never scrolled the list, so this measured nothing")
+            assertEquals(0, dismissed(), "a thumb let go moving $which closed the sheet")
+            assertEquals(SheetDetent.Half, state.currentDetent, "a thumb let go moving $which moved the sheet to ${state.currentDetent}")
+            assertEquals(top, state.offset, 0.5f, "a thumb let go moving $which moved the sheet from $top to ${state.offset}")
+        }
+    }
+
+    /**
+     * A wheel or a trackpad that stops hands the sheet no fling either, where
+     * the list has a fling of its own.
+     *
+     * Found in the 0.5.0 review, 2026-10-21. Compose flings a scrollable when
+     * a wheel stops if its fling is not Compose's default one, which is true
+     * of every list under a [LocalScrollFeel] (iOS's, by default) and of a
+     * snapping list. That fling runs down the scroll chain as a finger's
+     * does, and the sheet answered it as one: a burst of the wheel down a
+     * half-height sheet's list opened the sheet to full height, and one back
+     * up past the list's top threw the sheet down.
+     */
+    @Test
+    fun aWheelThatStopsHandsTheSheetNoFling() {
+        for (content in Content.entries) sheet(content, ownFling = true) {
+            val top = state.offset
+            // A burst, a notch a frame, and then nothing.
+            repeat(6) {
+                scene.scroll(Offset(Width / 2f, Height - 120f), Offset(0f, 1f))
+                scene.frame()
+            }
+            scene.frames(90)
+            assertTrue(scroll() > 0f, "$content: the wheel never scrolled the content")
+            assertEquals(SheetDetent.Half, state.currentDetent, "$content: a burst of the wheel down moved the sheet to ${state.currentDetent}")
+            assertEquals(top, state.offset, 0.5f, "$content: a burst of the wheel down moved the sheet from $top to ${state.offset}")
+            repeat(12) {
+                scene.scroll(Offset(Width / 2f, Height - 120f), Offset(0f, -1f))
+                scene.frame()
+            }
+            scene.frames(90)
+            assertEquals(0f, scroll(), "$content: the content never came back to its top")
+            assertEquals(0, dismissed(), "$content: a burst of the wheel up past the top closed the sheet")
+            assertEquals(SheetDetent.Half, state.currentDetent, "$content: a burst of the wheel up moved the sheet to ${state.currentDetent}")
+            assertEquals(top, state.offset, 0.5f, "$content: a burst of the wheel up moved the sheet from $top to ${state.offset}")
         }
     }
 

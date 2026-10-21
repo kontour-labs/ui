@@ -37,11 +37,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Velocity
 import io.kontour.ui.interaction.RubberBand
 import io.kontour.ui.theme.Motion
+import kotlin.coroutines.AbstractCoroutineContextElement
+import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlin.math.sign
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.withContext
 
 /**
  * Where a sheet is, and where it is going.
@@ -1621,6 +1624,22 @@ class SheetState internal constructor(
      */
     private val scrollsInPlace: Boolean get() = finger.wheeling || thumbsScrolling > 0
 
+    /**
+     * Whether the fling the content is handing on is one the sheet leaves
+     * alone, for the same reason: a wheel's or a trackpad's as it stops, or a
+     * scrollbar thumb's let go, which says so with [flingingInPlace].
+     *
+     * A wheel flings at all because Compose flings a scrollable when a wheel
+     * stops if its fling is not Compose's own default, which is so under a
+     * `LocalScrollFeel`, on iOS by default, and for a list that snaps. Found
+     * in the 0.5.0 review, 2026-10-21: that fling came down the chain as a
+     * finger's does, and a flick of a trackpad in a half-height sheet's list
+     * opened the sheet to full height; one back up past the list's top could
+     * throw a sheet opened by a button closed.
+     */
+    private suspend fun flingsInPlace(): Boolean =
+        finger.wheeling || currentCoroutineContext()[FlingInPlaceKey] != null
+
     private fun nearestAllowed(at: Float): SheetDetent? {
         val anchors = anchoredState.anchors
         var nearest: SheetDetent? = null
@@ -1785,6 +1804,8 @@ class SheetState internal constructor(
             }
 
             override suspend fun onPreFling(available: Velocity): Velocity {
+                // A wheel's or a thumb's: the content's alone, as its scroll was.
+                if (flingsInPlace()) return Velocity.Zero
                 // **The sheet was moving under the finger when it let go**, so
                 // the release is the sheet's, whatever the list did earlier in
                 // the gesture. UIKit's rule: once a scroll view at its top has
@@ -1878,6 +1899,12 @@ class SheetState internal constructor(
                 // reaches here — with a zero velocity if the finger simply
                 // stopped — so this is the reliable place to forget it.
                 listScrolled = false
+                // A wheel's or a thumb's moved the content and not the sheet:
+                // nothing to settle, and only a stretch, were there one, to let go.
+                if (flingsInPlace()) {
+                    releaseOvershoot(settleSpec)
+                    return Velocity.Zero
+                }
                 // Already answered, in `onPreFling`, with nothing left over.
                 if (releasedBySheet) {
                     releasedBySheet = false
@@ -2126,6 +2153,30 @@ private fun List<SheetDetent>.firstDetent(): SheetDetent =
  * decide whether it hides.
  */
 internal const val SheetProjectionSeconds: Float = 0.2f
+
+/**
+ * Runs [fling], a scrollbar thumb's let-go handed down the scroll chain, as a
+ * fling no sheet it passes through answers.
+ *
+ * The thumb flings nothing, so that whatever collapses as the content scrolls
+ * settles where a swipe let go would leave it, and a sheet took that for a
+ * release of its own. Found in the 0.5.0 review, 2026-10-21: the thumb's drag
+ * never moved the sheet, so nothing in the gesture said the list had, and the
+ * sheet's finger, which follows a mouse's press as it does a finger's, read the
+ * mouse as still moving when it let go. A thumb dragged quickly down a
+ * half-height sheet and let go closed the sheet, and up opened it to full
+ * height.
+ *
+ * Said in the fling's own coroutine rather than in a flag on the sheet: the
+ * fling suspends while anything in the chain settles, and a finger that lands
+ * in the meantime has a release of its own that the sheet must still answer.
+ */
+internal suspend fun flingingInPlace(fling: suspend () -> Unit): Unit = withContext(FlingInPlace) { fling() }
+
+/** Marks a fling's coroutine as [flingingInPlace]'s. */
+private object FlingInPlace : AbstractCoroutineContextElement(FlingInPlaceKey)
+
+private object FlingInPlaceKey : CoroutineContext.Key<FlingInPlace>
 
 /**
  * How fast a gesture on a sheet's **content** has to be leaving the glass to

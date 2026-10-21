@@ -84,6 +84,7 @@ import io.kontour.ui.input.LocalInputModality
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.input.pointerIconFor
 import io.kontour.ui.sheet.LocalSheetState
+import io.kontour.ui.sheet.flingingInPlace
 import io.kontour.ui.sheet.SheetState
 import io.kontour.ui.theme.Theme
 import kotlin.math.roundToInt
@@ -1232,8 +1233,12 @@ internal class ScrollbarSource(private val state: ScrollableState) {
         val chain = chain ?: return
         val scope = scope ?: return
         scope.launch {
-            val left = Velocity.Zero - chain.dispatchPreFling(Velocity.Zero)
-            chain.dispatchPostFling(Velocity.Zero, left)
+            // Not a release of a sheet it is in, as the drag was not a drag
+            // of one: see [flingingInPlace].
+            flingingInPlace {
+                val left = Velocity.Zero - chain.dispatchPreFling(Velocity.Zero)
+                chain.dispatchPostFling(Velocity.Zero, left)
+            }
         }
     }
 
