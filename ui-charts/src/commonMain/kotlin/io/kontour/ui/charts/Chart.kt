@@ -91,6 +91,8 @@ import kotlin.math.roundToInt
  *   interactive: a tap or a drag selects the nearest place, a pointer selects
  *   what it is over, and with focus the arrow keys move between places. A
  *   chart of lying bars is read bar by bar, and is not selected by place.
+ *   `null`, the default, is a picture: nothing on it answers a touch, a
+ *   pointer or a key, it takes no focus, and a screen reader still reads it.
  * @param seriesVisibility Which series are shown. A chart given one makes
  *   each entry in its legend a switch that hides its series and shows it
  *   again. See [ChartSeriesVisibility].
@@ -101,7 +103,7 @@ import kotlin.math.roundToInt
  * @param showPatterns Whether series are told apart by dash, symbol and
  *   hatching as well as by colour.
  * @param showSelectionTooltip Whether the selected place shows its values in a
- *   tooltip.
+ *   tooltip: a card beside it, with a stack's total under its parts.
  * @param animateData Whether a change of data moves from the old chart to the
  *   new, and the chart rises into place when it first appears.
  * @param strings The words the chart says on its own. See [ChartStrings].
@@ -490,6 +492,7 @@ private fun <X : Any> ChartPlot(
                                 }
                                 TooltipRow(swatch, value.series.name, value.label)
                             },
+                            total = totalAt(chart, selectedPlace)?.let { TooltipRow({}, strings.total, it) },
                         )
                     }
                 }
@@ -548,13 +551,21 @@ private fun <X : Any> ChartPlot(
             }
             placeable to start
         }
-        val probe = if (measurables.size > places.size) measurables[places.size].measure(Constraints.fixed(1, 1)) else null
+        // The tooltip stands beside what is selected, so its probe is as wide:
+        // a place's whole band among bars, which are washed that wide, and a
+        // point's ring on a line, so that the card clears what it reads out.
+        val reach = if (chart.selectsBands || chart.cells != null) {
+            cellBand(chart.placeAxis, chart.places, mapper.unitX)
+        } else {
+            config.pointSize * 2
+        }.roundToInt().coerceAtLeast(1)
+        val probe = if (measurables.size > places.size) measurables[places.size].measure(Constraints.fixed(reach, 1)) else null
         layout(width, height) {
             nodes.forEach { (node, start) ->
                 if (chart.horizontal) node.place(plot.left.roundToInt(), start) else node.place(start, plot.top.roundToInt())
             }
             if (probe != null && selectedPlace != null) {
-                probe.place(mapper.px(selectedPlace).roundToInt(), plot.top.roundToInt())
+                probe.place((mapper.px(selectedPlace) - reach / 2f).roundToInt(), plot.top.roundToInt())
             }
         }
     }
@@ -600,6 +611,28 @@ private fun <X : Any> selectionAt(
         }
     }
     return ChartSelection(x, chart.placeAxis.write(place), values)
+}
+
+/**
+ * What a stack at [place] comes to, written on the value axis, for the foot of
+ * its tooltip: `null` where its values make no one figure. Only for one stack
+ * of bars or areas with two parts or more there, up the start axis: a stack of
+ * shares comes to the whole every time, and two stacks, or a line beside one,
+ * leave it unclear what the figure would be the total of.
+ */
+private fun totalAt(chart: ResolvedChart, place: Double): String? {
+    val stacked = chart.layers.filter { layer ->
+        val kind = layer.mark.kind
+        (kind == MarkKind.Bar || kind == MarkKind.Area) && !layer.mark.onEnd && !layer.mark.floating &&
+            (layer.mark.stacking == ChartStacking.Stacked || layer.mark.stacking == ChartStacking.Centred)
+    }
+    if (stacked.isEmpty() || stacked.any { it.markIndex != stacked[0].markIndex } || stacked.size != chart.layers.size) return null
+    val values = stacked.mapNotNull { layer ->
+        val index = layer.across.indexOfFirst { it == place }
+        layer.values.getOrNull(index)?.takeUnless { it.isNaN() }
+    }
+    if (values.size < 2) return null
+    return chart.valueAxis.write(values.sum())
 }
 
 /** The span along the place axis that [group] answers for: halfway to each neighbour. */

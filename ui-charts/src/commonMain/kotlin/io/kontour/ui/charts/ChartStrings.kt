@@ -56,6 +56,8 @@ import io.kontour.ui.theme.phrase
  *   "1 March to 7 March".
  * @property sectorShare One sector's part of the whole: "Rent, 45%".
  * @property noData What a chart with nothing to show says it shows.
+ * @property total What the whole of a stack is called in its tooltip: a
+ *   stacked bar's or area's, at the place chosen.
  * @property otherSectors The sector that gathers what is too small to draw.
  * @property dateColumn The heading of a [ChartDataTable]'s first column, over
  *   dates, where the axis has no title.
@@ -118,6 +120,7 @@ data class ChartStrings(
     val highColumn: String = "High",
     val outliersColumn: String = "Outliers",
     val seriesColumn: (series: String, column: String) -> String = { series, column -> "$series, $column" },
+    val total: String = "Total",
 ) {
     companion object {
         /**
@@ -186,6 +189,7 @@ data class ChartStrings(
             seriesColumn = { series, column ->
                 lookup.phrase("seriesColumn", null, series, column) ?: fallback.seriesColumn(series, column)
             },
+            total = lookup.text("total") ?: fallback.total,
         )
     }
 }
@@ -238,4 +242,5 @@ internal fun ChartStrings.mapped(transform: (String) -> String): ChartStrings = 
     highColumn = transform(highColumn),
     outliersColumn = transform(outliersColumn),
     seriesColumn = { a0, a1 -> transform(seriesColumn(a0, a1)) },
+    total = transform(total),
 )

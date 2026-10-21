@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.Dp
+import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 
@@ -68,6 +69,17 @@ private const val RegionOpacity = 0.12f
 
 /** How strongly a band is filled: lighter than an area, which is a value, where a band is a range. */
 private const val BandOpacity = 0.22f
+
+/** How strongly a selected place among bars is washed: enough to find, not enough to tint the bars it is behind. */
+private const val SelectionWashOpacity = 0.1f
+
+/**
+ * Whether a selected place is shown as a wash the width of its place, behind
+ * the bars or boxes standing there, rather than as a line through them. A heat
+ * map's column is outlined instead, and lying bars take no selection.
+ */
+internal val ResolvedChart.selectsBands: Boolean
+    get() = !horizontal && cells == null && layers.any { it.mark.kind == MarkKind.Bar || it.mark.kind == MarkKind.Box }
 
 /** [shape] at [rect], added to [path]; nothing for a rect with no area. */
 private fun DrawScope.addShape(path: Path, rect: Rect, shape: Shape) {
@@ -170,6 +182,23 @@ internal fun DrawScope.drawChart(
         }
     }
 
+    // A selected place among bars is washed behind them, the width of its
+    // place: a line through the middle of a bar, or of a group of them, cut
+    // the bars it was about in two and was all but lost in a wide one.
+    if (selected != null && chart.selectsBands) {
+        val band = cellBand(chart.placeAxis, chart.places, m.unitX)
+        val x = m.px(selected)
+        val wash = Path()
+        addShape(wash, Rect(x - band / 2, plot.top, x + band / 2, plot.bottom), config.corners.all)
+        // In the labels' ink, which stands off the ground by as much in a
+        // dark theme as in a light one: the axis's grey all but vanished on
+        // a dark ground.
+        drawPath(wash, colours.label, alpha = SelectionWashOpacity)
+        // At the high tier its edge too, in the selection's colour, so the
+        // place is found by more than a tint.
+        if (config.patterns) drawPath(wash, colours.selection, style = Stroke(config.hairline * 1.5f))
+    }
+
     val seriesCount = chart.model.series.size
     val pad = config.pointSize
     clipRect(plot.left - pad, plot.top - pad, plot.right + pad, plot.bottom + pad) {
@@ -263,8 +292,8 @@ internal fun DrawScope.drawChart(
         drawText(pin.layout, colours.label, Offset(rect.left + inset, rect.top + (rect.height - pin.layout.size.height) / 2))
     }
 
-    // The selection: a line through the selected place, and a ring round each
-    // line's value there.
+    // The selection: a line through the selected place, unless it is washed
+    // behind bars above, and a ring round each line's value there.
     if (selected != null) {
         val stroke = config.hairline * 1.5f
         if (chart.cells != null && !chart.horizontal) {
@@ -281,7 +310,7 @@ internal fun DrawScope.drawChart(
             drawLine(colours.selection, Offset(plot.left, y), Offset(plot.right, y), stroke)
         } else {
             val x = m.px(selected)
-            drawLine(colours.selection, Offset(x, plot.top), Offset(x, plot.bottom), stroke)
+            if (!chart.selectsBands) drawLine(colours.selection, Offset(x, plot.top), Offset(x, plot.bottom), stroke)
             chart.layers.filter { it.mark.kind == MarkKind.Line || it.mark.kind == MarkKind.Area }.forEach { layer ->
                 val value = sampleAt(layer.across, layer.up, selected)
                 if (value.isNaN()) return@forEach
@@ -363,16 +392,14 @@ private fun DrawScope.drawBars(layer: Layer, look: SeriesLook, chart: ResolvedCh
     val placeAxis = chart.placeAxis
     val unit = if (lying) m.unitY else m.unitX
     val band = if (placeAxis.kind == AxisKind.Category) unit else unit * smallestStep(places).toFloat()
-    val thickness = band * ChartDefaults.BarFraction / layer.groupCount
-    val offset = (layer.groupIndex - (layer.groupCount - 1) / 2f) * thickness
-    val stacked = layer.mark.stacking == ChartStacking.Stacked || layer.mark.stacking == ChartStacking.Normalised ||
-        layer.mark.stacking == ChartStacking.Centred
+    val thickness = band * ChartDefaults.BarFraction * layer.groupWidth
+    val offset = band * ChartDefaults.BarFraction * layer.groupOffset
     // A stack is one bar, so only its outermost part each way is rounded: the
     // top of what stands above zero and the foot of what hangs below. Every
     // stack had square ends, and stacking is a bar's default, so nearly every
     // bar in a chart was square.
     // A floating bar stands on nothing, so both its ends are rounded.
-    val outer = if (stacked && !layer.mark.floating) outermostOf(layer, chart) else null
+    val outer = if (!layer.mark.floating) outermostOf(layer, chart) else null
     val corners = config.corners
     val path = Path()
     for (i in 0 until layer.size) {
@@ -407,31 +434,48 @@ private fun DrawScope.drawBars(layer: Layer, look: SeriesLook, chart: ResolvedCh
 }
 
 /**
- * Whether each of [layer]'s values is the outermost of its stack at its place:
- * the highest above zero, or the lowest below it, of every series of its mark.
+ * Whether each of [layer]'s values has its far end clear: no other bar of its
+ * mark standing on it at its place. The outermost part of a stack, above zero
+ * or below it, and every bar of a group.
+ *
+ * Found from where the bars are in this frame, rather than from how the mark
+ * stacks: moving from a stack to bars side by side, every part was rounded in
+ * the first frame, where they were all still stacked, and notched where each
+ * stood on the next; and back again, a part was squared the moment the move
+ * began, while it still stood alone.
  */
 private fun outermostOf(layer: Layer, chart: ResolvedChart): BooleanArray {
     val lying = chart.horizontal
-    val stack = chart.layers.filter { it.markIndex == layer.markIndex }
-    val highest = HashMap<Double, Double>()
-    val lowest = HashMap<Double, Double>()
-    stack.forEach { other ->
-        val places = if (lying) other.up else other.across
-        val tops = if (lying) other.across else other.up
-        val base = other.base ?: DoubleArray(other.size)
-        for (i in 0 until other.size) {
-            if (tops[i].isNaN() || tops[i] == base[i]) continue
-            if (tops[i] > base[i]) highest[places[i]] = max(highest[places[i]] ?: tops[i], tops[i])
-            else lowest[places[i]] = min(lowest[places[i]] ?: tops[i], tops[i])
-        }
+    // Only the bars over this one's width: side by side, neither is over the other.
+    val others = chart.layers.filter { other ->
+        other.markIndex == layer.markIndex && other !== layer && other.opacity > 0f && other.base != null &&
+            abs(layer.groupOffset - other.groupOffset) < (layer.groupWidth + other.groupWidth) / 2
+    }
+    // Each one's index at each place, found once rather than for every bar.
+    val at = others.map { other ->
+        val otherPlaces = if (lying) other.up else other.across
+        HashMap<Double, Int>(otherPlaces.size * 2).apply { otherPlaces.forEachIndexed { j, place -> getOrPut(place) { j } } }
     }
     val places = if (lying) layer.up else layer.across
     val tops = if (lying) layer.across else layer.up
-    val base = layer.base ?: DoubleArray(layer.size)
     return BooleanArray(layer.size) { i ->
-        if (tops[i] >= base[i]) tops[i] == highest[places[i]] else tops[i] == lowest[places[i]]
+        val top = tops[i]
+        val slack = SeamSlack * max(1.0, abs(top))
+        val rising = top > (layer.base?.get(i) ?: 0.0)
+        others.indices.none { k ->
+            val other = others[k]
+            val j = at[k][places[i]] ?: return@none false
+            val otherTops = if (lying) other.across else other.up
+            val otherBase = other.base!!
+            !otherTops[j].isNaN() && otherTops[j] != otherBase[j] && abs(otherBase[j] - top) <= slack &&
+                // Going on the same way: up from a part above zero, down from one below.
+                (otherTops[j] > otherBase[j]) == rising
+        }
     }
 }
+
+/** How near one bar's foot must be to another's end to stand on it: rounding, not a gap. */
+private const val SeamSlack = 1e-9
 
 /** The smallest step between neighbouring [places], for the width of bars across a continuous axis. */
 private fun smallestStep(places: DoubleArray): Double {
@@ -492,9 +536,9 @@ private fun DrawScope.drawBoxes(layer: Layer, look: SeriesLook, chart: ResolvedC
     val base = layer.base ?: return
     val box = layer.box ?: return
     val band = cellBand(chart.placeAxis, layer.across, m.unitX)
-    val thickness = band * ChartDefaults.BarFraction / layer.groupCount
+    val thickness = band * ChartDefaults.BarFraction * layer.groupWidth
     val direction = if (m.frame.rtl) -1f else 1f
-    val offset = (layer.groupIndex - (layer.groupCount - 1) / 2f) * thickness * direction
+    val offset = band * ChartDefaults.BarFraction * layer.groupOffset * direction
     val whiskers = Path()
     val boxes = Path()
     val medians = Path()
@@ -562,7 +606,7 @@ private fun contrastOf(a: Color, b: Color): Float {
 }
 
 /** The band a cell or a box at [places] takes along [axis]: a category's whole, or the smallest step between places. */
-private fun cellBand(axis: ResolvedAxis, places: DoubleArray, unit: Float): Float =
+internal fun cellBand(axis: ResolvedAxis, places: DoubleArray, unit: Float): Float =
     if (axis.kind == AxisKind.Category) unit else unit * smallestStep(places).toFloat()
 
 /** How wide a whisker's cap is, as a share of its box's width. */

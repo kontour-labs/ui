@@ -1,7 +1,9 @@
 package io.kontour.ui.charts
 
+import kotlin.math.max
+
 /**
- * [to] as it is [fraction] of the way from [from], for a frame of the chart
+ * [to] as it is [fraction] of the way from [start], for a frame of the chart
  * moving from one set of data to the next.
  *
  * The axes' spans move, so a value that stays put stays put on the screen while
@@ -14,10 +16,17 @@ package io.kontour.ui.charts
  * Points and rectangles are matched by their order, and fade in rather than
  * rise when they have nothing to come from: a scatter chart's points rising from
  * the floor would be a picture of nothing.
+ *
+ * A series drawn another way, bars turned to a line or a line to an area,
+ * fades from the one to the other as each moves towards the other's values;
+ * see `reshaped` and `heldOn`.
  */
-internal fun interpolate(from: ResolvedChart, to: ResolvedChart, fraction: Float): ResolvedChart {
+internal fun interpolate(start: ResolvedChart, to: ResolvedChart, fraction: Float): ResolvedChart {
     if (fraction >= 1f) return to
     val t = fraction.toDouble()
+    // A stack turned to shares, or shares back to a stack, is in other units:
+    // see `inUnitsOf`.
+    val from = inUnitsOf(start, to)
     val x = blendAxis(from.x, to.x, t)
     val y = blendAxis(from.y, to.y, t)
     // The end axis eases as the start does. Arriving, it is there at once,
@@ -29,12 +38,39 @@ internal fun interpolate(from: ResolvedChart, to: ResolvedChart, fraction: Float
         toEnd != null && fromEnd != null -> blendAxis(fromEnd, toEnd, t)
         else -> toEnd ?: fromEnd
     }
+    // Places along a continuous axis slide as it moves, so one that has gone
+    // can be seen going; a category's place is only its order.
+    val sliding = to.placeAxis.kind != AxisKind.Category && from.placeAxis.kind == to.placeAxis.kind
     fun Layer.sameAs(other: Layer) = markIndex == other.markIndex && series == other.series && mark.kind == other.mark.kind
+    // The same series drawn another way: bars turned to a line, a line to an
+    // area. See `reshaped`.
+    fun Layer.redrawnAs(other: Layer) = markIndex == other.markIndex && series == other.series &&
+        mark.kind != other.mark.kind && mark.kind in Redrawable && other.mark.kind in Redrawable
+    // This frame's value axis for [layer]: across for lying bars, up the end
+    // axis for what is on it.
+    fun valueAxisNow(layer: Layer) = when {
+        to.horizontal -> x
+        layer.mark.onEnd -> yEnd ?: y
+        else -> y
+    }
+    fun valueAxisOf(chart: ResolvedChart, layer: Layer) = if (chart.horizontal) chart.x else chart.upAxis(layer.mark.onEnd)
     val layers = to.layers.map { layer ->
         val previous = from.layers.firstOrNull { it.sameAs(layer) }
+        val before = if (previous == null) from.layers.firstOrNull { it.redrawnAs(layer) } else null
+        if (before != null) {
+            // Drawn the new way from where the old way had it, fading in over
+            // the old as that fades out. A stack from a line fades in where
+            // it will stand, while the line goes up to its tops.
+            val moved = if (before.base == null && layer.stacked) {
+                heldOn(layer, valueAxisOf(to, layer), valueAxisNow(layer), to.horizontal)
+            } else {
+                blendLayer(reshaped(before, layer, to), layer, t, to.horizontal, sliding)
+            }
+            return@map moved.copy(opacity = before.opacity * fraction)
+        }
         // A series that was not there rises from its baseline, as the whole
         // chart does when it first appears. It used to arrive at once.
-        val blended = blendLayer(previous ?: collapsedLayer(layer, to), layer, t, to.horizontal)
+        val blended = blendLayer(previous ?: collapsedLayer(layer, to), layer, t, to.horizontal, sliding)
         // Shown again before it had finished leaving: back from as faint as it was.
         if (previous != null && previous.opacity < 1f) {
             blended.copy(opacity = previous.opacity + (1f - previous.opacity) * fraction)
@@ -47,8 +83,20 @@ internal fun interpolate(from: ResolvedChart, to: ResolvedChart, fraction: Float
     // fading as it goes, under what stays. It used to vanish in the first
     // frame, while everything else moved. Reported as "when you turn a series
     // off, it doesn't animate out".
+    //
+    // One drawn another way now goes to where the new way has it as it fades,
+    // so that bars turned to a line are not bars sinking under a line rising.
     val leaving = from.layers.filter { old -> to.layers.none { it.sameAs(old) } }.map { old ->
-        blendLayer(old, collapsedLayer(old, to), t, to.horizontal).copy(opacity = old.opacity * (1f - fraction))
+        val after = to.layers.firstOrNull { it.redrawnAs(old) }
+        val moved = when {
+            // A stack turned to a line stays where it stood as it fades, and
+            // the line comes down from its tops.
+            after != null && after.base == null && old.stacked ->
+                heldOn(old, valueAxisOf(from, old), valueAxisNow(old), to.horizontal)
+            after != null -> blendLayer(old, reshaped(after, old, to), t, to.horizontal, sliding)
+            else -> blendLayer(old, collapsedLayer(old, to), t, to.horizontal, sliding)
+        }
+        moved.copy(opacity = old.opacity * (1f - fraction))
     }
     // The rules and the regions move with the axes they are on. They were the
     // new chart's from the first frame, on axes still easing from the old one:
@@ -79,13 +127,46 @@ internal val ResolvedChart.empty: Boolean get() = layers.all { it.size == 0 }
 /**
  * [chart] with every bar, area and line at its baseline: where it rises from
  * when it first appears. A line's baseline is the bottom of the plot.
+ *
+ * A stack rises as one, every part of it from the stack's foot. Each part
+ * rose from its own foot, which was already where it would end, so a stack
+ * of three opened as three bars, each standing in the air over a gap the one
+ * under it had not grown to fill yet: *"it looks a bit weird with each of the
+ * sections animating open individually"*.
  */
 internal fun collapsed(chart: ResolvedChart): ResolvedChart =
-    chart.with(chart.x, chart.y, chart.layers.map { collapsedLayer(it, chart) })
+    chart.with(chart.x, chart.y, chart.layers.map { collapsedLayer(it, chart, wholeStack = true) })
 
-/** [layer] of [chart] at its baseline: see [collapsed]. */
-private fun collapsedLayer(layer: Layer, chart: ResolvedChart): Layer {
+/**
+ * Whether [this] is a part of a stack, standing on the parts under it: a
+ * stacked or normalised bar or area. A stream is stacked too, and swells out
+ * of its middle instead; see [collapsedLayer].
+ */
+private val Layer.stacked: Boolean
+    get() = (mark.kind == MarkKind.Bar || mark.kind == MarkKind.Area) && !mark.floating &&
+        (mark.stacking == ChartStacking.Stacked || mark.stacking == ChartStacking.Normalised ||
+            (mark.kind == MarkKind.Bar && mark.stacking == ChartStacking.Centred))
+
+/** Where [layer]'s stack stands in [chart]: at zero where its value axis reaches it, and at that axis's low end where it does not. */
+private fun stackFoot(layer: Layer, chart: ResolvedChart): Double {
+    val axis = if (chart.horizontal) chart.x else chart.upAxis(layer.mark.onEnd)
+    return 0.0.coerceIn(axis.low, max(axis.low, axis.high))
+}
+
+/**
+ * [layer] of [chart] at its baseline: see [collapsed]. A part of a stack
+ * comes down to the stack's foot with the [wholeStack], and to its own foot
+ * otherwise: a series turned on in the middle of a stack opens in its place,
+ * as the parts above it move up to make room.
+ */
+private fun collapsedLayer(layer: Layer, chart: ResolvedChart, wholeStack: Boolean = false): Layer {
     val valueLow = if (chart.horizontal) chart.x.low else chart.upAxis(layer.mark.onEnd).low
+    if (wholeStack && layer.stacked) {
+        val foot = stackFoot(layer, chart)
+        val floor = DoubleArray(layer.size) { foot }
+        val lying = chart.horizontal && layer.mark.kind == MarkKind.Bar
+        return if (lying) layer.copy(across = floor, base = floor.copyOf()) else layer.copy(up = floor, base = floor.copyOf())
+    }
     // A stream swells out of its middle, top and foot together.
     if (layer.mark.kind == MarkKind.Area && layer.mark.stacking == ChartStacking.Centred) {
         val middle = DoubleArray(layer.size)
@@ -121,7 +202,7 @@ private fun blendAxis(from: ResolvedAxis, to: ResolvedAxis, t: Double): Resolved
         to.spanning(lerp(from.low, to.low, t), lerp(from.high, to.high, t))
     }
 
-private fun blendLayer(from: Layer, to: Layer, t: Double, horizontal: Boolean): Layer {
+private fun blendLayer(from: Layer, to: Layer, t: Double, horizontal: Boolean, sliding: Boolean = false): Layer {
     val lying = horizontal && to.mark.kind == MarkKind.Bar
     return when (to.mark.kind) {
         MarkKind.Line, MarkKind.Area, MarkKind.Band -> {
@@ -137,7 +218,8 @@ private fun blendLayer(from: Layer, to: Layer, t: Double, horizontal: Boolean): 
             to.copy(up = up, base = base)
         }
 
-        MarkKind.Bar -> blendByPlace(from, to, t, lying)
+        MarkKind.Bar -> blendByPlace(from, to, t, lying, keepGone = sliding)
+            .copy(groupWidth = lerp(from.groupWidth, to.groupWidth, t), groupOffset = lerp(from.groupOffset, to.groupOffset, t))
 
         MarkKind.Stem -> blendByPlace(from, to, t, lying = false)
 
@@ -155,6 +237,8 @@ private fun blendLayer(from: Layer, to: Layer, t: Double, horizontal: Boolean): 
             moved.copy(
                 values = median,
                 box = BoxRun(blend(oldBox?.low, newBox.low), median, blend(oldBox?.high, newBox.high), newBox.outliers),
+                groupWidth = lerp(from.groupWidth, to.groupWidth, t),
+                groupOffset = lerp(from.groupOffset, to.groupOffset, t),
             )
         }
 
@@ -184,27 +268,144 @@ private fun blendLayer(from: Layer, to: Layer, t: Double, horizontal: Boolean): 
 /**
  * [to] as [t] of the way from [from], each value matched by its place: the bar
  * for March becomes the bar for March, top and foot. One with nothing to come
- * from grows from its foot.
+ * from grows from its foot, and a part of a stack at a new place from the
+ * stack's foot, so that a new place's stack rises as one: see [collapsed].
+ * With [keepGone], along an axis that slides, one that is not there any more
+ * goes down to its foot.
  */
-private fun blendByPlace(from: Layer, to: Layer, t: Double, lying: Boolean): Layer {
+private fun blendByPlace(from: Layer, to: Layer, t: Double, lying: Boolean, keepGone: Boolean = false): Layer {
     val oldPlaces = if (lying) from.up else from.across
     val oldTops = if (lying) from.across else from.up
     val newPlaces = if (lying) to.up else to.across
     val newTops = if (lying) to.across else to.up
+    // The foot a new place's stack rises from: zero, which every stack is
+    // built up and down from.
+    val stackFoot = if (to.stacked) 0.0 else null
     val tops = DoubleArray(to.size) { i ->
         val match = oldPlaces.indexOfFirst { it == newPlaces[i] }
-        val start = if (match >= 0) oldTops[match] else (to.base?.get(i) ?: 0.0)
+        val start = if (match >= 0) oldTops[match] else (stackFoot ?: to.base?.get(i) ?: 0.0)
         lerp(start, newTops[i], t)
     }
     val base = to.base?.let { newBase ->
         DoubleArray(to.size) { i ->
             val match = oldPlaces.indexOfFirst { it == newPlaces[i] }
-            val start = if (match >= 0) from.base?.get(match) ?: newBase[i] else newBase[i]
+            val start = if (match >= 0) from.base?.get(match) ?: newBase[i] else (stackFoot ?: newBase[i])
             lerp(start, newBase[i], t)
+        }
+    }
+    // And a place that has gone sinks to its foot where it was, rather than
+    // vanishing in the first frame: a month's bars going to a fortnight's
+    // slide off the plot's edge as the axis closes in, going down as they go.
+    // Only for bars that are a value each; a range has its ends kept beside it.
+    val gone = if (!keepGone || to.spans || to.acrossEnd != null || to.upEnd != null) {
+        emptyList()
+    } else {
+        oldPlaces.indices.filter { j -> !oldTops[j].isNaN() && newPlaces.none { it == oldPlaces[j] } }
+    }
+    if (gone.isNotEmpty()) {
+        val foot = { j: Int -> stackFoot ?: from.base?.get(j) ?: 0.0 }
+        val places = newPlaces + DoubleArray(gone.size) { oldPlaces[gone[it]] }
+        val allTops = tops + DoubleArray(gone.size) { lerp(oldTops[gone[it]], foot(gone[it]), t) }
+        val allBase = (base ?: DoubleArray(to.size)) + DoubleArray(gone.size) {
+            val j = gone[it]
+            lerp(from.base?.get(j) ?: 0.0, foot(j), t)
+        }
+        val values = to.values + DoubleArray(gone.size) { from.values[gone[it]] }
+        return if (lying) {
+            to.copy(across = allTops, up = places, base = allBase, values = values)
+        } else {
+            to.copy(across = places, up = allTops, base = allBase, values = values)
         }
     }
     return if (lying) to.copy(across = tops, base = base) else to.copy(up = tops, base = base)
 }
+
+/** The kinds of mark one series can be drawn as in turn and move between: a value at each place. */
+private val Redrawable = setOf(MarkKind.Bar, MarkKind.Line, MarkKind.Area)
+
+/**
+ * [source]'s values in [shape]'s form: at [shape]'s places, read off
+ * [source]'s, as a mark of [shape]'s kind, where a move between the two
+ * starts or ends. A bar or an area from a line, which has no foot, keeps the
+ * height it is going to have and stands where the line was; one going to a
+ * line keeps its height and goes to where the line is.
+ *
+ * Not for a part of a stack and a line, which [heldOn] keeps in place
+ * instead: a part moved to a line's value slid down through the parts under
+ * it.
+ */
+private fun reshaped(source: Layer, shape: Layer, chart: ResolvedChart): Layer {
+    val lying = chart.horizontal
+    val sourcePlaces = if (lying) source.up else source.across
+    val sourceValues = if (lying) source.across else source.up
+    val places = if (lying) shape.up else shape.across
+    val shapeValues = if (lying) shape.across else shape.up
+    val values = DoubleArray(shape.size) { i -> sampleAt(sourcePlaces, sourceValues, places[i]) }
+    val base = shape.base?.let { shapeBase ->
+        val sourceBase = source.base
+        DoubleArray(shape.size) { i ->
+            if (sourceBase != null) sampleAt(sourcePlaces, sourceBase, places[i]) else values[i] - (shapeValues[i] - shapeBase[i])
+        }
+    }
+    return if (lying) shape.copy(across = values, base = base) else shape.copy(up = values, base = base)
+}
+
+/**
+ * [layer], drawn on [axis], where it is on the plot now that the value axis
+ * is [now]: still, while the axis moves under it. A stack fading out as the
+ * axis shrinks to a line's range otherwise grew out of the top of the plot
+ * as it went, and one fading in grew down into it.
+ */
+private fun heldOn(layer: Layer, axis: ResolvedAxis, now: ResolvedAxis, horizontal: Boolean): Layer {
+    fun held(values: DoubleArray) = DoubleArray(values.size) { now.low + (values[it] - axis.low) / axis.span * now.span }
+    val base = layer.base?.let(::held)
+    return if (horizontal) layer.copy(across = held(layer.across), base = base) else layer.copy(up = held(layer.up), base = base)
+}
+
+/**
+ * [from] in [to]'s units up its start axis, where the two are in different
+ * ones: a stack and the same stack as shares of each place's whole. Each
+ * value keeps its place on the plot, and the axis is the new one from the
+ * first frame, so the bars move to their shares and the labels change once.
+ * Blended across, the axis's span went from thousands to one, and every new
+ * label sat in a heap at the foot of the plot until the last frames.
+ */
+private fun inUnitsOf(from: ResolvedChart, to: ResolvedChart): ResolvedChart {
+    if (from.inShares == to.inShares || from.empty || to.empty) return from
+    val old = from.valueAxis
+    val new = to.valueAxis
+    fun moved(value: Double): Double = new.low + (value - old.low) / old.span * new.span
+    fun moved(values: DoubleArray): DoubleArray = DoubleArray(values.size) { moved(values[it]) }
+    val layers = from.layers.map { layer ->
+        if (layer.mark.onEnd) return@map layer
+        val base = layer.base?.let(::moved)
+        if (from.horizontal) layer.copy(across = moved(layer.across), base = base) else layer.copy(up = moved(layer.up), base = base)
+    }
+    // The rules and regions up it too, so that a target line keeps its
+    // place as the bars do rather than sweeping in from thousands.
+    fun movedOr(value: Double?) = value?.let(::moved)
+    val rules = from.rules.map { rule ->
+        when {
+            rule.onEnd -> rule
+            from.horizontal -> Rule(movedOr(rule.x), rule.y, rule.label, rule.style, rule.onEnd)
+            else -> Rule(rule.x, movedOr(rule.y), rule.label, rule.style, rule.onEnd)
+        }
+    }
+    val regions = from.regions.map { region ->
+        when {
+            region.onEnd -> region
+            from.horizontal -> Region(movedOr(region.xStart), movedOr(region.xEnd), region.yStart, region.yEnd, region.label, region.style, region.onEnd)
+            else -> Region(region.xStart, region.xEnd, movedOr(region.yStart), movedOr(region.yEnd), region.label, region.style, region.onEnd)
+        }
+    }
+    val x = if (from.horizontal) new else from.x
+    val y = if (from.horizontal) from.y else new
+    return from.with(x, y, layers, from.yEnd, rules, regions)
+}
+
+/** Whether [this]'s start axis reads in shares of each place's whole: a normalised stack's. */
+private val ResolvedChart.inShares: Boolean
+    get() = layers.any { !it.mark.onEnd && it.mark.stacking == ChartStacking.Normalised && (it.mark.kind == MarkKind.Bar || it.mark.kind == MarkKind.Area) }
 
 /** The value of the line through [places] and [values] at [place], held flat beyond its ends. */
 internal fun sampleAt(places: DoubleArray, values: DoubleArray, place: Double): Double {
@@ -224,6 +425,8 @@ internal fun sampleAt(places: DoubleArray, values: DoubleArray, place: Double): 
     if (a.isNaN() || b.isNaN()) return if (place - places[low] < places[high] - place) a else b
     return a + (b - a) * (place - places[low]) / span
 }
+
+private fun lerp(a: Float, b: Float, t: Double): Float = a + (b - a) * t.toFloat()
 
 private fun lerp(a: Double, b: Double, t: Double): Double = when {
     a.isNaN() -> b

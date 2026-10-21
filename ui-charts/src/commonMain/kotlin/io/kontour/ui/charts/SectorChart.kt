@@ -45,6 +45,8 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.foundation.ContentScope
 import io.kontour.ui.interaction.rememberDetentTicker
+import io.kontour.ui.overlay.OverlayAlignment
+import io.kontour.ui.overlay.OverlaySide
 import io.kontour.ui.theme.Theme
 import kotlin.math.PI
 import kotlin.math.abs
@@ -100,7 +102,8 @@ import kotlin.math.sqrt
  * @param showLegend Whether the parts are named beside the chart.
  * @param showPatterns Whether sectors are told apart by fill as well as colour.
  * @param showSelectionTooltip Whether the chosen sector's value is shown in a
- *   tooltip beside it.
+ *   tooltip: above the pointer or the finger that chose it, or over the
+ *   sector for one chosen by a key.
  * @param animateData Whether the sectors sweep round into place, and move to
  *   new shares when the data changes.
  * @param strings The words the chart says on its own.
@@ -262,15 +265,28 @@ fun SectorChart(
     val corner = Theme.shapes.extraSmall.topStart
     val ticker = rememberDetentTicker()
     val currentSelection by rememberUpdatedState(selection)
+    // Where a pointer or a finger chose the part, so that its tooltip is
+    // there and not over the part's middle: *"can we make the tooltip show up
+    // where your mouse/finger is"*. `null` for a part chosen by a key or a
+    // screen reader, whose tooltip stays over the part it is about. Read only
+    // where the probe is placed, so a pointer moving round a sector places it
+    // again and recomposes nothing.
+    var pointer by remember { mutableStateOf<Offset?>(null) }
     val choose: (Int) -> Unit = { index ->
         parts.getOrNull(index)?.let { part ->
+            pointer = null
             ticker.at(index)
             currentSelection?.select(part.series)
         }
     }
     var box by remember { mutableStateOf(IntSize.Zero) }
     val geometry = remember(fractions, innerRadius, direction) { SectorGeometry(fractions, innerRadius, direction) }
-    val chooseAt: (Offset) -> Unit = { offset -> geometry.partAt(offset, box.width.toFloat(), box.height.toFloat())?.let(choose) }
+    val chooseAt: (Offset) -> Unit = { offset ->
+        geometry.partAt(offset, box.width.toFloat(), box.height.toFloat())?.let { index ->
+            choose(index)
+            pointer = offset
+        }
+    }
     val tip = rememberChartTip()
     // Round the circle with a finger after a hold, so that a drag that starts
     // upright is still the page's scroll; round it with the keys the way it is
@@ -387,7 +403,13 @@ fun SectorChart(
                                 ),
                             ),
                         )
-                        ChartTooltipProbe(shown, tooltip, onDismissRequest = { tip.putAway(chosen) }) {
+                        ChartTooltipProbe(
+                            shown,
+                            tooltip,
+                            onDismissRequest = { tip.putAway(chosen) },
+                            side = OverlaySide.Top,
+                            alignment = OverlayAlignment.Centre,
+                        ) {
                             val look = lookOf(series.indexOf(part.series), colours.series, patterns, part.style, part.series.style)
                             ChartTooltipBody(title = null, rows = listOf(TooltipRow({ FillSwatch(look, colours) }, part.series.name, shown.values[0].label)))
                         }
@@ -412,8 +434,13 @@ fun SectorChart(
                 layout(width, height) {
                     nodes.forEach { (node, box) -> node.place(box.left.roundToInt(), box.top.roundToInt()) }
                     if (probe != null && chosen != null) {
-                        val box = boxes[chosen]
-                        probe.place(box.center.x.roundToInt(), box.top.roundToInt())
+                        val at = pointer
+                        if (at != null) {
+                            probe.place(at.x.roundToInt(), at.y.roundToInt())
+                        } else {
+                            val box = boxes[chosen]
+                            probe.place(box.center.x.roundToInt(), box.top.roundToInt())
+                        }
                     }
                 }
             }

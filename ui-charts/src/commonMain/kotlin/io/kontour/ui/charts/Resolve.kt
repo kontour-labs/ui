@@ -137,6 +137,15 @@ internal class Layer(
     val box: BoxRun? = null,
     /** How much of it is drawn: less than whole only while a hidden series leaves. See [interpolate]. */
     val opacity: Float = 1f,
+    /**
+     * How wide a bar or a box is, as a share of the room its place gives its
+     * group, and how far its middle stands from the place's, in that room:
+     * from [groupIndex] and [groupCount], and between two such while a chart
+     * moves from bars side by side to a stack of them, which narrowed or
+     * widened the bars at once in the first frame.
+     */
+    val groupWidth: Float = 1f / groupCount,
+    val groupOffset: Float = (groupIndex - (groupCount - 1) / 2f) / groupCount,
 ) {
     val size: Int get() = across.size
 
@@ -153,7 +162,12 @@ internal class Layer(
         values: DoubleArray = this.values,
         box: BoxRun? = this.box,
         opacity: Float = this.opacity,
-    ): Layer = Layer(markIndex, mark, series, slot, across, up, base, acrossEnd, upEnd, values, groupIndex, groupCount, box, opacity)
+        groupWidth: Float = this.groupWidth,
+        groupOffset: Float = this.groupOffset,
+    ): Layer = Layer(
+        markIndex, mark, series, slot, across, up, base, acrossEnd, upEnd, values, groupIndex, groupCount, box, opacity,
+        groupWidth, groupOffset,
+    )
 }
 
 /**

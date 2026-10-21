@@ -6,11 +6,13 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.FlowRowScope
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -34,6 +36,7 @@ import io.kontour.ui.catalog.pageScroll
 import io.kontour.ui.charts.Chart
 import io.kontour.ui.charts.ChartAxis
 import io.kontour.ui.charts.ChartInterpolation
+import io.kontour.ui.charts.ChartSelection
 import io.kontour.ui.charts.ChartSeries
 import io.kontour.ui.charts.ChartStacking
 import io.kontour.ui.charts.LinePattern
@@ -47,6 +50,7 @@ import io.kontour.ui.components.display.CardDefaults
 import io.kontour.ui.components.display.CardVariant
 import io.kontour.ui.components.display.Gauge
 import io.kontour.ui.components.display.KeyValueList
+import io.kontour.ui.components.display.Meter
 import io.kontour.ui.components.display.Stat
 import io.kontour.ui.components.selection.Switch
 import io.kontour.ui.foundation.Text
@@ -310,6 +314,7 @@ private fun DayByHour(patterns: Boolean) {
             seriesVisibility = shownSources,
             contentDescription = "Today's power by the hour, with the afternoon forecast",
             showPatterns = patterns,
+            tooltip = { shown -> HourTooltip(shown) },
         ) {
             region(xStart = PeakStart, xEnd = PeakEnd, label = "Peak")
             area(
@@ -327,6 +332,43 @@ private fun DayByHour(patterns: Boolean) {
         }
     }
 }
+
+/**
+ * An hour's tooltip, the app's own in place of the chart's row for each
+ * source: what the house drew then, and how much of it was its own, as a
+ * meter. A forecast hour says what the roof is likely to make. A chart's
+ * `tooltip` is any content at all, in the same card as the default.
+ */
+@Composable
+private fun HourTooltip(shown: ChartSelection<Number>) {
+    val formats = Theme.formats
+    val typography = Theme.typography
+    val drawn = shown.values.filter { it.series.name in SourceNames }
+    Column(Modifier.width(IntrinsicSize.Max), verticalArrangement = Arrangement.spacedBy(Theme.spacing.xxs)) {
+        Text(shown.label, colour = Theme.colours.contentMuted, style = typography.labelSmall)
+        if (drawn.isEmpty()) {
+            val likely = shown.values.lastOrNull { it.series == Roof }?.value ?: 0.0
+            Text("${formats.decimal(likely, 1)} kW likely", style = typography.titleSmall)
+            Text("From the roof, forecast", style = typography.labelMedium)
+            return@Column
+        }
+        val use = drawn.sumOf { it.value }
+        val own = drawn.filter { it.series.name != FromTheGrid }.sumOf { it.value }
+        val share = if (use > 0) own / use else 0.0
+        Text("${formats.decimal(use, 1)} kW in use", style = typography.titleSmall)
+        Meter(value = share.toFloat(), modifier = Modifier.fillMaxWidth())
+        Text("${formats.percent(share, 0)} its own", style = typography.labelMedium)
+        val hour = (shown.x as? Number)?.toInt()
+        if (hour != null && hour >= PeakStart && hour < PeakEnd) {
+            Text("At the peak price", colour = Theme.colours.contentMuted, style = typography.labelSmall)
+        }
+    }
+}
+
+/** The sources an hour's power is stacked from, the last of them the grid's. */
+private val SourceNames = setOf("From the roof", "From the battery", "From the grid")
+
+private const val FromTheGrid = "From the grid"
 
 /**
  * Where the house's power came from today, as a donut: a sector chosen by tap,

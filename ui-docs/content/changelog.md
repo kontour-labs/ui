@@ -118,8 +118,7 @@ On `main`, and in the next release.
   another strip, as a split view's panes exchange them. Middle click, Delete, the arrow keys and a screen
   reader's actions all work.
 - **`KeyValueList(compact = true)`**, for a small container of its own: the
-  rows take the style around them and the list is as wide as its rows. A
-  chart's tooltip is one now, rather than rows laid out by hand.
+  rows take the style around them and the list is as wide as its rows.
 - **`FillPatternDefaults`**, the spacing and weight a pattern is drawn with and
   the order a chart's series take them in, and
   **`bottomCornersOnly()`** and **`trailingCornersOnly()`** beside
@@ -339,6 +338,27 @@ On `main`, and in the next release.
 
 ### Changed
 
+- **A chart's tooltip is a card beside the selected place.** The place,
+  quietly, over a row for each series with its value at the card's end, in
+  figures of one width so that they line up, and a stack's total under a rule.
+  It stands to the end of the place, or to its start where it does not fit,
+  rather than over the bars and the line it reads out. Among bars the selected
+  place is washed behind them, its whole width, where a line through them cut
+  them in two. A `SectorChart`'s stands over the pointer or the finger that
+  chose its sector, and moves with a pointer, rather than over the sector's
+  middle. `tooltip` still replaces what it says; the energy app's hours show
+  one of their own.
+- **A chart moving between ways of drawing its data keeps its marks
+  together.** A stack rises as one from its foot, where each part rose from
+  its own and stood in the air over the part under it. Bars leaving a stack
+  for side by side narrow and move apart as they come down, where they took
+  their new width at once; a stack turned to shares takes its percent axis at
+  once and each part moves to its share, where its labels sat heaped at the
+  foot of the plot for most of the move; and bars turned to a line or an area
+  fade into it, the line going from their tops, where they sank to the floor
+  as it rose. A bar's ends are rounded by where it is in each frame, so none
+  is notched on the way. Along a date or number axis, a day that has gone goes
+  down as the axis closes in, rather than vanishing.
 - **Side sheets take the panel's corner, 28dp**, not a sheet's 34. Facing the
   content in the middle of the window, a side sheet meets no device corner, and
   at 34dp its smoothed top corner crowded the title and the back button in it.

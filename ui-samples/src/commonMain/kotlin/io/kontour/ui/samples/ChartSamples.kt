@@ -1,5 +1,6 @@
 package io.kontour.ui.samples
 
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -162,6 +163,31 @@ fun ChartStackedBars() {
             series = { ChartSeries(it.category) },
             stacking = ChartStacking.Stacked,
         )
+    }
+}
+
+@Composable
+fun ChartCustomTooltip() {
+    // The selected month's tooltip says what was left of a budget, in place
+    // of each category's figure.
+    val selection = rememberChartSelectionState<String>()
+    val formats = Theme.formats
+    Chart(
+        xAxis = ChartAxis.category<String>(),
+        yAxis = ChartAxis.number(),
+        modifier = Modifier.fillMaxWidth().height(220.dp),
+        selection = selection,
+        contentDescription = "Spending by month",
+        tooltip = { shown ->
+            val spent = shown.values.sumOf { it.value }
+            Column {
+                Text(shown.label, colour = Theme.colours.contentMuted, style = Theme.typography.labelSmall)
+                Text(formats.currency(spent, "AUD"), style = Theme.typography.titleSmall)
+                Text("${formats.currency(2500.0 - spent, "AUD")} under budget")
+            }
+        },
+    ) {
+        bar(quarter, x = { it.month }, y = { it.amount }, series = { ChartSeries(it.category) })
     }
 }
 

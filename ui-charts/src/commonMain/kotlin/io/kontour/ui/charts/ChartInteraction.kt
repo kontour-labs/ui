@@ -35,7 +35,10 @@ import androidx.compose.ui.unit.LayoutDirection
 import io.kontour.ui.foundation.ContentScope
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.onPressOutside
+import io.kontour.ui.overlay.OverlayAlignment
+import io.kontour.ui.overlay.OverlaySide
 import io.kontour.ui.overlay.Tooltip
+import io.kontour.ui.overlay.TooltipStyle
 import io.kontour.ui.overlay.TooltipDefaults
 import io.kontour.ui.theme.Theme
 import kotlinx.coroutines.delay
@@ -226,20 +229,33 @@ internal fun Modifier.chartSelectionInput(
 }
 
 /**
- * A chart's tooltip, from a one-pixel probe placed where the choice is: the
- * caller's [tooltip] for [shown], or [body]. A touch's goes after
+ * A chart's tooltip, from a probe placed where the choice is: the caller's
+ * [tooltip] for [shown], or [body]. A touch's goes after
  * [TooltipDefaults.TouchDuration], as every other tooltip does, and the choice
  * stays.
+ *
+ * A card, standing off the probe on [side]: beside a place, so that the
+ * values it reads out are not covered by it, or above a pointer on a pie. It
+ * was the inverse bubble a control's tooltip is, with its arrow, centred over
+ * the place, and it sat on the bars and the line it was about.
  */
 @Composable
 internal fun <T : Any> ChartTooltipProbe(
     shown: ChartSelection<T>,
     tooltip: (@Composable ContentScope.(ChartSelection<T>) -> Unit)?,
     onDismissRequest: () -> Unit,
+    side: OverlaySide = OverlaySide.End,
+    alignment: OverlayAlignment = OverlayAlignment.Start,
     body: @Composable ContentScope.() -> Unit,
 ) {
     Box {
-        Tooltip(visible = true, onDismissRequest = onDismissRequest) {
+        Tooltip(
+            visible = true,
+            side = side,
+            alignment = alignment,
+            onDismissRequest = onDismissRequest,
+            style = TooltipStyle.Card,
+        ) {
             if (tooltip != null) tooltip(shown) else body()
         }
     }

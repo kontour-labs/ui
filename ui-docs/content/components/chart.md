@@ -338,7 +338,56 @@ a drag selects the nearest place along it, a pointer selects what it is over,
 and with focus the arrow keys move between places, Home and End jump to the
 ends, and Escape clears. Everything at the selected place is selected together,
 every series' value there, and the chart shows it in a tooltip.
-`selection.x` is the selected value; `tooltip` replaces what the tooltip shows.
+`selection.x` is the selected value.
+
+The tooltip is a card beside the selected place: the place, quietly, over a
+row for each series, its swatch and name at the start and its value at the
+end, so that the values line up down the card. A stack of bars or areas adds
+its total under a rule. The card stands to the end of the place, or to its
+start where there is no room for it there, so it covers its neighbours and not
+the values it reads out. Among bars the selected place is washed behind them,
+its whole width; on a line or an area each value there is ringed.
+
+`tooltip` replaces what the card says, with whatever the selection should
+mean on your page:
+
+<!--sample:ChartCustomTooltip-->
+```kotlin
+// The selected month's tooltip says what was left of a budget, in place
+// of each category's figure.
+val selection = rememberChartSelectionState<String>()
+val formats = Theme.formats
+Chart(
+    xAxis = ChartAxis.category<String>(),
+    yAxis = ChartAxis.number(),
+    modifier = Modifier.fillMaxWidth().height(220.dp),
+    selection = selection,
+    contentDescription = "Spending by month",
+    tooltip = { shown ->
+        val spent = shown.values.sumOf { it.value }
+        Column {
+            Text(shown.label, colour = Theme.colours.contentMuted, style = Theme.typography.labelSmall)
+            Text(formats.currency(spent, "AUD"), style = Theme.typography.titleSmall)
+            Text("${formats.currency(2500.0 - spent, "AUD")} under budget")
+        }
+    },
+) {
+    bar(quarter, x = { it.month }, y = { it.amount }, series = { ChartSeries(it.category) })
+}
+```
+
+`showSelectionTooltip = false` keeps the selection and its highlight with no
+card, for a page that says the selected values somewhere of its own.
+
+### A chart with no interaction
+
+A chart without a `selection`, the default, is a picture. Nothing on it
+answers a tap, a drag, a pointer or a key, it takes no focus, and it shows no
+tooltip, so a page of small charts scrolls and tabs past them as it does past
+text. A screen reader still hears all of it: the summary, then each place and
+its values. `enabled = false` does the same for a chart that has a selection
+it should not change for now. The legend's switches are a separate choice, made
+with `seriesVisibility`.
 
 ## Two axes up
 
@@ -394,6 +443,15 @@ nothing jumps. The plot's edges move with it: when the axis's labels grow a
 digit, the plot narrows over the same move rather than jumping across.
 `animateData = false` draws each chart at once.
 
+A stack rises as one, from its foot, and a new place's stack does too. Moving
+between ways of drawing the same data keeps every mark where it can be
+followed. Bars leaving a stack to stand side by side narrow and move apart as
+they come down; a stack turned to shares takes its percent axis at once and
+each part moves to its share; and a series drawn as bars, then as a line or an
+area, fades from one to the other, the line going to the bars' tops and from
+them, while a stack holds its place. Along a date or number axis a place that
+has gone goes down to its foot as the axis closes in, rather than vanishing.
+
 ## `SectorChart`
 
 <!--sample:SectorChartBasics-->
@@ -414,7 +472,9 @@ The parts of a whole, as a pie or, with an `innerRadius`, a donut with its
 and a sector is chosen as a chart's place is: a tap, a pointer, the arrow keys
 round the circle the way it is drawn, or a screen reader on the sector's own
 node. The chosen one stands out from the centre and is outlined, so it is told
-apart by its shape as well as its ink. Sectors start at the top and go clockwise, and
+apart by its shape as well as its ink. Its tooltip is just above the pointer or
+the finger that chose it, and moves with a pointer round the sector; chosen by
+a key or a screen reader, it is over the sector. Sectors start at the top and go clockwise, and
 anticlockwise in a right-to-left language. Use one for up to five or six parts
 of one whole. For more parts, or to compare parts across wholes, use a `Chart`
 of bars.
