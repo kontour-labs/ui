@@ -35,6 +35,13 @@ import kotlinx.coroutines.launch
  *   first nothing else would ever show it. A notch up at the content's top
  *   does nothing: a wheel neither closes a sheet nor drops it.
  *
+ * A trackpad on a Mac pans rather than scrolls — `PanStart`, `PanMove`,
+ * `PanEnd`, with no press — and a pan reaches the connection as a finger's drag
+ * does, so it is told as a wheel is, and its moves past the end open the sheet
+ * as notches do. Found in the 0.5.0 review, 2026-10-21: listening for scroll
+ * events alone, the fix above held for a mouse's wheel and not for the MacBook
+ * trackpad the report came from, which still dragged the sheet.
+ *
  * Not a drag, so no haptic ticks and nothing [SheetState.draggedByHand] says;
  * an open the hand asked for by turning a wheel is an `animateTo`, as a tap on a
  * button that opens the sheet is.
@@ -44,14 +51,14 @@ internal fun Modifier.sheetWheel(state: SheetState): Modifier = pointerInput(sta
         awaitPointerEventScope {
             while (true) {
                 val event = awaitPointerEvent(PointerEventPass.Initial)
-                if (event.type != PointerEventType.Scroll) continue
+                if (event.type !in Turns) continue
                 state.finger.wheel()
                 // The same event, once everything inside the sheet has had it.
                 val after = awaitPointerEvent(PointerEventPass.Main)
-                if (after.type != PointerEventType.Scroll) continue
+                if (after.type != PointerEventType.Scroll && after.type != PointerEventType.PanMove) continue
                 val change = after.changes.firstOrNull() ?: continue
                 if (change.isConsumed) continue
-                val delta = change.scrollDelta
+                val delta = if (after.type == PointerEventType.Scroll) change.scrollDelta else change.panOffset
                 // Down the screen, and mostly so: a carousel's sideways scroll
                 // is the carousel's, consumed or not.
                 if (delta.y <= 0f || abs(delta.y) < abs(delta.x)) continue
@@ -69,3 +76,11 @@ internal fun Modifier.sheetWheel(state: SheetState): Modifier = pointerInput(sta
         }
     }
 }
+
+/** What a wheel or a trackpad sends over the sheet: a mouse's notches, or a trackpad's pan. */
+private val Turns = setOf(
+    PointerEventType.Scroll,
+    PointerEventType.PanStart,
+    PointerEventType.PanMove,
+    PointerEventType.PanEnd,
+)

@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.PointerType
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -169,6 +170,44 @@ class SheetWheelTest {
             assertEquals(SheetDetent.Half, state.currentDetent, "$content: the wheel moved the sheet to ${state.currentDetent}")
             assertEquals(top, state.offset, 0.5f, "$content: the wheel moved the sheet from $top to ${state.offset}")
         }
+    }
+
+    /**
+     * A trackpad on a Mac pans rather than scrolls, and a pan over a half-height
+     * sheet's list scrolls the list, as the wheel does.
+     *
+     * Found in the 0.5.0 review, 2026-10-21: [sheetWheel] listened for scroll
+     * events only, and a Mac's trackpad sends `PanStart`, `PanMove` and
+     * `PanEnd`, which reach the sheet's nested-scroll connection as a finger's
+     * drag does. So on the MacBook the report came from, the trackpad still
+     * opened the sheet to full height before the list moved.
+     */
+    @Test
+    fun aTrackpadPanOverAHalfSheetsListScrollsTheList() {
+        for (content in Content.entries) sheet(content) {
+            val top = state.offset
+            pan(12, down = true)
+            assertTrue(scroll() > 0f, "$content: a trackpad's pan never scrolled the content, and left the sheet at ${state.currentDetent}, ${state.offset} from $top")
+            assertEquals(SheetDetent.Half, state.currentDetent, "$content: a trackpad's pan moved the sheet to ${state.currentDetent}")
+            assertEquals(top, state.offset, 0.5f, "$content: a trackpad's pan moved the sheet from $top to ${state.offset}")
+            // And back up past the content's top: the sheet neither closes nor drops.
+            pan(36, down = false)
+            assertEquals(0f, scroll(), "$content: the pan never brought the content back to its top")
+            assertEquals(SheetDetent.Half, state.currentDetent, "$content: a pan up past the top moved the sheet to ${state.currentDetent}")
+            assertEquals(top, state.offset, 0.5f, "$content: a pan up past the top moved the sheet from $top to ${state.offset}")
+            assertEquals(0, dismissed(), "$content: a pan up past the top closed the sheet")
+        }
+    }
+
+    /** One pan of [moves] moves of 24px, the content towards its end when [down], then let go. */
+    private fun Run.pan(moves: Int, down: Boolean, at: Offset = Offset(Width / 2f, Height - 120f)) {
+        scene.pan(PointerEventType.PanStart, at)
+        repeat(moves) {
+            scene.pan(PointerEventType.PanMove, at, Offset(0f, if (down) 24f else -24f))
+            scene.frame()
+        }
+        scene.pan(PointerEventType.PanEnd, at)
+        scene.frames(60)
     }
 
     /** And back up past the content's top, the sheet neither closes nor drops. */
