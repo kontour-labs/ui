@@ -313,7 +313,15 @@ window — see **Changed**.
   and the arrows to the page. A tap or Escape lets go, a screen reader hears it
   with the place, and its words are
   `ChartStrings.selectedRange` and `selectedBox`. Optional, and separate from
-  `selection`. See [Chart](components/chart.md#marking-a-range).
+  `selection`. While a range is marked, the marks outside it fade to 60%, 80%
+  at the high contrast tier, so the ones inside stand out: lines and areas are
+  cut at its edges, and the fade comes and goes with the range. See
+  [Chart](components/chart.md#marking-a-range).
+- **`selectsOnHover`** on `Chart` and `SectorChart`: off, a pointer chooses a
+  place by clicking, and moving over the chart chooses nothing. It is off by
+  default on a `Chart` that also marks ranges, where the hover's bar sat where
+  every drag starts, and while a mouse button is down on such a chart the
+  chosen place stays where it is.
 - **`Tooltip(style = TooltipStyle.Card)`**: a tooltip drawn as a small card,
   on the raised surface a menu takes, edged and shadowed, standing off what it
   is about with no arrow, for a few lines with figures in them. It opens on the
