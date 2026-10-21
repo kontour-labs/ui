@@ -276,7 +276,8 @@ window — see **Changed**.
   the tooltip, and the place it rested on, with it. A line's value is ringed
   only where the line is, and a stacked area's only where it has some
   thickness. `tooltip` replaces what it says; the energy app's hours show one
-  of their own.
+  of their own. A tap on the place already chosen brings a finger's tooltip
+  back, and a chart that is not `enabled` still says what is chosen on it.
 - **`ChartDataTable`**: a chart's numbers as a table, from the same axes and
   content, a row for each place and a column for each series, for the readers
   a picture does not serve. **`SectorChart` takes a selection**, chosen by tap,
@@ -290,10 +291,12 @@ window — see **Changed**.
   `CrossHatch`, `Grid` and the rest), `FillPattern.lines` takes a direction,
   a spacing and a weight, `FillPattern.dots` a spacing, a size and staggered
   rows, and `FillPattern.custom` repeats a tile you draw.
-- **`seriesVisibility`** on `Chart` and `SectorChart`, from
-  `rememberChartSeriesVisibility()`: each entry in the legend becomes a switch
-  that hides its series and shows it again, the axes and stacks closing in on
-  what is left.
+- **`seriesVisibility`** on `Chart` and `SectorChart`, a
+  `ChartSeriesVisibilityState` from `rememberChartSeriesVisibilityState()`:
+  each entry in the legend becomes a switch that hides its series and shows it
+  again, the axes and stacks closing in on what is left. A hidden entry keeps
+  a name that can be read, beside a hollow swatch, and the legend is off on a
+  chart that is not `enabled`.
 - **`Modifier.onPressOutside`**: told of a press anywhere but on its node,
   without taking it, for a selection that lets go when the reader taps
   elsewhere. A chart's selection does.
@@ -302,9 +305,13 @@ window — see **Changed**.
 - **A range marked on a `Chart`.** `rangeSelection`, from
   `rememberChartRangeSelectionState()`, lets a reader mark a stretch across
   the chart, or with `ChartRangeMode.Box` a box across and up for a scatter
-  plot's points: a pointer drags, a finger holds and then drags, and Shift and
-  the arrows stretch one from the selected place. A tap or Escape lets go, a
-  screen reader hears it with the place, and its words are
+  plot's points: a pointer drags, a finger holds and then drags, marking from
+  exactly where it started to where it stops on any chart, and Shift and the
+  arrows stretch one a place at a time from the selected place, or the first.
+  Along categories it reports the categories it reaches into, and on a date
+  axis the day each end falls in. A chart with only a range leaves plain drags
+  and the arrows to the page. A tap or Escape lets go, a screen reader hears it
+  with the place, and its words are
   `ChartStrings.selectedRange` and `selectedBox`. Optional, and separate from
   `selection`. See [Chart](components/chart.md#marking-a-range).
 - **`Tooltip(style = TooltipStyle.Card)`**: a tooltip drawn as a small card,
@@ -321,7 +328,8 @@ window — see **Changed**.
 - **More kinds of chart**: a `bar` from `yStart` to `yEnd` for a range;
   `stem` for dumbbells, lollipops and error bars; `box` for box plots, from
   samples or from five numbers; `ChartStacking.Centred` for a streamgraph; and
-  `cell` for a heat map, shaded along `ChartColours.ramp`, with a scale and,
+  `cell` for a heat map, across a category, number or date axis, shaded along
+  `ChartColours.ramp`, with a scale and,
   with patterns on, its numbers written in its cells. Each is said, tabled and
   animated as the others are.
 - **[`DocumentTabs`](components/document-tabs.md)**: open documents as a
