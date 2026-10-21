@@ -238,10 +238,31 @@ import sys
 #   charts     +138   −67    the tooltip's leaving and the sector selection
 #
 # `total` through `--update`'s rule by hand, over CI's figure.
+#
+# Raised 2026-10-21 for 0.5.0, from CI's own measurement on
+# `claude/trusting-dijkstra-w1a6rz` (0fa5cca9, run 39537937356), the first run
+# to build the site with the charts' card tooltip and presentation moves. `app`
+# is 4,054,432: +35,376 gzip on 132164c7's 4,019,056, and over its ceiling by
+# 14,432. `total` is 7,838,676, inside its ceiling, and stays, as do `skiko`
+# (3,324,678), `js` (103,303), `fonts` (352,932) and `other` (3,331). About 14
+# gzip bytes a net line, under the rate above. Read by source, lines added and
+# removed since 132164c7:
+#
+#   :ui        +1,143 −172   the tooltip's card, a step's progress and weights,
+#                            the toast stack held to its front, three days a
+#                            day at a time, the caret's aim, swipe's clip
+#   charts     +1,136 −216   the card tooltip and its total, the selection's
+#                            wash, the end axis, the moves between ways of
+#                            drawing, the legend's switches
+#   the site   +389   −17    lines of pages: the chart and tooltip pages, the
+#                            changelog and migrating
+#   gallery    +219   −30    the energy app's hour tooltip, the sheets' panes
+#
+# `app` through `--update`'s rule by hand, over CI's figure.
 
 CEILINGS = {
     "skiko": 3_430_000,
-    "app": 4_040_000,
+    "app": 4_180_000,
     "js": 110_000,
     "fonts": 370_000,
     "other": 10_000,
