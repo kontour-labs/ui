@@ -20,6 +20,7 @@ import io.kontour.icons.tabler.outline.Archive
 import io.kontour.icons.tabler.outline.Trash
 import io.kontour.ui.components.list.SwipeAction
 import io.kontour.ui.components.list.SwipeActions
+import io.kontour.ui.components.list.SwipeActionsDefaults
 import io.kontour.ui.components.list.SwipeActionsState
 import io.kontour.ui.components.list.SwipeValue
 import io.kontour.ui.components.list.rememberSwipeActionsState
@@ -115,6 +116,39 @@ class SwipeScrollTest {
             scene.pan(PointerEventType.PanEnd, at)
         }
         assertEquals(1, ran, "a pan let go past the point of no return ran the outermost action $ran time(s)")
+    }
+
+    /**
+     * Slow notches each move the row, and two open a single action, as
+     * [SwipeActionsDefaults.ScrollStep] says.
+     *
+     * Found in the 0.5.0 review, 2026-10-21: the row settles once a scroll has
+     * been quiet for [SwipeActionsDefaults.SettleAfterScroll], and that settle
+     * marked what followed as a trackpad coasting, to be swallowed until a
+     * quiet spell of a quarter of a second. So notches a fifth of a second
+     * apart, a sideways tilt of the wheel or Shift and the wheel at an easy
+     * pace, were each taken and ignored after the first, and the row never
+     * opened. The clocks are kept together here, the frames' and the wall's
+     * that the settle waits on, as a reader's hand keeps them.
+     */
+    @Test
+    fun slowNotchesOfASidewaysWheelEachMoveTheRowAndTwoOpenOneAction() {
+        var beforeSecond = 0f
+        var afterSecond = 0f
+        val (_, settled) = row(actions = 1) { scene, at, state ->
+            scene.scroll(at, Offset(1f, 0f))
+            scene.paced(200)
+            beforeSecond = state.offset
+            scene.scroll(at, Offset(1f, 0f))
+            scene.advance()
+            afterSecond = state.offset
+        }
+        // A notch is 24dp, 48px at this scene's density.
+        assertTrue(
+            abs(afterSecond) - abs(beforeSecond) > 40f,
+            "a notch a fifth of a second after the last moved the row from $beforeSecond to $afterSecond: it was swallowed",
+        )
+        assertEquals(SwipeValue.End, settled, "two notches a fifth of a second apart left a row of one action at $settled")
     }
 
     /** And from a wheel: twelve notches of 24dp, 576px, then quiet. */
@@ -236,6 +270,7 @@ class SwipeScrollTest {
     private fun row(
         onArchive: () -> Unit = {},
         settleFrames: Int = 40,
+        actions: Int = 2,
         gesture: (Scene, Offset, SwipeActionsState) -> Unit,
     ): Pair<SwipeActionsState, SwipeValue> {
         lateinit var state: SwipeActionsState
@@ -249,7 +284,7 @@ class SwipeScrollTest {
                     end = listOf(
                         SwipeAction("Archive", Tabler.Outline.Archive, onArchive, Color.Blue),
                         SwipeAction("Delete", Tabler.Outline.Trash, {}, Color.Red),
-                    ),
+                    ).take(actions),
                 ) {
                     Box(Modifier.fillMaxWidth().height(72.dp).background(Color.White))
                 }
@@ -262,5 +297,19 @@ class SwipeScrollTest {
             scene.frames(settleFrames)
         }
         return state to state.currentValue
+    }
+
+    /**
+     * [millis] of frames, each rendered no sooner than the wall clock reaches
+     * it: the row's settle waits on the wall's clock, and its spring and the
+     * events' times run on the frames'.
+     */
+    private fun Scene.paced(millis: Int) {
+        val start = System.nanoTime()
+        repeat(millis / 16) {
+            val due = start + (it + 1) * 16_000_000L
+            while (System.nanoTime() < due) Thread.sleep(1)
+            advance()
+        }
     }
 }

@@ -920,9 +920,11 @@ fun SwipeActions(
              * A pan ends with an event of its own and settles then, flicked by
              * how it was moving; a scroll has no end, and settles once it has
              * been quiet for [SwipeActionsDefaults.SettleAfterScroll] — or at
-             * once, carried past its point of no return. What
-             * scroll follows either before a quiet spell is a trackpad
-             * coasting after its fingers lifted, and moves nothing.
+             * once, carried past its point of no return. What scroll follows a
+             * pan's end, or a scroll let go of past that point, before a quiet
+             * spell is a trackpad coasting after its fingers lifted, and moves
+             * nothing. A scroll let go of for being quiet was a wheel's notch,
+             * or a trackpad stopped, and the next notch moves the row again.
              */
             .then(
                 if (swipeable) {
@@ -938,13 +940,13 @@ fun SwipeActions(
                         var gathered = Offset.Zero
                         var lastScroll = 0L
                         // The gesture has been let go of — its pan ended, or its
-                        // scroll settled — and what scroll follows before a quiet
-                        // spell is its momentum: a trackpad's fingers have lifted
-                        // and it is still coasting. It used to be taken as more of
-                        // the gesture, and each event put off the settle, or
-                        // cancelled one already under way and started the wait
-                        // again: a row swiped all the way across sat at the edge
-                        // until the coasting had died away.
+                        // scroll carried past the point of no return — and what
+                        // scroll follows before a quiet spell is its momentum: a
+                        // trackpad's fingers have lifted and it is still coasting.
+                        // It used to be taken as more of the gesture, and each
+                        // event put off the settle, or cancelled one already under
+                        // way and started the wait again: a row swiped all the way
+                        // across sat at the edge until the coasting had died away.
                         var coasting = false
                         var panned = 0f
                         val panVelocity = VelocityTracker1D(isDataDifferential = false)
@@ -959,12 +961,27 @@ fun SwipeActions(
                             dealt.at(state.anchoredState.offset)
                         }
 
+                        // The scroll was let go of for being quiet, and the next
+                        // notch, however soon, starts a gesture of its own.
+                        var settledQuietly = false
+
                         // A scroll has no end: it is let go of once it has been quiet.
+                        //
+                        // And let go of, it is not coasting: a trackpad's momentum
+                        // follows a pan's end, or a scroll's run past the point of
+                        // no return, with no quiet between. Found in the 0.5.0
+                        // review, 2026-10-21: this settle said coasting too, and a
+                        // wheel's notches a fifth of a second apart, Shift and the
+                        // wheel or a tilt at an easy pace, came after it and inside
+                        // the quiet spell that ends coasting, so every one after the
+                        // first was taken and ignored, and the row never opened.
+                        // Now the next notch moves the row on from wherever the
+                        // settle has got it to.
                         fun settleWhenQuiet() {
                             waiting = scope.launch {
                                 delay(SwipeActionsDefaults.SettleAfterScroll)
                                 dealt.reset()
-                                coasting = true
+                                settledQuietly = true
                                 settle(0f)
                             }
                         }
@@ -1034,7 +1051,8 @@ fun SwipeActions(
                                             }
                                             coasting = false
                                         }
-                                        if (quiet) begin()
+                                        if (quiet || settledQuietly) begin()
+                                        settledQuietly = false
                                         // A notch is a whole decision on its own.
                                         if (decide(delta, 0f) != true) continue
                                         // The row's, up and down included, until it
