@@ -34,6 +34,7 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -265,6 +266,9 @@ fun <T : Any> DocumentTabs(
     val goingNow = if (!strip.seeded || motion.reduceMotion) {
         emptyList()
     } else {
+        // The tabs' width as it is drawn now, which the strip's own width
+        // animates without a composition: see [StripState.width].
+        val wasWide = strip.drawnWidth()
         known.mapIndexedNotNull { i, (key, item) ->
             if (key in keySet || key == held || strip.leaving.any { it.key == key }) return@mapIndexedNotNull null
             val after = known.drop(i + 1).firstOrNull { it.first in keySet }?.first
@@ -276,9 +280,9 @@ fun <T : Any> DocumentTabs(
                 key = key,
                 item = item,
                 after = after,
-                whole = strip.widthWas,
+                whole = wasWide,
                 selected = wasSelected,
-                showedClose = wasSelected || key == strip.hovered || strip.widthWas >= CloseShownFrom,
+                showedClose = wasSelected || key == strip.hovered || wasWide >= CloseShownFrom,
                 fraction = Animatable(1f),
             )
         }
@@ -291,6 +295,8 @@ fun <T : Any> DocumentTabs(
         strip.known = keys.zip(items)
         strip.selectedWas = selectedKey
         strip.seeded = true
+        strip.forgetGone(keySet, held)
+        strip.focusAfterClose(keys)
     }
     val ghosts = strip.leaving.filter { it.key !in keySet } + goingNow
 
@@ -323,6 +329,10 @@ fun <T : Any> DocumentTabs(
             Key.MoveEnd -> keys.lastIndex
             Key.Delete, Key.Backspace -> {
                 val close = onClose ?: return false
+                // The focus goes on to the tab after it, or before it at the
+                // end, once it has gone: see [StripState.focusAfterClose].
+                strip.closing = keys[index]
+                strip.closingNext = keys.getOrNull(index + 1) ?: keys.getOrNull(index - 1)
                 close(item)
                 return true
             }
@@ -368,7 +378,7 @@ fun <T : Any> DocumentTabs(
                 (maxWidth - addRoom - foot * 2) / keys.size.coerceAtLeast(1) < minTabWidth
             val width = animateDpAsState(strip.frozen ?: share, motion.sizeSpec(), label = "documentTabWidth")
             val showsCloseAt = remember(width) { derivedStateOf { width.value >= CloseShownFrom } }
-            SideEffect { strip.widthWas = width.value }
+            SideEffect { strip.width = width }
 
             val options = DragItemOptions(
                 movesOnItem = false,
@@ -805,7 +815,7 @@ private class BelowGap(
 
 /** A strip's own memory: what it showed, what is leaving, and where its keyboard and pointer are. */
 @Stable
-private class StripState {
+internal class StripState {
     var hovered: Any? by mutableStateOf(null)
     var frozen: Dp? by mutableStateOf(null)
     var roving: Any? by mutableStateOf(null)
@@ -814,14 +824,74 @@ private class StripState {
     /** Each tab's key and item as the last composition applied them. */
     var known: List<Pair<Any, Any>> = emptyList()
 
-    /** The selected tab's key, and the tabs' width, as the last composition applied them: what a closing tab is drawn as. */
+    /** The selected tab's key as the last composition applied it: what a closing tab is drawn as. */
     var selectedWas: Any? = null
-    var widthWas: Dp = 0.dp
+
+    /**
+     * The tabs' width, as it animates: what a closing tab is drawn as, read
+     * by [drawnWidth] at the moment it goes.
+     *
+     * The state itself and not its value. Found in the 0.5.0 review,
+     * 2026-10-21: the value was noted after each composition, and the width
+     * animates without one, so after a "+" a closing tab was built at the
+     * width from before the tabs narrowed, 240dp for a tab drawn at 187. It
+     * jumped wider as it began to shrink and shoved its neighbours along, and
+     * kept a × it had not been showing.
+     */
+    var width: State<Dp>? = null
     var seeded = false
     val leaving = mutableStateListOf<Leaving>()
     private val focus = HashMap<Any, FocusRequester>()
 
+    /** How many tabs have a focus requester kept for them. */
+    val requesters: Int get() = focus.size
+
+    /**
+     * The tab Delete or Backspace has asked to close, and the tab the focus
+     * goes on to once it has gone.
+     */
+    var closing: Any? = null
+    var closingNext: Any? = null
+
+    /** [width]'s value, without the composition that asks reading it as it animates. */
+    fun drawnWidth(): Dp = Snapshot.withoutReadObservation { width?.value } ?: 0.dp
+
     fun requester(key: Any): FocusRequester = focus.getOrPut(key) { FocusRequester() }
+
+    /**
+     * Lets go of the requesters of tabs that have gone: every tab not in
+     * [present] and not [held], carried off by a pointer.
+     *
+     * Found in the 0.5.0 review, 2026-10-21: one was kept for every tab the
+     * strip had ever shown, so a browser's strip, open all day, held one for
+     * every page opened in it.
+     */
+    fun forgetGone(present: Set<Any>, held: Any?) {
+        if (focus.size > present.size) focus.keys.retainAll { it in present || it == held }
+    }
+
+    /**
+     * Once the tab Delete closed has gone, the focus goes on to the tab after
+     * it, or before it at the end.
+     *
+     * Found in the 0.5.0 review, 2026-10-21: the focus went with the tab, to
+     * the window, and a reader closing tabs from the keyboard had to find the
+     * strip again after every one. Decided by the first composition after
+     * the key rather than at the key itself, so a close the app turns down,
+     * to ask about unsaved work, leaves the focus where it was; and decided
+     * then and not later, so a tab closed some other way long after does not
+     * pull the focus back to the strip.
+     */
+    fun focusAfterClose(keys: List<Any>) {
+        val gone = closing ?: return
+        val next = closingNext
+        closing = null
+        closingNext = null
+        if (gone !in keys && next != null && next in keys) {
+            roving = next
+            pendingFocus = next
+        }
+    }
 }
 
 /**
@@ -829,7 +899,7 @@ private class StripState {
  * tab it is before, or `null` at the end. [whole], [selected] and [showedClose]
  * are how it was drawn as it went, which it keeps until it has gone.
  */
-private class Leaving(
+internal class Leaving(
     val key: Any,
     val item: Any,
     val after: Any?,

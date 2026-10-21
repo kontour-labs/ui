@@ -185,6 +185,87 @@ class DocumentTabsTest {
         assertEquals(listOf("Route map"), closed)
     }
 
+    /**
+     * Closed by Delete, the focused tab hands the focus to the tab after it,
+     * or at the end to the one before, as a browser's strip does.
+     *
+     * Found in the 0.5.0 review, 2026-10-21: the focus went with the tab, to
+     * the window, and a reader closing tabs from the keyboard had to find the
+     * strip again after each one.
+     */
+    @Test
+    fun deleteHandsTheFocusToTheNextTabOrAtTheEndThePrevious() = runComposeUiTest {
+        strip()
+        // The strip's one stop is the selected tab; the arrows walk on from it.
+        onNodeWithText("Timetable").requestFocus()
+        onNodeWithText("Timetable").performKeyInput { pressKey(Key.DirectionRight) }
+        waitForIdle()
+        onNodeWithText("Fares").assertIsFocused()
+        onNodeWithText("Fares").performKeyInput { pressKey(Key.Delete) }
+        waitForIdle()
+        assertEquals(listOf("Fares"), closed)
+        onNodeWithText("Route map").assertIsFocused()
+        onNodeWithText("Route map").performKeyInput { pressKey(Key.Backspace) }
+        waitForIdle()
+        assertEquals(listOf("Fares", "Route map"), closed)
+        onNodeWithText("Timetable").assertIsFocused()
+    }
+
+    /**
+     * A closing tab starts from the width it was drawn at, not from a width
+     * the strip had before it last changed.
+     *
+     * Found in the 0.5.0 review, 2026-10-21: the width a closing tab was
+     * built at was noted on recomposition, and the tabs' width animates
+     * without one, so after a "+" it was the width before the tabs narrowed.
+     * Closed, a tab at 187dp began its shrink at 240, grew a third wider in
+     * a frame and shoved its neighbours along.
+     */
+    @Test
+    fun aClosedTabStartsItsShrinkAtTheWidthItWasDrawnAt() = runComposeUiTest {
+        // 1000dp: three tabs at their widest, 240dp, and five at 187.
+        strip(width = 1000)
+        documents.add("Untitled")
+        documents.add("Untitled 2")
+        waitForIdle()
+        val narrowed = with(density) { ((1000.dp - 48.dp - 8.dp * 2) / 5).toPx() }
+        assertEquals(narrowed, leftOf("Route map") - leftOf("Fares"), 1.5f, "five tabs did not narrow, so this measured nothing")
+        mainClock.autoAdvance = false
+        documents.remove("Fares")
+        mainClock.advanceTimeByFrame()
+        mainClock.advanceTimeByFrame()
+        // Where it was, between its neighbours, which have not yet widened.
+        val closing = leftOf("Route map") - rightOf("Timetable")
+        mainClock.autoAdvance = true
+        waitForIdle()
+        assertTrue(closing <= narrowed + 1.5f, "a tab closed at ${narrowed}px began its shrink ${closing}px wide")
+    }
+
+    /**
+     * A strip keeps a focus requester for the tabs it has and the one being
+     * carried, and lets go of the rest.
+     *
+     * Found in the 0.5.0 review, 2026-10-21: it kept one for every tab it had
+     * ever shown. Driven as the strip drives it, after each composition.
+     */
+    @Test
+    fun aStripLetsGoOfTheFocusOfTabsThatHaveGone() {
+        val strip = StripState()
+        val open = mutableListOf<String>()
+        repeat(200) { opened ->
+            open += "Document $opened"
+            // Each tab's requester asked for as the strip composes it, and
+            // all but the newest two closed.
+            open.forEach { strip.requester(it) }
+            while (open.size > 2) open.removeAt(0)
+            strip.forgetGone(open.toSet(), held = null)
+        }
+        assertEquals(2, strip.requesters, "a strip of two tabs kept a requester for ${strip.requesters}")
+        strip.requester("Carried")
+        strip.forgetGone(open.toSet(), held = "Carried")
+        assertEquals(3, strip.requesters, "the tab being carried lost its requester")
+    }
+
     @Test
     fun aReaderHearsItsPlaceAndIsOfferedItsMovesAndItsClose() = runComposeUiTest {
         strip()

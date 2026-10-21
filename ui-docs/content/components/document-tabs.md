@@ -129,7 +129,8 @@ its name.
 
 The strip is one stop for the Tab key, on the selected tab. The arrow keys move
 between tabs, Home and End go to either end, Enter and Space select, and
-Delete closes the focused tab. Alt with an arrow picks the tab up to carry it,
+Delete closes the focused tab and hands the focus to the tab after it, or at the
+end to the one before. Alt with an arrow picks the tab up to carry it,
 the arrows then move it, and Enter puts it down or Escape puts it back. A tab's
 × is named for its tab, "Close Fares", and pressed by pointer; it is not a stop
 of its own, since Delete and the "Close" action do the same.
