@@ -2,6 +2,7 @@ package io.kontour.ui.charts
 
 import androidx.compose.ui.graphics.Color
 import io.kontour.ui.locale.LocaleFormats
+import kotlinx.datetime.LocalDate
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -90,5 +91,30 @@ class HeatMapTest {
         assertEquals(1f, red.red, 0.01f)
         assertEquals(0f, red.green, 0.01f)
         assertEquals(1f, rampAt(three, 2f).green, 0.01f, "past the end is the end")
+    }
+
+    /**
+     * A calendar's heat map: weeks across, a date axis, and the days of the
+     * week up, categories. It was taken for lying bars, which a category axis
+     * up and a measure across are, so its places were the days of the week
+     * and each was said with nothing in it. It is read a week at a time, each
+     * with its own days.
+     */
+    @Test
+    fun aCalendarIsReadAWeekAtATime() {
+        class Day(val week: LocalDate, val day: String, val count: Int)
+        val weeks = listOf(LocalDate(2026, 10, 5), LocalDate(2026, 10, 12), LocalDate(2026, 10, 19))
+        val days = weeks.flatMapIndexed { w, week -> listOf(Day(week, "Mon", 10 * w + 1), Day(week, "Tue", 10 * w + 2)) }
+        val x = ChartAxis.date()
+        val y = ChartAxis.category<String>()
+        val resolved = resolve(ChartRecorder(x, y).apply { cell(days, x = { it.week }, y = { it.day }, value = { it.count }) }.build(), x, y, formats)
+        assertFalse(resolved.horizontal, "a heat map's cells do not lie down")
+        assertEquals(weeks.map { it.toEpochDays().toDouble() }, resolved.places.toList(), "its places should be its weeks")
+        val places = placeDescriptions(resolved, strings, formats)
+        assertEquals(3, places.size)
+        places.forEachIndexed { w, place ->
+            assertTrue("Mon, ${10 * w + 1}" in place.text && "Tue, ${10 * w + 2}" in place.text, "week $w should say its own days: ${place.text}")
+        }
+        assertFalse("Mon, 11" in places[0].text, "and not another week's: ${places[0].text}")
     }
 }

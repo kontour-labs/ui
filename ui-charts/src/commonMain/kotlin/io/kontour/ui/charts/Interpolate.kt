@@ -13,9 +13,12 @@ import kotlin.math.max
  * for the first time is the same thing from [collapsed], which is why there is
  * one animation here and not two.
  *
- * Points and rectangles are matched by their order, and fade in rather than
- * rise when they have nothing to come from: a scatter chart's points rising from
- * the floor would be a picture of nothing.
+ * Points and rectangles are matched by their order, and a series of them with
+ * nothing to come from, as the chart first appears or new to it, fades in
+ * rather than rising: a scatter chart's points rising from the floor would be
+ * a picture of nothing. They were there from the first frame, which is what
+ * this said they did not do. A point more in a series that was there already
+ * is where it is from the first frame: a series fades as one.
  *
  * A series drawn another way, bars turned to a line or a line to an area,
  * fades from the one to the other as each moves towards the other's values;
@@ -70,10 +73,13 @@ internal fun interpolate(start: ResolvedChart, to: ResolvedChart, fraction: Floa
         }
         // A series that was not there rises from its baseline, as the whole
         // chart does when it first appears. It used to arrive at once.
-        val blended = blendLayer(previous ?: collapsedLayer(layer, to), layer, t, to.horizontal, sliding)
-        // Shown again before it had finished leaving: back from as faint as it was.
-        if (previous != null && previous.opacity < 1f) {
-            blended.copy(opacity = previous.opacity + (1f - previous.opacity) * fraction)
+        val origin = previous ?: collapsedLayer(layer, to)
+        val blended = blendLayer(origin, layer, t, to.horizontal, sliding)
+        // Shown again before it had finished leaving, back from as faint as
+        // it was; and points and rectangles, which have no baseline, in
+        // from nothing.
+        if (origin.opacity < 1f) {
+            blended.copy(opacity = origin.opacity + (1f - origin.opacity) * fraction)
         } else {
             blended
         }
@@ -114,7 +120,10 @@ internal fun interpolate(start: ResolvedChart, to: ResolvedChart, fraction: Floa
             region.label, region.style, region.onEnd,
         )
     }
-    return to.with(x, y, leaving + layers, yEnd, rules, regions)
+    // Bars widen or narrow with the places they stand at, as a series that
+    // set the closest of them comes and goes.
+    val step = if (sliding) lerp(from.step, to.step, t) else to.step
+    return to.with(x, y, leaving + layers, yEnd, rules, regions, step)
 }
 
 /** A rule's or a region's end on its way from [from] to [to]: where it is going, if it was not somewhere before. */
@@ -191,7 +200,8 @@ private fun collapsedLayer(layer: Layer, chart: ResolvedChart, wholeStack: Boole
             val palest = layer.values.filter { !it.isNaN() }.minOrNull() ?: 0.0
             layer.copy(values = DoubleArray(layer.size) { if (layer.values[it].isNaN()) Double.NaN else palest })
         }
-        MarkKind.Point, MarkKind.Rectangle -> layer
+        // Points and rectangles have no baseline to rise from: they fade in.
+        MarkKind.Point, MarkKind.Rectangle -> layer.copy(opacity = 0f)
     }
 }
 
@@ -272,9 +282,17 @@ private fun blendLayer(from: Layer, to: Layer, t: Double, horizontal: Boolean, s
         }
 
         MarkKind.Point, MarkKind.Rectangle -> {
-            val across = DoubleArray(to.size) { i -> if (i < from.size) lerp(from.across[i], to.across[i], t) else to.across[i] }
-            val up = DoubleArray(to.size) { i -> if (i < from.size) lerp(from.up[i], to.up[i], t) else to.up[i] }
-            to.copy(across = across, up = up)
+            fun moved(old: DoubleArray?, new: DoubleArray): DoubleArray =
+                DoubleArray(to.size) { i -> if (old != null && i < old.size) lerp(old[i], new[i], t) else new[i] }
+            // A rectangle by both its corners: only its first moved, and one
+            // moving right stretched out to where it was going and then
+            // closed up behind.
+            to.copy(
+                across = moved(from.across, to.across),
+                up = moved(from.up, to.up),
+                acrossEnd = to.acrossEnd?.let { moved(from.acrossEnd, it) },
+                upEnd = to.upEnd?.let { moved(from.upEnd, it) },
+            )
         }
     }
 }

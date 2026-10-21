@@ -194,7 +194,7 @@ class PresentationMotionTest {
         // A pixel a pound, and corners that reach ten pixels in.
         fun rentEnd(chart: ResolvedChart): Float {
             val rent = chart.layers.first { it.series.name == "Rent" }
-            return openEndsOf(rent, chart, reach = 10f) { -it.toFloat() }[1]
+            return openEndsOf(rent, chart, reach = 10f, at = { -it.toFloat() })[1]
         }
         assertEquals(1f, rentEnd(grouped), 1e-6f, "side by side, Rent's top is clear")
         assertEquals(0f, rentEnd(stacked), 1e-6f, "in the stack, Food stands on it")

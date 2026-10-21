@@ -130,7 +130,7 @@ internal fun chartTable(chart: ResolvedChart, strings: ChartStrings, formats: Lo
             listOf(
                 TableColumn(named ?: axis.title ?: strings.valueColumn) { place ->
                     val written = layers.flatMap { layer ->
-                        val places = if (chart.horizontal && layer.mark.kind == MarkKind.Bar) layer.up else layer.across
+                        val places = if (chart.horizontal) layer.up else layer.across
                         places.indices.filter { places[it] == place && !layer.values[it].isNaN() }.map { i ->
                             val value = layer.values[i]
                             val end = layer.endAt(i) ?: (if (chart.horizontal) layer.acrossEnd else layer.upEnd)?.getOrNull(i)

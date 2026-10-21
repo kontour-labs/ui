@@ -259,6 +259,15 @@ internal fun layOutFrame(
     val rulePins = pinsByRule.mapIndexed { index, pin -> pin?.let { RulePin(it.first, rows[index]) } }
     val frame = blankFrame(width, height, plot, rtl, gap, xAtBottom, yAtStart)
     val mapper = Mapper(frame, x, y, yEnd)
+    // A label that says what changed since the one before, a date or a year,
+    // written again against the one kept before it: see [thinned].
+    fun relabelling(axis: ResolvedAxis, maxWidth: Int): ((AxisLabel, AxisLabel?) -> AxisLabel)? =
+        axis.labelAfter?.let { write ->
+            { label, before ->
+                val text = write(label.value, before?.value)
+                if (text == label.layout.layoutInput.text.text) label else AxisLabel(label.value, measure(text, labelStyle, maxWidth))
+            }
+        }
     val regionLabels = chart.regions.map { region ->
         val label = region.label?.takeIf { it.isNotBlank() } ?: return@map null
         val span = regionRect(region, mapper.up(region.onEnd), chart)
@@ -270,11 +279,11 @@ internal fun layOutFrame(
         height = height,
         plot = plot,
         rtl = rtl,
-        xLabels = thinned(xMeasured, gap) { label ->
+        xLabels = thinned(xMeasured, gap, relabelling(x, band)) { label ->
             val centre = mapper.px(label.value)
             centre - label.layout.size.width / 2f to centre + label.layout.size.width / 2f
         },
-        yLabels = thinned(yMeasured, gap / 2) { label ->
+        yLabels = thinned(yMeasured, gap / 2, relabelling(y, yCap)) { label ->
             val centre = mapper.py(label.value)
             centre - label.layout.size.height / 2f to centre + label.layout.size.height / 2f
         },
@@ -289,7 +298,7 @@ internal fun layOutFrame(
         xAxisAtBottom = xAtBottom,
         yAxisAtStart = yAtStart,
         cellLabels = if (writeCells) cellLabelsOf(chart) { measure(it, labelStyle) } else emptyList(),
-        yEndLabels = thinned(yEndMeasured, gap / 2) { label ->
+        yEndLabels = thinned(yEndMeasured, gap / 2, yEnd?.let { relabelling(it, yCap) }) { label ->
             val centre = mapper.up(onEnd = true).py(label.value)
             centre - label.layout.size.height / 2f to centre + label.layout.size.height / 2f
         },
@@ -378,11 +387,22 @@ internal fun regionRect(region: Region, m: Mapper, chart: ResolvedChart): Rect {
  * The labels that fit: every one if none touch, else every second, every third
  * and so on, so that what is left is evenly spaced rather than whichever
  * happened to fit first.
+ *
+ * Those kept are [relabelled] against the one kept before them, where an axis
+ * says what has changed since, before they are tried: whether a label carries
+ * its date or its year was decided against the tick before, and the one that
+ * carried it could be left out.
  */
-private fun thinned(labels: List<AxisLabel>, gap: Float, extent: (AxisLabel) -> Pair<Float, Float>): List<AxisLabel> {
+private fun thinned(
+    labels: List<AxisLabel>,
+    gap: Float,
+    relabelled: ((AxisLabel, AxisLabel?) -> AxisLabel)?,
+    extent: (AxisLabel) -> Pair<Float, Float>,
+): List<AxisLabel> {
     if (labels.size < 2) return labels
     for (every in 1..labels.size) {
-        val kept = labels.filterIndexed { index, _ -> index % every == 0 }
+        val chosen = labels.filterIndexed { index, _ -> index % every == 0 }
+        val kept = if (every == 1 || relabelled == null) chosen else chosen.mapIndexed { i, label -> relabelled(label, chosen.getOrNull(i - 1)) }
         val spans = kept.map(extent).sortedBy { it.first }
         val fits = spans.zipWithNext().all { (a, b) -> b.first - a.second >= gap }
         if (fits) return kept

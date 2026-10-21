@@ -5,7 +5,6 @@ import io.kontour.ui.locale.LocaleFormats
 import io.kontour.ui.locale.NameWidth
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
-import kotlinx.datetime.Month
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlin.math.abs
@@ -22,7 +21,10 @@ import kotlin.time.Instant
  * one set of data to the next.
  *
  * @property horizontal Whether bars lie along the axis across — a category axis
- *   up and a number across — rather than standing.
+ *   up and a number across — rather than standing, and the chart's places run
+ *   up it. Never for a heat map, whose cells stand at a place each way and are
+ *   read a column at a time: taken for lying bars, a calendar of weeks across
+ *   and days up was read by its days, each with nothing in it.
  */
 internal class ResolvedChart(
     val model: ChartModel,
@@ -42,6 +44,19 @@ internal class ResolvedChart(
      * `null` with none, or nothing shown on it.
      */
     val yEnd: ResolvedAxis? = null,
+    /**
+     * The least step between neighbouring places along a continuous place
+     * axis, in its units: how wide a bar's, a box's or a cell's band is
+     * there. Of the marks that stand in a band, where there are any, and of
+     * every place otherwise; 1 with fewer than two places.
+     *
+     * The chart's, not each series': worked out from each series' own
+     * places, a series with fewer bars than the rest drew them wider, a
+     * refund on two days a week apart a week wide on a stack of daily sales,
+     * and one with a single bar fell back to one unit, a millisecond on an
+     * axis of moments.
+     */
+    val step: Double = 1.0,
 ) {
     /** The axis a value up is read on: the end axis for what is [on the end][Mark.onEnd], the start axis otherwise. */
     fun upAxis(onEnd: Boolean): ResolvedAxis = if (onEnd) yEnd ?: y else y
@@ -67,6 +82,9 @@ internal class ResolvedChart(
                 a.series == b.series && a.mark.kind == b.mark.kind &&
                     a.across.contentEquals(b.across) && a.up.contentEquals(b.up) &&
                     (a.base?.contentEquals(b.base) ?: (b.base == null)) &&
+                    // A rectangle whose far corner alone moved is a new chart too.
+                    (a.acrossEnd?.contentEquals(b.acrossEnd) ?: (b.acrossEnd == null)) &&
+                    (a.upEnd?.contentEquals(b.upEnd) ?: (b.upEnd == null)) &&
                     // A heat map whose shades change and whose cells stay put,
                     // or a box whose whiskers move, is a new chart too.
                     a.values.contentEquals(b.values) &&
@@ -81,7 +99,8 @@ internal class ResolvedChart(
         yEnd: ResolvedAxis? = this.yEnd,
         rules: List<Rule> = this.rules,
         regions: List<Region> = this.regions,
-    ): ResolvedChart = ResolvedChart(model, horizontal, x, y, layers, rules, regions, places, cells, yEnd)
+        step: Double = this.step,
+    ): ResolvedChart = ResolvedChart(model, horizontal, x, y, layers, rules, regions, places, cells, yEnd, step)
 }
 
 /**
@@ -115,12 +134,20 @@ internal class ResolvedAxis(
     val mostDigits: Int = 2,
     /** Whether values on it are shares, written in per cent. */
     val inPercent: Boolean = false,
+    /**
+     * A tick's label written against the tick labelled before it, `null` for
+     * the first: where it says what has changed since, a date or a year.
+     * [tickLabels] are each written against the tick before; with room for
+     * fewer, the frame writes the ones it keeps again, against the one it
+     * kept before. `null` for an axis whose labels say nothing of another.
+     */
+    val labelAfter: ((Double, Double?) -> String)? = null,
 ) {
     val span: Double get() = (high - low).takeIf { it > 0 } ?: 1.0
 
     fun spanning(low: Double, high: Double): ResolvedAxis = ResolvedAxis(
         kind, low, high, ticks, tickLabels, title, showGridlines, showLabels, position, write, centred,
-        writeTo, leastDigits, mostDigits, inPercent,
+        writeTo, leastDigits, mostDigits, inPercent, labelAfter,
     )
 
     /**
@@ -190,6 +217,8 @@ internal class Layer(
         opacity: Float = this.opacity,
         groupWidth: Float = this.groupWidth,
         groupOffset: Float = this.groupOffset,
+        acrossEnd: DoubleArray? = this.acrossEnd,
+        upEnd: DoubleArray? = this.upEnd,
     ): Layer = Layer(
         markIndex, mark, series, slot, across, up, base, acrossEnd, upEnd, values, groupIndex, groupCount, box, opacity,
         groupWidth, groupOffset,
@@ -206,7 +235,9 @@ internal fun <X : Any, Y : Any> resolve(
     formats: LocaleFormats,
     endYAxis: ChartAxis<Y>? = null,
 ): ResolvedChart {
-    val horizontal = yAxis.kind == AxisKind.Category && xAxis.kind != AxisKind.Category
+    // Only bars lie down; a heat map's cells stand at a place each way.
+    val horizontal = yAxis.kind == AxisKind.Category && xAxis.kind != AxisKind.Category &&
+        model.marks.none { it.kind == MarkKind.Cell }
 
     val layers = mutableListOf<Layer>()
     model.marks.forEachIndexed { markIndex, mark ->
@@ -278,9 +309,12 @@ internal fun <X : Any, Y : Any> resolve(
     // Bars across a number or date axis stand on their value, so half a bar's
     // width either side of the first and the last is part of the domain.
     val standing = setOf(MarkKind.Bar, MarkKind.Box, MarkKind.Cell)
-    val barsAcrossContinuous = !horizontal && xAxis.kind != AxisKind.Category &&
-        layers.any { it.mark.kind in standing }
-    val barPad = if (barsAcrossContinuous) smallestGap(layers.filter { it.mark.kind in standing }) / 2 else 0.0
+    val banded = layers.filter { it.mark.kind in standing }
+    val barsAcrossContinuous = !horizontal && xAxis.kind != AxisKind.Category && banded.isNotEmpty()
+    // One width for every band across, from every standing mark's places
+    // together: see [ResolvedChart.step].
+    val step = smallestGap(banded.ifEmpty { layers })
+    val barPad = if (barsAcrossContinuous) step / 2 else 0.0
 
     val x = resolveAxis(xAxis, xs, model.xCategories, formats, padding = barPad, percent = normalised && horizontal)
     val y = resolveAxis(yAxis, ys, model.yCategories, formats, padding = 0.0, percent = normalised && !horizontal, centred = centred && !horizontal)
@@ -318,6 +352,7 @@ internal fun <X : Any, Y : Any> resolve(
         places = places,
         cells = cellScaleOf(layers, formats),
         yEnd = yEnd,
+        step = step,
     )
 }
 
@@ -635,10 +670,10 @@ private fun <V : Any> resolveAxis(
         val domainHigh = if (axis.domain != null || padding > 0) high else max(high, ticks.high)
         val shown = ticks.values.filter { it >= domainLow - 1e-9 && it <= domainHigh + 1e-9 }.toDoubleArray()
         val label = axis.dateLabel
-        val first = shown.firstOrNull()
-        val tickLabel: (Double) -> String = { position ->
+        val labelAfter: (Double, Double?) -> String = { position, before ->
             val date = LocalDate.fromEpochDays(position.roundToLong())
-            label?.invoke(date) ?: dateTickLabel(date, ticks.unit ?: DateUnit.Day, position == first, formats)
+            label?.invoke(date)
+                ?: dateTickLabel(date, ticks.unit ?: DateUnit.Day, before?.let { LocalDate.fromEpochDays(it.roundToLong()) }, formats)
         }
         val write: (Double) -> String = { position ->
             val date = LocalDate.fromEpochDays(position.roundToLong())
@@ -649,12 +684,13 @@ private fun <V : Any> resolveAxis(
             low = domainLow,
             high = domainHigh,
             ticks = shown,
-            tickLabels = shown.map(tickLabel),
+            tickLabels = shown.mapIndexed { index, position -> labelAfter(position, shown.getOrNull(index - 1)) },
             title = axis.title,
             showGridlines = axis.showGridlines,
             showLabels = axis.showLabels,
             position = axis.position,
             write = write,
+            labelAfter = labelAfter.takeIf { label == null },
         )
     }
 
@@ -670,14 +706,15 @@ private fun <V : Any> resolveAxis(
         val label = axis.instantLabel
         fun local(position: Double): LocalDateTime =
             Instant.fromEpochMilliseconds(position.roundToLong()).toLocalDateTime(zone)
-        val tickLabels = shown.mapIndexed { index, position ->
+        val labelAfter: (Double, Double?) -> String = { position, before ->
             val at = local(position)
             when {
                 label != null -> label(Instant.fromEpochMilliseconds(position.roundToLong()))
-                ticks.clock != null -> clockTickLabel(at, shown.getOrNull(index - 1)?.let(::local), formats)
-                else -> dateTickLabel(at.date, ticks.unit ?: DateUnit.Day, index == 0, formats)
+                ticks.clock != null -> clockTickLabel(at, before?.let(::local), formats)
+                else -> dateTickLabel(at.date, ticks.unit ?: DateUnit.Day, before?.let(::local)?.date, formats)
             }
         }
+        val tickLabels = shown.mapIndexed { index, position -> labelAfter(position, shown.getOrNull(index - 1)) }
         val write: (Double) -> String = { position ->
             label?.invoke(Instant.fromEpochMilliseconds(position.roundToLong()))
                 ?: local(position).let { formats.dateTime(it.date, it.time) }
@@ -693,27 +730,35 @@ private fun <V : Any> resolveAxis(
             showLabels = axis.showLabels,
             position = axis.position,
             write = write,
+            labelAfter = labelAfter.takeIf { label == null },
         )
     }
 }
 
 /**
  * A tick of an instant axis within a day: its time on the zone's clock, with its
- * date at the first tick and wherever the date changes from the tick before,
- * so a reader of a night's chart knows which side of midnight they are on.
+ * date at the first tick and wherever the date changes from the tick labelled
+ * [before] it, so a reader of a night's chart knows which side of midnight
+ * they are on. The tick labelled before it, not the tick before: with labels
+ * left out for room, the noon after a midnight left out said only its time,
+ * and the day it was on was said by nothing.
  */
 private fun clockTickLabel(at: LocalDateTime, before: LocalDateTime?, formats: LocaleFormats): String =
     if (before == null || before.date != at.date) formats.dateTime(at.date, at.time) else formats.time(at.time)
 
 /**
  * A tick of a date axis, in the unit its ticks are in: a short date for days and
- * weeks, a month's short name for months — with its year at January and at the
- * first tick, so a reader knows which year they are in — and a year for years.
+ * weeks, a month's short name for months — with its year at the first tick and
+ * wherever the year changes from the tick labelled [before] it, so a reader
+ * knows which year they are in — and a year for years.
+ *
+ * It was January that said the year, so with every other month left out for
+ * room, the next February said nothing of it.
  */
-private fun dateTickLabel(date: LocalDate, unit: DateUnit, first: Boolean, formats: LocaleFormats): String = when (unit) {
+private fun dateTickLabel(date: LocalDate, unit: DateUnit, before: LocalDate?, formats: LocaleFormats): String = when (unit) {
     DateUnit.Day, DateUnit.Week -> formats.date(date, DateStyle.Short)
     DateUnit.Month ->
-        if (first || date.month == Month.JANUARY) formats.monthAndYear(date)
+        if (before == null || before.year != date.year) formats.monthAndYear(date)
         else formats.monthName(date.month, NameWidth.Abbreviated)
     DateUnit.Year -> formats.digits(date.year.toLong())
 }

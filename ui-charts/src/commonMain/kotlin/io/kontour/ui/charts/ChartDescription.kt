@@ -145,7 +145,9 @@ internal fun placeDescriptions(chart: ResolvedChart, strings: ChartStrings, form
             strings.valueRange(placeAxis.write(group.first()), placeAxis.write(group.last()))
         }
         val said = chart.layers.flatMap { layer ->
-            val places = if (chart.horizontal && layer.mark.kind == MarkKind.Bar) layer.up else layer.across
+            // Up for a chart whose places run up it, every mark alike: a dot
+            // plot's points beside its lying bars are at their rows too.
+            val places = if (chart.horizontal) layer.up else layer.across
             val indices = group.flatMap { place ->
                 places.indices.filter { places[it] == place && !layer.values[it].isNaN() && !stemSilentAt(chart, layer, it) }
             }

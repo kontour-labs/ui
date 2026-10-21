@@ -686,7 +686,7 @@ private fun <X : Any, Y : Any> ChartPlot(
         // place, so it can never be on the card beside it: the probe was a
         // point's ring wide on a line, and a pointer moving on from the point
         // ran onto the card before it was nearer the next one.
-        val reach = cellBand(chart.placeAxis, chart.places, mapper.unitX).roundToInt().coerceAtLeast(1)
+        val reach = cellBand(chart.placeAxis, chart.step, mapper.unitX).roundToInt().coerceAtLeast(1)
         val probe = if (measurables.size > places.size) measurables[places.size].measure(Constraints.fixed(reach, 1)) else null
         layout(width, height) {
             nodes.forEach { (node, start) ->
