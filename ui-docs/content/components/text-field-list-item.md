@@ -27,9 +27,9 @@ settings row's value is. **Without one, the field starts where a row's words
 start**, and its `placeholder` says what goes in it: the row is the field.
 
 **A press anywhere on the row puts the caret in the field**, the label and the
-padding included, as a press on a field's frame does. Focused, the row takes a
-field's focused edge round it; with an `errorMessage`, the error edge, and the
-message under the row in place of `supporting`.
+padding included, as a press on a field's frame does. Focused, read-only or not,
+the row takes a field's focused edge round it; with an `errorMessage`, the error
+edge, and the message under the row in place of `supporting`.
 
 ### In a group
 

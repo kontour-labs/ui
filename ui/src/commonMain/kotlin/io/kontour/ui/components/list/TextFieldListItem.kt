@@ -169,7 +169,11 @@ fun TextFieldListItem(
         // Error outranks focus, as it does on a field: a focused invalid value
         // is still invalid.
         enabled && isError -> BorderStroke(Theme.sizing.borderWidthStrong, field.borderError)
-        editable && focused -> BorderStroke(Theme.sizing.borderWidthStrong, field.borderFocused)
+        // Read-only included, as a field's: its value is selected and copied
+        // from the keyboard, so the focus is somewhere a reader needs to see.
+        // Found in the 0.5.0 review, 2026-10-21: it asked for `editable`, and
+        // a read-only row took the focus and showed nothing at all.
+        enabled && focused -> BorderStroke(Theme.sizing.borderWidthStrong, field.borderFocused)
         // At rest, a row's own edge: none, or the high contrast tier's.
         else -> contrastEdge()
     }
