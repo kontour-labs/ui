@@ -284,18 +284,6 @@ On `main`, and in the next release.
   or two. The row moves with the finger, so its own long press saw a finger
   held still and came true half a second in, then took the carry from the
   grip. The row's hold now stands aside while the grip has the row.
-- **A `ListSection` in a lazy list no longer crashes a row's layout.** To
-  inset its header and footer beside rows, a section asked its body for an
-  alignment line while measuring, and Compose laid the body out to answer,
-  placing its rows inside the section's measure. In a lazy list on Android
-  that placed a node Compose had not filed: "LayoutNode … not found in
-  RectList". The section now reads the line where it places the body.
-- **A list on `rememberScrollbarListState()` no longer crashes an app as it
-  leaves.** Leaving a page, a tab or a sheet while its list was still measuring
-  its rows for the scrollbar could crash with "LayoutNode should be attached
-  to an owner": the rows it held were let go of after the list had gone. Now
-  they are forgotten with it, since the list's leaving disposes them, and a
-  row of a list that has gone is never let go of.
 - **A sheet or dialog opening with the keyboard no longer pushes the app up.**
   A field focused as its overlay arrived asked to be seen while it was still
   low on the screen, nothing in the overlay answered, and on Android the
@@ -520,6 +508,29 @@ On `main`, and in the next release.
   regular-expression engine into every web app. Each is a loop now, with the
   same answers. `KontourTheme` alone costs 18,533 gzip bytes less, measured by
   the [`theme` probe](https://github.com/kontour-labs/ui/tree/main/probes).
+
+---
+
+## 0.4.6 — 21 October 2026
+
+Two crashes, found in an app on 0.4.5, fixed by themselves ahead of 0.5.0.
+
+### Fixed
+
+- **A list on `rememberScrollbarListState()` no longer crashes an app as it
+  leaves.** Leaving a page, a tab or a sheet while its list was still measuring
+  its rows for the scrollbar could crash with "LayoutNode should be attached
+  to an owner": the rows it held were let go of after the list had gone, and
+  a frame already under way could still run work for it. Now they are
+  forgotten with it, since the list's leaving disposes them, a row of a list
+  that has gone is never let go of, and no work runs for a list that is
+  leaving.
+- **A `ListSection` in a lazy list no longer crashes a row's layout.** To
+  inset its header and footer beside rows, a section asked its body for an
+  alignment line while measuring, and Compose laid the body out to answer,
+  placing its rows inside the section's measure. In a lazy list on Android
+  that placed a node Compose had not filed: "LayoutNode … not found in
+  RectList". The section now reads the line where it places the body.
 
 ---
 
