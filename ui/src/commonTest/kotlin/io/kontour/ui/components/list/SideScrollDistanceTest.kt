@@ -49,4 +49,21 @@ class SideScrollDistanceTest {
         assertEquals(48f, sideScrollDistance(100f, step, density, inPixels = true, gain = 0.6f))
         assertEquals(48f, sideScrollDistance(1f, step, density, inPixels = false, gain = 0.6f))
     }
+
+    /**
+     * A Mac's trackpad on the desktop, in fractions of a notch: followed at ten dp
+     * a unit, as a list on a Mac scrolls, and at the trackpad's gain. Each
+     * fraction was a share of a 24dp notch, two and a half times what the same
+     * fingers scroll a list, and reported 2026-10-21 as *"even more sensitive"*.
+     */
+    @Test
+    fun aMacsTrackpadIsFollowedAsAListScrollsAtItsGain() {
+        val unit = 10f * density
+        // Half a unit is five dp of a list's scroll, three of the row's, six pixels.
+        assertEquals(6f, preciseScrollDistance(0.5f, step, unit, gain = 0.6f), 0.001f)
+        // Where it was 24px: half of a 48px notch.
+        assertEquals(24f, sideScrollDistance(0.5f, step, density, inPixels = false))
+        // A coasting burst moves the row no further in one event than a notch.
+        assertEquals(-48f, preciseScrollDistance(-12f, step, unit, gain = 0.6f))
+    }
 }

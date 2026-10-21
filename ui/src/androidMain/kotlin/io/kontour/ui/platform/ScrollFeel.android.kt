@@ -11,6 +11,9 @@ internal actual val platformLosesRestedFlicks: Boolean = false
 /** Notches: a motion event's scroll axes. */
 internal actual val platformScrollDeltaInPixels: Boolean = false
 
+/** None: a scroll is whole notches, or the browser's pixels. */
+internal actual val platformPreciseScrollDp: Float = 0f
+
 internal actual val platformGuardsHomeIndicator: Boolean = false
 
 /** A stretch, drawn in place: the content's top stays where it is. */

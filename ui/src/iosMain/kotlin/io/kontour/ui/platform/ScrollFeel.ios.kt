@@ -19,6 +19,9 @@ internal actual val platformLosesRestedFlicks: Boolean = true
 /** Notches, as Compose reports them for a pointer on an iPad. */
 internal actual val platformScrollDeltaInPixels: Boolean = false
 
+/** None: a scroll is whole notches, or the browser's pixels. */
+internal actual val platformPreciseScrollDp: Float = 0f
+
 internal actual val platformGuardsHomeIndicator: Boolean = true
 
 /** UIKit's rubber band, which Compose's `CupertinoOverscrollEffect` slides the content by. */

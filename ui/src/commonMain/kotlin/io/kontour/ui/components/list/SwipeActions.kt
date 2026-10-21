@@ -97,6 +97,7 @@ import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.interaction.horizontalDragOwning
 import io.kontour.ui.interaction.rememberRubberBand
 import io.kontour.ui.interaction.rememberDetentTicker
+import io.kontour.ui.platform.platformPreciseScrollDp
 import io.kontour.ui.platform.platformScrollDeltaInPixels
 import io.kontour.ui.theme.Theme
 import kotlin.math.abs
@@ -319,8 +320,10 @@ object SwipeActionsDefaults {
     val ScrollStep: Dp = 24.dp
 
     /**
-     * How far the row moves for each pixel a trackpad moves it: a Mac's pan,
-     * and a browser's scroll in pixels.
+     * How far the row moves for each pixel a trackpad moves it: a pan, a
+     * browser's scroll in pixels, and on the desktop a Mac's trackpad, whose
+     * scroll comes as fractions of a wheel's notch and is followed at the ten dp
+     * a unit a list on a Mac scrolls by.
      *
      * It was 1, the row following the fingers pixel for pixel as it follows a
      * finger on glass, and that was reported 2026-10-21 for 0.5.0 as *"the side
@@ -991,6 +994,10 @@ fun SwipeActions(
                         // way and started the wait again: a row swiped all the way
                         // across sat at the edge until the coasting had died away.
                         var coasting = false
+                        // Whether this gesture's scroll has come in fractions of a
+                        // notch: a Mac's trackpad, which is then followed as the
+                        // fingers go, not counted in notches. See below.
+                        var precise = false
                         var panned = 0f
                         val panVelocity = VelocityTracker1D(isDataDifferential = false)
 
@@ -1041,6 +1048,7 @@ fun SwipeActions(
 
                         fun begin() {
                             ours = null
+                            precise = false
                             gathered = Offset.Zero
                             pointOfNoReturn.reset()
                             pointOfNoReturn.at(0)
@@ -1102,10 +1110,28 @@ fun SwipeActions(
                                         }
                                         if (quiet || settledQuietly) begin()
                                         settledQuietly = false
+                                        // A Mac's trackpad, in fractions of a notch:
+                                        // reported 2026-10-21 as feeling *"even
+                                        // more sensitive"* after the trackpad gain,
+                                        // which was only ever a pan's, and a desktop
+                                        // has no pans. Each fraction was a share of
+                                        // a 24dp notch, two and a half times what
+                                        // the same fingers scroll a list on a Mac.
+                                        // A wheel's whole notch never sets it, so a
+                                        // Mac's mouse still turns a notch at a time.
+                                        if (platformPreciseScrollDp > 0f && (delta.x.hasFraction() || delta.y.hasFraction())) {
+                                            precise = true
+                                        }
+                                        val preciseUnitPx = platformPreciseScrollDp * dpPx
                                         // A notch is a whole decision on its own;
-                                        // a browser's pixels gather the slop
-                                        // first, as a pan's do.
-                                        val threshold = if (platformScrollDeltaInPixels) decideCssPx else 0f
+                                        // a browser's pixels, and a trackpad's
+                                        // fractions, gather the slop first, as a
+                                        // pan's do.
+                                        val threshold = when {
+                                            platformScrollDeltaInPixels -> decideCssPx
+                                            precise -> decidePx / preciseUnitPx
+                                            else -> 0f
+                                        }
                                         if (decide(delta, threshold) != true) continue
                                         // The row's, up and down included, until it
                                         // is let go of. A trackpad's fingers drift,
@@ -1121,10 +1147,14 @@ fun SwipeActions(
                                             continue
                                         }
                                         move(
-                                            -sideScrollDistance(
-                                                delta.x, stepPx, dpPx, platformScrollDeltaInPixels,
-                                                gain = SwipeActionsDefaults.TrackpadGain,
-                                            )
+                                            -if (precise) {
+                                                preciseScrollDistance(delta.x, stepPx, preciseUnitPx, SwipeActionsDefaults.TrackpadGain)
+                                            } else {
+                                                sideScrollDistance(
+                                                    delta.x, stepPx, dpPx, platformScrollDeltaInPixels,
+                                                    gain = SwipeActionsDefaults.TrackpadGain,
+                                                )
+                                            }
                                         )
                                         // Carried past the point of no return, it is let
                                         // go of now, not once the scroll has been quiet,
@@ -1909,6 +1939,18 @@ private class ConfirmDraw {
  */
 internal fun sideScrollDistance(delta: Float, stepPx: Float, density: Float, inPixels: Boolean, gain: Float = 1f): Float =
     if (inPixels) (delta * density * gain).coerceIn(-stepPx, stepPx) else delta * stepPx
+
+/**
+ * How far one scroll event of a Mac's trackpad moves a swipe row, in pixels:
+ * [unitPx] a unit of its fractional [delta], as a list on a Mac scrolls, at
+ * [gain], and never more than [stepPx] in one event, which a trackpad's coasting
+ * can reach. See `platformPreciseScrollDp`.
+ */
+internal fun preciseScrollDistance(delta: Float, stepPx: Float, unitPx: Float, gain: Float): Float =
+    (delta * unitPx * gain).coerceIn(-stepPx, stepPx)
+
+/** Whether this is a fraction of a notch, as a trackpad's are and a wheel's are not. */
+private fun Float.hasFraction(): Boolean = this != kotlin.math.round(this)
 
 /**
  * How many times as far across as up or down a pan or a scroll has to have gone
