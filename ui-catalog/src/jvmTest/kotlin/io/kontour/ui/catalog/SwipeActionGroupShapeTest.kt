@@ -89,9 +89,11 @@ class SwipeActionGroupShapeTest {
         // Its top, read well clear of the corner and above the icon.
         val top = (0 until image.height).first { isAction(image.at(right - Clear, it)) }
         val actionCorner = image.at(right - In, top + In)
-        // The row: slid off the leading edge, so it runs from the screen's
-        // left to the first of the page.
-        val rowRight = (0 until image.width).first { image.at(it, midY) == Page } - 1
+        // The row: slid off its own leading edge and cut off there, so it runs
+        // from the margin to the first of the page. From the screen's left, as
+        // this read it while a swiped row drew past its edge, finds the page
+        // in the margin at once: see `SwipeActionClipTest`.
+        val rowRight = (Margin * Density until image.width).first { image.at(it, midY) == Page } - 1
         val rowCorner = image.at(rowRight - In, top + In)
         return actionCorner to rowCorner
     }

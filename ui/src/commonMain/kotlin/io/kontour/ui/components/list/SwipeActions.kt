@@ -51,6 +51,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -59,6 +60,7 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.PointerEventPass
@@ -781,6 +783,19 @@ fun SwipeActions(
         modifier = modifier
             .fillMaxWidth()
             .onSizeChanged { width = it.width.toFloat() }
+            // **The row slides inside this box and is cut off at its sides**, so
+            // a swiped row is never drawn outside its own row. Nothing here
+            // clipped the slide, and a row was cut off only by whatever stood
+            // round it: the edge of the screen on a phone, and nothing at all
+            // in a list pane, where the messages app's chats carried their
+            // avatar, name and time over the conversation beside the list. A
+            // list does not clip its rows across, only along its scroll.
+            //
+            // Across only, because the row only moves across; and in the draw
+            // rather than as a layer, so a list of rows takes no layer apiece.
+            .drawWithContent {
+                clipRect(top = -size.height, bottom = size.height * 2f) { this@drawWithContent.drawContent() }
+            }
             // A press anywhere else closes it, and a press on this row closes
             // any other that is open, with or without an `OverlayHost` round
             // the app to see every press: `onPressOutside` reports this row's

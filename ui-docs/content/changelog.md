@@ -181,6 +181,12 @@ On `main`, and in the next release.
 
 ### Fixed
 
+- **A swiped row stays inside its row.** A
+  [`SwipeActions`](components/swipe-actions.md) row slid open drew whatever it
+  carried past its own edge, cut off only by what stood round it: the screen on
+  a phone, and nothing in a list pane, where a chat swiped open on Pin drew its
+  avatar, name and time over the conversation beside the list. The slide is
+  clipped to the row's sides now.
 - **A sheet opening with the keyboard rises with it.** A field focused as a
   sheet opened made the sheet stand still for the whole of the keyboard's
   slide, then come up after it, while the page behind receded, came forward
