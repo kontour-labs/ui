@@ -41,6 +41,8 @@ import io.kontour.ui.foundation.ContentScope
 import io.kontour.ui.interaction.rememberDetentTicker
 import io.kontour.ui.theme.Theme
 import kotlin.math.abs
+import kotlin.math.ceil
+import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
@@ -323,6 +325,26 @@ private fun <X : Any> decodePlace(place: Double, axis: ChartAxis<X>, model: Char
     else -> axis.decode(place)
 }
 
+/**
+ * The categories, by index from 0 to [last], that a range from [from] to [to]
+ * along them takes in, or `null` for none. Where [bands], the chart has marks
+ * as wide as their bands, a bar, a box, a cell or a rectangle, and a range
+ * takes each one whose band it reaches into: a drag from late in February's
+ * band takes February's bar. Otherwise it takes each whose place is inside
+ * it, as a line is drawn whole only inside it and a point is in it only where
+ * it is: *"it'd be cool if the highlight stopped exactly at the boundaries of
+ * the selection. That also means not selecting points and stuff that aren't
+ * explicitly inside the selection"*.
+ *
+ * [slack] is how far past an edge, in the axis's units, is still on it, as it
+ * is where the range is drawn: see [MarkFocus].
+ */
+internal fun takenIn(from: Double, to: Double, last: Int, bands: Boolean, slack: Double): IntRange? {
+    val first = if (bands) floor(from + slack - 0.5).toInt() + 1 else ceil(from - slack).toInt()
+    val end = if (bands) ceil(to - slack + 0.5).toInt() - 1 else floor(to + slack).toInt()
+    return (first.coerceAtLeast(0)..end.coerceAtMost(last)).takeUnless { it.isEmpty() }
+}
+
 private fun <X : Any> encodePlace(x: X, axis: ChartAxis<X>, model: ChartModel): Double = when (axis.kind) {
     AxisKind.Category -> model.xCategories.indexOf(x).takeIf { it >= 0 }?.toDouble() ?: Double.NaN
     else -> axis.encode(x)
@@ -472,6 +494,7 @@ private fun <X : Any, Y : Any> ChartPlot(
     val currentSelection by rememberUpdatedState(selection)
     val currentChart by rememberUpdatedState(chart)
     val currentDecode by rememberUpdatedState(decode)
+    val currentEncode by rememberUpdatedState(encode)
     // Only a chart that chooses places ticks as one is chosen: one that only
     // marks ranges chose nothing, and ticked for it.
     val select: (Double) -> Unit = { place ->
@@ -510,14 +533,22 @@ private fun <X : Any, Y : Any> ChartPlot(
             MarkedRange(start, end, upFrom, upTo, whole = chart.x.kind == AxisKind.Category || chart.selectsBands)
         }
     }
+    // Said as what it reports, and not at all while it reports nothing: along
+    // categories a drag's ends need not be in the first and last it takes,
+    // and one on a line from past February's point is from March.
     val markedDescription = marked?.let { range ->
+        val xStart = rangeSelection.xStart ?: return@let null
+        val xEnd = rangeSelection.xEnd ?: xStart
         val across = chart.placeAxis.write
+        val categories = chart.x.kind == AxisKind.Category
+        val from = if (categories) encode(xStart) else range.from
+        val to = if (categories) encode(xEnd) else range.to
         val upFrom = range.upFrom
         val upTo = range.upTo
         if (upFrom != null && upTo != null) {
-            strings.selectedBox(across(range.from), across(range.to), chart.y.write(upFrom), chart.y.write(upTo))
+            strings.selectedBox(across(from), across(to), chart.y.write(upFrom), chart.y.write(upTo))
         } else {
-            strings.selectedRange(across(range.from), across(range.to))
+            strings.selectedRange(across(from), across(to))
         }
     }
     // What is outside a marked range fades as one is marked, and comes back as
@@ -548,7 +579,7 @@ private fun <X : Any, Y : Any> ChartPlot(
             var keyEnd = -1
             // From exactly where the drag went down to where it is, on every
             // chart, and read as the axis's values at its ends: along
-            // categories, the ones whose bands it reaches into. It was
+            // categories, the ones it takes in, by [takenIn]. It was
             // snapped to whole places among bars and categories, and a box
             // there lost its height: *"i don't like how the select is locked
             // to like a grid, it should just start selecting from where i
@@ -559,12 +590,22 @@ private fun <X : Any, Y : Any> ChartPlot(
                 val now = currentChart
                 val mapper = Mapper(current, now.x, now.y)
                 val across = listOf(mapper.xAt(a), mapper.xAt(b)).map { it.coerceIn(now.x.low, now.x.high) }.sorted()
+                if (now.x.kind == AxisKind.Category) {
+                    // One that takes in no category is drawn as the drag
+                    // goes, so the reader sees what they are marking, and
+                    // reports nothing.
+                    val taken = takenIn(across[0], across[1], floor(now.x.high).toInt(), now.takesBands, (EdgeSlack / mapper.unitX).toDouble())
+                    val start = taken?.let { currentDecode(it.first.toDouble()) }
+                    val end = taken?.let { currentDecode(it.last.toDouble()) }
+                    range.mark(across[0], across[1], null, null, start, end, null, null)
+                    return
+                }
                 val start = currentDecode(across[0]) ?: return
                 val end = currentDecode(across[1]) ?: return
                 val decodeY = currentDecodeUp
                 // A box wants a measure both ways; across categories it is a
                 // range across, as `ChartRangeMode.Box` says.
-                if (range.mode == ChartRangeMode.Box && decodeY != null && now.x.kind != AxisKind.Category) {
+                if (range.mode == ChartRangeMode.Box && decodeY != null) {
                     val up = listOf(mapper.yAt(a), mapper.yAt(b)).map { it.coerceIn(now.y.low, now.y.high) }.sorted()
                     range.mark(across[0], across[1], up[0], up[1], start, end, decodeY(up[0]), decodeY(up[1]))
                 } else {
@@ -578,7 +619,9 @@ private fun <X : Any, Y : Any> ChartPlot(
                     currentSelection?.clear()
                 },
                 drag = { at -> markBetween(markFrom, at) },
-                end = {},
+                // Let go having taken in nothing, nothing is marked, and
+                // nothing is left drawn to say otherwise.
+                end = { currentRange?.takeIf { it.isEmpty }?.clear() },
                 clear = { currentRange?.clear() },
                 stretch = { by ->
                     val now = currentChart
@@ -591,9 +634,13 @@ private fun <X : Any, Y : Any> ChartPlot(
                             keyEnd = keyAnchor
                         } else {
                             // From the range as it is, kept the way round the
-                            // keys last had it if they marked it.
-                            val first = now.places.indexOfFirst { it == nearestPlace(now.places, shown.from) }.coerceAtLeast(0)
-                            val last = now.places.indexOfFirst { it == nearestPlace(now.places, shown.to) }.coerceAtLeast(0)
+                            // keys last had it if they marked it: from the
+                            // places it reports, which along categories a
+                            // drag's ends need not be nearest.
+                            val from = range.xStart?.let(currentEncode) ?: shown.from
+                            val to = range.xEnd?.let(currentEncode) ?: shown.to
+                            val first = now.places.indexOfFirst { it == nearestPlace(now.places, from) }.coerceAtLeast(0)
+                            val last = now.places.indexOfFirst { it == nearestPlace(now.places, to) }.coerceAtLeast(0)
                             if (minOf(keyAnchor, keyEnd) != first || maxOf(keyAnchor, keyEnd) != last) {
                                 keyAnchor = first
                                 keyEnd = last

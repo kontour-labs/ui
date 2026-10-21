@@ -6,23 +6,32 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PixelMap
 import androidx.compose.ui.graphics.toPixelMap
+import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.test.isFocusable
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performKeyInput
+import androidx.compose.ui.test.performMouseInput
+import androidx.compose.ui.test.pressKey
+import androidx.compose.ui.test.requestFocus
 import androidx.compose.ui.test.v2.runComposeUiTest
+import androidx.compose.ui.test.withKeyDown
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.theme.KontourTheme
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
@@ -186,6 +195,180 @@ class ChartRangeFocusTest {
         }
         for (x in listOf(left - 12, left - 4, right + 4, right + 12)) {
             assertTrue(abs(lineAt(x) - 0.6f) < 0.08f, "outside it the line should be at 60%, not ${lineAt(x)} at $x ($left to $right)")
+        }
+    }
+
+    /**
+     * Months along categories, as a line, as points, or as bars under a line:
+     * the line and the points a flat 200 of 0 to 400, and the bars 100, so
+     * the line runs clear above them.
+     */
+    private fun ComposeUiTest.months(
+        range: ChartRangeSelectionState<String, Number>,
+        selection: ChartSelectionState<String>? = null,
+        content: ChartScope<String, Number>.() -> Unit,
+    ) = chart {
+        Chart(
+            xAxis = ChartAxis.category<String>(),
+            yAxis = ChartAxis.number(domain = 0.0..400.0),
+            modifier = Modifier.size(360.dp, 240.dp).testTag("chart"),
+            selection = selection,
+            rangeSelection = range,
+            colours = colours(),
+            showLegend = false,
+            animateData = false,
+            content = content,
+        )
+    }
+
+    private val flat = months.map { Spend(it, 200.0) }
+    private val low = months.map { Spend(it, 100.0) }
+
+    /** [share] of the way across [month]'s band, in the chart's pixels, from its place's node. */
+    private fun ComposeUiTest.into(month: String, share: Float): Float {
+        val chart = onNodeWithTag("chart").fetchSemanticsNode().boundsInRoot
+        val node = onNode(SemanticsMatcher("$month's place") { node ->
+            SemanticsProperties.ContentDescription in node.config &&
+                node.config[SemanticsProperties.ContentDescription].any { it.startsWith("$month: ") }
+        }).fetchSemanticsNode().boundsInRoot
+        return node.left - chart.left + (node.right - node.left) * share
+    }
+
+    /** A mouse pressed at [from] and moved to [to] along the middle of the chart, and let go unless [hold]. */
+    private fun ComposeUiTest.drag(from: Float, to: Float, hold: Boolean = false) {
+        onNodeWithTag("chart").performMouseInput {
+            moveTo(Offset(from, height * 0.5f))
+            press()
+            for (step in 1..10) moveTo(Offset(from + (to - from) * step / 10f, height * 0.5f))
+            if (!hold) release()
+        }
+        waitForIdle()
+    }
+
+    /** The range's drawn edges, along a row high in the plot, clear of the marks. */
+    private fun edgesOf(pixels: PixelMap): Pair<Int, Int> {
+        val row = (pixels.height * 0.15f).toInt()
+        val edges = (0 until pixels.width).filter { near(pixels[it, row], Probe) }
+        assertTrue(edges.isNotEmpty(), "no range was drawn")
+        return edges.first() to edges.last()
+    }
+
+    /** The line's strength down column [x], where it is strongest: above a mixed chart's bars. */
+    private fun lineAt(pixels: PixelMap, x: Int): Float = ((pixels.height * 0.25f).toInt()..(pixels.height * 0.6f).toInt()).maxOf { y ->
+        pixels[x, y].takeIf { inkish(it) }?.let(::strength) ?: 0f
+    }
+
+    /** The strongest ink within a few pixels of [x], down the middle of the plot: a point there. */
+    private fun pointAt(pixels: PixelMap, x: Int): Float = (x - 3..x + 3).maxOf { lineAt(pixels, it) }
+
+    /**
+     * Along categories a line is whole exactly between the range's drawn
+     * edges, as it is on any other axis: *"it'd be cool if the highlight
+     * stopped exactly at the boundaries of the selection"*. It was whole out
+     * to the near edge of February's band, though the drag began most of the
+     * way across it.
+     */
+    @Test
+    fun aLineAlongCategoriesIsWholeExactlyToTheDragsEdges() = runComposeUiTest {
+        val range = ChartRangeSelectionState<String, Number>(ChartRangeMode.Across)
+        months(range) { line(flat, x = { it.month }, y = { it.amount }) }
+        drag(into("Feb", 0.7f), into("Apr", 0.3f))
+        val pixels = pixels()
+        val (left, right) = edgesOf(pixels)
+        for (x in listOf(left + 4, (left + right) / 2, right - 4)) {
+            assertTrue(abs(lineAt(pixels, x) - 1f) < 0.08f, "inside the range the line should be whole, not ${lineAt(pixels, x)} at $x ($left to $right)")
+        }
+        for (x in listOf(left - 4, left - 10, right + 4, right + 10)) {
+            assertTrue(abs(lineAt(pixels, x) - 0.6f) < 0.08f, "just outside it the line should be at 60%, not ${lineAt(pixels, x)} at $x ($left to $right)")
+        }
+    }
+
+    /**
+     * A point is inside a range where it is, not where its category's band
+     * is: a drag from past February's point leaves it out, though it reaches
+     * into February's band, and what is reported is what is whole. *"not
+     * selecting points and stuff that aren't explicitly inside the
+     * selection"*.
+     */
+    @Test
+    fun aPointWhoseBandTheRangeReachesIntoButWhosePlaceItMissesFades() = runComposeUiTest {
+        val range = ChartRangeSelectionState<String, Number>(ChartRangeMode.Across)
+        months(range) { point(flat, x = { it.month }, y = { it.amount }) }
+        drag(into("Feb", 0.7f), into("Apr", 0.7f))
+        val pixels = pixels()
+        assertTrue(abs(pointAt(pixels, middleOf("Feb")) - 0.6f) < 0.08f, "February's point is outside the drag: ${pointAt(pixels, middleOf("Feb"))}")
+        assertTrue(abs(pointAt(pixels, middleOf("Mar")) - 1f) < 0.08f, "March's is inside it: ${pointAt(pixels, middleOf("Mar"))}")
+        assertTrue(abs(pointAt(pixels, middleOf("Apr")) - 1f) < 0.08f, "and so is April's: ${pointAt(pixels, middleOf("Apr"))}")
+        assertTrue(abs(pointAt(pixels, middleOf("May")) - 0.6f) < 0.08f, "May's is not: ${pointAt(pixels, middleOf("May"))}")
+        assertEquals("Mar", range.xStart, "the range starts at the first place inside it")
+        assertEquals("Apr", range.xEnd)
+    }
+
+    /**
+     * Bars and a line together: the bars are taken by their bands, so a drag
+     * from most of the way across February reports February and its bar is
+     * whole, while the line is whole only from where the drag began.
+     */
+    @Test
+    fun aMixedChartTakesBarsByTheirBandsAndCutsTheLineAtTheEdges() = runComposeUiTest {
+        val range = ChartRangeSelectionState<String, Number>(ChartRangeMode.Across)
+        months(range) {
+            bar(low, x = { it.month }, y = { it.amount })
+            line(flat, x = { it.month }, y = { it.amount })
+        }
+        drag(into("Feb", 0.7f), into("Apr", 0.3f))
+        assertEquals("Feb", range.xStart, "the bars' bands decide what a mixed chart reports")
+        assertEquals("Apr", range.xEnd)
+        val pixels = pixels()
+        assertTrue(abs(barStrength("Feb", pixels) - 1f) < 0.05f, "February's bar is in it: ${barStrength("Feb", pixels)}")
+        assertTrue(abs(barStrength("Apr", pixels) - 1f) < 0.05f, "and April's: ${barStrength("Apr", pixels)}")
+        assertTrue(abs(barStrength("May", pixels) - 0.6f) < 0.05f, "May's is not: ${barStrength("May", pixels)}")
+        val (left, right) = edgesOf(pixels)
+        assertTrue(abs(lineAt(pixels, left + 4) - 1f) < 0.08f, "the line is whole just inside the drag: ${lineAt(pixels, left + 4)}")
+        assertTrue(abs(lineAt(pixels, left - 4) - 0.6f) < 0.08f, "and faded just before it, over February's bar: ${lineAt(pixels, left - 4)}")
+        assertTrue(abs(lineAt(pixels, right + 4) - 0.6f) < 0.08f, "and just past it, over April's: ${lineAt(pixels, right + 4)}")
+    }
+
+    /** Bars alone are taken by their bands: a drag from late in February's band takes its bar, and reports it. */
+    @Test
+    fun aDragAcrossBarsTakesEachBarWhoseBandItReachesInto() = runComposeUiTest {
+        val range = ChartRangeSelectionState<String, Number>(ChartRangeMode.Across)
+        bars(range)
+        drag(into("Feb", 0.85f), into("Apr", 0.15f))
+        assertEquals("Feb", range.xStart)
+        assertEquals("Apr", range.xEnd)
+        val pixels = pixels()
+        assertTrue(abs(barStrength("Feb", pixels) - 1f) < 0.05f, "February's bar is in it: ${barStrength("Feb", pixels)}")
+        assertTrue(abs(barStrength("Apr", pixels) - 1f) < 0.05f, "and April's: ${barStrength("Apr", pixels)}")
+        assertTrue(abs(barStrength("Jan", pixels) - 0.6f) < 0.05f, "January's is not: ${barStrength("Jan", pixels)}")
+        assertTrue(abs(barStrength("May", pixels) - 0.6f) < 0.05f, "nor May's: ${barStrength("May", pixels)}")
+    }
+
+    /** Shift and the arrows take whole places, and what they report is what is whole. */
+    @Test
+    fun theKeysHighlightThePointsTheyReport() = runComposeUiTest {
+        val range = ChartRangeSelectionState<String, Number>(ChartRangeMode.Across)
+        val selection = ChartSelectionState<String>(null)
+        months(range, selection) { point(flat, x = { it.month }, y = { it.amount }) }
+        val chart = onNode(isFocusable())
+        chart.requestFocus()
+        chart.performKeyInput { pressKey(Key.DirectionRight) }
+        chart.performKeyInput { pressKey(Key.DirectionRight) }
+        chart.performKeyInput {
+            withKeyDown(Key.ShiftLeft) {
+                pressKey(Key.DirectionRight)
+                pressKey(Key.DirectionRight)
+            }
+        }
+        waitForIdle()
+        assertEquals("Feb", range.xStart)
+        assertEquals("Apr", range.xEnd)
+        val pixels = pixels()
+        for (month in listOf("Feb", "Mar", "Apr")) {
+            assertTrue(abs(pointAt(pixels, middleOf(month)) - 1f) < 0.08f, "$month's point is in the range: ${pointAt(pixels, middleOf(month))}")
+        }
+        for (month in listOf("Jan", "May")) {
+            assertTrue(abs(pointAt(pixels, middleOf(month)) - 0.6f) < 0.08f, "$month's is not: ${pointAt(pixels, middleOf(month))}")
         }
     }
 

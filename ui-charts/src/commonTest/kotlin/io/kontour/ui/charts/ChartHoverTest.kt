@@ -172,7 +172,10 @@ class ChartHoverTest {
         chart.performMouseInput { release() }
         waitForIdle()
         assertNull(selection.x, "and nothing is selected once it is let go")
-        assertEquals("Feb", range.xStart)
+        // Begun past February's point, the line's range takes in March's
+        // first: a line's range reports the places inside it, not the bands
+        // it reaches into.
+        assertEquals("Mar", range.xStart)
     }
 
     private fun near(a: Color, b: Color) = abs(a.red - b.red) < 0.15f && abs(a.green - b.green) < 0.15f && abs(a.blue - b.blue) < 0.15f

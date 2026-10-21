@@ -428,23 +428,33 @@ selected place, and the keyboard with Shift and the arrows, stretching a range
 a place at a time from the selected one, or from the first. A tap lets go of
 it, on the chart or anywhere else, and so does Escape, before it lets go of the
 place. A drag marks from exactly where it went down to where it was let go, on
-any chart, and a box, where both axes are measures, both ways: `xStart` and
-`xEnd` are the categories whose bands it reaches into, or on a date axis the
-days its ends fall in. A range set with `select`, or stretched by the keys, is
-of whole places along categories and among bars. It is drawn behind the marks,
-edged in the selection's colour, and a screen reader hears it after the
-selected place: "Selected Feb to Apr".
+any chart, and a box, where both axes are measures, both ways; on a date axis
+`xStart` and `xEnd` are the days its ends fall in. A range set with `select`,
+or stretched by the keys, is of whole places along categories and among bars.
+It is drawn behind the marks, edged in the selection's colour, and a screen
+reader hears it after the selected place: "Selected Feb to Apr".
 
 While a range is marked, the marks outside it fade to 60%, so the ones inside
-stand out at full strength against the rest. A bar, a point, a box or a cell
-is inside by its place, and in a box by its value too; a line or an area is
-cut at the range's edges, the stretch inside it whole. Along categories the
-range holds the whole of each category it is read as, so what fades is what
-`xStart` and `xEnd` leave out. The fade comes in and goes as the range is
-marked and let go, and at once under reduced motion. At the high contrast tier
-it fades to 80%, where every series' colour still holds 3:1 against the page. A chart with a range selection and no `selection`
-chooses no place, so a plain drag across it is the page's and scrolls what it
-is in, and the arrows, Home and End go on to what is round it.
+stand out at full strength against the rest, and what is whole is what the
+range reports:
+
+| | Inside the range | Along categories, `xStart` and `xEnd` are |
+|---|---|---|
+| A line, an area, a band | The stretch between its edges, exactly where it is drawn | The first and last places inside it |
+| A point, a stem, a dumbbell's end | Where it is, and in a box up as well as across | The first and last places inside it |
+| A bar, a box plot, a cell, a rectangle | Wherever the range reaches into its band | The first and last whose bands it reaches into |
+
+So a drag from late in February's band takes February's bar, and on a line it
+starts at March's point. A chart with bars and a line together reports by the
+bars, and its line is still whole only between the range's edges. A drag on a
+chart of lines and points that takes in no place reports nothing: it is drawn
+while it goes on, so the reader sees what they are marking, and gone when it
+is let go. The fade comes in and goes as the range is marked and let go, and at
+once under reduced motion. At the high contrast tier it fades to 80%, where
+every series' colour still holds 3:1 against the page. A chart with a range
+selection and no `selection` chooses no place, so a plain drag across it is
+the page's and scrolls what it is in, and the arrows, Home and End go on to
+what is round it.
 
 <!--sample:ChartRangeSelection-->
 ```kotlin

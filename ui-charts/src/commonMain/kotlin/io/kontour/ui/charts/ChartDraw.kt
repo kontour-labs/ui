@@ -33,7 +33,6 @@ import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.min
-import kotlin.math.roundToInt
 
 /** What a chart is drawn with, in pixels, for one density. */
 internal class DrawConfig(
@@ -91,23 +90,53 @@ internal class MarkPaths {
  * each frame, rather than made for each, from the range and how far it has
  * faded in.
  *
- * Across a range, a mark is inside it where its place is; in a box, where its
- * place is and its value is. A line or an area is cut at the range's edges,
- * so the stretch of it inside is whole and the rest faded.
+ * Its edges are the range's as it is drawn, so what is whole is what is
+ * washed. A line, an area or a band is cut at them, so the stretch of it
+ * inside is whole and the rest faded. A point, a stem or a dumbbell's end is
+ * inside where it is: across the range, and in a box up it too. A bar, a box
+ * plot, a cell or a rectangle is large, and inside where the range reaches
+ * into it at all, across its band, so a drag from late in February's band
+ * takes February's bar. Along categories the bands were the rule for every
+ * mark, and a line was whole out past the wash to the edges of the bands it
+ * reached into: *"it'd be cool if the highlight stopped exactly at the
+ * boundaries of the selection … The only way this differs I think should be
+ * large objects like bars"*.
  */
 internal class MarkFocus {
     var left = 0f
     var top = 0f
     var right = 0f
     var bottom = 0f
+
+    /** Whether the range has an extent up, as a box does, as well as across. */
+    var boxed = false
     var faded = 1f
 
-    fun holds(x: Float, y: Float): Boolean = x >= left && x <= right && y >= top && y <= bottom
+    /** Whether a small mark at [x], [y] is inside: where it is. */
+    fun holds(x: Float, y: Float): Boolean = holdsAcross(x) && holdsUp(y)
+
+    fun holdsAcross(x: Float): Boolean = x >= left - EdgeSlack && x <= right + EdgeSlack
+
+    fun holdsUp(y: Float): Boolean = !boxed || (y >= top - EdgeSlack && y <= bottom + EdgeSlack)
+
+    /** Whether a large mark from [from] to [to] across, either way round, is inside: the range reaches into it. */
+    fun reachesAcross(from: Float, to: Float): Boolean = max(from, to) > left + EdgeSlack && min(from, to) < right - EdgeSlack
+
+    fun reachesUp(from: Float, to: Float): Boolean = !boxed || (max(from, to) > top + EdgeSlack && min(from, to) < bottom - EdgeSlack)
 }
 
-/** Whether a mark at [x], [y] is drawn in this pass: every mark for [inside] `null`, otherwise those in or out of the range as it says. */
-private fun MarkFocus?.keeps(inside: Boolean?, x: Float, y: Float): Boolean =
-    inside == null || this == null || holds(x, y) == inside
+/**
+ * How far past a marked range's edge, in pixels, is still on it. A range of
+ * whole places ends exactly where the next band begins, and a point on its
+ * edge exactly where the edge is, but each is worked out by other arithmetic
+ * and lands a hair either side: half a pixel keeps the next band out and the
+ * point in, and is not to be seen.
+ */
+internal const val EdgeSlack = 0.5f
+
+/** Whether a mark is drawn in this pass: every mark for [inside] `null`, otherwise those [held] says are in or out of the range as it says. */
+private inline fun MarkFocus?.keeps(inside: Boolean?, held: MarkFocus.() -> Boolean): Boolean =
+    inside == null || this == null || held() == inside
 
 /**
  * Draws a layer's marks by [draw], once, or with a range marked, twice: what
@@ -127,15 +156,20 @@ private inline fun byFocus(focus: MarkFocus?, alpha: Float, draw: (inside: Boole
  * Draws a line's or an area's path by [draw], once, or with a range marked,
  * twice: clipped to what is outside the range and faded, then to what is
  * inside it and whole. Cut by clipping, so the path is made once a frame and
- * not again for each part.
+ * not again for each part, and on whole pixels, the range's edges rounded
+ * out, so the two parts meet on a pixel's edge and not across one.
  */
 private inline fun DrawScope.splitAt(focus: MarkFocus?, alpha: Float, draw: DrawScope.(alpha: Float) -> Unit) {
     if (focus == null) {
         draw(alpha)
         return
     }
-    clipRect(focus.left, focus.top, focus.right, focus.bottom, ClipOp.Difference) { draw(alpha * focus.faded) }
-    clipRect(focus.left, focus.top, focus.right, focus.bottom) { draw(alpha) }
+    val left = floor(focus.left)
+    val right = ceil(focus.right)
+    val top = if (focus.boxed) floor(focus.top) else 0f
+    val bottom = if (focus.boxed) ceil(focus.bottom) else size.height
+    clipRect(left, top, right, bottom, ClipOp.Difference) { draw(alpha * focus.faded) }
+    clipRect(left, top, right, bottom) { draw(alpha) }
 }
 
 /**
@@ -233,6 +267,18 @@ private const val SelectionWashOpacity = 0.1f
  */
 internal val ResolvedChart.selectsBands: Boolean
     get() = !horizontal && cells == null && layers.any { it.mark.kind == MarkKind.Bar || it.mark.kind == MarkKind.Box }
+
+/**
+ * Whether a range marked along categories takes a category by its band rather
+ * than by its place: where the chart has a mark as wide as its band, which a
+ * range reaching into is in, so that what it reports is what is whole. On a
+ * chart of bars and a line, the bars' rule decides it. See [takenIn].
+ */
+internal val ResolvedChart.takesBands: Boolean
+    get() = layers.any { it.mark.kind in LargeMarks }
+
+/** The marks a range takes by their bands, or their own extent, and not by where they stand: see [MarkFocus]. */
+private val LargeMarks = setOf(MarkKind.Bar, MarkKind.Box, MarkKind.Cell, MarkKind.Rectangle)
 
 /**
  * [shape] at [rect], added to [path]; nothing for a rect with no area. Added
@@ -537,32 +583,27 @@ internal fun DrawScope.drawChart(
  * Where [range] holds its marks whole this frame, set in [config]'s
  * [MarkFocus]; `null` for no range, or one not faded in at all.
  *
- * Along categories it reaches out to the whole of the bands at its ends, the
- * places it is read as: a drag from most of the way across February's band
- * reports February, and February's bar faded while the range said it was in
- * it. Elsewhere it is where the range is drawn, to the nearest pixel, so the
- * two parts of a line meet on a pixel's edge and not across one.
+ * Its edges are where the range is washed, on every axis: a drag's where the
+ * drag was, and one set by its values out to the whole of the places at its
+ * ends among bars and categories. Along categories it reached out to the
+ * whole of the bands at a drag's ends, for every mark, and a line was whole
+ * past the wash. A bar is still in it by its band: see [MarkFocus].
  */
-private fun DrawScope.focusOn(range: MarkedRange?, focusing: Float, chart: ResolvedChart, m: Mapper, config: DrawConfig): MarkFocus? {
+private fun focusOn(range: MarkedRange?, focusing: Float, chart: ResolvedChart, m: Mapper, config: DrawConfig): MarkFocus? {
     if (range == null || focusing <= 0f || chart.horizontal) return null
     val focus = config.focus
     focus.faded = 1f - (1f - config.outsideRange) * focusing.coerceAtMost(1f)
-    val categories = chart.x.kind == AxisKind.Category
-    val half = if (categories || range.whole) cellBand(chart.placeAxis, chart.step, m.unitX) / 2 else 0f
-    fun place(at: Double): Double =
-        if (categories) at.roundToInt().coerceIn(ceil(chart.x.low).toInt(), floor(chart.x.high).toInt()).toDouble() else at
-    val a = m.px(place(range.from))
-    val b = m.px(place(range.to))
-    focus.left = floor(min(a, b) - half)
-    focus.right = ceil(max(a, b) + half)
+    val half = if (range.whole) cellBand(chart.placeAxis, chart.step, m.unitX) / 2 else 0f
+    val a = m.px(range.from)
+    val b = m.px(range.to)
+    focus.left = min(a, b) - half
+    focus.right = max(a, b) + half
     val upFrom = range.upFrom
     val upTo = range.upTo
+    focus.boxed = upFrom != null && upTo != null
     if (upFrom != null && upTo != null) {
-        focus.top = floor(min(m.py(upFrom), m.py(upTo)))
-        focus.bottom = ceil(max(m.py(upFrom), m.py(upTo)))
-    } else {
-        focus.top = 0f
-        focus.bottom = size.height
+        focus.top = min(m.py(upFrom), m.py(upTo))
+        focus.bottom = max(m.py(upFrom), m.py(upTo))
     }
     return focus
 }
@@ -703,15 +744,15 @@ private fun DrawScope.drawBars(
     val at = bars.at(layer)
     val open = if (!layer.mark.floating) bars.openEnds(layer) else null
     val stack = if (!layer.mark.floating) StackEnds(layer, chart, reach, at, bars::openEnds, bars::placeIndex) else null
-    // In a marked range by its place, and in a box by its value too: its top,
-    // or a floating bar's middle, since it stands for the range between.
+    // In a marked range where it reaches into the bar's band, and in a box
+    // where its value is in it too: its top, or a floating bar's middle,
+    // since it stands for the range between. Lying bars take no range.
     fun value(i: Int): Double = if (layer.mark.floating) (base[i] + tops[i]) / 2 else tops[i]
     byFocus(focus, alpha) { inside, part ->
         val path = config.marks.empty(0)
         for (i in 0 until layer.size) {
             if (tops[i].isNaN()) continue
-            val held = if (lying) focus.keeps(inside, m.px(value(i)), m.py(places[i])) else focus.keeps(inside, m.px(places[i]), m.py(value(i)))
-            if (!held) continue
+            if (!focus.keeps(inside) { reachesAcross(m.px(places[i]) - band / 2, m.px(places[i]) + band / 2) && holdsUp(m.py(value(i))) }) continue
             val positive = tops[i] >= base[i]
             val opened = open?.get(i) ?: 1f
             // A part under another, near enough to the stack's end to be inside
@@ -937,7 +978,7 @@ private fun DrawScope.drawSymbols(layer: Layer, symbol: PointSymbol, colour: Col
             val y = layer.up[i]
             if (y.isNaN() || layer.across[i].isNaN()) continue
             val centre = Offset(m.px(layer.across[i]), m.py(y))
-            if (!focus.keeps(inside, centre.x, centre.y)) continue
+            if (!focus.keeps(inside) { holds(centre.x, centre.y) }) continue
             // A ring of the page's ground round each, so neighbouring points of
             // two series stay two points where they overlap.
             addSymbol(halo, symbol, centre, config.pointSize + config.hairline * 3)
@@ -951,7 +992,8 @@ private fun DrawScope.drawSymbols(layer: Layer, symbol: PointSymbol, colour: Col
 private fun DrawScope.drawRectangles(layer: Layer, look: SeriesLook, m: Mapper, config: DrawConfig, alpha: Float, focus: MarkFocus?) {
     val ends = layer.acrossEnd ?: return
     val tops = layer.upEnd ?: return
-    // In a marked range by its middle, which has no one place of its own.
+    // In a marked range where it reaches into the rectangle, each way it
+    // is marked: a large mark, which has no one place of its own.
     byFocus(focus, alpha) { inside, part ->
         val path = config.marks.empty(0)
         for (i in 0 until layer.size) {
@@ -959,7 +1001,7 @@ private fun DrawScope.drawRectangles(layer: Layer, look: SeriesLook, m: Mapper, 
             val x1 = m.px(ends[i])
             val y0 = m.py(layer.up[i])
             val y1 = m.py(tops[i])
-            if (!focus.keeps(inside, (x0 + x1) / 2, (y0 + y1) / 2)) continue
+            if (!focus.keeps(inside) { reachesAcross(x0, x1) && reachesUp(y0, y1) }) continue
             addShape(path, Rect(min(x0, x1), min(y0, y1), max(x0, x1), max(y0, y1)), config.corners.all)
         }
         fill(path, look, config, part, opacity = 0.85f)
@@ -969,8 +1011,8 @@ private fun DrawScope.drawRectangles(layer: Layer, look: SeriesLook, m: Mapper, 
 /** Each of [layer]'s stems: a line from its foot to its top, as wide as a line and as round at its ends. */
 private fun DrawScope.drawStems(layer: Layer, look: SeriesLook, m: Mapper, config: DrawConfig, alpha: Float, focus: MarkFocus?) {
     val base = layer.base ?: return
-    // In a marked range by its place, and in a box by its middle, as a
-    // floating bar is.
+    // In a marked range where it stands, as a point is, since it is only a
+    // line's width across; and in a box by its middle, as a floating bar is.
     byFocus(focus, alpha) { inside, part ->
         val path = config.marks.empty(0)
         for (i in 0 until layer.size) {
@@ -978,7 +1020,7 @@ private fun DrawScope.drawStems(layer: Layer, look: SeriesLook, m: Mapper, confi
             val x = m.px(layer.across[i])
             val foot = m.py(base[i])
             val top = m.py(layer.up[i])
-            if (!focus.keeps(inside, x, (foot + top) / 2)) continue
+            if (!focus.keeps(inside) { holds(x, (foot + top) / 2) }) continue
             addStem(path, x, foot, top, config.lineWidth, capHalf = 0f)
         }
         drawPath(path, look.colour, alpha = part)
@@ -998,8 +1040,10 @@ private fun DrawScope.drawBoxes(layer: Layer, look: SeriesLook, chart: ResolvedC
     val thickness = band * ChartDefaults.BarFraction * layer.groupWidth
     val direction = if (m.frame.rtl) -1f else 1f
     val offset = band * ChartDefaults.BarFraction * layer.groupOffset * direction
-    // In a marked range by its place, and in a box by its median too: its
-    // whiskers and its outliers go with it, as one mark.
+    // In a marked range as a bar is, where it reaches into the box's band,
+    // since it is drawn as wide as a bar and stands in its band as one; and
+    // in a box by its median too. Its whiskers and its outliers go with it,
+    // as one mark.
     byFocus(focus, alpha) { inside, part ->
         val whiskers = config.marks.empty(0)
         val boxes = config.marks.empty(1)
@@ -1008,7 +1052,8 @@ private fun DrawScope.drawBoxes(layer: Layer, look: SeriesLook, chart: ResolvedC
         val outliers = config.marks.empty(4)
         for (i in 0 until layer.size) {
             if (layer.up[i].isNaN() || base[i].isNaN()) continue
-            if (!focus.keeps(inside, m.px(layer.across[i]), m.py(layer.values[i]))) continue
+            val place = m.px(layer.across[i])
+            if (!focus.keeps(inside) { reachesAcross(place - band / 2, place + band / 2) && holdsUp(m.py(layer.values[i])) }) continue
             val centre = m.px(layer.across[i]) + offset
             val top = m.py(layer.up[i])
             val foot = m.py(base[i])
@@ -1056,10 +1101,15 @@ private fun DrawScope.drawCells(
         val value = layer.values[i]
         if (value.isNaN()) continue
         val centre = Offset(m.px(layer.across[i]), m.py(layer.up[i]))
-        // Drawn one at a time already, so each at its own strength: its
-        // column's place in a marked range, or not.
-        val alpha = if (focus == null || focus.holds(centre.x, centre.y)) alpha else alpha * focus.faded
         val rect = Rect(centre.x - width / 2, centre.y - height / 2, centre.x + width / 2, centre.y + height / 2)
+        // Drawn one at a time already, so each at its own strength: in a
+        // marked range where it reaches into the cell's band, the gap
+        // round it included, as it does into a bar's.
+        val reached = focus == null || (
+            focus.reachesAcross(rect.left - config.cellGap / 2, rect.right + config.cellGap / 2) &&
+                focus.reachesUp(rect.top - config.cellGap / 2, rect.bottom + config.cellGap / 2)
+            )
+        val alpha = if (reached) alpha else alpha * focus.faded
         val shade = rampAt(config.colours.ramp, scale.fraction(value))
         path.rewind()
         addShape(path, rect, config.corners.all)

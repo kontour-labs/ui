@@ -170,6 +170,54 @@ class ChartRangeSelectionTest {
         assertTrue(abs(right - to) <= 2f, "and its end where it was let go, $to, not at $right")
     }
 
+    /**
+     * Along categories on a chart of points, what a drag reports is the
+     * places inside it, not the bands it reaches into: one from past
+     * February's point to short of March's takes in no place, so it reports
+     * nothing. It is drawn while the drag goes on, so the reader sees what
+     * they are marking, and let go it is gone, as nothing was marked.
+     */
+    @Test
+    fun aDragBetweenTwoPointsReportsNothing() = runComposeUiTest {
+        val range = ChartRangeSelectionState<String, Number>(ChartRangeMode.Across)
+        setContent {
+            KontourTheme(reduceMotion = true) {
+                OverlayHost(Modifier.fillMaxSize()) {
+                    Chart(
+                        xAxis = ChartAxis.category<String>(),
+                        yAxis = ChartAxis.number(domain = 0.0..400.0),
+                        modifier = Modifier.size(360.dp, 240.dp).testTag("chart"),
+                        rangeSelection = range,
+                        colours = ChartDefaults.colours(series = listOf(Bars), grid = Color.Transparent, selection = Probe),
+                        showLegend = false,
+                        animateData = false,
+                    ) {
+                        point(spending, x = { it.month }, y = { it.amount })
+                    }
+                }
+            }
+        }
+        val feb = band("Feb")
+        val mar = band("Mar")
+        val from = feb.first + (feb.second - feb.first) * 0.6f
+        val to = mar.first + (mar.second - mar.first) * 0.4f
+        onNodeWithTag("chart").performMouseInput {
+            moveTo(Offset(from, height * 0.5f))
+            press()
+            for (step in 1..10) moveTo(Offset(from + (to - from) * step / 10f, height * 0.5f))
+        }
+        waitForIdle()
+        assertTrue(range.isEmpty, "no place is inside the drag, so none is reported: ${range.xStart}..${range.xEnd}")
+        val (left, right) = edgesAcross(0.2f)
+        assertTrue(abs(left - from) <= 2f && abs(right - to) <= 2f, "but the drag is drawn where it is, $from to $to, not $left to $right")
+        onNodeWithTag("chart").performMouseInput { release() }
+        waitForIdle()
+        assertTrue(range.isEmpty, "let go, it is still nothing")
+        val pixels = onNodeWithTag("chart").captureToImage().toPixelMap()
+        val row = (pixels.height * 0.2f).toInt()
+        assertTrue((0 until pixels.width).none { near(pixels[it, row], Probe) }, "and nothing is drawn")
+    }
+
     /** A box on number axes, drawn from corner to corner where the drag went. */
     @Test
     fun aBoxIsDrawnWhereTheDragWent() = runComposeUiTest {

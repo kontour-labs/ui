@@ -15,11 +15,13 @@ enum class ChartRangeMode {
     /**
      * A stretch of the axis across, the whole height of the plot: these weeks,
      * these months. Marked by a drag, it runs from exactly where the drag went
-     * down to where it was let go, on every chart, and is read as the
-     * categories whose bands it reaches into, or on a date axis the day each
-     * end falls in. One set with [select][ChartRangeSelectionState.select], or
-     * stretched by the keys, takes whole places along categories and among
-     * bars.
+     * down to where it was let go, on every chart. Along categories it is read
+     * as the first and last it takes in: on a chart with bars, boxes, cells or
+     * rectangles, those whose bands it reaches into, and on one of lines,
+     * areas and points, those whose places are inside it, which can be none.
+     * On a date axis it is read as the day each end falls in. One set with
+     * [select][ChartRangeSelectionState.select], or stretched by the keys,
+     * takes whole places along categories and among bars.
      */
     Across,
 
@@ -54,8 +56,24 @@ enum class ChartRangeMode {
  * place: snapped to whole places among bars and categories, a range jumped a
  * band at a time under the pointer and never started or stopped where the
  * reader did. *"it should just start selecting from where i start and stop
- * where i stop"*. What it reports is still in the axis's values: along
- * categories, the first and last whose bands it reaches into.
+ * where i stop"*. What it reports is still in the axis's values.
+ *
+ * What is outside it fades, and what is whole is what it reports. A line, an
+ * area or a band is whole exactly between its edges, on every axis. A point,
+ * a stem or a dumbbell's end is in it where it is, in a box up as well as
+ * across. A bar, a box plot, a cell or a rectangle is large, and in it where
+ * the range reaches into its band at all: a drag from late in February's band
+ * takes February's bar. So along categories [xStart] and [xEnd] are, on a
+ * chart with any of those, the first and last whose bands the range reaches
+ * into, the bars' rule deciding a chart of bars and a line; and on a chart of
+ * lines, areas and points, the first and last whose places are inside it. A
+ * drag there that takes in no place reports nothing, and is drawn while it
+ * goes on, so the reader sees what they are marking. Along categories those
+ * were the bands' for every mark, and a line was whole out past the range to
+ * the edges of the bands it reached into: *"it'd be cool if the highlight
+ * stopped exactly at the boundaries of the selection. That also means not
+ * selecting points and stuff that aren't explicitly inside the selection. The
+ * only way this differs I think should be large objects like bars"*.
  */
 @Stable
 class ChartRangeSelectionState<X : Any, Y : Any> internal constructor(
@@ -114,9 +132,10 @@ class ChartRangeSelectionState<X : Any, Y : Any> internal constructor(
     /**
      * Marks what a drag marked: from [acrossFrom] to [acrossTo] across and, for
      * a box, [upFrom] to [upTo] up, in the chart's units and in order, read as
-     * [xStart] to [xEnd] and [yStart] to [yEnd].
+     * [xStart] to [xEnd] and [yStart] to [yEnd]: `null` across for one along
+     * categories that takes none in, which is drawn and reports nothing.
      */
-    internal fun mark(acrossFrom: Double, acrossTo: Double, upFrom: Double?, upTo: Double?, xStart: X, xEnd: X, yStart: Y?, yEnd: Y?) {
+    internal fun mark(acrossFrom: Double, acrossTo: Double, upFrom: Double?, upTo: Double?, xStart: X?, xEnd: X?, yStart: Y?, yEnd: Y?) {
         this.xStart = xStart
         this.xEnd = xEnd
         this.yStart = yStart
