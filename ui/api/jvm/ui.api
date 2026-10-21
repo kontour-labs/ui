@@ -1126,9 +1126,9 @@ public final class io/kontour/ui/components/display/ProgressDefaults {
 
 public final class io/kontour/ui/components/display/ProgressKt {
 	public static final fun CircularProgress-kPsmdy8 (Ljava/lang/Float;Landroidx/compose/ui/Modifier;Ljava/lang/String;FJJFLandroidx/compose/runtime/Composer;II)V
-	public static final fun CircularStepProgress-vJFcvow (Ljava/lang/Integer;ILandroidx/compose/ui/Modifier;Ljava/lang/String;ZJJFFFLandroidx/compose/runtime/Composer;II)V
+	public static final fun CircularStepProgress-EdLrU3w (Ljava/lang/Integer;ILandroidx/compose/ui/Modifier;Ljava/lang/String;ZLjava/lang/Float;JJFFLjava/util/List;FLandroidx/compose/runtime/Composer;III)V
 	public static final fun LinearProgress-2poqoh4 (Ljava/lang/Float;Landroidx/compose/ui/Modifier;Ljava/lang/String;JJFLandroidx/compose/runtime/Composer;II)V
-	public static final fun StepProgress-HtrY1DU (Ljava/lang/Integer;ILandroidx/compose/ui/Modifier;Ljava/lang/String;ZJJFFLandroidx/compose/runtime/Composer;II)V
+	public static final fun StepProgress-6NGET_E (Ljava/lang/Integer;ILandroidx/compose/ui/Modifier;Ljava/lang/String;ZLjava/lang/Float;JJFLjava/util/List;FLandroidx/compose/runtime/Composer;III)V
 }
 
 public final class io/kontour/ui/components/display/ReadoutScope {
@@ -4023,10 +4023,18 @@ public final class io/kontour/ui/overlay/TooltipDefaults {
 }
 
 public final class io/kontour/ui/overlay/TooltipKt {
-	public static final fun Tooltip (ZLandroidx/compose/ui/Modifier;Lio/kontour/ui/overlay/OverlaySide;Lio/kontour/ui/overlay/OverlayAlignment;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
+	public static final fun Tooltip (ZLandroidx/compose/ui/Modifier;Lio/kontour/ui/overlay/OverlaySide;Lio/kontour/ui/overlay/OverlayAlignment;Lkotlin/jvm/functions/Function0;Lio/kontour/ui/overlay/TooltipStyle;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
 	public static final fun coachmark (Landroidx/compose/ui/Modifier;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Landroidx/compose/ui/graphics/vector/ImageVector;Lio/kontour/ui/overlay/OverlaySide;Lio/kontour/ui/overlay/OverlayAlignment;Lio/kontour/ui/theme/Tone;IILjava/util/Set;Ljava/lang/String;ZLandroidx/compose/runtime/Composer;III)Landroidx/compose/ui/Modifier;
 	public static final fun tooltip (Landroidx/compose/ui/Modifier;Lio/kontour/ui/overlay/OverlaySide;Lio/kontour/ui/overlay/OverlayAlignment;ZLandroidx/compose/foundation/interaction/MutableInteractionSource;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)Landroidx/compose/ui/Modifier;
 	public static final fun tooltip (Landroidx/compose/ui/Modifier;Ljava/lang/String;Lio/kontour/ui/overlay/OverlaySide;Lio/kontour/ui/overlay/OverlayAlignment;ZLandroidx/compose/foundation/interaction/MutableInteractionSource;Landroidx/compose/runtime/Composer;II)Landroidx/compose/ui/Modifier;
+}
+
+public final class io/kontour/ui/overlay/TooltipStyle : java/lang/Enum {
+	public static final field Card Lio/kontour/ui/overlay/TooltipStyle;
+	public static final field Plain Lio/kontour/ui/overlay/TooltipStyle;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/kontour/ui/overlay/TooltipStyle;
+	public static fun values ()[Lio/kontour/ui/overlay/TooltipStyle;
 }
 
 public final class io/kontour/ui/platform/Accessibility_jvmKt {
