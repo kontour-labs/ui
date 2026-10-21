@@ -341,6 +341,7 @@ class ComponentRenderTest {
             "Chart" to "marks and labels on the page, no container",
             "SectorChart" to "sectors on the page, no container; a gap of the page's ground between them",
             "Sparkline" to "a line on the page, no container",
+            "ChartDataTable" to "a Table of a chart's numbers: rows of text divided by rules, and no frame",
             // A modal's scrim is the first thing a walk meets, and a scrim is a
             // dimming, not an edge: its job is to be quieter than what it covers.
             // The panel inside it carries the overlay's own edge.

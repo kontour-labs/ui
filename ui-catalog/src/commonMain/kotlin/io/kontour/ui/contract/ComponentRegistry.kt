@@ -31,6 +31,7 @@ import io.kontour.ui.components.datetime.ActivityMark
 import io.kontour.ui.components.display.BranchTimeline
 import io.kontour.ui.charts.Chart
 import io.kontour.ui.charts.ChartAxis
+import io.kontour.ui.charts.ChartDataTable
 import io.kontour.ui.charts.ChartSeries
 import io.kontour.ui.charts.ChartStacking
 import io.kontour.ui.charts.LinePattern
@@ -1440,6 +1441,33 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 contentDescription = "Route 950 this week",
                 animateData = false,
             )
+        }
+    )
+
+    add(
+        // A chart's numbers as a table, the same content as `Chart`'s: read
+        // as a table is, so it is drawn and swept as `Table` is. It was the
+        // one chart component missing here, and so the one no render or
+        // sweep had seen.
+        ComponentSpec(
+            "ChartDataTable",
+            role = null,
+            activatedByClick = false,
+            expectsMinimumTarget = false,
+            underContract = false,
+            renderHeight = 220,
+        ) { modifier, _, _ ->
+            val months = listOf("Jul", "Aug", "Sep")
+            val riders = listOf(620, 710, 680)
+            ChartDataTable(
+                xAxis = ChartAxis.category(months),
+                yAxis = ChartAxis.number(title = "Riders"),
+                modifier = modifier,
+                striped = true,
+            ) {
+                bar(months.indices.toList(), x = { months[it] }, y = { riders[it] }, series = { ChartSeries("Route 950") })
+                bar(months.indices.toList(), x = { months[it] }, y = { riders[it] - 240 }, series = { ChartSeries("Route 951") })
+            }
         }
     )
 
