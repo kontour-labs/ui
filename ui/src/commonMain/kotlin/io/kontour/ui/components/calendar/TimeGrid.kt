@@ -90,6 +90,7 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.plus
+import io.kontour.ui.input.secondaryClick
 
 /**
  * A day's hours, or a week's side by side: the days' headings, what takes the

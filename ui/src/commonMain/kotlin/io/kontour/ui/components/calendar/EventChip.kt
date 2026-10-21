@@ -64,8 +64,6 @@ import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.PointerId
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.PointerEventType
-import androidx.compose.ui.input.pointer.isSecondaryPressed
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -83,6 +81,7 @@ import io.kontour.ui.a11y.highContrast
 import io.kontour.ui.foundation.ProvideContentColour
 import io.kontour.ui.input.Cursor
 import io.kontour.ui.input.pointerCursor
+import io.kontour.ui.input.secondaryClick
 import io.kontour.ui.interaction.PickUpAxis
 import io.kontour.ui.interaction.detectPickUp
 import io.kontour.ui.interaction.pressable
@@ -868,21 +867,6 @@ internal fun CalendarScope.takeUp(
     if (hold) {
         edit.pickedUp()
         openMenu(root, event, edges = edges)
-    }
-}
-
-/** A secondary click — a mouse's right button — at a point in this node. */
-internal fun Modifier.secondaryClick(onClick: (Offset) -> Unit): Modifier = pointerInput(onClick) {
-    awaitPointerEventScope {
-        while (true) {
-            val event = awaitPointerEvent()
-            if (event.type != PointerEventType.Press || !event.buttons.isSecondaryPressed) continue
-            val change = event.changes.firstOrNull() ?: continue
-            // Taken already by something inside: an event's own menu, over its day's.
-            if (change.isConsumed) continue
-            change.consume()
-            onClick(change.position)
-        }
     }
 }
 

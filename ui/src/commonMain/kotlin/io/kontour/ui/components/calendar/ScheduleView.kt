@@ -50,6 +50,7 @@ import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.minus
 import kotlinx.datetime.plus
+import io.kontour.ui.input.secondaryClick
 
 /** One row of a schedule: a month's heading, or a day and its events. */
 internal sealed interface ScheduleItem {
