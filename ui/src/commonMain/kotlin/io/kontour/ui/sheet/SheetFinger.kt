@@ -51,6 +51,25 @@ internal class SheetFinger(
     var cancelled: Boolean = false
         private set
 
+    /**
+     * Whether what scrolls the content now is a wheel or a trackpad rather than
+     * a finger: from the first scroll event over the sheet to the next press on
+     * it. See [wheel].
+     */
+    var wheeling: Boolean = false
+        private set
+
+    /**
+     * A wheel or a trackpad turned over the sheet, so the scroll the content
+     * hands on next is not a drag. A wheel's notch reaches the sheet's
+     * nested-scroll connection by the same road as a finger's drag, as
+     * `UserInput`, a frame or two after the event and with nothing to say
+     * which it was; this is what says so.
+     */
+    fun wheel() {
+        wheeling = true
+    }
+
     private val times = LongArray(Capacity)
     private val along = FloatArray(Capacity)
     private var count = 0
@@ -64,6 +83,7 @@ internal class SheetFinger(
     fun down(at: Long) {
         pressed = true
         cancelled = false
+        wheeling = false
         onDown()
         count = 0
         next = 0

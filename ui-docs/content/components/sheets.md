@@ -215,6 +215,21 @@ That handoff is why a sheet takes its content as a slot rather than being a
 modifier. Without it, a sheet with a list inside is either undraggable or
 unscrollable, depending on which modifier won.
 
+**A wheel or a trackpad scrolls the list, not the sheet.** The handoff above is
+for a finger, and on a desk a half-height sheet stays half height while the
+list in it scrolls, both ways. At the end of the list, if the sheet's content
+carries on below the screen, a turn further down opens the sheet a detent, which
+shows the rest. A turn up at the list's top does nothing, so a wheel never
+closes a sheet or moves it down. Dragging a scrollbar's thumb scrolls the list
+too, and leaves the sheet where it is.
+
+A sheet's content is as tall as the window at every detent, and a sheet that
+is not fully open is pushed down with part of its content below the screen. A
+[`scrollbar`](scrollbar.md) on a list in a sheet stops its track at the bottom of
+the screen, so its thumb shows how much of the list is on screen. When a list
+at half height has scrolled to its end, the thumb stops short of the bottom of
+the track, because the last rows are still below the screen.
+
 **Inside a draggable sheet, the sheet owns the vertical rubber band.** A list and
 the sheet it is in share one axis, and only one of them can answer a finger that
 has run out of list — so a scrollable in a sheet is given no vertical overscroll

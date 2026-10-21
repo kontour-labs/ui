@@ -228,6 +228,23 @@ On `main`, and in the next release.
   the bar stayed open over a list dragged to its middle. A drag of the thumb
   now goes through the chain, as a swipe does, and the bar settles when it is
   let go.
+- **A wheel over a half-height sheet scrolls what is in it.** A mouse wheel or
+  a trackpad over a list in a sheet that was not fully open opened the sheet to
+  full height first, and only then scrolled the list, as a finger dragging the
+  list up does on a phone. It scrolls the list now, both ways, and the sheet
+  stays where it is. At the end of the list, if the sheet's content carries on
+  below the screen, a turn further down opens the sheet a detent. A turn up at
+  the list's top never closes the sheet or moves it down. Dragging a
+  scrollbar's thumb in a sheet scrolls the list too, where it had opened the
+  sheet since the drag went through the scroll chain. A finger still opens the
+  sheet first. See [Sheets](components/sheets.md#nested-scrolling).
+- **A scrollbar in a half-height sheet is the height of what the sheet
+  shows.** A sheet's content is as tall as the window at every detent, so at
+  half height a list's lower half is below the screen, and so was its
+  scrollbar. The thumb was sized for twice the list that could be seen, and ran
+  off the bottom of the screen half way down the list. `Modifier.scrollbar`
+  stops its track at the bottom of the screen now, at every detent and while
+  the sheet is dragged between them.
 - **A submenu opened in place closes as it opened.** It opened on the theme's
   spring and closed on its fastest tween, so a long one collapsed its whole
   height in a fraction of the time it took to grow. It closes on the same

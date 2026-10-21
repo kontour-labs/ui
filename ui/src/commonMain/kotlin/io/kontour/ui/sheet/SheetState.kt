@@ -1519,6 +1519,108 @@ class SheetState internal constructor(
         detent in allowedDetents &&
             (detent != SheetDetent.Hidden || userDismissible || anchoredState.settledValue == SheetDetent.Hidden)
 
+    /**
+     * The nearest allowed detent above where the sheet is, or null at its top:
+     * where a wheel turned past the end of the content opens it to. See
+     * [sheetWheel].
+     */
+    internal fun detentAbove(): SheetDetent? {
+        val at = anchoredState.offset
+        if (at.isNaN()) return null
+        val anchors = anchoredState.anchors
+        var above: SheetDetent? = null
+        var nearest = Float.NEGATIVE_INFINITY
+        for (index in 0 until anchors.size) {
+            val position = anchors.positionAt(index)
+            val detent = anchors.anchorAt(index) ?: continue
+            if (position.isNaN() || detent !in allowedDetents) continue
+            if (position < at - 0.5f && position > nearest) {
+                nearest = position
+                above = detent
+            }
+        }
+        return above
+    }
+
+    /**
+     * Whether the content runs on below what the sheet shows, so that opening
+     * it further would show more of it. Not so for a sheet as tall as its
+     * content, whatever detents it has above.
+     */
+    internal fun cutOff(): Boolean = sheetHeight > visibleHeight + 0.5f
+
+    /**
+     * Where the sheet's content is in the window, for [hiddenBelow]: the box the
+     * sheet is laid out in. Live, as [sheetCoordinates] is.
+     */
+    internal var containerCoordinates: LayoutCoordinates? = null
+
+    /**
+     * How much of a scroller inside the sheet, laid out at [coordinates], hangs
+     * below what the sheet shows, in pixels. 0 for one that is all on screen.
+     *
+     * A sheet's content is measured as tall as the window at every detent and
+     * the sheet slides it down — it never resizes while it moves, which is what
+     * keeps a drag from measuring the content again on every frame (see
+     * `SheetFramePressureTest`). So at `Half` a list in a sheet is still a
+     * window tall and its lower half is under the screen's edge, or under a
+     * floating sheet's foot. A scrollbar on it reads this to stop its track
+     * where the sheet does: *"the scrollbar just stays at full height for some
+     * reason"*, reported 2026-10-21, was a thumb sized for twice the list that
+     * could be seen, running off the bottom of the screen half way down.
+     *
+     * Reads the sheet's position, so a draw that asks is drawn again as the
+     * sheet moves.
+     */
+    internal fun hiddenBelow(coordinates: LayoutCoordinates?): Float {
+        // Read for what they subscribe to: the coordinates below are live but
+        // are not state, and these are what moves them.
+        anchoredState.offset
+        drawnOvershoot
+        val container = containerCoordinates ?: return 0f
+        val sheet = sheetCoordinates ?: return 0f
+        if (coordinates == null || !coordinates.isAttached || !container.isAttached || !sheet.isAttached) return 0f
+        val height = coordinates.size.height.toFloat()
+        val foot = container.localPositionOf(coordinates, Offset(0f, height)).y
+        // The window's foot, or a floating sheet's own, whichever is higher.
+        val surfaceFoot = container.localPositionOf(sheet, Offset(0f, sheet.size.height.toFloat())).y
+        val shown = minOf(container.size.height.toFloat(), surfaceFoot)
+        return (foot - shown).coerceIn(0f, height)
+    }
+
+    /**
+     * How many scrollbar thumbs are scrolling the content through the scroll
+     * chain at this moment. Counted round the dispatch itself, which is
+     * synchronous, by [scrollingInPlace].
+     */
+    private var thumbsScrolling = 0
+
+    /**
+     * Runs [scroll], a drag of a scrollbar's thumb handed down the scroll chain,
+     * as a scroll the sheet does not take a share of.
+     *
+     * The thumb's drag goes through the chain as a swipe does, so a collapsing
+     * top bar follows it — and so it reached [nestedScrollConnection] as a drag
+     * of the content up, and a thumb dragged down a half-height sheet's list
+     * opened the sheet to full height before the list moved at all.
+     */
+    internal fun <T> scrollingInPlace(scroll: () -> T): T {
+        thumbsScrolling++
+        try {
+            return scroll()
+        } finally {
+            thumbsScrolling--
+        }
+    }
+
+    /**
+     * Whether the scroll the content is handing on is one the sheet leaves
+     * alone: a wheel's, a trackpad's or a scrollbar thumb's. Those scroll the
+     * content and only the content, at every detent; see [sheetWheel] for what
+     * a wheel does at the content's end.
+     */
+    private val scrollsInPlace: Boolean get() = finger.wheeling || thumbsScrolling > 0
+
     private fun nearestAllowed(at: Float): SheetDetent? {
         val anchors = anchoredState.anchors
         var nearest: SheetDetent? = null
@@ -1638,6 +1740,11 @@ class SheetState internal constructor(
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
                 val delta = available.y
                 if (source != NestedScrollSource.UserInput) return Offset.Zero
+                // A wheel, a trackpad or a scrollbar's thumb: the content's
+                // alone. They came this way as a finger's drag does, and the
+                // sheet took them first — a wheel over a half-height sheet's
+                // list opened the sheet to full height before the list moved.
+                if (scrollsInPlace) return Offset.Zero
                 // A stretch the finger opened closes before anything else moves.
                 val paid = payBackOvershoot(delta)
                 val offered = delta - paid
@@ -1658,6 +1765,10 @@ class SheetState internal constructor(
                 // Dragging down and the list had nothing left to give: the sheet
                 // takes the remainder and starts to close.
                 if (source != NestedScrollSource.UserInput) return Offset.Zero
+                // Nor, at the content's top, does a wheel's remainder close the
+                // sheet or drop it: it would be left between two detents with
+                // no release to settle it.
+                if (scrollsInPlace) return Offset.Zero
                 val offered = available.y
                 // **Did the list move?** The difference between what the child
                 // was offered and what it declined, which is how the sheet knows

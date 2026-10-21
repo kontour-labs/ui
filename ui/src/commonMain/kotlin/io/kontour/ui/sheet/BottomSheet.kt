@@ -818,6 +818,9 @@ fun BottomSheet(
                 state.containerHeight = size.height.toFloat()
                 state.updateAnchors(density)
             }
+            // Where the sheet's foot is shown, for a scrollbar inside it: see
+            // `SheetState.hiddenBelow`.
+            .onPlaced { state.containerCoordinates = it }
     ) {
         Box(
             modifier = modifier
@@ -851,6 +854,10 @@ fun BottomSheet(
                     if (draggable) {
                         Modifier
                             .followSheetFinger(state.finger)
+                            // A wheel scrolls the content, not the sheet: see
+                            // `sheetWheel`. Before the connection, so the
+                            // notch is known for one before it gets there.
+                            .sheetWheel(state)
                             .nestedScroll(scrollConnection)
                             // Not `anchoredDraggable`: see `sheetDrag`, and
                             // why a carousel inside could not have a swipe.
