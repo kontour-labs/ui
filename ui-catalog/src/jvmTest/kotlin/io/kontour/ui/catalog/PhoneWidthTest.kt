@@ -291,10 +291,12 @@ class PhoneWidthTest {
          * width that is a genuinely long page, and it is long in the app too —
          * this is measuring the thing, not the harness. It rose again, from
          * 10,000dp, when `Display` gained `Meter` and went past it, and again
-         * from 24,000dp when it gained `ThumbnailStrip` and its carousel.
+         * from 24,000dp when it gained `ThumbnailStrip` and its carousel, and
+         * from 26,000dp for 0.5.0, when its step progress gained a step's own
+         * progress and steps of different lengths.
          */
         const val GoldenWidth = 720
-        const val GoldenHeight = 26000
+        const val GoldenHeight = 30000
         const val GoldenDensity = 2f
 
         /**
