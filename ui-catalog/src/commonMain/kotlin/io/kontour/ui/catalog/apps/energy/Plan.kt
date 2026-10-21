@@ -238,7 +238,7 @@ private fun ScheduleSheet(visible: Boolean, onDismiss: () -> Unit, onSchedule: (
     val time = parseTime(start.text.toString())
     val length = formats.parseDecimal(hours.text.toString())
 
-    ModalBottomSheet(visible = visible, onDismissRequest = onDismiss) { padding ->
+    ModalBottomSheet(visible = visible, onDismissRequest = onDismiss, paneTitle = "Schedule a run") { padding ->
         Column(
             Modifier.pageScroll(barPadding = PaddingValues()).padding(padding).testTag("energy-schedule-sheet"),
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),

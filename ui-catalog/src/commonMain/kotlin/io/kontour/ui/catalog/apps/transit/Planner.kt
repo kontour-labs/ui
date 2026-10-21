@@ -90,6 +90,7 @@ internal fun PlannerSheet(visible: Boolean, onDismiss: () -> Unit) {
         visible = visible,
         onDismissRequest = onDismiss,
         state = sheet,
+        paneTitle = "Plan a trip",
     ) { padding ->
         // At the foot of the sheet whatever size it is, as a navigation bar is.
         part(pin = SheetPartPin.Bottom) {

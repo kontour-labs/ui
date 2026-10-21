@@ -275,7 +275,7 @@ internal fun TripPage(trip: Trip) {
 private fun ReportSheet(visible: Boolean, onDismiss: () -> Unit, onSend: (String) -> Unit) {
     var reason by remember { mutableStateOf(Reasons.first()) }
     val more = rememberTextFieldState()
-    ModalBottomSheet(visible = visible, onDismissRequest = onDismiss) { padding ->
+    ModalBottomSheet(visible = visible, onDismissRequest = onDismiss, paneTitle = "Report a problem") { padding ->
         Column(
             Modifier.pageScroll(barPadding = PaddingValues()).padding(padding),
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm),

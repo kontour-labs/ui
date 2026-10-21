@@ -413,15 +413,20 @@ private fun WhereItCameFrom(patterns: Boolean) {
 }
 
 /**
- * The battery, in a sheet that dims the page and leaves it where it is:
- * `recedes = false`, for a page with something moving on it — here the live
- * meter, on a phone a map or a video — which a receding page would carry with
- * it on every frame of the sheet.
+ * The battery, in a sheet: how full it is, and what it is doing about it.
+ *
+ * The page recedes behind it, as it does behind every sheet in the apps. It
+ * was held still here once, with `recedes = false`, for the live meter, and
+ * was the one sheet in the apps that did not recede, which read as a slip
+ * rather than a choice. The meter is drawn by Compose, which recedes for
+ * little more than it costs standing still (`BusyBackdropCostDiagnostic`);
+ * `recedes = false` is for a platform view behind the sheet, a map or a
+ * video, and no app has one.
  */
 @Composable
 private fun BatterySheet(visible: Boolean, onDismiss: () -> Unit) {
     val formats = Theme.formats
-    ModalBottomSheet(visible = visible, onDismissRequest = onDismiss, recedes = false) { padding ->
+    ModalBottomSheet(visible = visible, onDismissRequest = onDismiss, paneTitle = "Battery") { padding ->
         Column(
             Modifier.fillMaxWidth().padding(padding).testTag("energy-battery"),
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
