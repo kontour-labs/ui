@@ -70,8 +70,8 @@ show cost nothing.
 
 `CalendarView` is `Day`, `ThreeDays`, `Week`, `Month`, `Year` or `Schedule`, held by the
 `EventCalendarState` from `rememberEventCalendarState(initialDate,
-initialView)`. Three days start on the day the view was switched to, and step
-three at a time. The week view shows one week, or several side by side —
+initialView)`. Three days start on the day the view was switched to, step
+three at a time, and swipe to start on any day. The week view shows one week, or several side by side —
 `state.showWeeks(2)` for a fortnight, up to six, or `initialWeekCount` — and
 steps by as many.
 
@@ -108,7 +108,10 @@ fade, not a movement, so it plays under reduced motion too.
 
 **Moving about.** The header steps back and on, goes to today and switches
 the view. In the day and week views a sideways swipe steps too, the same way
-the date picker pages its months. An all-day bar that runs on into the next
+the date picker pages its months. Three days swipe a day at a time instead:
+let go, they come to rest on the day nearest where the finger left them, and a
+flick carries them on a day or more, as a fling would, up to three. The arrows
+still step three from wherever that left them. An all-day bar that runs on into the next
 page is on the same line there, and keeps one title as the pages slide: the
 title stays where it is on the screen while the bar moves under it, and goes
 with the bar only once the bar's end reaches it. Mid-swipe, the strip above

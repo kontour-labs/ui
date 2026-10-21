@@ -353,6 +353,13 @@ On `main`, and in the next release.
 
 ### Changed
 
+- **An [event calendar](components/event-calendar.md)'s three days swipe a day
+  at a time.** Asked for: *"snap to any starting day, not just days that land on
+  a multiple of 3"*. Let go, they come to rest on the day nearest where the
+  finger left them, where a swipe used to turn a page of three or nothing; a
+  flick carries them on as a fling would, at least a day and at most three. The
+  title, `visibleDates` and the state's `date` go with them, and the arrows
+  still step three from there. The week and the day page as they did.
 - **A chart's tooltip is a card beside the selected place.** The place,
   quietly, over a row for each series with its value at the card's end, in
   figures of one width so that they line up, and a stack's total under a rule.

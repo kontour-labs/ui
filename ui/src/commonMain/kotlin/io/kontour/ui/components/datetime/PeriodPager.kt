@@ -121,6 +121,16 @@ internal class PeriodPager(start: Int) {
     }
 
     /**
+     * Every period now [pages] further on than it was, the same ones on screen:
+     * for periods counted afresh from a later start, as three days are by a
+     * swipe that comes to rest part-way through a page. The slots keep their
+     * periods, and the view moves back along them by as much as each moved on.
+     */
+    fun slide(pages: Float) {
+        shift -= pages
+    }
+
+    /**
      * Goes to [period] from wherever the pager is, at [velocity] pages a second
      * towards later periods, or at the speed of the move it takes over.
      */

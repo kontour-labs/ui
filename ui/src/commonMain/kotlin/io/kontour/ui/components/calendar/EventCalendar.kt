@@ -73,6 +73,10 @@ import androidx.compose.ui.unit.constrainHeight
 import androidx.compose.ui.unit.constrainWidth
 import kotlin.math.abs
 import kotlin.math.floor
+import kotlin.math.ceil
+import androidx.compose.animation.core.DecayAnimationSpec
+import androidx.compose.animation.core.calculateTargetValue
+import androidx.compose.animation.core.exponentialDecay
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -139,7 +143,8 @@ import kotlinx.datetime.toLocalDateTime
  * ### Moving about
  *
  * The header steps a period back and on, goes to today, and switches the view.
- * A sideways swipe steps too, in the day, three-day and week views; the month
+ * A sideways swipe steps too, in the day, three-day and week views — three
+ * days a day at a time, coming to rest on any day; the month
  * scrolls up and down through its weeks instead, and the year through the
  * years, each about the month or year most on screen.
  * A day's number, in the
@@ -1042,10 +1047,16 @@ internal fun rememberCalendarPager(state: EventCalendarState): CalendarPager {
     val view = state.view
     // A new pager, a cut, for another view — or the same one counted afresh:
     // three days, or several weeks, from another day.
-    val periods = remember(view, state.periods) { PeriodPager(state.period) }
+    // Not a swipe's three days moved on by a day or two, though: see `slideDays`.
+    val periods = remember(view, state.recounts) { PeriodPager(state.period) }
     val ticker = rememberDetentTicker(FeedbackIntent.Snap)
     val flickPx = with(LocalDensity.current) { MonthFlick.toPx() }
     val stiffness = motion.springSnappy.stiffness
+    val decay = remember { exponentialDecay<Float>() }
+    // A tick for each period come to, counted by its first day: three days
+    // moved on by one keep their index — see `slideDays` — and are still
+    // somewhere else.
+    fun detent(period: Int): Int = state.periods.startOf(period, state.view).toEpochDays().toInt()
     val pager = remember(periods) {
         lateinit var self: CalendarPager
         self = CalendarPager(periods, state) { velocity ->
@@ -1058,6 +1069,35 @@ internal fun rememberCalendarPager(state: EventCalendarState): CalendarPager {
             val speed = if (width > 0f) -velocity / width else 0f
             val flick = if (width > 0f) flickPx / width else Float.MAX_VALUE
             val moved = at - from
+            if (view == CalendarView.ThreeDays && width > 0f) {
+                // **Three days come to rest on any day**, where the week and
+                // the day still page: see `threeDaysLanding`. In days from the
+                // first of the three the state is on, which is where it lands
+                // when it lands nowhere new.
+                val here = state.period
+                val perPage = state.periods.daysIn(view).toFloat()
+                val first = state.periods.startOf(here, view).toEpochDays()
+                fun dayAt(slot: Int) = (state.periods.startOf(periods.periodAt(slot), view).toEpochDays() - first).toFloat()
+                val low = floor(at).toInt()
+                val shown = dayAt(low) + (at - low) * perPage
+                val counted = dayAt(start)
+                val days = counted.roundToInt() + threeDaysLanding(
+                    moved = shown - counted,
+                    held = moved * perPage,
+                    speed = speed * perPage,
+                    flick = flick * perPage,
+                    decay = decay,
+                    reach = perPage,
+                )
+                periods.headedFor = here
+                if (days != 0) {
+                    state.slideDays(days)
+                    periods.slide(days / perPage)
+                    ticker.at(detent(here))
+                }
+                periods.moveTo(here, scope, stiffness, cut = motion.reduceMotion, velocity = speed)
+                return@CalendarPager
+            }
             val slot = when {
                 width <= 0f -> start
                 speed > flick && moved > 0f -> start + 1
@@ -1073,7 +1113,7 @@ internal fun rememberCalendarPager(state: EventCalendarState): CalendarPager {
             if (landing != state.period) {
                 periods.headedFor = landing
                 state.step(landing - state.period)
-                ticker.at(landing)
+                ticker.at(detent(landing))
             }
             periods.moveTo(landing, scope, stiffness, cut = motion.reduceMotion, velocity = speed)
         }
@@ -1084,15 +1124,54 @@ internal fun rememberCalendarPager(state: EventCalendarState): CalendarPager {
     LaunchedEffect(periods) {
         snapshotFlow { state.period }.collect { period ->
             if (period == periods.headedFor || periods.held) {
-                ticker.at(period)
+                ticker.at(detent(period))
                 return@collect
             }
             ticker.reset()
-            ticker.at(period)
+            ticker.at(detent(period))
             periods.moveTo(period, scope, stiffness, cut = motion.reduceMotion)
         }
     }
     return pager
+}
+
+/**
+ * Where a swipe across three days comes to rest, in days on from the day it
+ * counted from: the nearest day to where it was let go, or with a flick, as far
+ * as the flick would have carried it.
+ *
+ * Asked for: *"when swiping left/right to be able to snap to any starting day,
+ * not just days that land on a multiple of 3. week view should stay as is"*.
+ * Three days are a phone's view of a few days running, and a reader looking at
+ * Thursday to Saturday who wants Sunday as well wants one day more, not a page
+ * of Sunday to Tuesday in which Thursday is gone. A week is a unit of its own,
+ * and pages as one.
+ *
+ * - **Let go without a flick**, it rests on the nearest day, which is what a
+ *   scroll that snaps does. Not the third of a page that pages the others: a
+ *   third of three days is a whole day, and a day is a snap point here.
+ * - **With a flick** — as fast as [MonthFlick], the way it was moving — it
+ *   carries on as a fling would, `decay` working out how far, and comes to rest
+ *   on the day nearest that: at least the next day on, so a quick short flick
+ *   always moves, and at most [reach] days on from where it was let go, a page,
+ *   so the hardest throw lands where the page it used to turn did.
+ *
+ * Everything is in days: [moved] from the day counted from, [held] in this
+ * hold alone, [speed] and [flick] in days a second, positive towards later.
+ */
+internal fun threeDaysLanding(
+    moved: Float,
+    held: Float,
+    speed: Float,
+    flick: Float,
+    decay: DecayAnimationSpec<Float>,
+    reach: Float,
+): Int = when {
+    speed > flick && held > 0f ->
+        decay.calculateTargetValue(moved, speed).roundToInt().coerceIn(floor(moved).toInt() + 1, floor(moved + reach).toInt())
+    speed < -flick && held < 0f ->
+        decay.calculateTargetValue(moved, speed).roundToInt().coerceIn(ceil(moved - reach).toInt(), ceil(moved).toInt() - 1)
+    else -> moved.roundToInt()
 }
 
 /**
