@@ -313,10 +313,13 @@ fun StepProgress(
         val melt = steps.melt
         val gapPx = gap.toPx() * (1f - melt)
         // Each step its share of what the gaps leave: see [weights].
+        //
+        // Added up as each loop below walks the row, rather than laid out in
+        // two arrays first: this runs on every frame of a fill or a chase, and
+        // the arrays were two allocations a frame for numbers the loops can
+        // keep as they go. The reach is two functions rather than one handing
+        // back a pair, which was another two for every segment.
         val room = size.width - gapPx * (total - 1)
-        val widths = FloatArray(total) { room * shares[it] }
-        val lefts = FloatArray(total)
-        for (index in 1 until total) lefts[index] = lefts[index - 1] + widths[index - 1] + gapPx
         val radius = CornerRadius(size.height / 2f)
         // How far the seams are hidden: as far as the row has melted, or all the
         // way for a row asked for with no gap. Segments that merely touch meet
@@ -325,7 +328,8 @@ fun StepProgress(
         val seam = if (gap <= 0.dp) 1f else melt
 
         /**
-         * How far a segment reaches into its neighbour, to hide the seam.
+         * How far a segment reaches into its neighbour at its start, to hide
+         * the seam, and [reachEnd] at its end.
          *
          * Closing the gaps is not enough on its own: two capsules that merely
          * touch still meet at two semicircular caps, and the join pinches. Push
@@ -337,10 +341,9 @@ fun StepProgress(
          * Zero at either end of the row, which is where the bar's own round ends
          * belong.
          */
-        fun reach(index: Int): Pair<Float, Float> = Pair(
-            if (index == 0) 0f else radius.x * seam,
-            if (index == total - 1) 0f else radius.x * seam,
-        )
+        fun reachStart(index: Int): Float = if (index == 0) 0f else radius.x * seam
+
+        fun reachEnd(index: Int): Float = if (index == total - 1) 0f else radius.x * seam
 
         // Read here rather than in composition: the value changes every frame,
         // and reading it above would recompose the whole row on each one instead
@@ -352,21 +355,24 @@ fun StepProgress(
         // Every track before any fill. A segment reaching into its neighbour
         // reaches under that neighbour's track too, and drawn in turn, the next
         // track covered the end of a fill that had reached into it.
+        var left = 0f
         for (index in 0 until total) {
-            val left = lefts[index]
-            val segmentWidth = widths[index]
-            val (reachStart, reachEnd) = reach(index)
+            val segmentWidth = room * shares[index]
+            val reachStart = reachStart(index)
+            val reachEnd = reachEnd(index)
             drawRoundRect(
                 color = trackColour,
                 topLeft = Offset(left - reachStart, 0f),
                 size = Size(segmentWidth + reachStart + reachEnd, size.height),
                 cornerRadius = radius,
             )
+            left += segmentWidth + gapPx
         }
+        left = 0f
         for (index in 0 until total) {
-            val left = lefts[index]
-            val segmentWidth = widths[index]
-            val (reachStart, reachEnd) = reach(index)
+            val segmentWidth = room * shares[index]
+            val reachStart = reachStart(index)
+            val reachEnd = reachEnd(index)
             val fill = steps.fillOf(index)
             if (fill > 0f) {
                 // The same reach as the track, so a filled segment merges with
@@ -415,6 +421,7 @@ fun StepProgress(
                     )
                 }
             }
+            left += segmentWidth + gapPx
         }
     }
 }
@@ -681,10 +688,15 @@ internal class StepMotion(
      * `LinearProgress` reports its value: the number asked for, not the fill
      * on its way to it. Continuous rather than in steps once a step is
      * measured, since a value between steps is then the point.
+     *
+     * Only a step inside the row is part-way: one past the end is drawn full
+     * and one before the start empty, and the number has to say what the bar
+     * shows. Step 6 of 4 at half way was heard as three and a half of four
+     * under a bar drawn full.
      */
     fun rangeInfo(): ProgressBarRangeInfo {
         val step = (current ?: 0).coerceIn(0, total)
-        return if (within == null || step == 0) {
+        return if (within == null || current !in 1..total) {
             ProgressBarRangeInfo(current = step.toFloat(), range = 0f..total.toFloat(), steps = total - 1)
         } else {
             ProgressBarRangeInfo(current = step - 1 + within, range = 0f..total.toFloat())
