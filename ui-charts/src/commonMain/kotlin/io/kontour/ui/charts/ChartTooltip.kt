@@ -12,7 +12,8 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -36,10 +37,10 @@ internal class TooltipRow(val swatch: @Composable () -> Unit, val name: String, 
  * card's end, in figures of one width, the way a table's numbers are, and the
  * card is as wide as its widest row so that they all end at one edge.
  *
- * Each row is one node to a screen reader, said as "Route 950, 12", as the
- * key and value list it was before said it. The swatch is the legend's, so a
- * series hatched or dashed with patterns on is told apart by more than its
- * colour here too.
+ * Each row is one node to a screen reader, said as "Route 950, 12" with
+ * `Strings.labelledValue`, as the key and value list it was before said it.
+ * The swatch is the legend's, so a series hatched or dashed with patterns on
+ * is told apart by more than its colour here too.
  */
 @Composable
 internal fun ContentScope.ChartTooltipBody(title: String?, rows: List<TooltipRow>, total: TooltipRow? = null) {
@@ -63,8 +64,10 @@ internal fun ContentScope.ChartTooltipBody(title: String?, rows: List<TooltipRow
 @Composable
 private fun TooltipLine(row: TooltipRow) {
     val spacing = Theme.spacing
+    // Said as one, joined the reader's way, as a key and value row is.
+    val said = if (row.name.isBlank()) row.value else Theme.strings.labelledValue(row.name, row.value)
     Row(
-        Modifier.fillMaxWidth().semantics(mergeDescendants = true) {},
+        Modifier.fillMaxWidth().clearAndSetSemantics { contentDescription = said },
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(spacing.xs),
     ) {

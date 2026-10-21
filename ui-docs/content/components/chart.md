@@ -546,7 +546,16 @@ Route 951, 380". Past sixty places, which nobody swipes through one at a time,
 each node covers a run of them, with the least and the most of each series in
 it. With a selection, a place is chosen from there as it is by touch. There
 are no custom actions, so a chart of a year costs no more to navigate than a
-chart of a week.
+chart of a week. A chart with no selection is read the same way and takes no
+focus, so a page of them is passed by the keyboard as text is.
+
+**The tooltip says to the eye what the place's node says to the ear.** Each row
+of the card is one node, "Rent, 1,450", and a stack's total is "Total, 2,400",
+so a reader who reaches the card hears it as rows and not as loose words. The
+selected place is washed behind bars and ringed on a line, and at the high
+contrast tier the wash is edged in the selection's colour, so it is found by
+more than a tint. A pie's card stands just above the finger that chose a
+sector, where the finger does not cover it.
 
 The legend is not read: the summary names every series already. With a
 `seriesVisibility` its entries are switches, and each is read as one: "Route
@@ -556,11 +565,14 @@ The legend is not read: the summary names every series already. With a
 arriving, fades in, and a change of data is the new chart at once.
 
 **Right to left**, the axis across runs from the right and the axis up stands on
-the right, and the text stays the right way round.
+the right, and the text stays the right way round. The tooltip stands to the
+left of the place, or to its right where it does not fit, with each value at
+the card's left end.
 
 **At 200% text**, tick labels that would touch are thinned out evenly and never
 turned on their side, and the legend wraps.
 
 The words a chart says on its own are `ChartStrings`, English by default. Build
 your own with `ChartStrings.from(lookup)` over the same `StringLookup` you give
-`Strings.from`, and provide it with `LocalChartStrings`.
+`Strings.from`, and provide it with `LocalChartStrings`. Among them is
+`total`, the word over a stack's total in the tooltip.

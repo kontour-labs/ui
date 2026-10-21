@@ -14,9 +14,11 @@ import androidx.compose.ui.test.click
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.isFocusable
 import androidx.compose.ui.test.onNodeWithTag
-import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onAllNodesWithContentDescription
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.v2.runComposeUiTest
+import androidx.compose.ui.unit.DpRect
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.theme.KontourTheme
@@ -68,8 +70,9 @@ class ChartTooltipTest {
     fun aStacksTooltipSaysItsTotal() = runComposeUiTest {
         bars(ChartSelectionState(null))
         tapChart(0.5f)
-        onNodeWithText("Total").assertExists()
-        onNodeWithText("2,060").assertExists()
+        // One node a row, said the reader's way.
+        onNodeWithContentDescription("Total, 2,060").assertExists()
+        onNodeWithContentDescription("Food, 610").assertExists()
     }
 
     /**
@@ -83,8 +86,7 @@ class ChartTooltipTest {
         onAllNodes(isFocusable()).assertCountEquals(0)
         onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsActions.OnClick)).assertCountEquals(0)
         tapChart(0.5f)
-        onNodeWithText("Total").assertDoesNotExist()
-        onNodeWithText("2,060").assertDoesNotExist()
+        onNodeWithContentDescription("Total, 2,060").assertDoesNotExist()
     }
 
     /**
@@ -115,7 +117,10 @@ class ChartTooltipTest {
         val tapY = pie.top + (pie.bottom - pie.top) * 0.8f
         onNodeWithTag("pie").performTouchInput { click(Offset(width * 0.75f, height * 0.8f)) }
         waitForIdle()
-        val tip = onNodeWithText("50%").getBoundsInRoot()
+        // The card's row, said as the sector's own node is: the smaller of the two.
+        val tip = onAllNodesWithContentDescription("Rent, 50%").fetchSemanticsNodes()
+            .map { node -> with(density) { node.boundsInRoot.let { DpRect(it.left.toDp(), it.top.toDp(), it.right.toDp(), it.bottom.toDp()) } } }
+            .minBy { it.bottom - it.top }
         assertTrue(tip.bottom < tapY, "the tooltip should stand above the finger: its foot at ${tip.bottom}, the finger at $tapY")
         assertTrue(tapY - tip.bottom < 60.dp, "and just above it, not over the sector's top: ${tapY - tip.bottom} away")
         val middle = (tip.left + tip.right) / 2
