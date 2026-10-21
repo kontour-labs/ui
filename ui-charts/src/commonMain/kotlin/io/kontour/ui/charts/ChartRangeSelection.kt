@@ -44,11 +44,11 @@ enum class ChartRangeMode {
  * ```
  *
  * A pointer marks one by dragging; a finger by holding, then dragging, since a
- * plain drag across is how it moves the selected place; and with focus,
- * Shift and the arrow keys stretch one from the selected place, a place at a
- * time. A tap lets go of it, as Escape does. It is a range of the axes, not of
- * the data: the chart does not say which points are in it, and a page that
- * wants them reads [xStart] and [xEnd] against its own.
+ * plain drag across is how it moves the selected place; and with focus, Shift
+ * and the arrow keys stretch one from the selected place, a place at a time. A
+ * tap lets go of it, on the chart or anywhere else, as Escape does. It is a
+ * range of the axes, not of the data: the chart does not say which points are
+ * in it, and a page that wants them reads [xStart] and [xEnd] against its own.
  *
  * A drag marks from where it went down to where it is, not from place to
  * place: snapped to whole places among bars and categories, a range jumped a

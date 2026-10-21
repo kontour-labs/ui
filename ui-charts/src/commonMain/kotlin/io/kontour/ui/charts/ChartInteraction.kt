@@ -176,9 +176,15 @@ internal fun Modifier.chartSelectionInput(
     // is down: from there a drag is the range's. See the pointer's own loop.
     val mouse = remember { MousePress() }
     return this
-        // A tap elsewhere lets go, as a tap elsewhere puts any tooltip away;
-        // it still presses whatever it was aimed at.
-        .onPressOutside(enabled = chosen != null) { latestClear() }
+        // A tap elsewhere lets go, of the chosen place and of a marked range,
+        // as a tap elsewhere puts any tooltip away; it still presses whatever
+        // it was aimed at. The range's was asked for 2026-10-21: *"if I have a
+        // range marked on the graph and I click/tap elsewhere, it should
+        // deselect"*.
+        .onPressOutside(enabled = chosen != null || brush?.marked?.invoke() == true) {
+            latestClear()
+            latestBrush?.clear?.invoke()
+        }
         .onGloballyPositioned { coordinates ->
             val now = coordinates.positionInWindow()
             val before = tip.placed.at

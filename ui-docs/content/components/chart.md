@@ -426,14 +426,14 @@ and a reader can mark a stretch of it: a pointer by dragging across it, a
 finger by holding and then dragging, since a plain drag across moves the
 selected place, and the keyboard with Shift and the arrows, stretching a range
 a place at a time from the selected one, or from the first. A tap lets go of
-it, and so does Escape, before it lets go of the place. A drag marks from
-exactly where it went down to where it was let go, on any chart, and a box,
-where both axes are measures, both ways: `xStart` and `xEnd` are the
-categories whose bands it reaches into, or on a date axis the days its ends
-fall in. A range set with `select`, or stretched by the keys, is of whole
-places along categories and among bars. It is drawn behind the marks, edged in
-the selection's colour, and a screen reader hears it after the selected place:
-"Selected Feb to Apr".
+it, on the chart or anywhere else, and so does Escape, before it lets go of the
+place. A drag marks from exactly where it went down to where it was let go, on
+any chart, and a box, where both axes are measures, both ways: `xStart` and
+`xEnd` are the categories whose bands it reaches into, or on a date axis the
+days its ends fall in. A range set with `select`, or stretched by the keys, is
+of whole places along categories and among bars. It is drawn behind the marks,
+edged in the selection's colour, and a screen reader hears it after the
+selected place: "Selected Feb to Apr".
 
 While a range is marked, the marks outside it fade to 60%, so the ones inside
 stand out at full strength against the rest. A bar, a point, a box or a cell

@@ -18,6 +18,7 @@ import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.isFocusable
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.performMouseInput
 import androidx.compose.ui.test.performTouchInput
@@ -331,6 +332,28 @@ class ChartRangeSelectionTest {
         onNodeWithTag("chart").performTouchInput { click(Offset(width * 0.5f, height * 0.5f)) }
         waitForIdle()
         assertTrue(range.isEmpty, "a tap should let go of the range")
+    }
+
+    /**
+     * A tap or a click off the chart lets go of its range, as it lets go of a
+     * chosen place: asked for 2026-10-21, *"if I have a range marked on the
+     * graph and I click/tap elsewhere, it should deselect"*.
+     */
+    @Test
+    fun aTapElsewhereLetsGoOfTheRange() = runComposeUiTest {
+        val range = ChartRangeSelectionState<String, Number>(ChartRangeMode.Across)
+        bars(range)
+        range.select("Feb", "Apr")
+        waitForIdle()
+        // Below the 240dp chart, in the host round it.
+        onRoot().performTouchInput { click(Offset(width / 2f, height - 4f)) }
+        waitForIdle()
+        assertTrue(range.isEmpty, "a tap off the chart should let go of the range: ${range.xStart}..${range.xEnd}")
+        range.select("Feb", "Apr")
+        waitForIdle()
+        onRoot().performMouseInput { click(Offset(width / 2f, height - 4f)) }
+        waitForIdle()
+        assertTrue(range.isEmpty, "and so should a click: ${range.xStart}..${range.xEnd}")
     }
 
     @Test

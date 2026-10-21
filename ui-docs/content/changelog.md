@@ -319,15 +319,15 @@ window — see **Changed**.
 - **`Modifier.tooltip { … }`**: a tooltip's slots, an icon or a painter beside
   its words, from the modifier as well as the component.
 - **A range marked on a `Chart`.** `rangeSelection`, from
-  `rememberChartRangeSelectionState()`, lets a reader mark a stretch across
-  the chart, or with `ChartRangeMode.Box` a box across and up for a scatter
-  plot's points: a pointer drags, a finger holds and then drags, marking from
-  exactly where it started to where it stops on any chart, and Shift and the
-  arrows stretch one a place at a time from the selected place, or the first.
-  Along categories it reports the categories it reaches into, and on a date
-  axis the day each end falls in. A chart with only a range leaves plain drags
-  and the arrows to the page. A tap or Escape lets go, a screen reader hears it
-  with the place, and its words are
+  `rememberChartRangeSelectionState()`, lets a reader mark a stretch across the
+  chart, or with `ChartRangeMode.Box` a box across and up for a scatter plot's
+  points: a pointer drags, a finger holds and then drags, marking from exactly
+  where it started to where it stops on any chart, and Shift and the arrows
+  stretch one a place at a time from the selected place, or the first. Along
+  categories it reports the categories it reaches into, and on a date axis the
+  day each end falls in. A chart with only a range leaves plain drags and the
+  arrows to the page. A tap, on the chart or off it, or Escape lets go, a
+  screen reader hears it with the place, and its words are
   `ChartStrings.selectedRange` and `selectedBox`. Optional, and separate from
   `selection`. While a range is marked, the marks outside it fade to 60%, 80%
   at the high contrast tier, so the ones inside stand out: lines and areas are
