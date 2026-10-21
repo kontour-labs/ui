@@ -14,18 +14,23 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.MouseButton
+import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.performMouseInput
+import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.test.requestFocus
+import androidx.compose.ui.test.withKeyDown
 import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.dragdrop.DragType
@@ -42,17 +47,27 @@ import kotlin.test.assertTrue
 /**
  * Open documents as tabs: sharing the strip's width and then scrolling,
  * closed by ×, middle click and Delete, walked by the arrow keys, offered to a
- * screen reader with their moves and their close, and growing in and shrinking
- * away as they come and go.
+ * screen reader with their moves and their close, growing in and shrinking
+ * away as they come and go, and opening a tab's or the "+"'s menu by a right
+ * click, a finger held still, Shift+F10 and a screen reader.
  */
 @OptIn(ExperimentalTestApi::class)
 class DocumentTabsTest {
 
     private val documents = mutableStateListOf("Timetable", "Fares", "Route map")
     private val closed = mutableListOf<String>()
+    private val dropped = mutableListOf<String>()
     private var chosen: String? = "Timetable"
 
-    private fun ComposeUiTest.strip(width: Int = 600, reduceMotion: Boolean = false, below: Boolean = false, touch: Boolean = false) {
+    private fun ComposeUiTest.strip(
+        width: Int = 600,
+        reduceMotion: Boolean = false,
+        below: Boolean = false,
+        touch: Boolean = false,
+        enabled: Boolean = true,
+        closeOnMiddleClick: Boolean = true,
+        menus: Boolean = false,
+    ) {
         setContent {
             KontourTheme(reduceMotion = reduceMotion) {
                 CompositionLocalProvider(LocalInputModality provides if (touch) InputModality.Touch else LocalInputModality.current) {
@@ -64,7 +79,7 @@ class DocumentTabsTest {
                             key = { it },
                             label = "Open documents",
                             itemLabel = { it },
-                            onDrop = {},
+                            onDrop = { dropped += it.payload },
                         )
                         Column(Modifier.width(width.dp).height(400.dp)) {
                             DocumentTabs(
@@ -77,6 +92,10 @@ class DocumentTabsTest {
                                 },
                                 onAdd = { documents.add("Untitled") },
                                 modifier = Modifier.testTag("strip"),
+                                enabled = enabled,
+                                closeOnMiddleClick = closeOnMiddleClick,
+                                tabMenu = if (menus) { tab -> item("Duplicate $tab") {} } else null,
+                                addMenu = if (menus) { { item("Reopen closed tab") {} } } else null,
                             )
                             if (below) Box(Modifier.fillMaxWidth().weight(1f).testTag("page"))
                         }
@@ -168,6 +187,151 @@ class DocumentTabsTest {
         waitForIdle()
         assertEquals(listOf("Route map"), closed)
         assertEquals("Timetable", chosen, "a middle click chose the tab it closed")
+    }
+
+    @Test
+    fun withCloseOnMiddleClickOffAMiddleClickDoesNothing() = runComposeUiTest {
+        strip(closeOnMiddleClick = false)
+        onNodeWithText("Route map").middleClick()
+        waitForIdle()
+        assertEquals(emptyList(), closed, "a middle click closed a tab with the switch off")
+        assertEquals("Timetable", chosen, "a middle click chose a tab")
+    }
+
+    /**
+     * A right click on a tab opens its menu, with that tab, and leaves the
+     * selected tab selected: right-clicking a tab behind it in a browser does
+     * not open it.
+     */
+    @Test
+    fun aRightClickOpensTheTabsMenuWithoutChoosingIt() = runComposeUiTest {
+        strip(menus = true)
+        onNodeWithText("Fares").rightClick()
+        waitForIdle()
+        onNodeWithText("Duplicate Fares").assertExists("a right click did not open the tab's menu")
+        assertEquals("Timetable", chosen, "a right click chose the tab")
+    }
+
+    /**
+     * A finger held still on a tab picks it up, as it always has, and opens
+     * its menu there; let go where it was, the menu stays open, and nothing
+     * is chosen or moved.
+     */
+    @Test
+    fun aFingerHeldStillOnATabOpensItsMenu() = runComposeUiTest {
+        strip(touch = true, menus = true)
+        onNodeWithText("Fares").performTouchInput {
+            down(center)
+            advanceEventTime(viewConfiguration.longPressTimeoutMillis + 100)
+            // A held finger is never quite still: a wobble well inside the
+            // hold's budget, which also hands the test the time held.
+            advanceEventTime(16)
+            moveBy(Offset(2f, 0f))
+        }
+        waitForIdle()
+        onNodeWithText("Duplicate Fares").assertExists("a finger held still did not open the tab's menu")
+        onNodeWithText("Fares").performTouchInput { up() }
+        waitForIdle()
+        onNodeWithText("Duplicate Fares").assertExists("letting go of the hold closed the menu it opened")
+        assertEquals("Timetable", chosen, "a hold let go of where it was chose the tab")
+        assertEquals(emptyList(), dropped, "a hold let go of where it was moved the tab")
+    }
+
+    /**
+     * Held and then moved on, the finger carries the tab, as a drop list's
+     * does, and the menu the hold opened closes as it sets off.
+     */
+    @Test
+    fun aFingerHeldThenMovedCarriesTheTabAndLeavesNoMenu() = runComposeUiTest {
+        strip(touch = true, menus = true)
+        val pitch = leftOf("Route map") - leftOf("Fares")
+        onNodeWithText("Fares").performTouchInput {
+            down(center)
+            advanceEventTime(viewConfiguration.longPressTimeoutMillis + 100)
+            advanceEventTime(16)
+            moveBy(Offset(2f, 0f))
+        }
+        waitForIdle()
+        onNodeWithText("Duplicate Fares").assertExists("the hold did not open the menu, so this checks nothing")
+        assertEquals("Timetable", chosen, "a tab held still was chosen before it set off")
+        onRoot().performTouchInput {
+            repeat(12) {
+                advanceEventTime(16)
+                moveBy(Offset(pitch * 1.1f / 12, 0f))
+            }
+        }
+        waitForIdle()
+        onNodeWithText("Duplicate Fares").assertDoesNotExist()
+        assertEquals("Fares", chosen, "a tab carried off by a finger was not chosen")
+        onRoot().performTouchInput { up() }
+        waitForIdle()
+        assertEquals(listOf("Fares"), dropped, "the hold that moved did not carry the tab")
+    }
+
+    @Test
+    fun aRightClickOnTheAddButtonOpensItsMenu() = runComposeUiTest {
+        strip(menus = true)
+        onNodeWithContentDescription("New tab").rightClick()
+        waitForIdle()
+        onNodeWithText("Reopen closed tab").assertExists("a right click on the \"+\" did not open its menu")
+        assertEquals(3, documents.size, "a right click on the \"+\" opened a tab")
+    }
+
+    @Test
+    fun aFingerHeldStillOnTheAddButtonOpensItsMenuAndNoTab() = runComposeUiTest {
+        strip(touch = true, menus = true)
+        onNodeWithContentDescription("New tab").performTouchInput {
+            down(center)
+            advanceEventTime(viewConfiguration.longPressTimeoutMillis + 100)
+            up()
+        }
+        waitForIdle()
+        onNodeWithText("Reopen closed tab").assertExists("a finger held on the \"+\" did not open its menu")
+        assertEquals(3, documents.size, "the hold on the \"+\" was also a press, and opened a tab")
+    }
+
+    @Test
+    fun aScreenReaderAndTheKeyboardOpenTheMenus() = runComposeUiTest {
+        strip(menus = true)
+        val actions = onNodeWithText("Fares").fetchSemanticsNode().config.getOrNull(SemanticsActions.CustomActions).orEmpty()
+        assertEquals(listOf("Move left", "Move right", "Close Fares", "More options"), actions.map { it.label })
+        runOnIdle { actions.last().action() }
+        waitForIdle()
+        onNodeWithText("Duplicate Fares").assertExists("a screen reader's \"More options\" did not open the tab's menu")
+        // The add button's, and Shift+F10 on the focused tab.
+        val add = onNodeWithContentDescription("New tab").fetchSemanticsNode().config.getOrNull(SemanticsActions.CustomActions).orEmpty()
+        assertEquals(listOf("More options"), add.map { it.label })
+        onNodeWithText("Timetable").requestFocus()
+        onNodeWithText("Timetable").performKeyInput { withKeyDown(Key.ShiftLeft) { pressKey(Key.F10) } }
+        waitForIdle()
+        onNodeWithText("Duplicate Timetable").assertExists("Shift+F10 did not open the focused tab's menu")
+    }
+
+    @Test
+    fun disabledTheStripOpensNoMenu() = runComposeUiTest {
+        strip(enabled = false, menus = true)
+        onNodeWithText("Fares").rightClick()
+        onNodeWithContentDescription("New tab").rightClick()
+        waitForIdle()
+        onNodeWithText("Duplicate Fares").assertDoesNotExist()
+        onNodeWithText("Reopen closed tab").assertDoesNotExist()
+        onNodeWithText("Route map").middleClick()
+        waitForIdle()
+        assertEquals(emptyList(), closed, "a disabled strip closed a tab")
+    }
+
+    // A mouse starts where the last one left off, or at the window's corner:
+    // brought over the node first, as a hand brings it.
+    private fun SemanticsNodeInteraction.rightClick() = performMouseInput {
+        moveTo(center)
+        press(MouseButton.Secondary)
+        release(MouseButton.Secondary)
+    }
+
+    private fun SemanticsNodeInteraction.middleClick() = performMouseInput {
+        moveTo(center)
+        press(MouseButton.Tertiary)
+        release(MouseButton.Tertiary)
     }
 
     @Test

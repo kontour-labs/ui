@@ -100,13 +100,13 @@ To use another icon set's glyphs throughout, give the theme a set:
 
 - **`Strings` built by position.** `labelledValue`, `selectAllRows`,
   `sortAscending`, `sortDescending`, `notSorted`, `showDay`, `moveLeft`,
-  `moveRight`, `newTab` and `closeTab` are new and come last, so a
+  `moveRight`, `newTab`, `closeTab` and `moreOptions` are new and come last, so a
   `Strings(...)` with named arguments, or `copy(...)`, is untouched. An app that
   bridges its own resources with `Strings.from` gets their English until it adds
   `kontour_labelledValue` (`%1$s, %2$s`), `kontour_selectAllRows`,
   `kontour_sortAscending`, `kontour_sortDescending`, `kontour_notSorted`,
   `kontour_showDay`, `kontour_moveLeft`, `kontour_moveRight`,
-  `kontour_newTab` and `kontour_closeTab` (`%1$s`).
+  `kontour_newTab`, `kontour_closeTab` (`%1$s`) and `kontour_moreOptions`.
 - **What a stat says.** Its supporting line and trend are joined with
   `Strings.sentences` rather than an English full stop. In English that is the
   same sentence; an app with its own `sentences` hears its own separator.

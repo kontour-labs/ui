@@ -475,6 +475,12 @@ data class Strings(
     val newTab: String = "New tab",
     /** A document tab's ×, named for the tab it closes: "Close Timetable". */
     val closeTab: (name: String) -> String = { name -> "Close $name" },
+    /**
+     * What a screen reader calls the action that opens a thing's menu, the one
+     * a finger held on it or a secondary click opens: a document tab's, and
+     * its "+"'s.
+     */
+    val moreOptions: String = "More options",
 ) {
     companion object {
         /**
@@ -675,6 +681,7 @@ data class Strings(
         moveRight = lookup.text("moveRight") ?: fallback.moveRight,
         newTab = lookup.text("newTab") ?: fallback.newTab,
         closeTab = { name -> lookup.phrase("closeTab", null, name) ?: fallback.closeTab(name) },
+        moreOptions = lookup.text("moreOptions") ?: fallback.moreOptions,
         )
     }
 }
@@ -926,4 +933,5 @@ internal fun Strings.mapped(transform: (String) -> String): Strings = Strings(
     moveRight = transform(moveRight),
     newTab = transform(newTab),
     closeTab = { a0 -> transform(closeTab(a0)) },
+    moreOptions = transform(moreOptions),
 )

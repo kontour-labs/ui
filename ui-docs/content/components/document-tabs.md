@@ -118,25 +118,103 @@ Nothing can be carried without an [`OverlayHost`](../overlays.md) round the
 app, which draws the carried tab. Without one the tabs still select, close,
 open and scroll, and move by keyboard and by screen reader.
 
+### Menus
+
+<!--sample:DocumentTabsMenus-->
+```kotlin
+val papers = remember { mutableStateListOf(Paper(1, "Timetable"), Paper(2, "Fares"), Paper(3, "Route map")) }
+val closed = remember { mutableStateListOf<Paper>() }
+var open by remember { mutableStateOf<Paper?>(papers.first()) }
+var next by remember { mutableIntStateOf(4) }
+val tabs = rememberDropListState(
+    listState = rememberLazyListState(),
+    type = PaperTab,
+    items = papers,
+    key = { it.id },
+    label = "Open documents",
+    itemLabel = { it.title },
+    onDrop = { drop ->
+        papers.remove(drop.payload)
+        papers.add(drop.index.coerceAtMost(papers.size), drop.payload)
+    },
+)
+
+// A right click on a tab, or a finger held still on it, opens its menu
+// with that tab; the "+" has one of its own. `item` closes the menu as it
+// runs. A middle click still closes a tab: `closeOnMiddleClick = false`
+// leaves the button to the app.
+DocumentTabs(
+    state = tabs,
+    value = open,
+    onValueChange = { open = it },
+    onClose = { closing ->
+        papers.remove(closing)
+        closed.add(closing)
+        if (open == closing) open = papers.lastOrNull()
+    },
+    onAdd = { open = Paper(next++, "Untitled").also(papers::add) },
+    tabMenu = { paper ->
+        item("Close others", enabled = papers.size > 1) {
+            closed.addAll(papers.filter { it != paper })
+            papers.retainAll { it == paper }
+            open = paper
+        }
+    },
+    addMenu = {
+        item("Reopen closed tab", enabled = closed.isNotEmpty()) {
+            open = closed.removeAt(closed.lastIndex).also(papers::add)
+        }
+    },
+)
+```
+
+A browser's tabs and its "+" each have a menu, and so can these: `tabMenu` is
+given the tab it was opened on, and `addMenu` is the "+"'s. Both are built
+with a `MenuScope`, as a [`DropdownMenu`](../overlays.md)'s content is, so
+`item` closes the menu as it runs. The strip has no menu of its own, and
+without either there is none.
+
+A right click opens the menu at the pointer, and does not choose the tab, as a
+browser does not: the tab being read stays open while the others are closed
+from behind it. On a touchscreen a finger held still opens it. A tab held is
+also picked up, as ever, and its menu opens as it lifts; let go there, the
+menu stays and nothing is chosen, and moved on instead, the finger carries the
+tab, chosen, and the menu closes, as a context menu on iOS gives way to a
+drag. The "+" has nothing to pick up, so a hold on it is only its menu, and
+not also a press.
+
+Like any menu, these need an `OverlayHost` round the app, and a disabled strip
+opens neither.
+
+### Middle click
+
+A middle click closes a tab, as it does in a browser, wherever there is an
+`onClose`. `closeOnMiddleClick = false` turns that off, and the click goes on
+to whatever is under the strip, for an app that gives the button a meaning of
+its own.
+
 ## Accessibility
 
 The tabs are `Role.Tab` in a `selectableGroup()` with their places in it, so a
 screen reader says "Fares, tab, 2 of 3" and which is selected. Each tab offers
 its moves as actions — "Move left" and "Move right", the other way round right
 to left, and, with `movesBetweenStrips`, "Move to" each other strip that would
-take it — and "Close" and
-its name.
+take it — "Close" and its name, and with a `tabMenu`, "More options", which
+opens it. The "+" offers its menu as "More options" too.
 
 The strip is one stop for the Tab key, on the selected tab. The arrow keys move
 between tabs, Home and End go to either end, Enter and Space select, and
 Delete closes the focused tab and hands the focus to the tab after it, or at the
 end to the one before. Alt with an arrow picks the tab up to carry it,
-the arrows then move it, and Enter puts it down or Escape puts it back. A tab's
+the arrows then move it, and Enter puts it down or Escape puts it back.
+Shift+F10, or the menu key, opens the focused tab's menu, or the "+"'s, below
+it. A tab's
 × is named for its tab, "Close Fares", and pressed by pointer; it is not a stop
 of its own, since Delete and the "Close" action do the same.
 
-A middle click closes a tab, as it does in a browser. Ctrl+W, or Cmd+W, is the
-app's to give: the strip does not take a key the app may already use.
+A middle click closes a tab, as it does in a browser, unless
+`closeOnMiddleClick` is off. Ctrl+W, or Cmd+W, is the app's to give: the strip
+does not take a key the app may already use.
 
 At the high contrast tier the strip's line and the selected tab's edge are
 drawn in the tier's edge colour, and a cut title is cut hard rather than faded.

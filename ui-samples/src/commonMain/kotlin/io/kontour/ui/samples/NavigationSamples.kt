@@ -202,6 +202,54 @@ fun DocumentTabsBasics() {
 }
 
 @Composable
+fun DocumentTabsMenus() {
+    val papers = remember { mutableStateListOf(Paper(1, "Timetable"), Paper(2, "Fares"), Paper(3, "Route map")) }
+    val closed = remember { mutableStateListOf<Paper>() }
+    var open by remember { mutableStateOf<Paper?>(papers.first()) }
+    var next by remember { mutableIntStateOf(4) }
+    val tabs = rememberDropListState(
+        listState = rememberLazyListState(),
+        type = PaperTab,
+        items = papers,
+        key = { it.id },
+        label = "Open documents",
+        itemLabel = { it.title },
+        onDrop = { drop ->
+            papers.remove(drop.payload)
+            papers.add(drop.index.coerceAtMost(papers.size), drop.payload)
+        },
+    )
+
+    // A right click on a tab, or a finger held still on it, opens its menu
+    // with that tab; the "+" has one of its own. `item` closes the menu as it
+    // runs. A middle click still closes a tab: `closeOnMiddleClick = false`
+    // leaves the button to the app.
+    DocumentTabs(
+        state = tabs,
+        value = open,
+        onValueChange = { open = it },
+        onClose = { closing ->
+            papers.remove(closing)
+            closed.add(closing)
+            if (open == closing) open = papers.lastOrNull()
+        },
+        onAdd = { open = Paper(next++, "Untitled").also(papers::add) },
+        tabMenu = { paper ->
+            item("Close others", enabled = papers.size > 1) {
+                closed.addAll(papers.filter { it != paper })
+                papers.retainAll { it == paper }
+                open = paper
+            }
+        },
+        addMenu = {
+            item("Reopen closed tab", enabled = closed.isNotEmpty()) {
+                open = closed.removeAt(closed.lastIndex).also(papers::add)
+            }
+        },
+    )
+}
+
+@Composable
 fun NavScopeBasics() {
     var here by remember { mutableStateOf("home") }
 

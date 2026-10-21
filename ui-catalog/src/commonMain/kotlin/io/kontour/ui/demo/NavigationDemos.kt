@@ -720,12 +720,15 @@ private val DocumentTab = DragType<OpenDocument>("documentTab")
 private val documentCloses = Knob.Flag("Close buttons", initial = true)
 private val documentAdds = Knob.Flag("Add button", initial = true)
 
+/** The strip's own default, on: off, a middle click on a tab is the app's. */
+private val documentMiddleClick = Knob.Flag("Middle click closes", initial = true)
+
 /** Two strips side by side, which take each other's tabs: drag one down off its strip and across. */
 private val documentSplit = Knob.Flag("Split view")
 
 internal val DocumentTabsDemo = ComponentDemo(
     slug = "document-tabs",
-    knobs = listOf(documentCloses, documentAdds, documentSplit),
+    knobs = listOf(documentCloses, documentAdds, documentMiddleClick, documentSplit),
 ) {
     var next by remember { mutableIntStateOf(5) }
     val left = remember {
@@ -739,6 +742,7 @@ internal val DocumentTabsDemo = ComponentDemo(
     val right = remember { mutableStateListOf(OpenDocument(4, "Stops near you", Tabler.Outline.Pin)) }
     val closes = this[documentCloses]
     val adds = this[documentAdds]
+    val middleClick = this[documentMiddleClick]
     val split = this[documentSplit]
 
     // The two strips, and which list each one is: a drop says where it came
@@ -764,53 +768,77 @@ internal val DocumentTabsDemo = ComponentDemo(
     )
 
     Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.md)) {
-        DocumentPane(strips[0]!!, left, closes, adds, split, Modifier.weight(1f)) { OpenDocument(next++, "Untitled", Tabler.Outline.Plus) }
+        val make = { title: String, icon: ImageVector -> OpenDocument(next++, title, icon) }
+        DocumentPane(strips[0]!!, left, closes, adds, middleClick, split, Modifier.weight(1f), make)
         if (split) {
-            DocumentPane(strips[1]!!, right, closes, adds, split, Modifier.weight(1f)) { OpenDocument(next++, "Untitled", Tabler.Outline.Plus) }
+            DocumentPane(strips[1]!!, right, closes, adds, middleClick, split, Modifier.weight(1f), make)
         }
     }
 }
 
-/** A pane of the tabs demo: its strip, and under it the open document's page, joined to its tab. */
+/**
+ * A pane of the tabs demo: its strip, and under it the open document's page,
+ * joined to its tab. A right click on a tab or the "+", or a finger held still
+ * on one, opens a browser's menu for it.
+ */
 @Composable
 private fun DocumentPane(
     state: DropListState<OpenDocument>,
     documents: MutableList<OpenDocument>,
     closes: Boolean,
     adds: Boolean,
+    middleClick: Boolean,
     split: Boolean,
     modifier: Modifier,
-    untitled: () -> OpenDocument,
+    make: (title: String, icon: ImageVector) -> OpenDocument,
 ) {
     var open by remember { mutableStateOf(documents.firstOrNull()) }
+    // What was closed here, last first, for "Reopen closed tab".
+    val closed = remember { mutableStateListOf<OpenDocument>() }
     // A tab carried away to the other pane takes its page with it: the first opens.
     val shown = open?.takeIf { it in documents } ?: documents.firstOrNull()
+    fun close(closing: OpenDocument) {
+        val at = documents.indexOf(closing)
+        documents.remove(closing)
+        closed.add(0, closing)
+        if (shown == closing) open = documents.getOrNull(at) ?: documents.lastOrNull()
+    }
+    fun add(made: OpenDocument, at: Int = documents.size) {
+        documents.add(at, made)
+        open = made
+    }
     Column(modifier) {
         DocumentTabs(
             state = state,
             value = shown,
             onValueChange = { open = it },
             modifier = Modifier.fillMaxWidth(),
-            onClose = if (closes) {
-                { closing ->
-                    val at = documents.indexOf(closing)
-                    documents.remove(closing)
-                    if (shown == closing) open = documents.getOrNull(at) ?: documents.lastOrNull()
-                }
-            } else {
-                null
-            },
+            onClose = if (closes) ::close else null,
             onAdd = if (adds) {
-                {
-                    val made = untitled()
-                    documents.add(made)
-                    open = made
-                }
+                { add(make("Untitled", Tabler.Outline.Plus)) }
             } else {
                 null
             },
             // Between the two panes only when there are two.
             movesBetweenStrips = split,
+            closeOnMiddleClick = middleClick,
+            tabMenu = { document ->
+                val at = documents.indexOf(document)
+                item("Duplicate") { add(make(document.title, document.icon), at + 1) }
+                divider()
+                item("Close others", enabled = closes && documents.size > 1) {
+                    documents.filter { it != document }.forEach(::close)
+                    open = document
+                }
+                item("Close to the right", enabled = closes && at < documents.lastIndex) {
+                    documents.drop(at + 1).forEach(::close)
+                    if (open !in documents) open = document
+                }
+            },
+            addMenu = {
+                item("New tab") { add(make("Untitled", Tabler.Outline.Plus)) }
+                item("Reopen closed tab", enabled = closed.isNotEmpty()) { add(closed.removeAt(0)) }
+            },
             leading = { document -> Icon(document.icon, contentDescription = null) },
         )
         Surface(Modifier.fillMaxWidth().height(160.dp), containerColour = Theme.colours.surface) {

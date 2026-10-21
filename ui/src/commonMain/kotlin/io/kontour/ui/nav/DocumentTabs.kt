@@ -5,6 +5,8 @@ import androidx.compose.animation.core.AnimationVector1D
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.indication
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
@@ -37,7 +39,9 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -48,6 +52,7 @@ import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Outline
@@ -64,13 +69,18 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isShiftPressed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.PointerType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.CollectionInfo
@@ -110,16 +120,24 @@ import io.kontour.ui.input.LocalInputModality
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.middleClick
 import io.kontour.ui.input.pointerCursor
+import io.kontour.ui.input.secondaryClick
+import io.kontour.ui.interaction.PickUpHoldSlop
 import io.kontour.ui.interaction.kontourIndication
+import io.kontour.ui.interaction.rememberLongPressFeedback
 import io.kontour.ui.motion.ScrollDefaults
 import io.kontour.ui.motion.scrollToItem
 import io.kontour.ui.motion.sizeSpec
+import io.kontour.ui.overlay.AnchoredDropdownMenu
+import io.kontour.ui.overlay.LocalOverlayHostOrNull
+import io.kontour.ui.overlay.MenuScope
 import io.kontour.ui.platform.WebRole
 import io.kontour.ui.platform.webRole
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.clipProxy
 import io.kontour.ui.theme.topCornersOnly
 import kotlin.math.roundToInt
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 
 /** What [DocumentTabs] takes by default. */
 object DocumentTabsDefaults {
@@ -200,19 +218,40 @@ data class DocumentTabsColours(
  * others their width until the pointer leaves the strip, so the next tab's ×
  * is under it.
  *
+ * Given [tabMenu] or [addMenu], a tab or the "+" has a menu, as a browser's
+ * do: "Close other tabs", "Reopen closed tab". It opens where a secondary
+ * click is, or where a finger holds still, and from the keyboard with
+ * Shift+F10 or the menu key, and a screen reader's "More options". Like
+ * any menu it needs an `OverlayHost` round the app.
+ *
  * @param state The tabs: the caller's list, which stays the one source of
  *   truth, as a drop list's does. Apply nothing else of the drop list's to
  *   anything; the strip is its list.
  * @param value The selected tab, if any.
  * @param onValueChange A tab chosen: pressed, picked up, or selected with the keyboard.
- * @param onClose Closes a tab: by its ×, a middle click, Delete, or a screen
- *   reader's "Close". `null` for tabs that cannot be closed.
+ * @param onClose Closes a tab: by its ×, a middle click (see
+ *   [closeOnMiddleClick]), Delete, or a screen reader's "Close". `null` for
+ *   tabs that cannot be closed.
  * @param onAdd Opens another, by the "+" after the last tab. `null` for no "+".
  * @param movesBetweenStrips Whether a tab can be pulled off this strip and
  *   carried into another of the same `DragType`, and this strip take another's.
  *   Off, the default, a tab only moves along its own strip. Worth turning on
  *   only where there is more than one strip, as in a split view.
+ * @param closeOnMiddleClick Whether a middle click on a tab closes it, as it
+ *   does in a browser. On by default, wherever there is an [onClose]. Off, a
+ *   middle click on a tab does nothing, and goes on to whatever is under the
+ *   strip, for an app that gives the button a meaning of its own.
  * @param closeLabel A tab's × as a screen reader names it, for the tab's label.
+ * @param tabMenu What a finger held on a tab, or a secondary click on it,
+ *   offers, with the tab: "Close other tabs", "Duplicate". Built with a
+ *   [MenuScope], so `item` closes the menu as it runs. A secondary click opens
+ *   it without choosing the tab, as a browser's does. A finger held on a tab
+ *   picks it up, as ever, and the menu opens as it lifts; moved on from there,
+ *   the finger carries the tab and the menu closes, as a context menu on iOS
+ *   gives way to a drag. Null: no menu, and a hold only picks the tab up.
+ * @param addMenu What a finger held on the "+", or a secondary click on it,
+ *   offers: "New window", "Reopen closed tab". Null: no menu, and the "+"
+ *   only opens another.
  * @param leading A tab's icon: a favicon, a file's glyph, a spinner while it loads.
  */
 @Composable
@@ -225,6 +264,7 @@ fun <T : Any> DocumentTabs(
     onClose: ((T) -> Unit)? = null,
     onAdd: (() -> Unit)? = null,
     movesBetweenStrips: Boolean = false,
+    closeOnMiddleClick: Boolean = true,
     closeLabel: (tab: String) -> String = Theme.strings.closeTab,
     addLabel: String = Theme.strings.newTab,
     closeIcon: ImageVector = Theme.icons.close,
@@ -232,6 +272,8 @@ fun <T : Any> DocumentTabs(
     minTabWidth: Dp = DocumentTabsDefaults.MinTabWidth,
     maxTabWidth: Dp = DocumentTabsDefaults.MaxTabWidth,
     colours: DocumentTabsColours = DocumentTabsDefaults.colours(),
+    tabMenu: (@Composable MenuScope.(item: T) -> Unit)? = null,
+    addMenu: (@Composable MenuScope.() -> Unit)? = null,
     leading: (@Composable (item: T) -> Unit)? = null,
 ) {
     val density = LocalDensity.current
@@ -256,6 +298,11 @@ fun <T : Any> DocumentTabs(
     val keySet = keys.toHashSet()
     val selectedKey = value?.let(state.key)
     val strip = remember { StripState() }
+    // A menu is drawn by the overlay host, and has nowhere to be drawn without
+    // one: there, as when disabled, a hold only picks a tab up.
+    val menus = enabled && LocalOverlayHostOrNull.current != null
+    val tabMenus = tabMenu.takeIf { menus }
+    val addMenus = addMenu.takeIf { menus }
 
     // What has gone since the last composition, and is still drawn where it
     // was, shrinking: worked out here, so it is drawn in the very frame it
@@ -297,6 +344,12 @@ fun <T : Any> DocumentTabs(
         strip.seeded = true
         strip.forgetGone(keySet, held)
         strip.focusAfterClose(keys)
+        // A menu whose tab has gone, closed some other way, or that the strip
+        // no longer offers, goes with it.
+        strip.menu?.let { open ->
+            val gone = if (open.key == null) addMenus == null else tabMenus == null || open.key !in keySet
+            if (gone) strip.menu = null
+        }
     }
     val ghosts = strip.leaving.filter { it.key !in keySet } + goingNow
 
@@ -514,9 +567,13 @@ fun <T : Any> DocumentTabs(
                                         shut()
                                     }
                                 },
+                                closeOnMiddleClick = closeOnMiddleClick,
                                 closeLabel = closeLabel(label),
                                 closeIcon = closeIcon,
                                 showsCloseAt = showsCloseAt,
+                                onMenu = tabMenus?.let { { at: Rect -> strip.menu = StripMenu(key, item, at) } },
+                                onMenuGone = { if (strip.menu?.key == key) strip.menu = null },
+                                menuLabel = strings.moreOptions,
                                 moves = { host, direction -> host.movesFor(sourceSpec(), strings, direction) },
                                 onKey = { event -> keyed(event, index, item) },
                                 leading = leading?.let { slot -> @Composable { slot(item) } },
@@ -554,11 +611,112 @@ fun <T : Any> DocumentTabs(
                             contentDescription = addLabel,
                             enabled = enabled,
                             size = ButtonSize.Small,
+                            modifier = if (addMenus != null) {
+                                Modifier.opensMenu(strings.moreOptions) { at -> strip.menu = StripMenu(null, null, at) }
+                            } else {
+                                Modifier
+                            },
                         )
                     }
                 }
             }
         }
+    }
+
+    // One menu for the strip, a tab's or the "+"'s, kept as it was for its
+    // exit, so it fades out where it opened.
+    val open = strip.menu
+    var last by remember { mutableStateOf<StripMenu?>(null) }
+    if (open != null) last = open
+    val shown = open ?: last
+    if (shown != null && LocalOverlayHostOrNull.current != null) {
+        AnchoredDropdownMenu(
+            visible = open != null,
+            anchor = shown.at,
+            onDismissRequest = { strip.menu = null },
+        ) {
+            if (shown.key == null) {
+                addMenu?.invoke(this)
+            } else {
+                @Suppress("UNCHECKED_CAST")
+                tabMenu?.invoke(this, shown.item as T)
+            }
+        }
+    }
+}
+
+/**
+ * The "+"'s menu: opened by a secondary click, where it is; by a finger held
+ * still on it, where it is held; and by Shift+F10 or the menu key while it has
+ * the focus, and a screen reader's [label], hung below it.
+ *
+ * A tab opens its menu the same ways, but in [DocumentTab]: its screen reader
+ * actions and its keys are its own, and a finger held on it picks it up.
+ */
+@Composable
+private fun Modifier.opensMenu(label: String, open: (at: Rect) -> Unit): Modifier {
+    val placed = remember { arrayOfNulls<LayoutCoordinates>(1) }
+    val latest by rememberUpdatedState(open)
+    val longPressed = rememberLongPressFeedback()
+    fun at(local: Offset?): Rect? {
+        val coordinates = placed[0]?.takeIf { it.isAttached } ?: return null
+        // At a pointer, a zero-size anchor: the menu hangs off the point
+        // itself. Otherwise below the whole of it, as a dropdown hangs.
+        return if (local != null) coordinates.localToRoot(local).let { Rect(it, it) } else coordinates.boundsInRoot()
+    }
+    return this
+        .onPlaced { placed[0] = it }
+        .semantics { customActions = listOf(CustomAccessibilityAction(label) { at(null)?.let(latest); true }) }
+        .onKeyEvent { event ->
+            if (!event.opensMenu()) return@onKeyEvent false
+            at(null)?.let(latest)
+            true
+        }
+        .secondaryClick { local -> at(local)?.let(latest) }
+        .heldStill { local ->
+            longPressed()
+            at(local)?.let(latest)
+        }
+}
+
+/**
+ * Shift+F10, or the menu key: what opens a context menu from the keyboard on
+ * Windows, Linux and in a browser. Shift+F10 is the one to rely on: Compose
+ * reports the menu key on Android, and on the desktop not at all.
+ */
+private fun KeyEvent.opensMenu(): Boolean =
+    type == KeyEventType.KeyDown && (key == Key.Menu || (key == Key.F10 && isShiftPressed))
+
+/**
+ * A finger or a stylus held still on this node for a long press: [onHold],
+ * where it is held. A mouse held still is not a long press, as
+ * `ContextMenuArea` has it; its menu is a secondary click.
+ *
+ * Watched on the first pass, before the button it is on, and the rest of the
+ * press taken once it is held, so the button does not also click as the finger
+ * lifts. Decided by the pointer that went down rather than the input last
+ * used, as a pick-up is.
+ */
+private fun Modifier.heldStill(onHold: (Offset) -> Unit): Modifier = pointerInput(Unit) {
+    val budget = PickUpHoldSlop.toPx()
+    awaitEachGesture {
+        val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+        if (down.type == PointerType.Mouse) return@awaitEachGesture
+        // Null, the deadline reached, is the finger held still for the whole of it.
+        val gaveUp = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
+            do {
+                val change = awaitPointerEvent(PointerEventPass.Initial).changes.firstOrNull { it.id == down.id }
+                val holding = change != null && change.pressed && !change.isConsumed &&
+                    (change.position - down.position).getDistance() <= budget
+            } while (holding)
+            true
+        }
+        if (gaveUp != null) return@awaitEachGesture
+        onHold(down.position)
+        do {
+            val event = awaitPointerEvent(PointerEventPass.Initial)
+            event.changes.forEach { if (it.id == down.id) it.consume() }
+        } while (event.changes.any { it.id == down.id && it.pressed })
     }
 }
 
@@ -590,9 +748,13 @@ private fun DragItemScope.DocumentTab(
     onHovered: (Boolean) -> Unit,
     onSelect: () -> Unit,
     onClose: ((byPointer: Boolean) -> Unit)?,
+    closeOnMiddleClick: Boolean,
     closeLabel: String,
     closeIcon: ImageVector,
     showsCloseAt: State<Boolean>,
+    onMenu: ((at: Rect) -> Unit)?,
+    onMenuGone: () -> Unit,
+    menuLabel: String,
     moves: (host: DragHost?, direction: LayoutDirection) -> List<CustomAccessibilityAction>,
     onKey: (KeyEvent) -> Boolean,
     leading: (@Composable () -> Unit)?,
@@ -602,9 +764,36 @@ private fun DragItemScope.DocumentTab(
     LaunchedEffect(hovered) { onHovered(hovered) }
     val host = LocalDragHost.current
     val direction = LocalLayoutDirection.current
+    val placed = remember { arrayOfNulls<LayoutCoordinates>(1) }
+    // At a pointer, a zero-size anchor: the menu hangs off the point itself.
+    // From the keyboard or a screen reader, below the whole tab.
+    fun menuAt(local: Offset?): Rect? {
+        val coordinates = placed[0]?.takeIf { it.isAttached } ?: return null
+        return if (local != null) coordinates.localToRoot(local).let { Rect(it, it) } else coordinates.boundsInRoot()
+    }
+    val menu by rememberUpdatedState(onMenu)
+    val chosen by rememberUpdatedState(selected)
+    val choose by rememberUpdatedState(onSelect)
+    val touch by rememberUpdatedState(LocalInputModality.current.needsLargeTargets)
+    val slop = with(LocalDensity.current) { PickUpHoldSlop.toPx() }
     // Picked up by a pointer, a tab is chosen, as a browser's is.
+    //
+    // Held by a finger, with a menu to offer, it opens its menu as it lifts,
+    // and is chosen only once the finger sets off with it, when the menu
+    // closes: a hold let go of where it was is a menu asked for, which
+    // chooses nothing, as a right click chooses nothing. As a context menu on
+    // iOS gives way to a drag, and as an event held on a calendar does.
     LaunchedEffect(isDragging) {
-        if (isDragging && host?.session?.keyboard == false && !selected) onSelect()
+        val session = host?.session
+        if (!isDragging || session == null || session.keyboard) return@LaunchedEffect
+        val opens = menu
+        if (opens != null && touch) {
+            val from = session.pointer
+            opens(Rect(from, from))
+            snapshotFlow { session.pointer }.first { (it - from).getDistance() > slop }
+            onMenuGone()
+        }
+        if (!chosen) choose()
     }
     LaunchedEffect(focusNow) {
         if (focusNow) {
@@ -684,12 +873,25 @@ private fun DragItemScope.DocumentTab(
                 .fillMaxWidth()
                 .heightIn(min = height)
                 .minimumTouchTarget()
+                .onPlaced { placed[0] = it }
                 .focusRequester(focus)
                 .focusProperties { canFocus = tabStop }
-                .onKeyEvent(onKey)
+                .onKeyEvent { event ->
+                    val opens = onMenu
+                    if (opens != null && event.opensMenu()) {
+                        menuAt(null)?.let(opens)
+                        true
+                    } else {
+                        onKey(event)
+                    }
+                }
                 .pointerCursor(enabled = enabled)
                 .webRole(WebRole.Tab, selected)
-                .middleClick(enabled = enabled && onClose != null) { onClose?.invoke(true) }
+                .middleClick(enabled = enabled && closeOnMiddleClick && onClose != null) { onClose?.invoke(true) }
+                // A right click opens its menu and chooses nothing, as a
+                // browser's tab does: the tab a reader is reading stays open
+                // while they close the others from one behind it.
+                .then(if (onMenu != null) Modifier.secondaryClick { at -> menuAt(at)?.let { menu?.invoke(it) } } else Modifier)
                 .selectable(
                     selected = selected,
                     interactionSource = interactions,
@@ -703,6 +905,7 @@ private fun DragItemScope.DocumentTab(
                     if (enabled) {
                         customActions = moves(host, direction) + listOfNotNull(
                             onClose?.let { close -> CustomAccessibilityAction(closeLabel) { close(false); true } },
+                            onMenu?.let { opens -> CustomAccessibilityAction(menuLabel) { menuAt(null)?.let(opens); true } },
                         )
                     }
                 }
@@ -821,6 +1024,9 @@ internal class StripState {
     var roving: Any? by mutableStateOf(null)
     var pendingFocus: Any? by mutableStateOf(null)
 
+    /** The menu open on the strip, a tab's or the "+"'s, if any. */
+    var menu: StripMenu? by mutableStateOf(null)
+
     /** Each tab's key and item as the last composition applied them. */
     var known: List<Pair<Any, Any>> = emptyList()
 
@@ -908,6 +1114,12 @@ internal class Leaving(
     val showedClose: Boolean,
     val fraction: Animatable<Float, AnimationVector1D>,
 )
+
+/**
+ * A menu open on a strip: the tab's with [key] and [item], or with neither the
+ * "+"'s, hung from [at] in the root.
+ */
+internal class StripMenu(val key: Any?, val item: Any?, val at: Rect)
 
 private val TabMinWidth = 72.dp
 private val TabMaxWidth = 240.dp
