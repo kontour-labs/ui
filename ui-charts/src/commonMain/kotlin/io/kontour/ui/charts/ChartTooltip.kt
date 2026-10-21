@@ -4,11 +4,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -72,12 +70,15 @@ private fun TooltipLine(row: TooltipRow) {
         horizontalArrangement = Arrangement.spacedBy(spacing.xs),
     ) {
         row.swatch()
-        if (row.name.isNotBlank()) Text(row.name, Modifier.weight(1f, fill = false), maxLines = 1, overflow = TextOverflow.Ellipsis)
-        // At least this much between a name and its value, and the rest of
-        // the card's width once a longer row has set it.
-        Spacer(Modifier.widthIn(min = spacing.sm).weight(1f))
+        // The name takes what the value leaves, and the value stands at the
+        // card's end. It shared the room with a spacer, half each, and at the
+        // card's widest a long name was cut short beside a gap of its own
+        // length: "Everything …".
+        Text(row.name, Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
         Text(
             row.value,
+            // Twice the row's step between a name and its figure.
+            Modifier.padding(start = spacing.xs),
             style = Theme.typography.labelMedium.copy(fontFeatureSettings = TabularFigures),
             fontWeight = FontWeight.SemiBold,
             textAlign = TextAlign.End,

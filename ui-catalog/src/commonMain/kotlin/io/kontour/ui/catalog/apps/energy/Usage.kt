@@ -85,7 +85,8 @@ private fun ByAppliance(patterns: Boolean) {
     var asTable by remember { mutableStateOf(false) }
     val uses = remember(span) { dayUses(span.days) }
     val days = remember { ChartAxis.date() }
-    val energy = remember { ChartAxis.number(title = "kWh") }
+    // In shares the axis up reads in per cent of each day, not in kWh.
+    val energy = remember(stacking) { ChartAxis.number(title = if (stacking == ChartStacking.Normalised) "Share of the day" else "kWh") }
     val selection = rememberChartSelectionState<LocalDate>()
     // A tap on an appliance in the legend takes it off the bars, and another
     // puts it back: the car's days, without the car.

@@ -1,6 +1,7 @@
 package io.kontour.ui.charts
 
 import io.kontour.ui.locale.LocaleFormats
+import kotlinx.datetime.plus
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -207,4 +208,24 @@ class PresentationMotionTest {
     }
 
     private fun ResolvedChart.copyOnly(kind: MarkKind) = with(x, y, layers.filter { it.mark.kind == kind })
+
+    /**
+     * Bars across a date axis end half a bar past the first and the last, as
+     * across a number axis: widened to the week's tick before the first, a
+     * fortnight's bars stood two days in from the plot's start and against its
+     * end.
+     */
+    @Test
+    fun barsAlongDatesEndAtTheBars() {
+        val x = ChartAxis.date()
+        val y = ChartAxis.number()
+        val first = kotlinx.datetime.LocalDate(2026, 10, 7)
+        val days = (0 until 14).map { first.plus(kotlinx.datetime.DatePeriod(days = it)) }
+        val chart = resolve(
+            ChartRecorder(x, y).apply { bar(days, x = { it }, y = { 1.0 }) }.build(),
+            x, y, formats,
+        )
+        assertEquals(first.toEpochDays() - 0.5, chart.x.low, 1e-9, "the axis should start half a day before the first bar")
+        assertEquals(days.last().toEpochDays() + 0.5, chart.x.high, 1e-9, "and end half a day after the last")
+    }
 }

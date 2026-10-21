@@ -39,6 +39,7 @@ import io.kontour.ui.interaction.rememberDetentTicker
 import io.kontour.ui.theme.Theme
 import kotlin.math.abs
 import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.roundToInt
 
 /**
@@ -697,14 +698,17 @@ private fun <X : Any> selectionAt(
 ): ChartSelection<X>? {
     val x = decode(place) ?: return null
     val write = chart.valueAxis.write
-    val values = chart.layers.flatMap { layer ->
+    // Each value with the axis it is written on, where it is a plain value
+    // that can be written in step with the others on that axis: see below.
+    class Read(val value: ChartSelectedValue, val axis: ResolvedAxis?)
+    val read = chart.layers.flatMap { layer ->
         when (layer.mark.kind) {
             // A heat map's column: each of its cells, named by its row.
             MarkKind.Cell -> {
                 val scale = chart.cells
                 layer.across.indices.filter { layer.across[it] == place && !layer.values[it].isNaN() }.map { i ->
                     val value = layer.values[i]
-                    ChartSelectedValue(ChartSeries(chart.y.write(layer.up[i])), value, scale?.write?.invoke(value) ?: write(value))
+                    Read(ChartSelectedValue(ChartSeries(chart.y.write(layer.up[i])), value, scale?.write?.invoke(value) ?: write(value)), null)
                 }
             }
             else -> {
@@ -712,20 +716,29 @@ private fun <X : Any> selectionAt(
                 if (index < 0 || layer.values[index].isNaN() || stemSilentAt(chart, layer, index)) return@flatMap emptyList()
                 // In its own axis's units: a series on the end axis is not
                 // in the start axis's.
-                val write = if (chart.horizontal) write else chart.upAxis(layer.mark.onEnd).write
+                val axis = if (chart.horizontal) chart.valueAxis else chart.upAxis(layer.mark.onEnd)
                 val value = layer.values[index]
                 // A range's value is its foot, and what it shows is its range;
                 // a box's is its median, and what it shows is its five numbers.
                 val top = layer.endAt(index)
-                val label = when {
-                    layer.box != null -> boxSaid(layer, index, write, strings, formats)
-                    top != null && top != value -> strings.valueRange(write(value), write(top))
-                    else -> write(value)
+                when {
+                    layer.box != null -> listOf(Read(ChartSelectedValue(layer.series, value, boxSaid(layer, index, axis.write, strings, formats)), null))
+                    top != null && top != value ->
+                        listOf(Read(ChartSelectedValue(layer.series, value, strings.valueRange(axis.write(value), axis.write(top))), null))
+                    else -> listOf(Read(ChartSelectedValue(layer.series, value, axis.write(value)), axis))
                 }
-                listOf(ChartSelectedValue(layer.series, value, label))
             }
         }
     }
+    // A place's values on one axis are written to as many digits as the one
+    // that needs most, so that the tooltip's column lines up digit under
+    // digit: each written on its own, "2" stood over "2.42", and in shares
+    // "0%" under "2.7%".
+    val inStep = HashMap<Read, String>()
+    read.filter { it.axis != null }.groupBy { it.axis!! }.forEach { (axis, group) ->
+        group.zip(axis.writeInStep(group.map { it.value.value })).forEach { (one, label) -> inStep[one] = label }
+    }
+    val values = read.map { one -> inStep[one]?.let { ChartSelectedValue(one.value.series, one.value.value, it) } ?: one.value }
     return ChartSelection(x, chart.placeAxis.write(place), values)
 }
 
@@ -748,7 +761,8 @@ private fun totalAt(chart: ResolvedChart, place: Double): String? {
         layer.values.getOrNull(index)?.takeUnless { it.isNaN() }
     }
     if (values.size < 2) return null
-    return chart.valueAxis.write(values.sum())
+    // In step with the values over it, as they are with each other.
+    return chart.valueAxis.writeInStep(values + values.sum()).last()
 }
 
 /** The span along the place axis that [group] answers for: halfway to each neighbour. */

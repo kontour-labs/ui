@@ -206,4 +206,72 @@ class ChartTooltipTest {
         mainClock.advanceTimeBy(100)
         assertTrue(selection.x == null, "off the circle, the pie should let go: ${selection.x}")
     }
+
+    /**
+     * A place's values are written to as many digits as the one that needs
+     * most, total and all, so the tooltip's column lines up digit under digit:
+     * each written on its own, "2" stood over "2.42".
+     */
+    @Test
+    fun aTooltipsColumnIsWrittenInStep() = runComposeUiTest {
+        val day = listOf(Spend("Mon", "Rent", 2.0), Spend("Mon", "Food", 2.42), Spend("Tue", "Rent", 1.0), Spend("Tue", "Food", 1.5))
+        setContent {
+            KontourTheme(reduceMotion = true) {
+                OverlayHost(Modifier.fillMaxSize()) {
+                    Chart(
+                        xAxis = ChartAxis.category<String>(),
+                        yAxis = ChartAxis.number(),
+                        modifier = Modifier.size(360.dp, 240.dp).testTag("chart"),
+                        selection = rememberChartSelectionState(),
+                        showLegend = false,
+                        animateData = false,
+                    ) {
+                        bar(day, x = { it.month }, y = { it.amount }, series = { ChartSeries(it.what) }, stacking = ChartStacking.Stacked)
+                    }
+                }
+            }
+        }
+        tapChart(0.25f)
+        onNodeWithContentDescription("Rent, 2.00").assertExists()
+        onNodeWithContentDescription("Food, 2.42").assertExists()
+        onNodeWithContentDescription("Total, 4.42").assertExists()
+    }
+
+    /**
+     * A card squeezed by the room beside it gives what room it has to the
+     * name, and leaves no gap of its own between the name and the value: the
+     * name shared the room with a spacer, half each, and was cut short beside
+     * an empty gap of its own length, "Everything …".
+     */
+    @Test
+    fun aSqueezedCardGivesItsRoomToTheName() = runComposeUiTest {
+        val day = listOf(Spend("13 Oct", "Rent", 3.0), Spend("13 Oct", "Everything else in the house", 1.0))
+        setContent {
+            KontourTheme(reduceMotion = true) {
+                // Narrow, so that neither side of the place has room for the
+                // whole card, and it is squeezed.
+                OverlayHost(Modifier.size(150.dp, 300.dp)) {
+                    Chart(
+                        xAxis = ChartAxis.category<String>(),
+                        yAxis = ChartAxis.number(),
+                        modifier = Modifier.size(150.dp, 240.dp).testTag("chart"),
+                        selection = rememberChartSelectionState(),
+                        showLegend = false,
+                        animateData = false,
+                    ) {
+                        bar(day, x = { it.month }, y = { it.amount }, series = { ChartSeries(it.what) }, stacking = ChartStacking.Stacked)
+                    }
+                }
+            }
+        }
+        tapChart(0.5f)
+        fun textNode(text: String) = onAllNodes(SemanticsMatcher(text) { node ->
+            val said = if (SemanticsProperties.Text in node.config) node.config[SemanticsProperties.Text] else emptyList()
+            said.any { it.text == text }
+        }, useUnmergedTree = true).fetchSemanticsNodes().first()
+        val name = textNode("Everything else in the house").boundsInRoot
+        val value = textNode("1").boundsInRoot
+        val gap = with(density) { (value.left - name.right).toDp() }
+        assertTrue(gap <= 17.dp, "the name should reach to just short of the value, not stop half way: a gap of $gap")
+    }
 }

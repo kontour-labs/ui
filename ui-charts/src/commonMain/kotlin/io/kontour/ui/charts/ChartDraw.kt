@@ -14,6 +14,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathOperation
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.addOutline
 import androidx.compose.ui.graphics.StrokeCap
@@ -376,6 +377,16 @@ internal fun DrawScope.drawChart(
             val x = m.px(selected)
             if (!chart.selectsBands) drawLine(colours.selection, Offset(x, plot.top), Offset(x, plot.bottom), stroke)
             chart.layers.filter { it.mark.kind == MarkKind.Line || it.mark.kind == MarkKind.Area }.forEach { layer ->
+                // Only where the line is: a forecast from two o'clock had a
+                // ring at seven, at its first value, held flat back to there
+                // by the reading below, on nothing at all. And not on an area
+                // with nothing in it at the place, whose ring sat on the edge
+                // of the one under it: *"a phantom yellow dot not on a line"*.
+                if (layer.size == 0 || selected < layer.across.min() || selected > layer.across.max()) return@forEach
+                if (layer.mark.kind == MarkKind.Area && layer.mark.stacking != ChartStacking.None && layer.mark.stacking != ChartStacking.Grouped) {
+                    val at = layer.across.indexOfFirst { it == selected }
+                    if (at >= 0 && (layer.values[at] == 0.0 || layer.values[at].isNaN())) return@forEach
+                }
                 val value = sampleAt(layer.across, layer.up, selected)
                 if (value.isNaN()) return@forEach
                 val look = lookOf(layer.slot, colours.series, config.patterns, layer.mark.style, layer.series.style)
@@ -464,16 +475,18 @@ private fun DrawScope.drawBars(layer: Layer, look: SeriesLook, chart: ResolvedCh
     // bar in a chart was square.
     // A floating bar stands on nothing, so both its ends are rounded.
     val corners = config.corners
-    val open = if (!layer.mark.floating) {
-        openEndsOf(layer, chart, corners.reach(Size(thickness, thickness), this)) { if (lying) m.px(it) else m.py(it) }
-    } else {
-        null
-    }
+    val reach = corners.reach(Size(thickness, thickness), this)
+    val at: (Double) -> Float = { if (lying) m.px(it) else m.py(it) }
+    val open = if (!layer.mark.floating) openEndsOf(layer, chart, reach, at) else null
+    val stack = if (!layer.mark.floating) StackEnds(layer, chart, reach, at) else null
     val path = Path()
     for (i in 0 until layer.size) {
         if (tops[i].isNaN()) continue
         val positive = tops[i] >= base[i]
         val opened = open?.get(i) ?: 1f
+        // A part under another, near enough to the stack's end to be inside
+        // its corner, is cut from the stack's rounded outline: see [StackEnds].
+        val end = stack?.endOver(i, opened)
         if (lying) {
             val centre = m.py(places[i]) + offset
             val from = m.px(base[i])
@@ -481,23 +494,121 @@ private fun DrawScope.drawBars(layer: Layer, look: SeriesLook, chart: ResolvedCh
             val rect = Rect(min(from, to), centre - thickness / 2, max(from, to), centre + thickness / 2)
             // The far end is rounded; which side that is depends on the sign
             // and on which way the language reads, both in `from` and `to`.
-            val shape = if (to >= from) corners.right(opened) else corners.left(opened)
-            if (shape == null) path.addRect(rect) else addShape(path, rect, shape)
+            if (end != null) {
+                val far = m.px(end.value)
+                val whole = Rect(min(from, far), rect.top, max(from, far), rect.bottom)
+                addCut(path, rect, whole, if (far >= from) corners.right(end.open) else corners.left(end.open))
+            } else {
+                val shape = if (to >= from) corners.right(opened) else corners.left(opened)
+                if (shape == null) path.addRect(rect) else addShape(path, rect, shape)
+            }
         } else {
             val direction = if (m.frame.rtl) -1f else 1f
             val centre = m.px(places[i]) + offset * direction
             val from = m.py(base[i])
             val to = m.py(tops[i])
             val rect = Rect(centre - thickness / 2, min(from, to), centre + thickness / 2, max(from, to))
-            val shape = when {
-                layer.mark.floating -> corners.all
-                positive -> corners.up(opened)
-                else -> corners.down(opened)
+            if (end != null) {
+                val far = m.py(end.value)
+                val whole = Rect(rect.left, min(from, far), rect.right, max(from, far))
+                addCut(path, rect, whole, if (positive) corners.up(end.open) else corners.down(end.open))
+            } else {
+                val shape = when {
+                    layer.mark.floating -> corners.all
+                    positive -> corners.up(opened)
+                    else -> corners.down(opened)
+                }
+                if (shape == null) path.addRect(rect) else addShape(path, rect, shape)
             }
-            if (shape == null) path.addRect(rect) else addShape(path, rect, shape)
         }
     }
     fill(path, look, config, alpha)
+}
+
+/** [part] cut from [whole] drawn in [shape], added to [path]: a part of a stack with the stack's corners where it reaches them. */
+private fun DrawScope.addCut(path: Path, part: Rect, whole: Rect, shape: Shape?) {
+    if (part.width <= 0f || part.height <= 0f) return
+    if (shape == null) {
+        path.addRect(part)
+        return
+    }
+    val outline = Path()
+    addShape(outline, whole, shape)
+    val piece = Path().apply { addRect(part) }
+    path.addPath(Path().apply { op(piece, outline, PathOperation.Intersect) })
+}
+
+/**
+ * Where the stack a part of [layer] is in ends, beyond the part itself:
+ * followed from part to part standing on it, end to foot and over most of its
+ * width, to the last, whose end is the stack's and is rounded as clear as
+ * that part is.
+ *
+ * Only the outermost part of a stack had its corners, so a thin one, a share
+ * of two per cent on top of a stack of shares, was a cap rounded tighter than
+ * itself on a square column: *"corner rounding and spacing is a bit off"*. A
+ * part within a corner's reach of the stack's end is now cut from the whole
+ * stack's rounded outline, so the curve runs on down through it.
+ */
+private class StackEnds(
+    private val layer: Layer,
+    chart: ResolvedChart,
+    private val reach: Float,
+    private val at: (Double) -> Float,
+) {
+    private val lying = chart.horizontal
+    private val mates = chart.layers.filter { other ->
+        other !== layer && other.markIndex == layer.markIndex && other.mark.kind == MarkKind.Bar &&
+            other.base != null && other.opacity > 0f && !other.mark.floating
+    }
+    private val opens by lazy { mates.map { openEndsOf(it, chart, reach, at) } }
+    private val indices = mates.map { mate ->
+        val places = if (lying) mate.up else mate.across
+        HashMap<Double, Int>(places.size * 2).apply { places.forEachIndexed { j, place -> getOrPut(place) { j } } }
+    }
+
+    /** A width's overlap of [mate] and [over], as a share of [over]'s width. */
+    private fun overlap(over: Layer, mate: Layer): Float {
+        val start = max(over.groupOffset - over.groupWidth / 2, mate.groupOffset - mate.groupWidth / 2)
+        val end = min(over.groupOffset + over.groupWidth / 2, mate.groupOffset + mate.groupWidth / 2)
+        return ((end - start) / over.groupWidth).coerceIn(0f, 1f)
+    }
+
+    class End(val value: Double, val open: Float)
+
+    /** The stack's end over the [i]th part, whose own end is [opened] clear; `null` where it is the end, or the end is past a corner's reach. */
+    fun endOver(i: Int, opened: Float): End? {
+        if (opened >= 0.5f || mates.isEmpty()) return null
+        val places = if (lying) layer.up else layer.across
+        val tops = if (lying) layer.across else layer.up
+        val foot = layer.base?.get(i) ?: 0.0
+        val rising = tops[i] > foot
+        var over = layer
+        var end = tops[i]
+        var open = opened
+        repeat(mates.size) {
+            if (open >= 0.5f) return@repeat
+            var next = -1
+            var nextIndex = -1
+            for (k in mates.indices) {
+                val j = indices[k][places[i]] ?: continue
+                val mate = mates[k]
+                val mateTop = (if (lying) mate.across else mate.up)[j]
+                val mateFoot = mate.base!![j]
+                if (mateTop.isNaN() || mateTop == mateFoot || (mateTop > mateFoot) != rising) continue
+                if (abs(at(mateFoot) - at(end)) > 1f || overlap(over, mate) < 0.5f) continue
+                next = k
+                nextIndex = j
+                break
+            }
+            if (next < 0) return@repeat
+            over = mates[next]
+            end = (if (lying) over.across else over.up)[nextIndex]
+            open = opens[next][nextIndex]
+        }
+        if (over === layer || abs(at(end) - at(tops[i])) >= reach) return null
+        return End(end, open)
+    }
 }
 
 /**

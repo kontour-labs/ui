@@ -389,8 +389,12 @@ On `main`, and in the next release.
   touch's tooltip stays while the finger is down and goes four seconds after it
   lifts, where it went four seconds into a long drag; and a pointer that lands
   on the tooltip chooses the place under it, where the chart let go and the
-  tooltip blinked out and back. `tooltip` still replaces what it says; the
-  energy app's hours show one of their own.
+  tooltip blinked out and back. Its column of figures is written to one number
+  of digits, the total's too, so "2" no longer stands over "2.42", nor "0%"
+  over "2.7%"; and a name takes the room the figure leaves, where a squeezed
+  card cut it short beside a gap. A line's value is ringed only where the line
+  is, and a stacked area's only where it has some thickness. `tooltip` still
+  replaces what it says; the energy app's hours show one of their own.
 - **A chart moving between ways of drawing its data keeps its marks
   together.** A stack rises as one from its foot, where each part rose from
   its own and stood in the air over the part under it. Bars leaving a stack
@@ -403,7 +407,11 @@ On `main`, and in the next release.
   then close up, and out of one they part first and then come down, so no part
   hangs over the one it lands on. A bar's end is rounded by how much of it
   another bar covers in each frame, so corners ease square as parts meet and
-  round as they part, rather than snapping when the move stops. Along a date or number axis, a day that has gone goes
+  round as they part, rather than snapping when the move stops. A part within
+  a corner's reach of its stack's end is cut from the whole stack's rounded
+  outline, so a thin top part is not a cap on a square column. Bars along a
+  date or a time axis end half a bar past the first and the last, as along a
+  number axis, where the axis ran back to the week's tick before the first. Along a date or number axis, a day that has gone goes
   down as the axis closes in, rather than vanishing.
 - **Side sheets take the panel's corner, 28dp**, not a sheet's 34. Facing the
   content in the middle of the window, a side sheet meets no device corner, and

@@ -104,11 +104,37 @@ internal class ResolvedAxis(
     val write: (Double) -> String,
     /** Whether a stream is stacked about its middle, where a position up it measures nothing: no ticks, no baseline. */
     val centred: Boolean = false,
+    /**
+     * A value written to a given number of digits after the point, for a
+     * column of them that should line up; `null` where the app writes the
+     * axis's values itself. See [writeInStep].
+     */
+    val writeTo: ((Double, Int) -> String)? = null,
+    /** The fewest digits a value is written to, and the most it takes past them. */
+    val leastDigits: Int = 0,
+    val mostDigits: Int = 2,
+    /** Whether values on it are shares, written in per cent. */
+    val inPercent: Boolean = false,
 ) {
     val span: Double get() = (high - low).takeIf { it > 0 } ?: 1.0
 
-    fun spanning(low: Double, high: Double): ResolvedAxis =
-        ResolvedAxis(kind, low, high, ticks, tickLabels, title, showGridlines, showLabels, position, write, centred)
+    fun spanning(low: Double, high: Double): ResolvedAxis = ResolvedAxis(
+        kind, low, high, ticks, tickLabels, title, showGridlines, showLabels, position, write, centred,
+        writeTo, leastDigits, mostDigits, inPercent,
+    )
+
+    /**
+     * [values], written to as many digits as the one that needs most, so that
+     * a column of them in a tooltip lines up digit under digit; each written
+     * on its own, as [write] does, a "2" stood over a "2.42".
+     */
+    fun writeInStep(values: List<Double>): List<String> {
+        val to = writeTo ?: return values.map(write)
+        val digits = values.filter { !it.isNaN() }.maxOfOrNull { value ->
+            if (inPercent) precisionOf(value * 100, 0) else precisionOf(value, leastDigits)
+        }?.coerceAtMost(mostDigits) ?: return values.map(write)
+        return values.map { if (it.isNaN()) write(it) else to(it, digits) }
+    }
 }
 
 /**
@@ -585,6 +611,16 @@ private fun <V : Any> resolveAxis(
             showLabels = axis.showLabels,
             position = axis.position,
             write = write,
+            writeTo = when {
+                label != null -> null
+                percent -> { value, digits -> formats.percent(value, digits) }
+                else -> { value, digits -> formats.decimal(value, digits) }
+            },
+            // A share to a tenth of a per cent at most, as `write` has it; a
+            // measure to its ticks' digits and two more at most.
+            leastDigits = if (percent) 0 else ticks.fractionDigits,
+            mostDigits = if (percent) 1 else ticks.fractionDigits + 2,
+            inPercent = percent,
         )
     }
 
@@ -592,8 +628,12 @@ private fun <V : Any> resolveAxis(
         val low = (axis.domain?.start ?: extent.low) - padding
         val high = (axis.domain?.endInclusive ?: extent.high) + padding
         val ticks = dateTicks(low, high, axis.tickCount, formats.conventions.firstDayOfWeek)
-        val domainLow = if (axis.domain != null) low else min(low, ticks.low)
-        val domainHigh = if (axis.domain != null) high else max(high, ticks.high)
+        // Bars end where their first and last ones do, half a bar out, as
+        // across a number axis: widened to the week's tick before the first,
+        // a fortnight's bars stood two days in from the plot's start and
+        // against its end. Anything else ends on a tick.
+        val domainLow = if (axis.domain != null || padding > 0) low else min(low, ticks.low)
+        val domainHigh = if (axis.domain != null || padding > 0) high else max(high, ticks.high)
         val shown = ticks.values.filter { it >= domainLow - 1e-9 && it <= domainHigh + 1e-9 }.toDoubleArray()
         val label = axis.dateLabel
         val first = shown.firstOrNull()
@@ -624,8 +664,9 @@ private fun <V : Any> resolveAxis(
         val low = (axis.domain?.start ?: extent.low) - padding
         val high = (axis.domain?.endInclusive ?: extent.high) + padding
         val ticks = instantTicks(low, high, axis.tickCount, zone, formats.conventions.firstDayOfWeek)
-        val domainLow = if (axis.domain != null) low else min(low, ticks.low)
-        val domainHigh = if (axis.domain != null) high else max(high, ticks.high)
+        // As a date axis's: bars end half a bar past their ends.
+        val domainLow = if (axis.domain != null || padding > 0) low else min(low, ticks.low)
+        val domainHigh = if (axis.domain != null || padding > 0) high else max(high, ticks.high)
         val shown = ticks.values.filter { it >= domainLow - 1e-9 && it <= domainHigh + 1e-9 }.toDoubleArray()
         val label = axis.instantLabel
         fun local(position: Double): LocalDateTime =
@@ -709,7 +750,7 @@ private fun <V : Any> centredAxis(axis: ChartAxis<V>, extent: Extent, formats: L
  * most two more: a reading of 41.25 on an axis ticked in whole numbers is said
  * as 41.25, and one of 41 as 41.
  */
-private fun precisionOf(value: Double, floor: Int): Int {
+internal fun precisionOf(value: Double, floor: Int): Int {
     var digits = floor
     while (digits < floor + 2) {
         val scaled = value * pow10(digits)

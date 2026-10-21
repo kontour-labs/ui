@@ -418,7 +418,7 @@ private fun inUnitsOf(from: ResolvedChart, to: ResolvedChart): ResolvedChart {
 }
 
 /** Whether [this]'s start axis reads in shares of each place's whole: a normalised stack's. */
-private val ResolvedChart.inShares: Boolean
+internal val ResolvedChart.inShares: Boolean
     get() = layers.any { !it.mark.onEnd && it.mark.stacking == ChartStacking.Normalised && (it.mark.kind == MarkKind.Bar || it.mark.kind == MarkKind.Area) }
 
 /** The value of the line through [places] and [values] at [place], held flat beyond its ends. */
