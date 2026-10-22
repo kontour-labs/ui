@@ -22,6 +22,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.GraphicsLayerScope
@@ -355,6 +356,7 @@ fun SelectionIndicatorBox(
     val bounds = remember { Animatable(Rect.Zero, Rect.VectorConverter) }
     val alpha = remember { Animatable(0f) }
     var measured by remember { mutableStateOf(false) }
+    val arrival = remember { Arrival() }
 
     // Two keys, because one cannot answer both questions asked of it.
     //
@@ -435,6 +437,10 @@ fun SelectionIndicatorBox(
             // in from somewhere the user was not looking.
             !measured || hidden -> {
                 bounds.snapTo(target)
+                // Arrived with the group: it has been drawn opaque from the
+                // group's first frame, see [Arrival], and the fade below must
+                // find it already there.
+                if (!measured && !arrival.drawnBare) alpha.snapTo(1f)
                 measured = true
             }
             // Same item, new rect, and nothing in flight: the window resized or
@@ -569,7 +575,9 @@ fun SelectionIndicatorBox(
                     Box(
                         Modifier
                             .graphicsLayer {
-                                val faded = alpha.value
+                                // Opaque until the effect has run, for a marker
+                                // that arrived with its group. See [Arrival].
+                                val faded = if (!measured && !arrival.drawnBare) 1f else alpha.value
                                 this.alpha = faded
                                 clip = faded != 1f
                             }
@@ -578,7 +586,7 @@ fun SelectionIndicatorBox(
                 },
                 { Box(content = content) },
             ),
-            modifier = modifier.onGloballyPositioned { state.anchor = it },
+            modifier = modifier.then(arrival.watch),
         ) { (indicatorMeasurables, contentMeasurables), constraints ->
             // Read here rather than taken from composition, which is the last
             // frame of the lag. The row reports its rect from
@@ -586,7 +594,15 @@ fun SelectionIndicatorBox(
             // composition cannot reach the marker until the next one, but a rect
             // *read here* only invalidates layout, and a layout invalidation
             // raised during the layout pass is serviced before the frame draws.
+            //
+            // Arriving with the group, see [Arrival]: drawn from the rect its
+            // item reported in this same frame, before the effect has run.
+            val arriving = !visible && !arrival.drawnBare
             val live = when {
+                arriving ->
+                    state.target?.let {
+                        resolveIndicatorBounds(sizing, it, density, layoutDirection)
+                    } ?: bounds.value
                 bounds.isRunning -> bounds.value
                 state.targetKey == settledKey ->
                     state.target?.let {
@@ -604,7 +620,8 @@ fun SelectionIndicatorBox(
 
             val indicatorWidth = live.width.roundToInt()
             val indicatorHeight = live.height.roundToInt()
-            val drawIndicator = visible && indicatorWidth > 0 && indicatorHeight > 0
+            val drawIndicator = (visible || arriving) && indicatorWidth > 0 && indicatorHeight > 0
+            arrival.placedMarker = drawIndicator
             val marker = if (drawIndicator) {
                 indicatorMeasurables.map {
                     it.measure(Constraints.fixed(indicatorWidth, indicatorHeight))
@@ -616,6 +633,16 @@ fun SelectionIndicatorBox(
             leaning.width = width.toFloat()
             leaning.height = height.toFloat()
             layout(width, height) {
+                // The anchor, taken while this node is placed rather than
+                // once the pass is over. `onGloballyPositioned` fires
+                // children-first, so the items' reports in this group's first
+                // pass found no anchor and gave up, and the first rect arrived
+                // a frame later, by way of the items' effect. Placement comes
+                // before every one of those callbacks, so now the first pass
+                // reports, and the marker is laid out again before the frame
+                // is drawn. `coordinates` is null only while alignment lines
+                // are being worked out, which places nothing.
+                coordinates?.let { state.anchor = it }
                 // `place`, not `placeRelative`. The reported rect is already
                 // physical — the row that laid the items out did whatever
                 // mirroring RTL required — so a layout-relative placement here
@@ -673,9 +700,11 @@ fun Modifier.selectionIndicatorItem(key: Any, selected: Boolean): Modifier {
 
     // Two things can move the indicator and only one of them is a layout event.
     // Selection moving between two items that did not move is not, and neither is
-    // the anchor arriving late — `onGloballyPositioned` fires children-first, so
-    // on the very first pass an item reports before the enclosing box has
-    // captured the anchor. Both still need an effect; a scroll does not.
+    // the anchor arriving late. It used to on every first pass, because
+    // `onGloballyPositioned` fires children-first; the box takes it while it is
+    // placed now, which is before any item reports (see [Arrival]), but a new
+    // anchor is still a reason to report again. Both need an effect; a scroll
+    // does not.
     LaunchedEffect(state, key, selected, state.anchor, leaving) {
         if (leaving) {
             if (state.targetKey == key) state.clear()
@@ -717,6 +746,47 @@ fun Modifier.selectionIndicatorItem(key: Any, selected: Boolean): Modifier {
         // rect and invalidates nothing at all.
         state.reportIfPossible(key, selected, it)
     }
+}
+
+/**
+ * Whether a marker is arriving with its group, or after it.
+ *
+ * Reported 2026-10-21 for 0.5.0: on the desktop gallery a segmented control's
+ * shadow "takes a few frames to load in" after it is scrolled into view. The
+ * gallery's pages are lazy, so a control is composed on the frame it scrolls
+ * in, and its thumb was treated as appearing: not drawn at all until the
+ * effect had run, two frames on, and then faded up from nothing over
+ * `Motion.fast` in a layer that clips while it is not opaque. The thumb's fill
+ * is white on a `#F6F6F6` well, so the fade itself barely shows; what showed
+ * was the shadow, cut away by that clip for the whole of the fade and
+ * arriving all at once on its last frame, twelve frames after the control.
+ * The phone was most likely spared because a finger brings a control in a few
+ * pixels at a time and the fade is over before much of it is on screen, where
+ * a wheel notch brings the whole of it in at once. Ten of the catalog's
+ * goldens had been recorded in the middle of that fade, the thumb's shadow cut
+ * square or missing, and a nav bar's or rail's marker a shade pale.
+ *
+ * A marker whose item is selected when the group first lays out is not
+ * appearing, though: the group is, and the marker is part of it. So it is
+ * drawn opaque, where its item is, on the group's first frame. One that turns
+ * up later, in a group already drawn without it, is appearing, and still fades
+ * up where it is going.
+ *
+ * Told apart in the draw phase, by whether the group has been drawn without a
+ * marker. Plain fields, not snapshot state: they are written from layout and
+ * draw, and nothing needs telling when they change.
+ * `SegmentedShadowArrivalTest` holds it: the thumb, its shadow and all, is on the
+ * first frame a scrolled-in control is.
+ */
+private class Arrival {
+    /** Whether the last layout placed the marker. */
+    var placedMarker = false
+
+    /** Whether the group has ever been drawn without one. Never goes back. */
+    var drawnBare = false
+
+    /** Writes [drawnBare] as the group draws. Behind everything, and drawing nothing. */
+    val watch = Modifier.drawBehind { if (!placedMarker) drawnBare = true }
 }
 
 /** The last position an item was laid out at. Not observed; see above. */
