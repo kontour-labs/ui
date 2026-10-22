@@ -51,6 +51,48 @@ class ChartSelectionState<X : Any> internal constructor(initialX: X?) {
 }
 
 /**
+ * Whether a pointer resting over a [Chart] or a [SectorChart] selects what it
+ * is over, and whether it goes on doing so while a range is dragged out on it.
+ * A click selects whatever this says, as a tap, the keys and a screen reader
+ * do.
+ *
+ * Three ways and not a switch. It was `selectOnHover`, a Boolean, off by
+ * default on a chart that marks ranges, and the gallery's knob for that
+ * default read "Selects, unless marking", which was taken for what
+ * [ExceptWhileDragging] does now: *"that one feels like it should always do
+ * the hover select, unless the user is dragging. then with "selects", it should
+ * do the hover select even while we are dragging"*. Changed 2026-10-21 for
+ * 0.5.0, before the charts were first released.
+ */
+enum class ChartHoverSelection {
+    /**
+     * A resting pointer selects what it is over, and goes on selecting while
+     * its button is down marking a range: the place, its line and its tooltip
+     * follow the pointer as the range opens out behind them. For a page that
+     * reads the values under the pointer as a range is marked.
+     */
+    Always,
+
+    /**
+     * A resting pointer selects what it is over, except while its button is
+     * down on a chart that marks ranges: from the press, which is a click on
+     * its way or the start of a range, to the release. A range starting lets
+     * go of the selected place, so nothing is drawn over it as it opens, and
+     * the pointer selects again from its first move once the button is up. The
+     * default, and the same as [Always] on a chart that marks no ranges, where
+     * there is no drag to wait for.
+     */
+    ExceptWhileDragging,
+
+    /**
+     * A pointer selects by clicking, as a finger does by tapping: moving over
+     * the chart selects nothing and lets go of nothing, and the selected place
+     * stays where the click put it.
+     */
+    Never,
+}
+
+/**
  * A [ChartSelectionState], kept across recomposition, starting at [initialX].
  */
 @Composable

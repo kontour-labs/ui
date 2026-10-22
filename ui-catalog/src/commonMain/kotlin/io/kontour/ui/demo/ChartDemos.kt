@@ -18,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.charts.Chart
 import io.kontour.ui.charts.ChartAxis
+import io.kontour.ui.charts.ChartHoverSelection
 import io.kontour.ui.charts.ChartInterpolation
 import io.kontour.ui.charts.ChartLegendPosition
 import io.kontour.ui.charts.ChartSeries
@@ -52,20 +53,19 @@ private val chartReferences = Knob.Flag("References", initial = true)
 private val chartHides = Knob.Flag("Legend hides series", initial = true)
 private val chartMarks = Knob.Flag("Mark a range")
 
-// Whether a pointer resting over a place selects it: the chart's own choice
-// by default, which is not to while it marks ranges, or either way to try
-// the other. A switch could only show one of the two the default is.
-private val chartHover = Knob.Choice<Boolean?>(
-    "Hover",
-    listOf(null, true, false),
-    name = { hover ->
-        when (hover) {
-            null -> "Selects, unless marking"
-            true -> "Selects"
-            false -> "Selects nothing"
-        }
-    },
-)
+// Whether a pointer resting over a place selects it, and whether it goes on
+// selecting while a range is dragged out. The default read "Selects, unless
+// marking", for a chart with "Mark a range" on, where it selected nothing,
+// and was taken to mean while a drag marks one, which is what it does now:
+// *"the "selects unless marking" hover thing feels like it doesn't do what it
+// says on the tin"*.
+private val chartHover = Knob.Choice("Hover", ChartHoverSelection.entries.toList(), initial = ChartHoverSelection.ExceptWhileDragging) {
+    when (it) {
+        ChartHoverSelection.ExceptWhileDragging -> "Selects, not while dragging a range"
+        ChartHoverSelection.Always -> "Selects, even while dragging a range"
+        ChartHoverSelection.Never -> "Selects nothing"
+    }
+}
 
 // A box wants a measure both ways, so it is the points' alone, on their two
 // number axes; every other chart here is across months, where a box is a
@@ -173,9 +173,7 @@ internal val ChartDemo = ComponentDemo(
     val pointSelection = rememberChartSelectionState<Number>()
     val pointRange = rememberChartRangeSelectionState<Number, Number>(this[chartRangeMode])
     val marks = this[chartMarks]
-    // The chart's default spelled out, since a knob cannot leave a parameter out.
-    val hoverChoice = this[chartHover]
-    val hover = hoverChoice ?: !marks
+    val hover = this[chartHover]
     val spacing = Theme.spacing
     val formats = Theme.formats
     val busy = remember(data, seed) { busyFor(data, seed) }
@@ -197,7 +195,7 @@ internal val ChartDemo = ComponentDemo(
                 showSelectionTooltip = tooltip,
                 animateData = animated,
                 selection = selection,
-                selectOnHover = hoverChoice ?: true,
+                hoverSelection = hover,
             ) {
                 cell(data, x = { it.month }, y = { it.route }, value = { it.riders })
             }
@@ -229,7 +227,7 @@ internal val ChartDemo = ComponentDemo(
                 yAxis = ChartAxis.number(title = "Trip, minutes"),
                 modifier = chartModifier,
                 selection = selection,
-                selectOnHover = hoverChoice ?: true,
+                hoverSelection = hover,
                 contentDescription = "Trip times by month",
                 legendPosition = legendPosition,
                 showLegend = showLegend,
@@ -254,7 +252,7 @@ internal val ChartDemo = ComponentDemo(
                 modifier = chartModifier,
                 selection = pointSelection,
                 rangeSelection = pointRange.takeIf { marks },
-                selectOnHover = hover,
+                hoverSelection = hover,
                 contentDescription = "Riders against trip time, a month a point",
                 legendPosition = legendPosition,
                 showLegend = showLegend,
@@ -286,7 +284,7 @@ internal val ChartDemo = ComponentDemo(
                 modifier = chartModifier,
                 selection = selection,
                 rangeSelection = range.takeIf { marks },
-                selectOnHover = hover,
+                hoverSelection = hover,
                 contentDescription = "Riders by month",
                 legendPosition = legendPosition,
                 showLegend = showLegend,

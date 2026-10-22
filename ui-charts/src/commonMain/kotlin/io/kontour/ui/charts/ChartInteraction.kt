@@ -126,9 +126,11 @@ internal fun rememberChartTip(): ChartTip {
  * @param dragsAcross Whether a plain drag across chooses too, without a hold
  *   first: a row of places is crossed that way, and a circle is not, where an
  *   upright start would be the page's scroll.
- * @param selectOnHover Whether a resting mouse chooses what it is over. Off,
- *   a mouse chooses by a click, as a finger does by a tap, and moving over the
- *   chart chooses nothing and lets go of nothing.
+ * @param hoverSelection Whether a resting mouse chooses what it is over, and
+ *   whether it goes on choosing while its button is down marking a range. At
+ *   [ChartHoverSelection.Never], a mouse chooses by a click, as a finger does
+ *   by a tap, and moving over the chart chooses nothing and lets go of
+ *   nothing.
  * @param pickAt Chooses what is under a point, if anything, and says whether
  *   anything was: a pie's corners, outside its circle, have nothing.
  * @param pick Chooses the [index]th; `null` for a chart with nothing to
@@ -146,7 +148,7 @@ internal fun Modifier.chartSelectionInput(
     count: Int,
     steps: ChartSteps,
     dragsAcross: Boolean,
-    selectOnHover: Boolean,
+    hoverSelection: ChartHoverSelection,
     said: String?,
     interactionSource: MutableInteractionSource?,
     pickAt: (Offset) -> Boolean,
@@ -173,7 +175,7 @@ internal fun Modifier.chartSelectionInput(
     val latestPickAt by rememberUpdatedState(pickAt)
     val latestClear by rememberUpdatedState(clear)
     val latestChosen by rememberUpdatedState(chosen)
-    val latestSelectOnHover by rememberUpdatedState(selectOnHover)
+    val latestHoverSelection by rememberUpdatedState(hoverSelection)
     val touched: (Offset) -> Unit = { offset ->
         tip.resting = false
         latestPickAt(offset)
@@ -280,12 +282,14 @@ internal fun Modifier.chartSelectionInput(
                                     marking = true
                                     ranges.start(from)
                                 }
-                                // Marking, the drag is the range's alone: not the
-                                // place's under it, nor a drag across's.
+                                // Marking, the drag is the range's: not a drag
+                                // across's, and not the place's under it, unless
+                                // the chart asked for that to follow the pointer
+                                // as well, below.
                                 if (marking) {
                                     ranges.drag(change.position)
                                     change.consume()
-                                    continue
+                                    if (latestHoverSelection != ChartHoverSelection.Always) continue
                                 }
                             }
                             // A pointer that does not choose by hovering is only a
@@ -296,16 +300,23 @@ internal fun Modifier.chartSelectionInput(
                             // to start or had just ended: *"how do i disable the
                             // hover bar that comes up in charts? even if i turn
                             // tooltips off, it's still on"*.
-                            //
-                            // Nor while its button is down on a chart that marks
-                            // ranges, short of the drag that marks one: it is a
-                            // click on its way or the start of a drag, and the
-                            // place under it moving with it fought the range.
-                            if (!latestSelectOnHover) {
+                            if (latestHoverSelection == ChartHoverSelection.Never) {
                                 hovering = false
                                 continue
                             }
-                            if (from != null) continue
+                            // Nor, by default, while its button is down on a
+                            // chart that marks ranges, from the press: it is a
+                            // click on its way or the start of a range, and the
+                            // place under it moving with it fought the range.
+                            // It chooses again from its first move once the
+                            // button is up. It chose nothing at all on such a
+                            // chart by default, until a click, and the gallery
+                            // called that "Selects, unless marking": *"that one
+                            // feels like it should always do the hover select,
+                            // unless the user is dragging. then with "selects",
+                            // it should do the hover select even while we are
+                            // dragging"*.
+                            if (from != null && latestHoverSelection == ChartHoverSelection.ExceptWhileDragging) continue
                             // A pointer arriving rests before the tooltip shows; one
                             // already showing moves with it.
                             if (latestChosen == null) tip.resting = true

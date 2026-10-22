@@ -389,11 +389,11 @@ card, for a page that says the selected values somewhere of its own.
 ### Selecting by hovering, or by clicking
 
 A pointer resting over a place selects it, and the selection follows the
-pointer across the chart. `selectOnHover = false` leaves it to a click, as a
-finger leaves it to a tap: moving across the chart then selects nothing and
-lets go of nothing, and the selected place, its highlight and its tooltip stay
-where the click put them. The keys and a screen reader choose as they always
-do. A `SectorChart` takes the same switch.
+pointer across the chart. `hoverSelection = ChartHoverSelection.Never` leaves
+it to a click, as a finger leaves it to a tap: moving across the chart then
+selects nothing and lets go of nothing, and the selected place, its highlight
+and its tooltip stay where the click put them. The keys and a screen reader
+choose as they always do. A `SectorChart` takes the same parameter.
 
 <!--sample:ChartSelectOnClick-->
 ```kotlin
@@ -405,19 +405,24 @@ Chart(
     yAxis = ChartAxis.number(title = "Riders"),
     modifier = Modifier.fillMaxWidth().height(220.dp),
     selection = selection,
-    selectOnHover = false,
+    hoverSelection = ChartHoverSelection.Never,
     contentDescription = "Riders this week, by route",
 ) {
     line(week, x = { it.day }, y = { it.riders }, series = { ChartSeries("Route ${it.route}") })
 }
 ```
 
-It is off by default on a chart that also marks a range, below. There a
-pointer is mostly dragging, and the place under it was selected wherever a
-drag was about to start or had just let go, its line and tooltip over the
-range being marked. Pass `selectOnHover = true` to have both. While the
-button is down on such a chart, moving the pointer never selects a place: it
-is a click on its way, or the start of a range.
+On a chart that also marks a range, below, the third way is the question of
+what happens while the button is down:
+
+| `hoverSelection` | Resting over the chart | While a range is dragged out |
+|---|---|---|
+| `ExceptWhileDragging`, the default | Selects the place under it | Selects nothing: the range starting lets go of the place, so its line and tooltip are not over the range being marked, and the pointer selects again from its first move once the button is up |
+| `Always` | Selects the place under it | Goes on selecting: the place, its line and its tooltip follow the pointer as the range opens out |
+| `Never` | Selects nothing until a click | Selects nothing |
+
+On a chart that marks no ranges, and on a `SectorChart`, there is no drag to
+wait for, and the first two are the same.
 
 ### Marking a range
 

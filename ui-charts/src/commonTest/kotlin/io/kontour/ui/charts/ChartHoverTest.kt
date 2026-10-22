@@ -30,7 +30,10 @@ import kotlin.test.assertTrue
  * A chart whose pointer selects by clicking and not by hovering, asked for as
  * *"how do i disable the hover bar that comes up in charts? even if i turn
  * tooltips off, it's still on. because it doesn't really work if you also have
- * the range select"*.
+ * the range select"*; and, on a chart that marks ranges, whether hovering
+ * goes on selecting while a range is dragged out: *"like that one feels like
+ * it should always do the hover select, unless the user is dragging. then with
+ * "selects", it should do the hover select even while we are dragging"*.
  */
 @OptIn(ExperimentalTestApi::class)
 class ChartHoverTest {
@@ -43,7 +46,7 @@ class ChartHoverTest {
     private fun ComposeUiTest.line(
         selection: ChartSelectionState<String>,
         range: ChartRangeSelectionState<String, Number>? = null,
-        selectOnHover: Boolean? = null,
+        hoverSelection: ChartHoverSelection = ChartHoverSelection.ExceptWhileDragging,
     ) {
         setContent {
             KontourTheme(reduceMotion = true) {
@@ -54,7 +57,7 @@ class ChartHoverTest {
                         modifier = Modifier.size(360.dp, 240.dp).testTag("chart"),
                         selection = selection,
                         rangeSelection = range,
-                        selectOnHover = selectOnHover ?: (range == null),
+                        hoverSelection = hoverSelection,
                         colours = ChartDefaults.colours(series = listOf(Line), grid = Color.Transparent, selection = Probe),
                         showLegend = false,
                         animateData = false,
@@ -87,7 +90,7 @@ class ChartHoverTest {
     @Test
     fun aMouseOverAChartThatDoesNotSelectOnHoverSelectsNothing() = runComposeUiTest {
         val selection = ChartSelectionState<String>(null)
-        line(selection, selectOnHover = false)
+        line(selection, hoverSelection = ChartHoverSelection.Never)
         hoverAcross()
         assertNull(selection.x, "hovering should select nothing")
         assertTrue(!drawsSelection(), "and draw no line through a place")
@@ -100,7 +103,7 @@ class ChartHoverTest {
     @Test
     fun aClickStillSelectsAndTheMouseMovingOnLeavesIt() = runComposeUiTest {
         val selection = ChartSelectionState<String>(null)
-        line(selection, selectOnHover = false)
+        line(selection, hoverSelection = ChartHoverSelection.Never)
         val chart = onNodeWithTag("chart")
         chart.performMouseInput {
             moveTo(Offset(width * 0.5f, height * 0.5f))
@@ -116,14 +119,18 @@ class ChartHoverTest {
         assertEquals(clicked, selection.x, "and so should leaving the chart")
     }
 
-    /** By default a chart that marks ranges does not select by hovering, and one that does not mark them does. */
+    /**
+     * By default a chart that marks ranges selects by hovering, as one that
+     * does not mark them does. It selected nothing until a click, and the
+     * gallery called that "Selects, unless marking".
+     */
     @Test
-    fun aChartThatMarksRangesDoesNotSelectOnHoverByDefault() = runComposeUiTest {
+    fun aChartThatMarksRangesSelectsOnHoverByDefault() = runComposeUiTest {
         val selection = ChartSelectionState<String>(null)
         val range = ChartRangeSelectionState<String, Number>(ChartRangeMode.Across)
         line(selection, range)
         hoverAcross()
-        assertNull(selection.x, "hovering over a chart that marks ranges should select nothing by default")
+        assertNotNull(selection.x, "hovering over a chart that marks ranges should select by default")
     }
 
     @Test
@@ -134,25 +141,30 @@ class ChartHoverTest {
         assertNotNull(selection.x, "hovering should select, as it always has")
     }
 
+    /** Just short of where February's stretch gives way to March's, half way up. */
+    private fun ComposeUiTest.endOfFebruary(): Offset {
+        val root = onNodeWithTag("chart").fetchSemanticsNode().boundsInRoot
+        val feb = onNode(SemanticsMatcher("Feb's place") { node ->
+            SemanticsProperties.ContentDescription in node.config &&
+                node.config[SemanticsProperties.ContentDescription].any { it.startsWith("Feb: ") }
+        }).fetchSemanticsNode().boundsInRoot
+        return Offset(feb.right - root.left - 2f, (root.bottom - root.top) / 2)
+    }
+
     /**
-     * Selecting on hover and marking a range together, a drag marks its range
-     * with nothing selected under it: from the press, which is a click on its
-     * way or the start of a drag, and not a hover. Before it was far enough to
-     * be a drag, the place under the pressed pointer moved with it.
+     * By default, a drag marks its range with nothing selected under it: from
+     * the press, which is a click on its way or the start of a drag, and not a
+     * hover. Before it was far enough to be a drag, the place under the
+     * pressed pointer moved with it. Once the button is up, hovering selects
+     * again from the pointer's first move.
      */
     @Test
     fun aDragMarksItsRangeUndisturbedBySelectingOnHover() = runComposeUiTest {
         val selection = ChartSelectionState<String>(null)
         val range = ChartRangeSelectionState<String, Number>(ChartRangeMode.Across)
-        line(selection, range, selectOnHover = true)
+        line(selection, range)
         val chart = onNodeWithTag("chart")
-        val root = chart.fetchSemanticsNode().boundsInRoot
-        // Just short of where February's stretch gives way to March's.
-        val feb = onNode(SemanticsMatcher("Feb's place") { node ->
-            SemanticsProperties.ContentDescription in node.config &&
-                node.config[SemanticsProperties.ContentDescription].any { it.startsWith("Feb: ") }
-        }).fetchSemanticsNode().boundsInRoot
-        val start = Offset(feb.right - root.left - 2f, (root.bottom - root.top) / 2)
+        val start = endOfFebruary()
         chart.performMouseInput { moveTo(start) }
         mainClock.advanceTimeBy(600)
         assertEquals("Feb", selection.x, "resting, the pointer selects what it is over")
@@ -176,6 +188,60 @@ class ChartHoverTest {
         // first: a line's range reports the places inside it, not the bands
         // it reaches into.
         assertEquals("Mar", range.xStart)
+        chart.performMouseInput { moveTo(start + Offset(170f, 0f)) }
+        mainClock.advanceTimeBy(600)
+        assertNotNull(selection.x, "the button up, the pointer's next move selects again")
+        assertTrue(!range.isEmpty, "and leaves the range marked")
+    }
+
+    /**
+     * Asked to select always, a drag marking a range goes on selecting the
+     * place under the pointer: it follows the pointer as the range opens.
+     */
+    @Test
+    fun aChartThatAlwaysSelectsOnHoverSelectsUnderADrag() = runComposeUiTest {
+        val selection = ChartSelectionState<String>(null)
+        val range = ChartRangeSelectionState<String, Number>(ChartRangeMode.Across)
+        line(selection, range, hoverSelection = ChartHoverSelection.Always)
+        val chart = onNodeWithTag("chart")
+        val start = endOfFebruary()
+        chart.performMouseInput { moveTo(start) }
+        mainClock.advanceTimeBy(600)
+        assertEquals("Feb", selection.x)
+        val seen = mutableSetOf<String?>()
+        chart.performMouseInput { press() }
+        waitForIdle()
+        for (step in 1..10) {
+            chart.performMouseInput { moveTo(start + Offset(16f * step, 0f)) }
+            waitForIdle()
+            seen += selection.x
+        }
+        assertTrue(!range.isEmpty, "the drag should mark a range")
+        assertTrue("Apr" in seen, "the selected place should follow the pointer under the drag, into April: $seen")
+        assertTrue(drawsSelection(), "and draw its line")
+        chart.performMouseInput { release() }
+        waitForIdle()
+        assertTrue(!range.isEmpty, "let go, the range stays")
+    }
+
+    /** Asked to select nothing on hover, a drag marking a range selects nothing either. */
+    @Test
+    fun aChartThatNeverSelectsOnHoverSelectsNothingUnderADrag() = runComposeUiTest {
+        val selection = ChartSelectionState<String>(null)
+        val range = ChartRangeSelectionState<String, Number>(ChartRangeMode.Across)
+        line(selection, range, hoverSelection = ChartHoverSelection.Never)
+        val chart = onNodeWithTag("chart")
+        val start = endOfFebruary()
+        chart.performMouseInput {
+            moveTo(start)
+            press()
+            for (step in 1..10) moveTo(start + Offset(16f * step, 0f))
+            release()
+            moveTo(start + Offset(170f, 0f))
+        }
+        mainClock.advanceTimeBy(600)
+        assertNull(selection.x, "nothing should be selected under the drag or after it")
+        assertTrue(!range.isEmpty, "and the drag should mark a range")
     }
 
     private fun near(a: Color, b: Color) = abs(a.red - b.red) < 0.15f && abs(a.green - b.green) < 0.15f && abs(a.blue - b.blue) < 0.15f

@@ -12,6 +12,7 @@ import androidx.compose.ui.unit.dp
 import io.kontour.ui.charts.Chart
 import io.kontour.ui.charts.ChartAxis
 import io.kontour.ui.charts.ChartDataTable
+import io.kontour.ui.charts.ChartHoverSelection
 import io.kontour.ui.charts.ChartInterpolation
 import io.kontour.ui.charts.ChartRangeMode
 import io.kontour.ui.charts.ChartSeries
@@ -203,7 +204,7 @@ fun ChartSelectOnClick() {
         yAxis = ChartAxis.number(title = "Riders"),
         modifier = Modifier.fillMaxWidth().height(220.dp),
         selection = selection,
-        selectOnHover = false,
+        hoverSelection = ChartHoverSelection.Never,
         contentDescription = "Riders this week, by route",
     ) {
         line(week, x = { it.day }, y = { it.riders }, series = { ChartSeries("Route ${it.route}") })

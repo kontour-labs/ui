@@ -79,6 +79,15 @@ public final class io/kontour/ui/charts/ChartDefaults {
 	public final fun strings (Landroidx/compose/runtime/Composer;I)Lio/kontour/ui/charts/ChartStrings;
 }
 
+public final class io/kontour/ui/charts/ChartHoverSelection : java/lang/Enum {
+	public static final field Always Lio/kontour/ui/charts/ChartHoverSelection;
+	public static final field ExceptWhileDragging Lio/kontour/ui/charts/ChartHoverSelection;
+	public static final field Never Lio/kontour/ui/charts/ChartHoverSelection;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/kontour/ui/charts/ChartHoverSelection;
+	public static fun values ()[Lio/kontour/ui/charts/ChartHoverSelection;
+}
+
 public final class io/kontour/ui/charts/ChartInterpolation : java/lang/Enum {
 	public static final field Linear Lio/kontour/ui/charts/ChartInterpolation;
 	public static final field Monotone Lio/kontour/ui/charts/ChartInterpolation;
@@ -91,7 +100,7 @@ public final class io/kontour/ui/charts/ChartInterpolation : java/lang/Enum {
 }
 
 public final class io/kontour/ui/charts/ChartKt {
-	public static final fun Chart (Lio/kontour/ui/charts/ChartAxis;Lio/kontour/ui/charts/ChartAxis;Landroidx/compose/ui/Modifier;ZLio/kontour/ui/charts/ChartAxis;Lio/kontour/ui/charts/ChartSelectionState;Lio/kontour/ui/charts/ChartRangeSelectionState;ZLio/kontour/ui/charts/ChartSeriesVisibilityState;Ljava/lang/String;Lio/kontour/ui/charts/ChartColours;Lio/kontour/ui/charts/ChartLegendPosition;ZZZZLio/kontour/ui/charts/ChartStrings;Landroidx/compose/foundation/interaction/MutableInteractionSource;Lkotlin/jvm/functions/Function4;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;III)V
+	public static final fun Chart (Lio/kontour/ui/charts/ChartAxis;Lio/kontour/ui/charts/ChartAxis;Landroidx/compose/ui/Modifier;ZLio/kontour/ui/charts/ChartAxis;Lio/kontour/ui/charts/ChartSelectionState;Lio/kontour/ui/charts/ChartRangeSelectionState;Lio/kontour/ui/charts/ChartHoverSelection;Lio/kontour/ui/charts/ChartSeriesVisibilityState;Ljava/lang/String;Lio/kontour/ui/charts/ChartColours;Lio/kontour/ui/charts/ChartLegendPosition;ZZZZLio/kontour/ui/charts/ChartStrings;Landroidx/compose/foundation/interaction/MutableInteractionSource;Lkotlin/jvm/functions/Function4;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;III)V
 }
 
 public final class io/kontour/ui/charts/ChartLegendPosition : java/lang/Enum {
@@ -369,7 +378,7 @@ public final class io/kontour/ui/charts/PointSymbol : java/lang/Enum {
 }
 
 public final class io/kontour/ui/charts/SectorChartKt {
-	public static final fun SectorChart (Landroidx/compose/ui/Modifier;ZLio/kontour/ui/charts/ChartSelectionState;ZLio/kontour/ui/charts/ChartSeriesVisibilityState;FLjava/lang/String;Lio/kontour/ui/charts/ChartColours;Lio/kontour/ui/charts/ChartLegendPosition;ZZZZLio/kontour/ui/charts/ChartStrings;Landroidx/compose/foundation/interaction/MutableInteractionSource;Lkotlin/jvm/functions/Function4;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;III)V
+	public static final fun SectorChart (Landroidx/compose/ui/Modifier;ZLio/kontour/ui/charts/ChartSelectionState;Lio/kontour/ui/charts/ChartHoverSelection;Lio/kontour/ui/charts/ChartSeriesVisibilityState;FLjava/lang/String;Lio/kontour/ui/charts/ChartColours;Lio/kontour/ui/charts/ChartLegendPosition;ZZZZLio/kontour/ui/charts/ChartStrings;Landroidx/compose/foundation/interaction/MutableInteractionSource;Lkotlin/jvm/functions/Function4;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;III)V
 }
 
 public abstract interface class io/kontour/ui/charts/SectorChartScope {

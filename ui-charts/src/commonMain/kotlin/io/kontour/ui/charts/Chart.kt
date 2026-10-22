@@ -98,7 +98,7 @@ import kotlin.math.roundToInt
  *   chart with one axis up. Not for a chart whose axis up is a category axis.
  * @param selection Where the selected place is kept. A chart given one is
  *   interactive: a tap or a drag selects the nearest place, a pointer selects
- *   what it is over, or what it clicks without [selectOnHover], and with
+ *   what it is over or what it clicks, as [hoverSelection] says, and with
  *   focus the arrow keys move between places. A
  *   chart of lying bars is read bar by bar, and is not selected by place.
  *   `null`, the default, is a picture: nothing on it answers a touch, a
@@ -110,13 +110,12 @@ import kotlin.math.roundToInt
  *   Escape lets go. Without a [selection], a plain drag across is the page's,
  *   and the arrows, Home and End are left to what is round the chart. `null`,
  *   the default, marks none. Not for a chart of lying bars.
- * @param selectOnHover Whether a pointer resting over a place selects it, or
+ * @param hoverSelection Whether a pointer resting over a place selects it, or
  *   only a click does, as a tap, the keys and a screen reader do whatever this
- *   says. On by default, and off for a chart that marks ranges: there the
- *   place under a pointer was selected wherever a drag was about to start or
- *   had just let go, and its line and tooltip lay over the range being marked.
- *   While a pointer's button is down on a chart that marks ranges, moving it
- *   selects nothing either way.
+ *   says; and on a chart that marks ranges, whether it goes on selecting while
+ *   its button is down marking one. By default it selects, and waits while a
+ *   range is dragged out, so the selected place's line and tooltip do not lie
+ *   over the range being marked. See [ChartHoverSelection].
  * @param seriesVisibility Which series are shown. A chart given one makes
  *   each entry in its legend a switch that hides its series and shows it
  *   again. See [ChartSeriesVisibilityState].
@@ -144,7 +143,7 @@ fun <X : Any, Y : Any> Chart(
     endYAxis: ChartAxis<Y>? = null,
     selection: ChartSelectionState<X>? = null,
     rangeSelection: ChartRangeSelectionState<X, Y>? = null,
-    selectOnHover: Boolean = rangeSelection == null,
+    hoverSelection: ChartHoverSelection = ChartHoverSelection.ExceptWhileDragging,
     seriesVisibility: ChartSeriesVisibilityState? = null,
     contentDescription: String? = null,
     colours: ChartColours = ChartDefaults.colours(),
@@ -225,7 +224,7 @@ fun <X : Any, Y : Any> Chart(
             patterns = patterns,
             selection = selection?.takeUnless { chart.horizontal },
             rangeSelection = rangeSelection?.takeUnless { chart.horizontal },
-            selectOnHover = selectOnHover,
+            hoverSelection = hoverSelection,
             enabled = enabled,
             showSelectionTooltip = showSelectionTooltip,
             strings = strings,
@@ -438,7 +437,7 @@ private fun <X : Any, Y : Any> ChartPlot(
     patterns: Boolean,
     selection: ChartSelectionState<X>?,
     rangeSelection: ChartRangeSelectionState<X, Y>?,
-    selectOnHover: Boolean,
+    hoverSelection: ChartHoverSelection,
     enabled: Boolean,
     showSelectionTooltip: Boolean,
     strings: ChartStrings,
@@ -670,7 +669,7 @@ private fun <X : Any, Y : Any> ChartPlot(
         // chooses one: on one that only marks ranges, which a finger does
         // after a hold, it is the page's, and scrolls what the chart is in.
         dragsAcross = selection != null,
-        selectOnHover = selectOnHover,
+        hoverSelection = hoverSelection,
         said = said,
         interactionSource = interactionSource,
         pickAt = { offset ->
