@@ -25,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.GraphicsLayerScope
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
@@ -570,8 +571,19 @@ fun SelectionIndicatorBox(
                 {
                     // In the layer rather than through `Modifier.alpha`, which
                     // reads the fade in composition and recomposed the group on
-                    // every frame of it. The same layer `alpha` would add —
-                    // clipped, and only while it is not fully opaque.
+                    // every frame of it.
+                    //
+                    // Its alpha laid on each thing drawn, not on an offscreen
+                    // copy: an offscreen layer is the marker's own size, and a
+                    // marker's shadow is drawn outside it, so for the whole of a
+                    // fade the shadow was cut away and arrived on its last frame
+                    // — a segmented control's thumb under reduced motion, or
+                    // coming back after fading out. The same late shadow as
+                    // `SegmentedShadowArrivalTest`'s, in the cases [Arrival]
+                    // leaves to the fade. Each thing faded on its own, the
+                    // shadow shows faintly through the thumb for the fade's
+                    // fraction of a second, which is what a fade of a raised
+                    // thing looks like. `SelectionMarkerFadeShadowTest`.
                     Box(
                         Modifier
                             .graphicsLayer {
@@ -579,7 +591,7 @@ fun SelectionIndicatorBox(
                                 // that arrived with its group. See [Arrival].
                                 val faded = if (!measured && !arrival.drawnBare) 1f else alpha.value
                                 this.alpha = faded
-                                clip = faded != 1f
+                                compositingStrategy = CompositingStrategy.ModulateAlpha
                             }
                             .clearAndSetSemantics {}
                     ) { indicator() }
@@ -770,7 +782,8 @@ fun Modifier.selectionIndicatorItem(key: Any, selected: Boolean): Modifier {
  * appearing, though: the group is, and the marker is part of it. So it is
  * drawn opaque, where its item is, on the group's first frame. One that turns
  * up later, in a group already drawn without it, is appearing, and still fades
- * up where it is going.
+ * up where it is going — its shadow with it, since the fade is laid on each
+ * thing drawn rather than on an offscreen copy the marker's own size.
  *
  * Told apart in the draw phase, by whether the group has been drawn without a
  * marker. Plain fields, not snapshot state: they are written from layout and
