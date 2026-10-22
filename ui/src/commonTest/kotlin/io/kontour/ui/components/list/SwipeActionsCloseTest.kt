@@ -36,7 +36,7 @@ import kotlin.test.assertEquals
 @OptIn(ExperimentalTestApi::class)
 class SwipeActionsCloseTest {
 
-    private val delete = SwipeAction(label = "Delete", icon = SystemIcons.Close, onAction = {}, background = Color.Red)
+    private val delete = SwipeAction(label = "Delete", icon = SystemIcons.Default.close, onAction = {}, background = Color.Red)
 
     @Composable
     private fun Row(tag: String, state: SwipeActionsState, onClick: () -> Unit) {
@@ -97,7 +97,7 @@ class SwipeActionsCloseTest {
      */
     @Test
     fun aRowStillSlidingOpenClosesWhenAnotherIsSwiped() = runComposeUiTest {
-        val favourite = SwipeAction(label = "Favourite", icon = SystemIcons.Close, onAction = {}, background = Color.Green)
+        val favourite = SwipeAction(label = "Favourite", icon = SystemIcons.Default.close, onAction = {}, background = Color.Green)
         val states = mutableListOf<SwipeActionsState>()
         setContent {
             KontourTheme(reduceMotion = false) {
@@ -131,7 +131,7 @@ class SwipeActionsCloseTest {
     /** The same, with the first row settled before the second is touched. */
     @Test
     fun aSettledRowClosesWhenAnotherIsSwiped() = runComposeUiTest {
-        val favourite = SwipeAction(label = "Favourite", icon = SystemIcons.Close, onAction = {}, background = Color.Green)
+        val favourite = SwipeAction(label = "Favourite", icon = SystemIcons.Default.close, onAction = {}, background = Color.Green)
         val states = mutableListOf<SwipeActionsState>()
         setContent {
             KontourTheme(reduceMotion = false) {

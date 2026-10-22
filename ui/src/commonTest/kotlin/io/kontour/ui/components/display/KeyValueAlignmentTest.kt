@@ -6,6 +6,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.compose.ui.unit.dp
@@ -85,5 +86,34 @@ class KeyValueAlignmentTest {
         val rows = onAllNodes(androidx.compose.ui.test.hasContentDescription("Fare, 3.20")).fetchSemanticsNodes()
         assertTrue(rows.size == 1, "a reader finds ${rows.size} rows for Fare")
         assertTrue(rows.single().boundsInRoot.width > 100f, "the row is ${rows.single().boundsInRoot.width}px wide")
+    }
+
+    /**
+     * Compact, for a tooltip: as wide as its rows, not its container, and its
+     * values still one column. A chart's tooltip lists its series this way,
+     * and at full width every bubble stretched to its widest.
+     */
+    @Test
+    fun aCompactListIsAsWideAsItsRows() = runComposeUiTest {
+        setContent {
+            KontourTheme {
+                Box(Modifier.size(420.dp, 400.dp)) {
+                    KeyValueList(Modifier.testTag("list"), labelWidth = 0.dp, compact = true) {
+                        item("950", announcement = "12") { Box(Modifier.size(8.dp).testTag("short")) }
+                        item("Wheelchair-accessible", announcement = "30") { Box(Modifier.size(8.dp).testTag("long")) }
+                    }
+                }
+            }
+        }
+        waitForIdle()
+        val list = onNodeWithTag("list").fetchSemanticsNode().boundsInRoot
+        assertTrue(list.width < 300f, "a compact list took ${list.width}px of a 420dp box")
+        // A compact list composes its values once more to measure them, a copy
+        // that is never placed and that a screen reader never hears (see
+        // `Measured`), but that the unmerged tree still holds. The one placed
+        // is the one on the screen.
+        fun left(tag: String) = onAllNodesWithTag(tag, useUnmergedTree = true).fetchSemanticsNodes()
+            .single { it.layoutInfo.isPlaced }.boundsInRoot.left
+        assertTrue(abs(left("short") - left("long")) < 1f, "a compact list's values are not one column")
     }
 }

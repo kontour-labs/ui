@@ -38,6 +38,19 @@ internal expect val platformGuardsHomeIndicator: Boolean
 internal expect val platformScrollDeltaInPixels: Boolean
 
 /**
+ * How far, in dp, a unit of a *precise* scroll's delta follows the fingers, or
+ * 0 where a scroll's delta is only ever whole notches or pixels.
+ *
+ * A Mac, on the desktop: AWT hands on a trackpad's two-finger scroll as wheel
+ * events whose rotation is a fraction, many to a gesture and accelerated, and
+ * Compose's own lists on a Mac scroll ten dp for each unit of it (its
+ * `MacOSCocoaConfig`). There is no pan on the desktop at all; Compose sends one
+ * only where a platform reports one. A mouse's wheel on the same Mac still
+ * turns in whole notches. See [io.kontour.ui.components.list.preciseScrollDistance].
+ */
+internal expect val platformPreciseScrollDp: Float
+
+/**
  * Whether this platform's overscroll moves a scrollable's content bodily past
  * its end: iOS's, a rubber band that slides the whole content and springs it
  * back. Android's stretches the content in place and the desktop has none, so

@@ -15,7 +15,9 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.layout.union
 import androidx.compose.ui.layout.findRootCoordinates
 import androidx.compose.ui.layout.onPlaced
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.unit.Density
+import io.kontour.ui.interaction.banded
 import io.kontour.ui.motion.sizeSpec
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -79,6 +81,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.platform.LocalAccessibilityManager
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
@@ -99,7 +103,6 @@ import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.Surface
-import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.interaction.DragClaim
 import io.kontour.ui.interaction.FeedbackIntent
@@ -110,6 +113,7 @@ import io.kontour.ui.motion.exitOrFade
 import io.kontour.ui.theme.Motion
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.Tone
+import io.kontour.ui.theme.toneColours
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlin.time.TimeSource
@@ -166,6 +170,12 @@ internal class Toast(
     /** What was left of its time, in milliseconds, when its clock last started or stopped. */
     internal var leftMillis by mutableLongStateOf(durationMillis)
 
+    /**
+     * How long it is shown for, which is [durationMillis] unless the platform
+     * asks for longer: see the clock in `ToastStack`.
+     */
+    internal var lifetimeMillis by mutableLongStateOf(durationMillis)
+
     /** When its clock last started, while it runs; null while it is stopped. */
     internal var runningSince: TimeMark? by mutableStateOf(null)
 
@@ -173,7 +183,7 @@ internal class Toast(
     internal fun remaining(): Float {
         if (durationMillis <= 0) return 1f
         val spent = runningSince?.elapsedNow()?.inWholeMilliseconds ?: 0L
-        return ((leftMillis - spent).toFloat() / durationMillis).coerceIn(0f, 1f)
+        return ((leftMillis - spent).toFloat() / lifetimeMillis).coerceIn(0f, 1f)
     }
 }
 
@@ -490,6 +500,10 @@ object ToastDefaults {
      *
      * Wide enough to read as a toast rather than as a chip: at 48dp the thing
      * peeking out above the card looked like a badge that had come off it.
+     *
+     * The most it is drawn, not always what: behind a card narrower or shorter
+     * than a pill — an "OK" — it is held to the card's size, since a pill
+     * standing out round the toast it is behind reads as the bigger of the two.
      */
     val PillWidth: Dp
         @Composable @ReadOnlyComposable get() = Theme.componentDefaults.toastPillWidth
@@ -716,6 +730,7 @@ object ToastDefaults {
  * @param showDismiss Puts a close control on every toast. Off by default, because
  *   a toast that dismisses itself in four seconds does not need one — turn it on
  *   where toasts are pinned, or where they carry an action worth reading twice.
+ * @param dismissIcon The close control's glyph, `Theme.icons.close` by default.
  * @param countdown Shows the front toast's time left: a wash across its
  *   background or a bar along its foot, each drawn back as the time runs out
  *   and still while the clock is. None by default.
@@ -739,6 +754,7 @@ fun ToastHost(
     alignment: OverlayAlignment = OverlayAlignment.Centre,
     maxVisible: Int = ToastDefaults.MaxVisible,
     showDismiss: Boolean = false,
+    dismissIcon: ImageVector = Theme.icons.close,
     dismissLabel: String = Theme.strings.dismiss,
     countdown: ToastCountdown = ToastCountdown.None,
     /**
@@ -777,6 +793,7 @@ fun ToastHost(
             maxVisible = maxVisible,
             showClose = showDismiss,
             closeLabel = dismissLabel,
+            closeIcon = dismissIcon,
             windowInsets = windowInsets,
             countdown = countdown,
         )
@@ -955,7 +972,7 @@ private fun rubberBand(pull: Float, limit: Float, towardEdge: Boolean): Float {
     if (limit <= 0f) return pull
     val wrongWay = if (towardEdge) -pull else pull
     if (wrongWay <= 0f) return pull
-    val eased = limit * (1f - 1f / (wrongWay / limit + 1f))
+    val eased = banded(wrongWay, limit)
     return if (towardEdge) -eased else eased
 }
 
@@ -967,9 +984,81 @@ private data class ToastHostConfig(
     val maxVisible: Int,
     val showClose: Boolean,
     val closeLabel: String,
+    val closeIcon: ImageVector,
     val windowInsets: WindowInsets,
     val countdown: ToastCountdown,
 )
+
+/** How tall the front card measured, and which toast it was. See `ToastStack`. */
+private data class FrontMeasure(val id: Long, val heightPx: Int)
+
+/** Where a card was last sent in the stack, for the frame the front is unknown. */
+private class DepthTarget {
+    var value: Dp = 0.dp
+}
+
+/**
+ * The stack's `Box`, with the one rule a `Box` cannot keep: **nothing behind
+ * the front card is measured bigger than it.**
+ *
+ * Reported: *"i've seen scenarios where the toast at the top (i.e. the one
+ * being displayed) is smaller than the ones at the back"*. Two of them, and
+ * they are one fault. A card pushed back by a newer toast becomes a pill by
+ * animating its size, so for the length of that animation a three-line card
+ * stood out round a one-line "Saved" on every side. And a pill is a fixed
+ * [ToastDefaults.PillWidth], which behind an "OK" stood out at its sides for
+ * as long as the two were stacked.
+ *
+ * The stacked notifications this follows answer it the same way, and it is the
+ * reading of a stack that holds up: the ones behind are the *front's* shape,
+ * stepped back, and only the front one is its own. So a card behind is measured
+ * no wider and no taller than the card in front, which a `Surface` clips to its
+ * shape, and its taper and its `Peek` are taken from there. A card pushed back
+ * takes the front's footprint on the frame the new one arrives, behind it, and
+ * the pill it is turning into shrinks inside that; promoted again, it is
+ * measured free and grows back to its own size. Held rather than scaled to fit:
+ * a three-line card scaled down to a one-line toast's width is a card a fifth
+ * of its size with its words still on it, which reads as a thumbnail rather
+ * than as something waiting.
+ *
+ * A layout and not a `sizeIn` on each card, because the front is measured here
+ * first, in the same pass. A size carried down as state arrives a frame late,
+ * and the late frame is exactly the one the report is about: the new card has
+ * not been measured yet and the old one is still its full size.
+ *
+ * Otherwise a `Box`: every child loose, each placed by [alignment], back to
+ * front in the order they were given.
+ */
+@Composable
+private fun HeldToTheFront(
+    alignment: Alignment,
+    modifier: Modifier,
+    content: @Composable () -> Unit,
+) {
+    Layout(content, modifier) { measurables, constraints ->
+        val loose = constraints.copy(minWidth = 0, minHeight = 0)
+        // The list is oldest first, so the front card is the last one.
+        val front = measurables.lastOrNull()?.measure(loose)
+        val behind = if (front == null) {
+            loose
+        } else {
+            loose.copy(
+                maxWidth = minOf(front.width, loose.maxWidth),
+                maxHeight = minOf(front.height, loose.maxHeight),
+            )
+        }
+        val placeables = measurables.mapIndexed { index, it ->
+            if (index == measurables.lastIndex) requireNotNull(front) else it.measure(behind)
+        }
+        val width = if (constraints.hasBoundedWidth) constraints.maxWidth else placeables.maxOfOrNull { it.width } ?: 0
+        val height = if (constraints.hasBoundedHeight) constraints.maxHeight else placeables.maxOfOrNull { it.height } ?: 0
+        layout(width, height) {
+            placeables.forEach {
+                it.place(alignment.align(IntSize(it.width, it.height), IntSize(width, height), layoutDirection))
+            }
+        }
+    }
+}
 
 @Composable
 private fun ToastStack(state: ToastHostState, config: ToastHostConfig) {
@@ -1013,8 +1102,15 @@ private fun ToastStack(state: ToastHostState, config: ToastHostConfig) {
     // card's, measured now — not the tallest any card has ever been. It falls
     // when the front toast is replaced by a shorter one, which is the whole
     // difference between this and what it replaces.
-    var frontHeightPx by remember { mutableIntStateOf(0) }
-    val frontHeight = with(density) { frontHeightPx.toDp() }
+    //
+    // Kept with the id of the toast it was measured from, and handed down only
+    // while that toast is still the front. On the frame a new toast arrives it
+    // has not been measured yet, and the number here is the *old* front's — the
+    // three-line card that has just been pushed back. Aimed at that, the pills
+    // set off toward a peek worked out from the wrong card and were turned
+    // round a frame later, which is a spring overshooting the place it should
+    // have gone to. Unknown for a frame, they hold where they were going.
+    var frontMeasured by remember { mutableStateOf(FrontMeasure(id = -1L, heightPx = 0)) }
 
     // How far the front card has been *pulled*, owned here so the pills behind it
     // travel with it. Reported as the stack coming apart under a finger: only
@@ -1047,7 +1143,7 @@ private fun ToastStack(state: ToastHostState, config: ToastHostConfig) {
     val swipe = {
         toastTravel(
             pull = pull.value,
-            limit = frontHeightPx * ToastDefaults.RubberBand,
+            limit = frontMeasured.heightPx * ToastDefaults.RubberBand,
             towardEdge = towardEdge,
         )
     }
@@ -1081,6 +1177,22 @@ private fun ToastStack(state: ToastHostState, config: ToastHostConfig) {
      */
     val hovered = remember { mutableStateOf(false) }
 
+    /**
+     * Whether keyboard focus is inside the front card: on its action, or its
+     * close. A reader who has tabbed to "Undo" is about to press it, and the
+     * clock running out under them took the control away mid-reach, which
+     * WCAG's 2.2.1 is about. A screen reader's focus is not visible from here;
+     * what it gets instead is the longer time below.
+     */
+    val focused = remember { mutableStateOf(false) }
+    val stopped = { held.value || hovered.value || focused.value }
+
+    // The time a reader has asked for, where the platform knows it: Android's
+    // "Time to take action", which a reader using TalkBack or switch access
+    // sets so that something with a control in it waits for them. Elsewhere
+    // the manager hands back the time it was given.
+    val accessibility = LocalAccessibilityManager.current
+
     val frontId = visible.lastOrNull()?.id
     val settle = remember(stackScope, pull) { PullSettle(stackScope, pull) }
     LaunchedEffect(frontId) {
@@ -1092,6 +1204,7 @@ private fun ToastStack(state: ToastHostState, config: ToastHostConfig) {
         held.value = false
         // The pointer was on the card that has gone, not on this one.
         hovered.value = false
+        focused.value = false
     }
 
     // Every toast runs its clock, including the ones with no room to be drawn.
@@ -1130,9 +1243,16 @@ private fun ToastStack(state: ToastHostState, config: ToastHostConfig) {
             val atFront by rememberUpdatedState(visible.lastOrNull() === toast)
             LaunchedEffect(toast.id) {
                 if (toast.durationMillis <= 0) return@LaunchedEffect
-                val floor = (toast.durationMillis * ToastDefaults.PromotedFloor).toLong()
-                val grace = (toast.durationMillis * ToastDefaults.ClearedGrace).toLong()
-                var left = toast.durationMillis
+                val lifetime = accessibility?.calculateRecommendedTimeoutMillis(
+                    originalTimeoutMillis = toast.durationMillis,
+                    containsIcons = toast.icon != null,
+                    containsText = true,
+                    containsControls = toast.actionLabel != null,
+                )?.takeIf { it > 0 && it != Long.MAX_VALUE } ?: toast.durationMillis
+                toast.lifetimeMillis = lifetime
+                val floor = (lifetime * ToastDefaults.PromotedFloor).toLong()
+                val grace = (lifetime * ToastDefaults.ClearedGrace).toLong()
+                var left = lifetime
                 var front = atFront
                 var clears = state.clears
                 while (left > 0) {
@@ -1146,10 +1266,10 @@ private fun ToastStack(state: ToastHostState, config: ToastHostConfig) {
                     // stack is one object — the others are in the queue behind a
                     // card that is not going anywhere, and expiring on schedule
                     // would empty the queue the reader is holding open.
-                    if (held.value || hovered.value) {
+                    if (stopped()) {
                         toast.leftMillis = left
                         toast.runningSince = null
-                        snapshotFlow { held.value || hovered.value }.first { !it }
+                        snapshotFlow { stopped() }.first { !it }
                         continue
                     }
                     val mark = TimeSource.Monotonic.markNow()
@@ -1159,7 +1279,7 @@ private fun ToastStack(state: ToastHostState, config: ToastHostConfig) {
                     // this toast reaches the front, the user sends another one away
                     // by hand, or a finger arrives on the stack.
                     val moved = withinOrNull(left) {
-                        snapshotFlow { Triple(atFront, state.clears, held.value || hovered.value) }
+                        snapshotFlow { Triple(atFront, state.clears, stopped()) }
                             .first { (nowFront, nowClears, nowHeld) ->
                                 nowFront != front || nowClears != clears || nowHeld
                             }
@@ -1172,7 +1292,7 @@ private fun ToastStack(state: ToastHostState, config: ToastHostConfig) {
                     if (nowClears != clears) {
                         clears = nowClears
                         // Topped up toward a full lifetime, never past one.
-                        left = minOf(left + grace, toast.durationMillis)
+                        left = minOf(left + grace, lifetime)
                     }
                     if (nowFront != front) {
                         front = nowFront
@@ -1203,7 +1323,7 @@ private fun ToastStack(state: ToastHostState, config: ToastHostConfig) {
                     val since = state.lastExpiry?.elapsedNow()?.inWholeMilliseconds
                     if (since != null && since < ToastStagger) delay(ToastStagger - since)
                     // A finger that arrived during the wait holds this one too.
-                    if (held.value || hovered.value) snapshotFlow { held.value || hovered.value }.first { !it }
+                    if (stopped()) snapshotFlow { stopped() }.first { !it }
                     state.lastExpiry = TimeSource.Monotonic.markNow()
                     // `expire`, not `dismiss`: running out of time is the stack
                     // working, and must not read as the user clearing one.
@@ -1216,13 +1336,16 @@ private fun ToastStack(state: ToastHostState, config: ToastHostConfig) {
         }
     }
 
-    Box(
-        Modifier
+    val frontHeight = with(density) {
+        frontMeasured.heightPx.toDp().takeIf { frontMeasured.id == frontId }
+    }
+    HeldToTheFront(
+        alignment = config.position.alignmentFor(config.alignment),
+        modifier = Modifier
             .fillMaxSize()
             .onPlaced { barLift.rootHeight = it.findRootCoordinates().size.height.toFloat() }
             .overlappingInsetsPadding(config.windowInsets.union(WindowInsets(bottom = barLift.value.roundToInt())))
             .standingOffItsEdge(towardEdge, edgeShift),
-        contentAlignment = config.position.alignmentFor(config.alignment),
     ) {
         visible.forEachIndexed { index, toast ->
             key(toast.id) {
@@ -1235,13 +1358,15 @@ private fun ToastStack(state: ToastHostState, config: ToastHostConfig) {
                     towardEdge = towardEdge,
                     showClose = config.showClose,
                     closeLabel = config.closeLabel,
+                    closeIcon = config.closeIcon,
                     frontHeight = frontHeight,
-                    onFrontMeasured = { frontHeightPx = it },
+                    onFrontMeasured = { frontMeasured = FrontMeasure(toast.id, it) },
                     swipe = swipe,
                     pull = pull,
                     settle = settle,
                     held = held,
                     hovered = hovered,
+                    focused = focused,
                     countdown = config.countdown,
                     scope = stackScope,
                     modifier = config.modifier,
@@ -1259,8 +1384,12 @@ private fun ToastCard(
     towardEdge: Boolean,
     showClose: Boolean,
     closeLabel: String,
-    /** How tall the card in front is — see `ToastStack`. Zero until it reports. */
-    frontHeight: Dp,
+    closeIcon: ImageVector,
+    /**
+     * How tall the card in front is — see `ToastStack`. Null until the card
+     * that is in front now has reported, which is the frame it arrives on.
+     */
+    frontHeight: Dp?,
     onFrontMeasured: (Int) -> Unit,
     /**
      * How far the front card has been dragged, in pixels.
@@ -1285,6 +1414,8 @@ private fun ToastCard(
     held: MutableState<Boolean>,
     /** Whether a mouse's pointer rests on the front card: see `ToastStack`. */
     hovered: MutableState<Boolean>,
+    /** Whether keyboard focus is inside the front card: see `ToastStack`. */
+    focused: MutableState<Boolean>,
     countdown: ToastCountdown,
     /** The stack's scope — see the settle in the gesture below. */
     scope: CoroutineScope,
@@ -1349,13 +1480,25 @@ private fun ToastCard(
 
     // Measured from the front card's edge rather than from the pill's own, so a
     // pill shorter than the card still clears it by `Peek`.
+    //
+    // A pill is never taller than the card in front — `HeldToTheFront` measures
+    // it no bigger — so behind a front card shorter than `PillHeight` it is the
+    // card's height, and there is no shortfall left to take off. Taken off
+    // anyway, it sank the pill that much further behind the card than `Peek`.
+    //
+    // While the front card is unknown, which is the one frame a new toast takes
+    // to be measured, the target is the one it last had: see `ToastStack`.
     val towards = if (towardEdge) -1 else 1
+    val lastTarget = remember { DepthTarget() }
     val depthOffset by animateDpAsState(
-        targetValue = if (depth == 0) {
-            0.dp
-        } else {
-            (ToastDefaults.Peek * depth + (frontHeight - ToastDefaults.PillHeight)) * towards
-        },
+        targetValue = when {
+            depth == 0 -> 0.dp
+            frontHeight == null -> lastTarget.value
+            else -> {
+                val clear = (frontHeight - ToastDefaults.PillHeight).coerceAtLeast(0.dp)
+                (ToastDefaults.Peek * depth + clear) * towards
+            }
+        }.also { lastTarget.value = it },
         animationSpec = motion.springOrTween(motion.springDefault),
         label = "toastDepthOffset",
     )
@@ -1483,10 +1626,13 @@ private fun ToastCard(
             depth = depth,
             showClose = showClose && depth == 0,
             closeLabel = closeLabel,
+            closeIcon = closeIcon,
             countdown = countdown,
             modifier = modifier
                 // A mouse resting on the front card stops the clocks.
                 .then(if (depth == 0) Modifier.pointerHovers(hovered) else Modifier)
+                // And so does keyboard focus on its action or its close.
+                .then(if (depth == 0) Modifier.onFocusChanged { focused.value = it.hasFocus } else Modifier)
                 // The gesture is the outermost thing, above the padding — and
                 // that is the point. Below it the swipe area was exactly the
                 // visible pill and the 16dp ring around it was dead space, on a
@@ -1671,6 +1817,7 @@ private fun ToastSurface(
     toast: Toast,
     showClose: Boolean,
     closeLabel: String,
+    closeIcon: ImageVector,
     countdown: ToastCountdown,
     /** Zero is the front one. Anything behind it is drawn as a bare pill. */
     depth: Int,
@@ -1679,23 +1826,11 @@ private fun ToastSurface(
     onClose: () -> Unit,
 ) {
     val motion = Theme.motion
-    val colours = Theme.colours
-    val container = when (toast.tone) {
-        Tone.Neutral -> colours.surfaceInverse
-        Tone.Info -> colours.info.solid
-        Tone.Success -> colours.success.solid
-        Tone.Warning -> colours.warning.solid
-        Tone.Danger -> colours.danger.solid
-        Tone.Accent -> colours.accent.solid
-    }
-    val content = when (toast.tone) {
-        Tone.Neutral -> colours.onSurfaceInverse
-        Tone.Info -> colours.info.onSolid
-        Tone.Success -> colours.success.onSolid
-        Tone.Warning -> colours.warning.onSolid
-        Tone.Danger -> colours.danger.onSolid
-        Tone.Accent -> colours.accent.onSolid
-    }
+    // The tone's solid, as a banner and a coach mark have it: one mapping, so a
+    // tone is the same colours wherever it is handed.
+    val tone = toneColours(toast.tone)
+    val container = tone.solid
+    val content = tone.onSolid
 
     Surface(
         modifier = modifier
@@ -1863,7 +1998,7 @@ private fun ToastSurface(
             }
             if (showClose) {
                 IconButton(
-                    icon = SystemIcons.Close,
+                    icon = closeIcon,
                     contentDescription = closeLabel,
                     onClick = onClose,
                     variant = ButtonVariant.Ghost,

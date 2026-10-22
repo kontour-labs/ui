@@ -114,7 +114,7 @@ internal object PluralRules {
 
     /** Reads one rule's condition, the part before its `@integer` samples. */
     private class Parser(private val text: String) {
-        private val tokens = Regex("""\.\.|!=|[=%,]|[a-z]+|\d+(?:\.\d+)?""").findAll(text).map { it.value }.toList()
+        private val tokens = pluralRuleTokens(text)
         private var at = 0
 
         fun parse(): Condition {
@@ -177,4 +177,48 @@ internal object PluralRules {
 
         private fun next(): String = tokens.getOrNull(at++) ?: error("plural rule '$text' ended early")
     }
+}
+
+/**
+ * The rule's words, operators and numbers, and nothing else: `..`,
+ * `!=`, `=`, `%` and `,`, runs of lower-case letters, and numbers with
+ * an optional fraction. Anything else (the spaces) is passed over.
+ *
+ * By hand rather than by `Regex("""\.\.|!=|[=%,]|[a-z]+|\d+(?:\.\d+)?""")`,
+ * with the same tokens: on the web that one pattern brought a
+ * regular-expression engine into every app with a theme.
+ */
+internal fun pluralRuleTokens(text: String): List<String> {
+    val tokens = mutableListOf<String>()
+    var i = 0
+    while (i < text.length) {
+        val char = text[i]
+        val end = when {
+            text.startsWith("..", i) || text.startsWith("!=", i) -> i + 2
+            char == '=' || char == '%' || char == ',' -> i + 1
+            char in 'a'..'z' -> runEnd(text, i) { it in 'a'..'z' }
+            char in '0'..'9' -> {
+                val whole = runEnd(text, i) { it in '0'..'9' }
+                if (text.getOrNull(whole) == '.' && text.getOrNull(whole + 1)?.let { it in '0'..'9' } == true) {
+                    runEnd(text, whole + 1) { it in '0'..'9' }
+                } else {
+                    whole
+                }
+            }
+            else -> {
+                i++
+                continue
+            }
+        }
+        tokens += text.substring(i, end)
+        i = end
+    }
+    return tokens
+}
+
+/** Where the run of characters from [from] that are [inside] ends. */
+private inline fun runEnd(text: String, from: Int, inside: (Char) -> Boolean): Int {
+    var end = from
+    while (end < text.length && inside(text[end])) end++
+    return end
 }

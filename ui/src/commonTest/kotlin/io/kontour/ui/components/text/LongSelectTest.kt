@@ -61,32 +61,46 @@ class LongSelectTest {
 
     @Test
     fun openingASelectOfThreeHundredComposesTheRowsItShows() = runComposeUiTest {
-        var composed = 0
+        val composed = mutableListOf<String>()
         show(Countries, kind = Kind.Select, content = { option ->
-            SideEffect { composed++ }
+            SideEffect { composed += option }
             +option
         })
-        assertTrue(composed in 1..LeastShown, "opening a select of ${Countries.size} options composed $composed rows")
+        assertComposedOnlyWhatIsShown(composed, "a select")
     }
 
     @Test
     fun openingAMultiSelectOfThreeHundredComposesTheRowsItShows() = runComposeUiTest {
-        var composed = 0
+        val composed = mutableListOf<String>()
         show(Countries, kind = Kind.MultiSelect, content = { option ->
-            SideEffect { composed++ }
+            SideEffect { composed += option }
             +option
         })
-        assertTrue(composed in 1..LeastShown, "opening a multi-select of ${Countries.size} options composed $composed rows")
+        assertComposedOnlyWhatIsShown(composed, "a multi-select")
     }
 
     @Test
     fun openingAComboboxOfThreeHundredComposesTheRowsItShows() = runComposeUiTest {
-        var composed = 0
+        val composed = mutableListOf<String>()
         show(Countries, kind = Kind.Combobox, content = { option ->
-            SideEffect { composed++ }
+            SideEffect { composed += option }
             +option
         })
-        assertTrue(composed in 1..LeastShown, "opening a combobox of ${Countries.size} options composed $composed rows")
+        assertComposedOnlyWhatIsShown(composed, "a combobox")
+    }
+
+    /**
+     * The rows [composed] as a list of [Countries] opened: a screenful, not
+     * the list, and each of them at most twice. Twice, because an overlay's
+     * content is composed once more, without skipping, the frame after it
+     * opens, so a change its caller made as it opened is not lost: see
+     * `Recaught` in `OverlayHost`. A third would be a row composed for nothing.
+     */
+    private fun assertComposedOnlyWhatIsShown(composed: List<String>, what: String) {
+        val rows = composed.toSet()
+        assertTrue(rows.size in 1..LeastShown, "opening $what of ${Countries.size} options composed ${rows.size} rows")
+        val most = composed.groupingBy { it }.eachCount().maxBy { it.value }
+        assertTrue(most.value <= 2, "opening $what composed ${most.key} ${most.value} times")
     }
 
     /**

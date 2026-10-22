@@ -19,6 +19,13 @@ CircularStepProgress(current = 2, total = 4, contentDescription = "Step 2 of 4")
 
 // No gap: one continuous bar, filled to the end of the step.
 StepProgress(current = 2, total = 4, gap = 0.dp, contentDescription = "Step 2 of 4")
+
+// A step that knows how far through itself it is: the third of four
+// photos, 40% uploaded.
+StepProgress(current = 3, total = 4, stepProgress = 0.4f, contentDescription = "Uploading photo 3 of 4")
+
+// A short step before a long one: checking the file, then copying it.
+StepProgress(current = 2, total = 2, weights = listOf(1f, 4f), working = true, contentDescription = "Copying")
 ```
 | | |
 |---|---|
@@ -68,6 +75,21 @@ known and its progress within it is not. When `current` moves on, the step just
 finished fills first, and only once it is full do the bars start in the next
 step, from its start — asked for from a phone, so the step "fills up before the
 indeterminate animation moves to the next step".
+
+**`stepProgress` fills the current step as far as it has got**, from 0 to 1
+as `LinearProgress`'s `progress` is, for a step that can say how much of
+itself is done: the third of four photos uploading, a stage of an install.
+The steps before it are full, and the step itself fills on the same spring as
+the rest of the row, in the bar and round the ring alike. It takes the place
+of `working`'s bars, which are for a step that cannot say, and a screen
+reader hears the step in progress and how far through the steps it is, 2.4
+of 4. Left `null`, a step reached is drawn full, as it always has been.
+
+**`weights` makes the steps different lengths**, one weight a step, as
+`Modifier.weight` shares out a row: `listOf(1f, 4f)` is a short step before
+one four times as long, in the bar and round the ring alike. Left `null` the
+steps are even, and so they are when the list does not have one weight above
+nothing for every step, rather than guessing which step a missing one was.
 
 **`CircularStepProgress` is the same steps round a ring**, one arc a step,
 clockwise from twelve o'clock and counter-clockwise in a right-to-left

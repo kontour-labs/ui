@@ -42,7 +42,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.minimumTouchTarget
-import io.kontour.ui.foundation.anticipatesSelection
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.LocalSelectionIndicator
 import io.kontour.ui.foundation.Text
@@ -213,10 +212,11 @@ internal fun NavDestination(
                 stateDescription = if (action.expanded) strings.expanded else strings.collapsed
             }
         }
+        // No lean toward a pressed destination, as a segmented control's thumb
+        // has: on a page's destinations, switched between all day, the marker
+        // twitching toward each before it went looked daft — *"get rid of the
+        // little eager jump"*. A drag still leans it, as it goes.
         .selectionIndicatorItem(markerKey, marked)
-        // A press on another destination leans the marker toward it before the
-        // selection moves. See `SelectionIndicatorBox`.
-        .anticipatesSelection(markerKey, marked, interactions)
         // `fill`, so the row that lights up under a press is the whole 48dp the
         // marker covers, not the shorter content centred in it.
         .minimumTouchTarget(fill = true)

@@ -106,7 +106,7 @@ jobs:
   #
   #   checks   the Python checks: the whole tree, since between them they read
   #            all of it
-  #   library  `ui/`, `ui-nav3/`, `haptics/`: their own suites
+  #   library  `ui/`, `ui-nav3/`, `ui-charts/`, `haptics/`: their own suites
   #   catalog  those and `ui-catalog/`: the catalog's suite and its goldens
   #   docs     those and `ui-samples/`, `ui-docs/`, `docs/`, the README: the
   #            documentation's tests and the site
@@ -211,7 +211,7 @@ jobs:
           # anything added there later, which counts for every gate until it
           # is placed. The README, CONTRIBUTING, CLAUDE.md, the changelog and
           # the IDE's run configurations are read by nothing Gradle runs.
-          own='ui|ui-nav3|haptics|ui-catalog|ui-samples|ui-docs|showcase|docs|README\.md|CONTRIBUTING\.md|CLAUDE\.md|CHANGELOG\.md|\.run|\.gitignore'
+          own='ui|ui-nav3|ui-charts|haptics|ui-catalog|ui-samples|ui-docs|showcase|probes|docs|README\.md|CONTRIBUTING\.md|CLAUDE\.md|CHANGELOG\.md|\.run|\.gitignore'
           shared=$(git ls-tree --name-only HEAD | grep -vxE "$own")
           fingerprint() {
             for path in $shared "$@"; do
@@ -220,10 +220,10 @@ jobs:
           }
           declare -A fp=(
             [checks]=$(git rev-parse 'HEAD^{tree}')
-            [library]=$(fingerprint ui ui-nav3 haptics)
-            [catalog]=$(fingerprint ui ui-nav3 haptics ui-catalog)
-            [docs]=$(fingerprint ui ui-nav3 haptics ui-catalog ui-samples ui-docs docs README.md)
-            [targets]=$(fingerprint ui ui-nav3 haptics ui-catalog showcase docs/check-xcode-host.py)
+            [library]=$(fingerprint ui ui-nav3 ui-charts haptics)
+            [catalog]=$(fingerprint ui ui-nav3 ui-charts haptics ui-catalog)
+            [docs]=$(fingerprint ui ui-nav3 ui-charts haptics ui-catalog ui-samples ui-docs probes docs README.md)
+            [targets]=$(fingerprint ui ui-nav3 ui-charts haptics ui-catalog showcase docs/check-xcode-host.py)
           )
 
           for gate in checks library catalog docs targets; do out "$gate-fp=${fp[$gate]}"; done
@@ -464,10 +464,11 @@ jobs:
           compile=()
           tasks=()
           if [ "$LIBRARY" = true ]; then
-            compile+=(:ui:jvmTestClasses :ui-nav3:jvmTestClasses :haptics:jvmTestClasses)
+            compile+=(:ui:jvmTestClasses :ui-nav3:jvmTestClasses :ui-charts:jvmTestClasses :haptics:jvmTestClasses)
             tasks+=(
               :ui:jvmTest :ui:checkNoMaterial :ui:checkApiConventions
-              :ui-nav3:jvmTest :ui-nav3:checkNoMaterial :haptics:jvmTest :haptics:checkNoCompose
+              :ui-nav3:jvmTest :ui-nav3:checkNoMaterial :ui-charts:jvmTest :ui-charts:checkNoMaterial
+              :haptics:jvmTest :haptics:checkNoCompose
             )
           fi
           if [ "$CATALOG" = true ]; then
@@ -537,10 +538,12 @@ jobs:
           retention-days: 1
 
       # The failures themselves, written into the run's summary, where they
-      # can be read without downloading anything and cost no storage.
+      # can be read without downloading anything and cost no storage, and
+      # into the log, which is what the API hands to anything reading a run
+      # without a browser: the summary page has no endpoint.
       - name: Say what failed
         if: failure()
-        run: python3 .github/failed-tests.py >> "$GITHUB_STEP_SUMMARY"
+        run: python3 .github/failed-tests.py | tee -a "$GITHUB_STEP_SUMMARY"
 
   targets:
     name: Compile every target
@@ -616,6 +619,11 @@ jobs:
             :ui-nav3:compileKotlinWasmJs \
             :ui-nav3:compileKotlinIosArm64 \
             :ui-nav3:compileKotlinIosSimulatorArm64 \
+            :ui-charts:compileKotlinJs \
+            :ui-charts:compileKotlinWasmJs \
+            :ui-charts:compileKotlinIosArm64 \
+            :ui-charts:compileKotlinIosSimulatorArm64 \
+            :ui-charts:assemble \
             :haptics:compileKotlinJs \
             :haptics:compileKotlinWasmJs \
             :haptics:compileKotlinIosArm64 \
@@ -625,6 +633,7 @@ jobs:
             :ui:assemble \
             :ui:checkKotlinAbi \
             :ui-nav3:checkKotlinAbi \
+            :ui-charts:checkKotlinAbi \
             :haptics:checkKotlinAbi \
             :ui:testAndroidHostTest --tests "io.kontour.ui.input.*"
 
@@ -640,7 +649,7 @@ jobs:
 
       - name: Say what failed
         if: failure()
-        run: python3 .github/failed-tests.py >> "$GITHUB_STEP_SUMMARY"
+        run: python3 .github/failed-tests.py | tee -a "$GITHUB_STEP_SUMMARY"
 
   # Contact sheets, when somebody asks for them.
   #
@@ -808,6 +817,28 @@ jobs:
         if: steps.bundle.outputs.cache-hit != 'true'
         run: python3 docs/check-bundle-size.py
 
+      # What an *app* ships, which the site's figure above cannot say: the site
+      # holds every component and every demo. Each probe is one small app on
+      # the library, and the differences between them say whether the theme
+      # grew, and whether unused components and icons are still being left out.
+      # See `probes/README.md`. Only the compile and Binaryen run, not webpack:
+      # what is weighed is each probe's own `.wasm`.
+      - name: Build the probes
+        if: steps.bundle.outputs.cache-hit != 'true'
+        run: >-
+          ./gradlew --no-daemon
+          :probes:empty:compileProductionExecutableKotlinWasmJsOptimize
+          :probes:theme:compileProductionExecutableKotlinWasmJsOptimize
+          :probes:button:compileProductionExecutableKotlinWasmJsOptimize
+          :probes:icon:compileProductionExecutableKotlinWasmJsOptimize
+          :probes:icons:compileProductionExecutableKotlinWasmJsOptimize
+
+      - name: Check the probes
+        if: steps.bundle.outputs.cache-hit != 'true'
+        run: |
+          python3 docs/probe-attribution.py probes/theme --top 20 || true
+          python3 docs/check-bundle-size.py --probes
+
       # For a later run of the same inputs, in the runners' cache: see
       # `changes`. One unused for a week is evicted, and built again.
       - name: Keep the bundle
@@ -824,7 +855,7 @@ jobs:
       # `[Link]` to a symbol that no longer exists fails the build. That is a
       # class of KDoc defect nothing else here can see.
       - name: Build the API reference
-        run: ./gradlew --no-daemon :ui:dokkaGenerateHtml :ui-nav3:dokkaGenerateHtml :haptics:dokkaGenerateHtml
+        run: ./gradlew --no-daemon :ui:dokkaGenerateHtml :ui-nav3:dokkaGenerateHtml :ui-charts:dokkaGenerateHtml :haptics:dokkaGenerateHtml
 
       # Only here, and only in this order: it compares the paths the site
       # derived when it was built against the pages the reference published a
@@ -843,7 +874,7 @@ jobs:
       # the arrangement a reader is actually served could not be produced,
       # inspected or measured anywhere else.
       - name: Lay the site out
-        run: python3 docs/lay-out-site.py --out site --api ui/build/dokka/html --deploy dist
+        run: python3 docs/lay-out-site.py --out site --api ui/build/dokka/html --api-module ui-charts/build/dokka/html --deploy dist
 
       # Into the runners' cache, which `deploy` reads minutes later, and so
       # does a tag on the same commit, which deploys this rather than building
@@ -980,7 +1011,7 @@ jobs:
         run: |
           ./gradlew --no-daemon --quiet \
             ${{ inputs.version && format('-Pkontour.version={0}', inputs.version) || '' }} \
-            :ui:coordinate :ui-nav3:coordinate :haptics:coordinate
+            :ui:coordinate :ui-nav3:coordinate :ui-charts:coordinate :haptics:coordinate
 
       # On a tag this takes no version argument and so cannot disagree with the
       # tag: the build reads `GITHUB_REF_TYPE`/`GITHUB_REF_NAME` itself. A manual
@@ -1004,7 +1035,7 @@ jobs:
         run: |
           set -euo pipefail
           .github/scripts/r2-release.sh prepare build/release-repo "${VERSION#v}" \
-            io/kontour/ui io/kontour/ui-nav3 io/kontour/haptics \
+            io/kontour/ui io/kontour/ui-nav3 io/kontour/ui-charts io/kontour/haptics \
             -- 'ui' 'ui-*' 'haptics' 'haptics-*'
           ./gradlew --no-daemon \
             ${{ inputs.version && format('-Pkontour.version={0}', inputs.version) || '' }} \

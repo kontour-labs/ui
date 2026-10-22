@@ -23,8 +23,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
@@ -38,7 +40,6 @@ import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.components.text.TextField
-import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
@@ -80,6 +81,9 @@ import io.kontour.ui.theme.Theme
  *
  * @param window How many pages to show either side of the current one, if they
  *   fit. Fewer are shown when they do not.
+ * @param previousIcon The way back a page, `Theme.icons.chevronBack` by default,
+ *   which points the way the reader's language runs.
+ * @param nextIcon The way on a page, `Theme.icons.chevronForward` by default.
  */
 @Composable
 fun Pagination(
@@ -90,6 +94,8 @@ fun Pagination(
     /** Whether any page can be chosen. Disabled, the row shows where it is and answers nothing. */
     enabled: Boolean = true,
     window: Int = 1,
+    previousIcon: ImageVector = Theme.icons.chevronBack,
+    nextIcon: ImageVector = Theme.icons.chevronForward,
     previousLabel: String = Theme.strings.previousPage,
     nextLabel: String = Theme.strings.nextPage,
     /**
@@ -133,7 +139,7 @@ fun Pagination(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(
-                icon = SystemIcons.ChevronBack,
+                icon = previousIcon,
                 contentDescription = previousLabel,
                 onClick = { onValueChange(value - 1) },
                 enabled = enabled && value > 0,
@@ -183,7 +189,7 @@ fun Pagination(
                                     // Announcing "ellipsis" between two page numbers
                                     // tells a screen-reader user nothing they can act
                                     // on. When it *is* a control, `JumpGap` labels it.
-                                    .semantics { contentDescription = "" },
+                                    .clearAndSetSemantics { },
                                 style = Theme.typography.bodyMedium,
                                 colour = Theme.colours.contentSubtle,
                             )
@@ -193,7 +199,7 @@ fun Pagination(
             }
 
             IconButton(
-                icon = SystemIcons.ChevronForward,
+                icon = nextIcon,
                 contentDescription = nextLabel,
                 onClick = { onValueChange(value + 1) },
                 enabled = enabled && value < pageCount - 1,

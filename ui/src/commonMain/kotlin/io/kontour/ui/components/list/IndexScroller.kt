@@ -27,6 +27,9 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.PointerType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -147,7 +150,8 @@ object IndexScrollerDefaults {
  *
  * **The bubble** shows the letter under the finger, large, beside the rail —
  * the finger is over the one on the rail. A tick is felt as the finger crosses
- * from one letter to the next.
+ * from one letter to the next. A mouse resting on the rail shows it too, for
+ * the letter it would go to, before it is clicked.
  *
  * The list moves at once, with no scroll animation: a jump of a hundred rows is
  * not motion anybody needs to watch, and the finger is still moving.
@@ -222,6 +226,9 @@ fun IndexScroller(
     // the alphabet: an alphabet changed under the finger keeps its letters, not
     // its positions, so an index carried across would say another letter.
     var touched by remember { mutableStateOf<String?>(null) }
+    // The label a mouse is resting on, pressed or not: the bubble says which
+    // before it is clicked, as a tooltip would, and moves nothing.
+    var hovered by remember { mutableStateOf<String?>(null) }
     // Where the finger is in the root, not on the rail: a rail that moves
     // under a finger that has not — re-centred when its alphabet grew — would
     // otherwise go on reading the letter that used to be there.
@@ -311,6 +318,26 @@ fun IndexScroller(
             .focusable(enabled, interactions)
             .focusRing(interactions, Theme.shapes.capsule, enabled = enabled)
             .pointerCursor(Cursor.Pointer, enabled)
+            .pointerInput(enabled) {
+                hovered = null
+                if (!enabled) return@pointerInput
+                awaitPointerEventScope {
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        val change = event.changes.firstOrNull() ?: continue
+                        if (change.type != PointerType.Mouse) continue
+                        hovered = when (event.type) {
+                            PointerEventType.Exit -> null
+                            PointerEventType.Enter, PointerEventType.Move -> {
+                                val rail = geometry.layout
+                                val index = labelAt(change.position.y, rail.slots, rail.top, rail.slotPx)
+                                if (index < 0) null else rail.labels[index]
+                            }
+                            else -> hovered
+                        }
+                    }
+                }
+            }
             .verticalDragOwning(
                 enabled = enabled,
                 interactionSource = interactions,
@@ -383,9 +410,10 @@ fun IndexScroller(
         layout(width, height) {}
     }
 
-    // Beside the finger, the letter it is over, large. Composed only while a
-    // finger is on the rail, so a rail nobody is touching needs no host.
-    val shown = touched
+    // Beside the finger, the letter it is over, large, or the one a mouse is
+    // resting on. Composed only while one is on the rail, so a rail nobody is
+    // touching needs no host.
+    val shown = touched ?: hovered
     if (enabled && shown != null) TooltipOverlay(
         visible = true,
         anchor = { geometry.slotRect(shown, rtl) },
@@ -394,8 +422,9 @@ fun IndexScroller(
         modifier = Modifier,
         side = OverlaySide.Start,
         alignment = OverlayAlignment.Centre,
-        // Held until the finger lifts, however long that is: the touch
-        // tooltip's own timeout is for a tooltip nobody is still touching.
+        // Held until the finger lifts or the mouse leaves, however long that
+        // is: the touch tooltip's own timeout is for a tooltip nobody is still
+        // touching.
         onDismissRequest = {},
     )
 }

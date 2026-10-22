@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.PointerType
 import io.kontour.icons.tabler.Tabler
 import io.kontour.icons.tabler.outline.Bus
 import io.kontour.ui.nav.NavDefaults
@@ -148,6 +149,35 @@ class NavRailMarkerDragTest {
                     "went from ${before}px to ${centre(0).y}px",
             )
             assertEquals(emptyList(), rail.clicks, "a scroll of an overflowing rail chose a destination")
+        }
+    }
+
+    /**
+     * A mouse drags the marker of a rail that overflows: it scrolls the rail
+     * with its wheel, not by dragging it, so the drag has nothing to take from.
+     * Asked for as *"on desktop/web with a mouse, dragging the list won't make
+     * it scroll anyway. so i think it's reasonable to allow dragging the
+     * indicator in those scenarios"*.
+     */
+    @Test
+    fun aMouseDragsTheMarkerOfARailThatOverflows() {
+        val rail = rail(count = 20, height = 400)
+        rail.scene.use { scene ->
+            // Hovered first, so the rail is laid out for a mouse before the
+            // drag is aimed.
+            scene.move(centre(0), PointerType.Mouse)
+            scene.frames(5)
+            val before = centre(0).y
+            scene.drag(from = centre(0), to = centre(2), steps = 16, release = false, pointer = PointerType.Mouse)
+            val held = markerCentre(scene.frames(10))
+            assertTrue(
+                abs(held - centre(2).y) <= Slack,
+                "a mouse held over the third destination left the marker at ${held}px, not on it at ${centre(2).y}px",
+            )
+            assertEquals(before, centre(0).y, "a mouse's drag scrolled the rail")
+            scene.release(centre(2), PointerType.Mouse)
+            scene.frames(10)
+            assertEquals(listOf(2), rail.clicks, "a mouse dragged to the third destination and let go should choose it, once")
         }
     }
 

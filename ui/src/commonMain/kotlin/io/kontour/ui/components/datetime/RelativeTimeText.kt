@@ -267,7 +267,9 @@ internal fun relativeParts(
     }
 
     val text = formats.relativeTime(if (past) -count.toLong() else count.toLong(), unit)
-    val number = count.toString()
+    // Searched for as the reader writes it: in Arabic-Indic digits, or with a
+    // grouping separator, `toString()`'s "1000" is not in the text at all.
+    val number = formats.integer(count)
     val at = text.indexOf(number)
     val once = at >= 0 && text.indexOf(number, at + number.length) < 0
     return if (once) {

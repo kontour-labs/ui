@@ -322,7 +322,7 @@ same `of(n)` is a sign that value wants a name.
 | `extraLarge` | 34dp | Sheets, hero panels |
 | `pill` | 50%, uncapped | Avatars, scrollbars, indicators, both FABs, `FabMenu`, a floating `NavBar`, a `Switch`'s track |
 | `sheet` | 34dp top only | Bottom sheets |
-| `sideSheet` | 34dp leading only | Side sheets |
+| `sideSheet` | 28dp leading only | Side sheets |
 
 **Set the ladder as a ladder.** `kontourShapes(extraSmall = 6.dp, step = 2.dp)`
 is the whole scale from one rung and one step, with `container`, `panel`,
@@ -612,9 +612,12 @@ measurable:
   second, under a finger, is the one place in this library where the generic path
   is the wrong trade.
 
-`sheet` and `sideSheet` are `extraLarge` with two corners squared off, derived
-rather than restated — a panel against the edge of the window should be square
-where it meets that edge, and the same radius as a hero panel everywhere else.
+`sheet` is `extraLarge` and `sideSheet` is `large`, each with two corners squared
+off, derived rather than restated — a panel against the edge of the window should
+be square where it meets that edge, and its rung's radius everywhere else. A side
+sheet is a panel beside the page, so it takes the panel's rung, 28dp: at a
+sheet's 34 its smoothed top corner ran some 54dp along the top and crowded the
+title and back button in it.
 
 ---
 

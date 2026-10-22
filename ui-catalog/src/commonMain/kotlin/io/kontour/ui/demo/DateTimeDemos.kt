@@ -1,5 +1,6 @@
 package io.kontour.ui.demo
 
+import io.kontour.ui.foundation.FillPattern
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.height
@@ -504,7 +505,8 @@ internal fun demoCalendarEvents(today: LocalDate): List<CalendarEvent> {
     return listOf(
         CalendarEvent(1, "Stand-up", at(0, 9), at(0, 9, 15)),
         CalendarEvent(2, "Design review", at(0, 9), at(0, 10, 30), tone = Tone.Info, location = "Room 4"),
-        CalendarEvent(3, "Planning", at(0, 10), at(0, 11)),
+        // Hatched, and said so in its title: not yet confirmed.
+        CalendarEvent(3, "Planning (tentative)", at(0, 10), at(0, 11), pattern = FillPattern.Diagonal),
         CalendarEvent(4, "Lunch with Sam", at(0, 12), at(0, 13), tone = Tone.Success, icon = Tabler.Outline.User),
         CalendarEvent(5, "Gym", at(0, 18), at(0, 19), tone = Tone.Neutral),
         CalendarEvent(6, "Perth trip", startDate = today.minus(1, DateTimeUnit.DAY), endDate = today.plus(2, DateTimeUnit.DAY), tone = Tone.Warning, icon = Tabler.Outline.Map),
@@ -513,7 +515,7 @@ internal fun demoCalendarEvents(today: LocalDate): List<CalendarEvent> {
         CalendarEvent(9, "Release", startDate = today.plus(6, DateTimeUnit.DAY), tone = Tone.Accent),
         CalendarEvent(10, "Flight to Sydney", at(7, 22), at(8, 6), tone = Tone.Info, icon = Tabler.Outline.Plane),
         CalendarEvent(11, "Retro", at(-2, 14), at(-2, 15)),
-        CalendarEvent(12, "Public holiday", startDate = today.plus(12, DateTimeUnit.DAY), tone = Tone.Warning, editable = false),
+        CalendarEvent(12, "Public holiday", startDate = today.plus(12, DateTimeUnit.DAY), tone = Tone.Warning, editable = false, pattern = FillPattern.Dots),
     )
 }
 

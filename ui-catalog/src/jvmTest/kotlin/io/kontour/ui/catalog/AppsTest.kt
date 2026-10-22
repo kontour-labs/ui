@@ -77,8 +77,9 @@ class AppsTest {
         }
         onNodeWithText("Open Transit").performScrollTo().performClick()
         onNodeWithText("Open Messages & Notes").performScrollTo().performClick()
+        onNodeWithText("Open Energy").performScrollTo().performClick()
         waitForIdle()
-        assertEquals(listOf(MiniApp.Transit, MiniApp.Messages), opened.toList())
+        assertEquals(listOf(MiniApp.Transit, MiniApp.Messages, MiniApp.Energy), opened.toList())
     }
 
     @Test

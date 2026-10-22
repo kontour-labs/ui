@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.theme.Theme
+import kotlin.math.abs
 
 /**
  * A lazy list that takes drops at a position, and whose items can be carried —
@@ -74,6 +75,26 @@ class DropListState<T : Any> internal constructor(
     internal var canDrag: (T) -> Boolean = { true }
     internal var shape: Shape? = null
     internal var layoutDirection: LayoutDirection = LayoutDirection.Ltr
+
+    /**
+     * How far, in pixels, a pointer may stray from this list before one of its
+     * items carried along it comes away; `null`, the default, for an item that
+     * follows the pointer anywhere from the start. A document tab rides its
+     * strip until it is pulled clear, as a browser's does: see `DocumentTabs`.
+     * A free thing is taken in from as far outside the list as it is deep, or
+     * three quarters of this if that is less, and drawn onto its line as it
+     * comes: see `DragHost.boardable` and `DragHost.magnet`.
+     */
+    internal var tearOff: Float? = null
+
+    /**
+     * Whether this list's items stay in it and it takes no one else's: a
+     * strip of document tabs that only reorders, which is the default for
+     * one. Its items are offered no move to another list, carried by keys or
+     * by a reader, and it is offered none of another list's, nor boarded by a
+     * thing carried off one. With [tearOff] at infinity, it is never left.
+     */
+    internal var ownOnly: Boolean = false
 
     /** The host, for which of this list's own items is carried. */
     internal var host: DragHost? = null
@@ -187,16 +208,35 @@ class DropListState<T : Any> internal constructor(
     /** Where the gap is laid out, for where across the list a landing goes. */
     internal var gapCoordinates: LayoutCoordinates? = null
 
+    /**
+     * The place a riding thing last left, and where along the list its start
+     * was as it left it: going back there waits until it has come
+     * [BackShare] of itself back. See [over].
+     */
+    private var leftPlace: Int? = null
+    private var leftAt: Float = 0f
+
+    /** Whether the last place was worked out for a thing riding the list, by its edges. */
+    private var rode = false
+
     internal val gapKey: String = "kontour.dropGap.$id"
 
     internal val target: DropTarget = object : DropTarget(type, label) {
         @Suppress("UNCHECKED_CAST")
-        override fun accepts(payload: Any): Boolean = accepting(payload as T)
+        override fun accepts(payload: Any): Boolean {
+            val from = host?.session?.fromList
+            // A list that keeps its own takes nothing from another, and gives
+            // nothing to one.
+            if (from != null && from !== this@DropListState && (ownOnly || from.ownOnly)) return false
+            return accepting(payload as T)
+        }
 
         override fun over(session: DragSession, pointerInRoot: Offset) = this@DropListState.over(session)
 
         override fun leave() {
             gapIndex = null
+            leftPlace = null
+            rode = false
         }
 
         override fun changes(session: DragSession): Boolean =
@@ -327,8 +367,72 @@ class DropListState<T : Any> internal constructor(
         gapSize = if (vertical) session.size.height else session.size.width
         gapCross = if (vertical) session.size.width else session.size.height
         val from = if (session.fromList === this) session.fromIndex else null
+
+        // **A list that will not take it makes no room for it.** A full column
+        // opened a gap under the thing carried over it and closed it again
+        // when it went home: its cards moved aside for a drop it was about to
+        // refuse. Reported as *"if a drop zone is full, then i don't want its
+        // items to move around and make room"*. Its own item keeps the place
+        // it left, so nothing in it moves either.
+        if (!target.accepts(session.payload)) {
+            gapIndex = from
+            session.index = from
+            leftPlace = null
+            rode = false
+            return
+        }
+
         val positions = HashMap<Any, Int>(items.size)
         items.forEachIndexed { index, item -> positions[key(item)] = index }
+
+        val count = count(session)
+        // A thing riding this list, as a tab rides its strip, is kept between
+        // the list's ends, so its centre never reaches the middle of the first
+        // item: a second tab could not be put before the first. It is judged by
+        // its edges instead, as a browser's tabs are: it takes a neighbour's
+        // place once it covers [EdgeShare] of it.
+        val gap = gapIndex
+        if (session.riding === this && gap != null) {
+            val size = if (vertical) session.size.height else session.size.width
+            val start = probe - size / 2f
+            val end = probe + size / 2f
+            var index: Int = gap
+            for (item in info.visibleItemsInfo) {
+                val at = positions[item.key] ?: continue
+                if (at == from) continue
+                val place = if (from != null && at > from) at - 1 else at
+                if (place < gap) {
+                    if (start < item.offset + item.size * (1f - EdgeShare)) index = minOf(index, place)
+                } else if (end > item.offset + item.size * EdgeShare) {
+                    index = maxOf(index, place + 1)
+                }
+            }
+            // **Back only once it has come back.** Covering 40% of a neighbour
+            // takes its place, and the neighbour moves a whole thing's length
+            // to the other side of it; now the carried thing covers 60% of it
+            // from that side, more than enough to take the place back. So the
+            // gap went back and forth on every move in between, and each trade
+            // was a snap: dragging one tab over another rumbled. Reported as
+            // "it should just click once". The place it left is not taken back
+            // until it has come a fifth of itself back.
+            //
+            // Only between two places both worked out by the edges: the first
+            // as a thing boards the list comes from its middle, and the edges
+            // correcting that is not a trade to hold it to.
+            index = index.coerceIn(0, count)
+            val back = leftPlace
+            if (rode && index == back && abs(start - leftAt) < size * BackShare) index = gap
+            if (index != gap) {
+                leftPlace = if (rode) gap else null
+                leftAt = start
+            }
+            rode = true
+            gapIndex = index
+            session.index = index
+            return
+        }
+        leftPlace = null
+        rode = false
 
         var landing: Int? = null
         var lastSeen: Int? = null
@@ -339,7 +443,6 @@ class DropListState<T : Any> internal constructor(
             lastSeen = place
             if (landing == null && probe < item.offset + item.size / 2f) landing = place
         }
-        val count = count(session)
         val index = (landing ?: lastSeen?.plus(1) ?: gapIndex ?: 0).coerceIn(0, count)
         gapIndex = index
         session.index = index
@@ -381,6 +484,20 @@ class DropListState<T : Any> internal constructor(
 
     private companion object {
         var nextListId = 0
+
+        /**
+         * How much of a neighbour a thing riding a list covers before it takes
+         * the neighbour's place: less than half, so a tab trades places a little
+         * sooner than its middle would say.
+         */
+        const val EdgeShare = 0.4f
+
+        /**
+         * How far, as a share of itself, a thing riding a list comes back
+         * before it takes back the place it just left — a hand held still does
+         * not make the strip twitch, and a trade is felt once.
+         */
+        const val BackShare = 0.2f
     }
 }
 
@@ -401,7 +518,8 @@ class DropListState<T : Any> internal constructor(
  *   the lists show the move — up to half a second — and then hands over to
  *   the item there.
  * @param accepts Whether this list would take [T] — a column at its limit, a list
- *   that holds no duplicates.
+ *   that holds no duplicates. Refused, it shows [DropStatus.Refused] and makes
+ *   no room: its items stay where they are under the thing carried over them.
  * @param canDrag Whether an item can be picked up at all.
  * @param previewShape The shape its items' shadows are cast in while carried.
  * @param external Drags from outside the app it takes — files from the desktop,
@@ -484,13 +602,50 @@ fun <T : Any> LazyListScope.dragItems(
     state: DropListState<T>,
     contentType: (T) -> Any? = { null },
     itemContent: @Composable DragItemScope.(index: Int, item: T) -> Unit,
+) = dragItems(state, DragItemOptions.Plain, contentType, itemContent)
+
+/**
+ * How a component built on a drop list wants its items: what [dragItems] does
+ * for a plain list, unless a component says otherwise.
+ *
+ * @property movesOnItem Whether the item's own node offers a screen reader the
+ *   moves. Off for an item that offers them on a node of its own, beside its
+ *   other actions: a document tab's, with its "Close".
+ * @property shape The carried thing's shadow, in place of the list's.
+ * @property slides Whether the items slide to new places. A list whose items
+ *   change size as they come and go slides only while something is carried:
+ *   otherwise each item after one growing chases a placement spring frame by
+ *   frame.
+ * @property before Emits whatever comes before the item with this key, and at
+ *   the end, `null`: what is leaving the list, still drawn where it was.
+ */
+internal class DragItemOptions(
+    val movesOnItem: Boolean = true,
+    val shape: Shape? = null,
+    val slides: Boolean = true,
+    val before: (LazyListScope.(key: Any?) -> Unit)? = null,
+) {
+    companion object {
+        val Plain = DragItemOptions()
+    }
+}
+
+/** [dragItems] on [options]' terms. */
+internal fun <T : Any> LazyListScope.dragItems(
+    state: DropListState<T>,
+    options: DragItemOptions,
+    contentType: (T) -> Any? = { null },
+    itemContent: @Composable DragItemScope.(index: Int, item: T) -> Unit,
 ) {
     val items = state.items
     val gap = state.gapIndex
     val carried = state.heldKey
+    val before = options.before
     fun emit(index: Int, item: T, folded: Boolean) {
-        item(key = state.key(item), contentType = contentType(item)) {
-            DragItem(state, index, item, folded, itemContent)
+        val key = state.key(item)
+        before?.invoke(this, key)
+        item(key = key, contentType = contentType(item)) {
+            DragItem(state, index, item, folded, options, itemContent)
         }
     }
     val carriedAt = if (carried == null) -1 else items.indexOfFirst { state.key(it) == carried }
@@ -506,6 +661,7 @@ fun <T : Any> LazyListScope.dragItems(
             emit(index, item, folded = false)
         }
         if (gap != null && !gapped) gapItem(state)
+        before?.invoke(this, null)
         return
     }
     // One of its own carried: the others in order, with the carried item at the
@@ -522,6 +678,7 @@ fun <T : Any> LazyListScope.dragItems(
         place++
     }
     if (!placed) emit(carriedAt, items[carriedAt], folded = gap == null)
+    before?.invoke(this, null)
 }
 
 /** What an item of [dragItems] can do besides draw itself. */
@@ -537,6 +694,12 @@ interface DragItemScope {
     @Composable
     fun Modifier.dragHandle(): Modifier
 }
+
+/**
+ * What this item is, as a drop list's moves need it: for a component that
+ * offers the moves on a node of its own, with [DragItemOptions.movesOnItem] off.
+ */
+internal fun DragItemScope.sourceSpec(): SourceSpec = (this as DragItemScopeImpl<*>).spec()
 
 private class DragItemScopeImpl<T : Any>(
     private val state: DropListState<T>,
@@ -579,6 +742,7 @@ private fun <T : Any> LazyItemScope.DragItem(
     index: Int,
     item: T,
     folded: Boolean,
+    options: DragItemOptions,
     content: @Composable DragItemScope.(index: Int, item: T) -> Unit,
 ) {
     val handle = remember { SourceHandle() }
@@ -603,7 +767,8 @@ private fun <T : Any> LazyItemScope.DragItem(
     // is simply there.
     val held = state.heldKey == state.key(item)
     val fade: SpringSpec<Float>? = if (held) null else spring(stiffness = Spring.StiffnessMediumLow)
-    val slide: SpringSpec<IntOffset>? = if (held || Theme.motion.reduceMotion) {
+    val slides = options.slides || host?.session != null
+    val slide: SpringSpec<IntOffset>? = if (held || !slides || Theme.motion.reduceMotion) {
         null
     } else {
         spring(stiffness = Spring.StiffnessMediumLow, visibilityThreshold = IntOffset.VisibilityThreshold)
@@ -614,15 +779,16 @@ private fun <T : Any> LazyItemScope.DragItem(
             .foldedAway(folded, vertical)
             .focusRequester(focus)
             .focusGroup()
-            .carriedElement(handle, list = true, shape = state.shape ?: DragAndDropDefaults.previewShape)
+            .carriedElement(handle, list = true, shape = options.shape ?: state.shape ?: DragAndDropDefaults.previewShape)
             .pickUpGesture(
                 handle = handle,
                 spec = scope::spec,
                 enabled = state.canDrag(item),
                 start = DragStart.Auto,
                 interactionSource = null,
-                // A handle offers them inside the row a reader lands on.
-                offersMoves = scope.handles == 0,
+                // A handle offers them inside the row a reader lands on, and an
+                // item that offers them itself does so beside its own actions.
+                offersMoves = options.movesOnItem && scope.handles == 0,
             ),
     ) {
         scope.content(index, item)

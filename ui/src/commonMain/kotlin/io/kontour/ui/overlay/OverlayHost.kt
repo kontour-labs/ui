@@ -24,6 +24,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
@@ -41,6 +42,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.semantics
@@ -53,7 +55,8 @@ import io.kontour.ui.platform.WarnIfWindowPansForKeyboard
 import io.kontour.ui.components.text.TextContextMenuHost
 import io.kontour.ui.foundation.ScrimLayer
 import io.kontour.ui.input.clearFocusOnTap
-import io.kontour.ui.components.list.closesOpenSwipeRows
+import io.kontour.ui.input.reportsPresses
+import io.kontour.ui.input.reportsScrolls
 import io.kontour.ui.motion.BackPan
 import io.kontour.ui.motion.BackStyle
 import io.kontour.ui.motion.EdgePanWidth
@@ -517,6 +520,20 @@ private fun EntryHost(
     val going = state.isGoing(entry.key)
     val progress = remember { Animatable(0f) }
 
+    // **The keyboard goes as the entry does**, not after it. A field in a
+    // sheet or a dialog kept its focus, and so the keyboard, until the entry
+    // had finished leaving and its content was gone: the length of a sheet's
+    // slide down with the keyboard still up over it, reported from Android as
+    // *"closing sheets with a keyboard open makes the keyboard take just like
+    // half a second too long to close"*. UIKit lets go of the keyboard as a
+    // dismissal starts. Only for focus in this entry: a sheet that leaves the
+    // page usable leaves the page's own field its keyboard.
+    val keyboard = LocalSoftwareKeyboardController.current
+    val focused = remember { mutableStateOf(false) }
+    LaunchedEffect(going) {
+        if (going && focused.value) keyboard?.hide()
+    }
+
     // Back, for this entry alone. Its dispatcher is enabled only while it is
     // the entry back goes to, and its handler is registered before its content
     // is composed, so a stack inside a sheet answers first while it has
@@ -683,8 +700,11 @@ private fun EntryHost(
             // of page beside it. See [blurredBehind].
             .then(if (blurredBy.isNotEmpty()) Modifier.blurredBehind(state, blurredBy) else Modifier)
             .onFocusChanged { focus ->
+                focused.value = focus.hasFocus
                 if (focus.hasFocus) opened.focusIn = entry.key else if (opened.focusIn == entry.key) opened.focusIn = null
             }
+            // A field in the overlay asking to be seen never moves the window. See [endsBringIntoView].
+            .endsBringIntoView()
     ) {
         CompositionLocalProvider(
             LocalOverlayProgress provides reader,
@@ -694,14 +714,52 @@ private fun EntryHost(
         ) {
             if (backOwner != null) {
                 CompositionLocalProvider(LocalNavigationEventDispatcherOwner provides backOwner) {
-                    entry.content()
+                    Recaught(entry.content)
                 }
             } else {
-                entry.content()
+                Recaught(entry.content)
             }
         }
     }
 }
+
+/**
+ * [content], composed once more without skipping in the frame after it first
+ * is, so a change its caller made while it was being added is not lost.
+ *
+ * An overlay's content is the caller's lambda, drawn here at the root. When the
+ * caller's values change, Compose updates that lambda in place and tells the
+ * places that invoked it to recompose; this is one of them. But the caller is
+ * usually in a subcomposition of its own — a `Scaffold`'s body, a lazy item —
+ * which recomposes after the root in a frame. In the frame an overlay first
+ * appears, then, the root has drawn its content from the lambda as it was, and
+ * has not yet applied it, when the caller updates the lambda; Compose finds the
+ * place it should tell is not in the composition yet, and forgets it. The
+ * content stays as it opened until something inside it changes for itself.
+ *
+ * Reported from an admin as a rollback dialog stuck on "Comparing…", its button
+ * disabled, about one time in three: whenever the comparison came back in the
+ * frame the dialog appeared. A change to [LocalRecaught] a frame later makes
+ * everything under it recompose without skipping, once, from the lambdas as
+ * they are; after that the root holds it and is told of changes as it should
+ * be. Here, so it holds for every overlay, and around both of `EntryHost`'s
+ * calls, so content moved from one to the other is caught again too.
+ */
+@Composable
+private fun Recaught(content: @Composable () -> Unit) {
+    var caught by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        withFrameNanos { }
+        caught = true
+    }
+    CompositionLocalProvider(LocalRecaught provides caught, content = content)
+}
+
+/**
+ * Read by nothing: its change is what makes [Recaught]'s content recompose
+ * without skipping, which a static local's does to everything it provides to.
+ */
+private val LocalRecaught = staticCompositionLocalOf { false }
 
 /**
  * How far this overlay is through appearing, or how far back through leaving.
@@ -982,8 +1040,12 @@ fun OverlayHost(
                 .onPreviewKeyEvent { drags.handleKey(it, direction) }
                 .trackHostOrigin(state)
                 .clearFocusOnTap(clearFocusOnTap)
-                // A swipe row left showing its actions closes at a press anywhere else.
-                .closesOpenSwipeRows()
+                // Every press, wherever it lands, to what lets go at one
+                // elsewhere: a swipe row left open, a chart's selection. And
+                // every scroll from a wheel or a trackpad, which has no press,
+                // to a swipe row that lets go at one of those too.
+                .reportsPresses()
+                .reportsScrolls()
                 .then(if (ownBack != null && tracksSwipe) Modifier.edgeSwipeBack(ownBack.navigationEventDispatcher) else Modifier),
         ) {
             Box(

@@ -33,6 +33,11 @@ internal class ColumnSizing(val base: Int, val weight: Float, val min: Int, val 
  * Every column's width and start, in the table's content, and how that content
  * sits in a viewport [viewport] px wide: the first [pinned] columns fixed at the
  * start, the rest in a pane that scrolls up to [maxScroll].
+ *
+ * Pinned columns that narrow as the pane scrolls across have their narrowest in
+ * [narrowest], reached once the pane is [narrowRange] px across; none do where
+ * it is empty. They are laid out at their whole widths all the same, and only
+ * shown narrower, cut — so nothing in them reflows as they narrow.
  */
 @Immutable
 internal class TableColumnsLayout(
@@ -44,17 +49,38 @@ internal class TableColumnsLayout(
     val total: Int,
     val maxScroll: Int,
     val viewport: Int,
+    val narrowest: IntArray = IntArray(0),
+    val narrowRange: Int = 0,
 ) {
     val count: Int get() = widths.size
 
     /** Where column [index] ends, in the content. */
     fun end(index: Int): Int = starts[index] + widths[index]
 
+    /** How far the pinned columns have narrowed, 0 to 1, with the pane scrolled [shift] px across. */
+    fun narrowing(shift: Int): Float =
+        if (narrowRange <= 0) 0f else (shift.toFloat() / narrowRange).coerceIn(0f, 1f)
+
+    /** How much of column [index] is shown, [narrowing] of the way to its narrowest. */
+    fun shownWidth(index: Int, narrowing: Float): Int =
+        if (index >= narrowest.size) widths[index] else widths[index] - ((widths[index] - narrowest[index]) * narrowing).roundToInt()
+
+    /** Where pinned column [index] is shown from, [narrowing] of the way: after the ones before it, as shown. */
+    fun shownStart(index: Int, narrowing: Float): Int {
+        var at = 0
+        for (before in 0 until index) at += shownWidth(before, narrowing)
+        return at
+    }
+
+    /** How wide the pinned columns are shown together, [narrowing] of the way. */
+    fun shownPinnedWidth(narrowing: Float): Int = shownStart(pinned, narrowing)
+
     override fun equals(other: Any?): Boolean =
         other is TableColumnsLayout && other.widths.contentEquals(widths) && other.pinned == pinned &&
-            other.viewport == viewport
+            other.viewport == viewport && other.narrowest.contentEquals(narrowest) && other.narrowRange == narrowRange
 
-    override fun hashCode(): Int = 31 * (31 * widths.contentHashCode() + pinned) + viewport
+    override fun hashCode(): Int =
+        31 * (31 * (31 * widths.contentHashCode() + pinned) + viewport) + narrowest.contentHashCode()
 }
 
 /**
@@ -71,12 +97,23 @@ internal class TableColumnsLayout(
  * Pinned columns that would cover more than [pinCap] of the viewport are unpinned
  * from the last one back, so on a narrow screen there is always room left to
  * scroll the rest past them.
+ *
+ * With [narrowTo] under 1, the pinned columns past the first [keepWidth] narrow
+ * to that much of their widths, never below [narrowFloor], as the pane scrolls
+ * the first [narrowRange] px across; the pane is shown wider by what they give
+ * up, and scrolls that much less. Never by more than half the scroll there is:
+ * it is the scroll that narrows them, and a table that narrowing alone made fit
+ * could not be scrolled to narrow it.
  */
 internal fun resolveTableColumns(
     columns: List<ColumnSizing>,
     viewport: Int,
     pinnedRequested: Int,
     pinCap: Float,
+    narrowTo: Float = 1f,
+    narrowFloor: Int = 0,
+    narrowRange: Int = 0,
+    keepWidth: Int = 0,
 ): TableColumnsLayout {
     val count = columns.size
     val widths = IntArray(count) { index ->
@@ -119,6 +156,26 @@ internal fun resolveTableColumns(
     val total = widths.sum()
     val pinnedWidth = (0 until pinned).sumOf { widths[it] }
     val paneWidth = (viewport - pinnedWidth).coerceAtLeast(0)
+    val scroll = (total - pinnedWidth - paneWidth).coerceAtLeast(0)
+
+    var narrowest = IntArray(0)
+    var range = 0
+    var maxScroll = scroll
+    if (narrowTo < 1f && pinned > 0 && scroll > 0 && narrowRange > 0) {
+        val least = IntArray(pinned) { index ->
+            val width = widths[index]
+            if (index < keepWidth) width else minOf(width, maxOf((width * narrowTo).roundToInt(), narrowFloor))
+        }
+        val wanted = (0 until pinned).sumOf { widths[it] - least[it] }
+        val allowed = minOf(wanted, scroll / 2)
+        if (allowed > 0) {
+            narrowest = IntArray(pinned) { index ->
+                widths[index] - ((widths[index] - least[index]) * allowed.toFloat() / wanted).roundToInt()
+            }
+            maxScroll = scroll - (0 until pinned).sumOf { widths[it] - narrowest[it] }
+            range = minOf(narrowRange, maxScroll)
+        }
+    }
     return TableColumnsLayout(
         widths = widths,
         starts = starts,
@@ -126,8 +183,10 @@ internal fun resolveTableColumns(
         pinnedWidth = pinnedWidth,
         paneWidth = paneWidth,
         total = total,
-        maxScroll = (total - pinnedWidth - paneWidth).coerceAtLeast(0),
+        maxScroll = maxScroll,
         viewport = viewport,
+        narrowest = narrowest,
+        narrowRange = range,
     )
 }
 

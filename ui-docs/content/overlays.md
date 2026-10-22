@@ -413,6 +413,24 @@ A modal that puts the focus in itself, as `CommandPalette` does with its
 field, still gets it: the focus behind it goes first, and its own request
 comes after. Closing a dialog over a sheet takes nothing from the sheet.
 
+### Nothing outside an overlay moves for a field in it
+
+A field asks to be brought into view as it takes focus, and again as the
+keyboard rises. A request from inside an overlay goes as far as the overlay
+and no further. The page under it never scrolls for it, and on Android the
+window never pans for it. A sheet hands the keyboard to its content as
+padding, and a dialog centres itself above the keyboard, so the overlay is
+already where it should be.
+
+In a sheet whose content scrolls, a field the keyboard covers is scrolled
+clear once the sheet has come to rest. Give the content the sheet's padding
+(`LazyColumn(contentPadding = padding)`) so there is room to scroll it into.
+Content that doesn't scroll stays where it is, behind the keyboard.
+
+On iOS, set `onFocusBehavior = OnFocusBehavior.DoNothing` on the
+`ComposeUIViewController`. Its default moves the whole view up for a focused
+field, which is the same push from the platform's side.
+
 ### A press on nothing puts the keyboard away
 
 `OverlayHost` also owns the other half of focus, which is losing it. A press that
@@ -439,6 +457,20 @@ OverlayHost(clearFocusOnTap = false) { … }
 Turn it off for a screen built to hold the keyboard up — a chat composer, a
 search-as-you-type page — where dropping focus on a stray press is the wrong
 answer.
+
+### A press elsewhere
+
+The host also tells whatever is watching of every press, wherever it lands,
+which is how a swipe row left showing its actions closes and a chart's
+selection lets go when the reader taps somewhere else. `Modifier.onPressOutside`
+is the same for anything of an app's own:
+
+```kotlin
+Box(Modifier.onPressOutside(enabled = picked != null) { picked = null }) { Board(picked) }
+```
+
+The press is watched and never taken, so it goes on to press what it was aimed
+at. With no host round the app, only presses on the node itself are seen.
 
 ---
 

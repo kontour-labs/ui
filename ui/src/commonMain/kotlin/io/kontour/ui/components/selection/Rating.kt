@@ -46,7 +46,6 @@ import io.kontour.ui.interaction.rememberDetentTicker
 import io.kontour.ui.interaction.rememberTapFeedback
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.foundation.Icon
-import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.theme.Theme
@@ -141,8 +140,8 @@ fun Rating(
     // shared rate floor. It used to tap for each one — a click per star, twice
     // with halves — which was felt as heavy against every other drag in the set.
     val ticker = rememberDetentTicker()
-    val empty = icon ?: SystemIcons.Star
-    val full = filledIcon ?: SystemIcons.StarFilled
+    val empty = icon ?: Theme.icons.star
+    val full = filledIcon ?: Theme.icons.starFilled
     val clamped = value.coerceIn(0f, count.toFloat())
     val strings = Theme.strings
     val formats = Theme.formats

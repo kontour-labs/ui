@@ -17,7 +17,6 @@ import io.kontour.ui.foundation.ContentSlot
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.ProvideContentColour
 import io.kontour.ui.foundation.ProvideTextStyle
-import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.theme.Theme
 
 /**
@@ -107,8 +106,8 @@ internal fun StatLayout(slots: StatScope, modifier: Modifier, alignment: Alignme
                     // their own ahead of the caller's content: a tick or an
                     // alert. Decorative — the caller's words already say it.
                     val sentiment = when (slots.trendDirection) {
-                        StatTrend.Positive -> SystemIcons.Success
-                        StatTrend.Negative -> SystemIcons.Danger
+                        StatTrend.Positive -> Theme.icons.success
+                        StatTrend.Negative -> Theme.icons.danger
                         StatTrend.Neutral -> null
                     }
                     if (highContrast() && sentiment != null) {
@@ -180,7 +179,7 @@ class StatScope @PublishedApi internal constructor() {
      */
     private val spokenValue = StringBuilder()
     private val spokenLabel = StringBuilder()
-    private val spokenRest = StringBuilder()
+    private val spokenRest = mutableListOf<String>()
     private var override: String? = null
 
     /** What this is the number *of*. */
@@ -222,8 +221,7 @@ class StatScope @PublishedApi internal constructor() {
     }
 
     fun supporting(text: String) {
-        if (spokenRest.isNotEmpty()) spokenRest.append(". ")
-        spokenRest.append(text)
+        spokenRest += text
         supporting = { +text }
     }
 
@@ -235,8 +233,7 @@ class StatScope @PublishedApi internal constructor() {
 
     fun trend(direction: StatTrend, text: String) {
         trendDirection = direction
-        if (spokenRest.isNotEmpty()) spokenRest.append(". ")
-        spokenRest.append(text)
+        spokenRest += text
         trend = { +text }
     }
 
@@ -252,11 +249,13 @@ class StatScope @PublishedApi internal constructor() {
 
     internal fun spoken(sentences: (List<String>) -> String): String? {
         override?.let { return it }
+        // Every part a sentence of its own, joined by the reader's own
+        // separator: the supporting line and the trend were joined with an
+        // English ". " written in here.
         val parts = listOfNotNull(
             spokenLabel.toString().takeIf { it.isNotBlank() },
             spokenValue.toString().takeIf { it.isNotBlank() },
-            spokenRest.toString().takeIf { it.isNotBlank() },
-        )
+        ) + spokenRest.filter { it.isNotBlank() }
         return sentences(parts).takeIf { it.isNotBlank() }
     }
 }

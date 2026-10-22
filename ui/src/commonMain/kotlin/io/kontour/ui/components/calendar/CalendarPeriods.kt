@@ -23,7 +23,8 @@ enum class CalendarView {
 
     /**
      * Three days' hours side by side, from the day the view was shown on and
-     * three at a time from there: between a day and a week, for a phone.
+     * three at a time from there: between a day and a week, for a phone. A
+     * swipe comes to rest on any day, and the threes are counted from it.
      */
     ThreeDays,
 

@@ -84,7 +84,7 @@ module's 391 declarations. The 130 indented ones it could not see are every
 method on every builder scope, so the gate reported no problems for as long as
 the drift stayed inside a shorthand.
 
-Eighteen rules, and each one is there because it caught something real:
+Nineteen rules, and each one is there because it caught something real:
 
 | | |
 |---|---|
@@ -106,6 +106,7 @@ Eighteen rules, and each one is there because it caught something real:
 | A starting value is `initial<What>` | a bare `initial` says it is a starting value and not of what |
 | Every state holder, `remember*`, `*Defaults` and `*Colours` has a KDoc | 51 of them reached the reference as a bare name |
 | A lambda parameter never takes its function's parameter's name | renaming `selected` to `value` left `value == value` behind, and every radio option drew selected |
+| Tabler is imported only by `SystemIcons.kt` and `Kbd.kt` | a glyph named in a component is one the app cannot replace; it belongs in `Theme.icons` |
 
 `enabled` sits directly after `modifier` with no exceptions. An earlier draft let
 it follow an optional `onClick` instead — which reads better on the three
@@ -323,6 +324,14 @@ gets which — and why a drag across a rating ticks rather than taps — is in
 
 A one-shot that is none of those is `feedback.perform(intent)` on
 `LocalFeedback.current`, and the build counts those calls.
+
+None of the helpers plays for a hover — a pointer moving with no button or
+finger down — because the theme tells them when the event in hand is one
+(`HoverWatch`). Call them from a hover handler as from a drag, and pass
+nothing: a Mac plays haptics on the trackpad under the finger moving the
+pointer, and a chart that ticked for each place a resting pointer chose was
+reported as a rumble. A `perform` of your own is not covered, so keep it to a
+press, a drag or an outcome.
 
 ---
 

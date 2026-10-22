@@ -66,6 +66,7 @@ import io.kontour.ui.interaction.freeDragOwning
 import io.kontour.ui.interaction.horizontalDragOwning
 import io.kontour.ui.interaction.rememberDetentTicker
 import io.kontour.ui.input.focusRing
+import io.kontour.ui.locale.bidiIsolated
 import io.kontour.ui.theme.Theme
 import kotlin.math.roundToInt
 
@@ -248,7 +249,7 @@ fun ColourPicker(
                         finished?.invoke()
                     },
                     swatchColour = { it },
-                    swatchLabel = { it.toHex() },
+                    swatchLabel = { bidiIsolated(it.toHex()) },
                     enabled = enabled,
                     // Smaller than a swatch picker on its own, which is a control a
                     // finger lands on directly. Here the row is a shortcut beside a

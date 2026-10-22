@@ -10,6 +10,7 @@
 | [`NavSearch`](nav-search.md) | A search in a bar or a rail | A search screen for the bar's one field |
 | [`TopBar`](top-bar.md) | A title and its actions | Anything holding destinations |
 | [`TabBar`](tab-bar.md) | Views of *one* screen | `SegmentedControl`, when switching a value |
+| [`DocumentTabs`](document-tabs.md) | Open documents, a browser's or an editor's, closed and dragged between panes | `TabBar`, whose views are fixed |
 | [Navigation 3 scenes](../navigation3.md) | A list and its detail, or a supporting pane, from a back stack | Laying the panes out by hand in every destination |
 | [`Breadcrumbs`](breadcrumbs.md) | Where you are in a hierarchy | — |
 | [`Pagination`](pagination.md) | Numbered pages | `LoadMore`, in an app |

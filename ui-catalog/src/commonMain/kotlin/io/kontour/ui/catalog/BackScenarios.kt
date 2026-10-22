@@ -165,7 +165,7 @@ private fun FramePage(
             onBack = onBack,
             windowInsets = WindowInsets(0),
             actions = onClose?.let { close ->
-                { IconButton(icon = SystemIcons.Close, contentDescription = Theme.strings.close, onClick = close) }
+                { IconButton(icon = SystemIcons.Default.close, contentDescription = Theme.strings.close, onClick = close) }
             },
         ) { +title }
         Column(
@@ -262,8 +262,8 @@ private fun SidewaysControls() {
         // One group: a list item's gap apart, each swipe in its row's shape.
         Column(verticalArrangement = Arrangement.spacedBy(ListItemDefaults.Spacing)) {
             SwipeActions(
-                start = listOf(SwipeAction("Pin", SystemIcons.Check, onAction = {}, background = Theme.colours.success.solid)),
-                end = listOf(SwipeAction("Remove", SystemIcons.Close, onAction = {}, background = Theme.colours.danger.solid)),
+                start = listOf(SwipeAction("Pin", SystemIcons.Default.check, onAction = {}, background = Theme.colours.success.solid)),
+                end = listOf(SwipeAction("Remove", SystemIcons.Default.close, onAction = {}, background = Theme.colours.danger.solid)),
                 shape = GroupPosition.First.shape(ListItemDefaults.Shape, ListItemDefaults.InnerCorner, Orientation.Vertical),
             ) {
                 ListItem(position = GroupPosition.First) {
@@ -272,7 +272,7 @@ private fun SidewaysControls() {
                 }
             }
             SwipeActions(
-                end = listOf(SwipeAction("Remove", SystemIcons.Close, onAction = {}, background = Theme.colours.danger.solid)),
+                end = listOf(SwipeAction("Remove", SystemIcons.Default.close, onAction = {}, background = Theme.colours.danger.solid)),
                 shape = GroupPosition.Last.shape(ListItemDefaults.Shape, ListItemDefaults.InnerCorner, Orientation.Vertical),
             ) {
                 ListItem(position = GroupPosition.Last) {

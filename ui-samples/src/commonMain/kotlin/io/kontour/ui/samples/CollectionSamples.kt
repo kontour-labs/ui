@@ -1,6 +1,7 @@
 package io.kontour.ui.samples
 
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.lazy.items
 import io.kontour.icons.tabler.outline.HelpCircle
 import io.kontour.ui.components.list.DisclosureListItem
@@ -225,6 +226,20 @@ fun SplitListItemBasics() {
         ) {
             leading { +Tabler.Outline.Star }
         }
+    }
+}
+
+@Composable
+fun TextFieldListItemBasics() {
+    val name = rememberTextFieldState("Perth Underground")
+    val note = rememberTextFieldState()
+
+    // A favourite's details, as rows of a group rather than boxes on a page:
+    // the label at the start and the value at the end, or with no label the
+    // field from the start, its placeholder saying what goes there.
+    ListGroup {
+        field(name, label = "Name", icon = Tabler.Outline.Star)
+        field(note, placeholder = "Add a note", supporting = "Only you see this")
     }
 }
 

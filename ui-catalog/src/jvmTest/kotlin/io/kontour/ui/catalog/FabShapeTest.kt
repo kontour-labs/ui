@@ -40,7 +40,7 @@ class FabShapeTest {
             KontourTheme {
                 Box(Modifier.fillMaxSize().background(Color.White).padding(20.dp)) {
                     FloatingActionButton(
-                        icon = SystemIcons.Plus,
+                        icon = SystemIcons.Default.plus,
                         contentDescription = "Add",
                         onClick = {},
                         size = size,
@@ -58,7 +58,7 @@ class FabShapeTest {
             KontourTheme {
                 Box(Modifier.fillMaxSize().background(Color.White).padding(20.dp)) {
                     ExtendedFloatingActionButton(
-                        icon = SystemIcons.Plus,
+                        icon = SystemIcons.Default.plus,
                         contentDescription = "Add",
                         onClick = {},
                         size = size,
@@ -168,7 +168,7 @@ class FabShapeTest {
             KontourTheme {
                 Box(Modifier.fillMaxSize().background(Color.White).padding(20.dp)) {
                     FloatingActionButton(
-                        icon = SystemIcons.Plus,
+                        icon = SystemIcons.Default.plus,
                         contentDescription = "Add",
                         onClick = {},
                         size = size,
@@ -186,7 +186,7 @@ class FabShapeTest {
             KontourTheme {
                 Box(Modifier.fillMaxSize().background(Color.White).padding(20.dp)) {
                     ExtendedFloatingActionButton(
-                        icon = SystemIcons.Plus,
+                        icon = SystemIcons.Default.plus,
                         contentDescription = "Add",
                         onClick = {},
                         size = size,

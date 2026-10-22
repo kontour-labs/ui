@@ -1,5 +1,8 @@
 package io.kontour.ui.catalog.apps.transit
 
+import io.kontour.ui.components.list.ListGroup
+import io.kontour.icons.tabler.outline.CurrentLocation
+import io.kontour.icons.tabler.outline.MapPin
 import io.kontour.ui.sheet.SheetPartPin
 import androidx.compose.foundation.layout.PaddingValues
 import io.kontour.ui.catalog.pageScroll
@@ -34,7 +37,6 @@ import io.kontour.ui.components.display.StepProgress
 import io.kontour.ui.components.list.ListItem
 import io.kontour.ui.components.list.ListItemDefaults
 import io.kontour.ui.components.selection.SegmentedControl
-import io.kontour.ui.components.text.TextField
 import io.kontour.ui.foundation.GroupPosition
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.sheet.ModalBottomSheet
@@ -88,6 +90,7 @@ internal fun PlannerSheet(visible: Boolean, onDismiss: () -> Unit) {
         visible = visible,
         onDismissRequest = onDismiss,
         state = sheet,
+        paneTitle = "Plan a trip",
     ) { padding ->
         // At the foot of the sheet whatever size it is, as a navigation bar is.
         part(pin = SheetPartPin.Bottom) {
@@ -111,9 +114,10 @@ internal fun PlannerSheet(visible: Boolean, onDismiss: () -> Unit) {
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
                 ) {
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs)) {
-                        TextField(state = from, label = "From")
-                        TextField(state = to, label = "To", placeholder = "Station, stop or address")
+                    // The two places as rows of one group, typed into in place.
+                    ListGroup(Modifier.weight(1f)) {
+                        field(from, label = "From", icon = Tabler.Outline.CurrentLocation)
+                        field(to, label = "To", placeholder = "Station, stop or address", icon = Tabler.Outline.MapPin)
                     }
                     IconButton(
                         icon = Tabler.Outline.ArrowsUpDown,

@@ -1,5 +1,7 @@
 package io.kontour.ui.components.list
 
+import io.kontour.ui.input.onPressOutside
+import io.kontour.ui.input.onScrollOutside
 import io.kontour.ui.theme.clipProxy
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.animation.AnimatedVisibility
@@ -33,12 +35,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.boundsInRoot
-import androidx.compose.ui.layout.LayoutCoordinates
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.derivedStateOf
@@ -50,12 +49,13 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathMeasure
@@ -63,6 +63,7 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.PointerEventPass
@@ -96,6 +97,7 @@ import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.interaction.horizontalDragOwning
 import io.kontour.ui.interaction.rememberRubberBand
 import io.kontour.ui.interaction.rememberDetentTicker
+import io.kontour.ui.platform.platformPreciseScrollDp
 import io.kontour.ui.platform.platformScrollDeltaInPixels
 import io.kontour.ui.theme.Theme
 import kotlin.math.abs
@@ -305,15 +307,35 @@ object SwipeActionsDefaults {
      * gesture than a scroll, so a row moves further: two clicks open a single
      * action, and four bring the first of several out in full, which is where a
      * released row opens. A trackpad on a Mac pans instead, and follows the
-     * fingers.
+     * fingers at [TrackpadGain].
      *
      * On the web it is a ceiling rather than a step. A browser's scroll comes in
-     * CSS pixels, not notches, so a pixel moves the row a dp and follows the
-     * trackpad the way a pan does, and no one event moves it further than this —
-     * which is about what one click of a mouse wheel reports. Treated as notches,
-     * as they were, one trackpad event of ten pixels moved the row 240dp.
+     * CSS pixels, not notches, so a pixel moves the row [TrackpadGain] of a dp
+     * and follows the trackpad the way a pan does, and no one event moves it
+     * further than this — which is about what one click of a mouse wheel
+     * reports, so a wheel's click moves the row a whole step there too. Treated
+     * as notches, as they were, one trackpad event of ten pixels moved the row
+     * 240dp.
      */
     val ScrollStep: Dp = 24.dp
+
+    /**
+     * How far the row moves for each pixel a trackpad moves it: a pan, a
+     * browser's scroll in pixels, and on the desktop a Mac's trackpad, whose
+     * scroll comes as fractions of a wheel's notch and is followed at the ten dp
+     * a unit a list on a Mac scrolls by.
+     *
+     * It was 1, the row following the fingers pixel for pixel as it follows a
+     * finger on glass, and that was reported 2026-10-21 for 0.5.0 as *"the side
+     * scrolling for swipe actions is really sensitive"*. A finger on glass
+     * moves the row exactly as far as it moves; a trackpad's pixels are
+     * accelerated, so a quick flick of two fingers covers far more of them than
+     * the fingers travelled, and it carried the row across its actions and
+     * past the point of no return. At 0.6 a deliberate push still opens the row
+     * all the way and carries it on to a full swipe, and a flick no longer
+     * does. A wheel's notches are not pixels, and still move it [ScrollStep].
+     */
+    const val TrackpadGain: Float = 0.6f
 
     /** How long after the last scroll event the row settles onto an anchor. */
     val SettleAfterScroll: Duration = 120.milliseconds
@@ -383,6 +405,9 @@ object SwipeActionsDefaults {
  *   Android half of the report.
  * - **A tap on a row showing its actions closes it**, and does not also reach the
  *   row's own click. A tap on one of the buttons runs that action and closes it.
+ * - **A press or a scroll anywhere else closes it**: another row, a button, a
+ *   carousel scrolled across, the list scrolled, by finger, wheel or trackpad.
+ *   Seen at the app's `OverlayHost`; without one, only another swipe row does.
  *
  * **Order runs from the screen edge in toward the row**, on both sides. So the
  * *first* action of a list is the one furthest from the row, and the last one is
@@ -464,6 +489,7 @@ fun SwipeActions(
     val actionWidthPx = with(density) { actionWidth.toPx() }
     val gapPx = with(density) { SwipeActionsDefaults.Gap.toPx() }
     val flickVelocityPx = with(density) { SwipeFlickVelocity.toPx() }
+    val trackpadFlickVelocityPx = with(density) { SwipeTrackpadFlickVelocity.toPx() }
     val flickTravelPx = with(density) { SwipeFlickTravel.toPx() }
     val commitMarginPx = with(density) { SwipeCommitMargin.toPx() }
     val commitInsetPx = with(density) { SwipeCommitInset.toPx() }
@@ -689,7 +715,7 @@ fun SwipeActions(
     val settleSpec: AnimationSpec<Float> = motion.springOrTween(motion.springDefault)
     val commitSpec: AnimationSpec<Float> = motion.springOrTween(motion.springSnappy)
 
-    fun settle(velocity: Float) {
+    fun settle(velocity: Float, flickVelocity: Float = flickVelocityPx) {
         // The give comes home on the row's own spring, from rest: it was never a
         // place the row was, so there is nothing to carry through it.
         if (band.stretched) scope.launch { band.release(motion.springOrTween(motion.springDefault)) }
@@ -704,7 +730,7 @@ fun SwipeActions(
             startCount = start.size,
             endCount = end.size,
             committing = committing,
-            flickVelocity = flickVelocityPx,
+            flickVelocity = flickVelocity,
             flickTravel = flickTravelPx,
             revealShare = revealShare,
         )
@@ -770,42 +796,56 @@ fun SwipeActions(
     val swipeable = enabled && (start.isNotEmpty() || end.isNotEmpty())
 
     // Showing its actions, it closes at a press anywhere else — another row, a
-    // button, the list scrolled — as a SwiftUI list's row does: asked for as
+    // button, the list scrolled — and at a scroll from a wheel or a trackpad
+    // anywhere else, as a SwiftUI list's row does: asked for as
     // *"if you start interacting with another component, it closes"*. The press
     // still does what it does; this row only gets out of the way.
     //
     // Open from the moment it is on its way there, not only once it has
     // arrived: a second row swiped while the first was still sliding open
     // left the first open, until a third was swiped.
-    val placed = remember { RowPlace() }
     fun opening() = state.anchoredState.let { it.settledValue.isReveal() || it.targetValue.isReveal() } &&
         tapped == null && !fullSwipe
     val showing = opening()
-    DisposableEffect(showing, state) {
-        if (!showing) return@DisposableEffect onDispose { }
-        val key = Any()
-        OpenSwipeRows.add(key) { root ->
-            // On the screen, as the press is: a press in a popup, or another
-            // window, is in a root of its own, and its root's coordinates
-            // compared with this row's said nothing.
-            val bounds = placed.coordinates?.takeIf { it.isAttached }?.let { c ->
-                Rect(c.localToScreen(Offset.Zero), c.localToScreen(Offset(c.size.width.toFloat(), c.size.height.toFloat())))
-            } ?: return@add
-            if (bounds.contains(root) || !opening()) return@add
+    fun closeForElsewhere() {
+        if (opening()) {
             settling?.cancel()
             scope.launch { state.reset() }
         }
-        onDispose { OpenSwipeRows.remove(key) }
     }
 
     Box(
         modifier = modifier
             .fillMaxWidth()
             .onSizeChanged { width = it.width.toFloat() }
-            .onGloballyPositioned { placed.coordinates = it }
-            // A press on this row closes any other that is open, with or
-            // without an `OverlayHost` round the app to see every press.
-            .closesOpenSwipeRows()
+            // **The row slides inside this box and is cut off at its sides**, so
+            // a swiped row is never drawn outside its own row. Nothing here
+            // clipped the slide, and a row was cut off only by whatever stood
+            // round it: the edge of the screen on a phone, and nothing at all
+            // in a list pane, where the messages app's chats carried their
+            // avatar, name and time over the conversation beside the list. A
+            // list does not clip its rows across, only along its scroll.
+            //
+            // Across only, because the row only moves across; and in the draw
+            // rather than as a layer, so a list of rows takes no layer apiece.
+            .drawWithContent {
+                clipRect(top = -size.height, bottom = size.height * 2f) { this@drawWithContent.drawContent() }
+            }
+            // A press anywhere else closes it, and a press on this row closes
+            // any other that is open, with or without an `OverlayHost` round
+            // the app to see every press: `onPressOutside` reports this row's
+            // presses as well as watching for others'.
+            .onPressOutside(enabled = showing) { closeForElsewhere() }
+            // And so does a scroll anywhere else, from a wheel or a trackpad,
+            // sideways or down: a finger's scroll starts with a press and always
+            // closed it, and a mouse's and a trackpad's left it open while a
+            // carousel or a table beside it was scrolled across. Asked for as
+            // *"can we apply that too if you start side-scrolling somewhere
+            // else?"*, 2026-10-21 for 0.5.0. Down as well, because the list
+            // scrolled is the example the page gives of what closes it, and a
+            // finger scrolling the list already did. A scroll on this row is
+            // the row's own, below, and does not close it.
+            .onScrollOutside(enabled = showing) { closeForElsewhere() }
             .semantics {
                 // The only route to these that does not require knowing the
                 // gesture exists. Withheld while disabled, as the gesture is: a
@@ -893,15 +933,38 @@ fun SwipeActions(
              * event threw the row a couple of hundred dp. See
              * [sideScrollDistance].
              *
+             * **And then too easy on a Mac's trackpad as well**, reported
+             * 2026-10-21 for 0.5.0 as *"the side scrolling for swipe actions is
+             * really sensitive"*, for three reasons that added up. The row
+             * followed a pan pixel for pixel, and a trackpad's pixels are
+             * accelerated, so a flick of the fingers carried it across its
+             * actions and on past the point of no return: now it moves at
+             * [SwipeActionsDefaults.TrackpadGain]. It took a pan as sideways
+             * after 0.4 of the touch slop, a finger's share, on whichever way
+             * had gone further, so a push upward that drifted as the fingers
+             * landed was a swipe: now it waits for the whole slop, and for twice
+             * as much across as up or down. And let go, it was thrown open at
+             * a finger's flick speed, which a trackpad's pan nearly always has:
+             * now a pan has to go at [SwipeTrackpadFlickVelocity].
+             *
              * **Sideways, or not at all.** Each gesture — a pan from its start,
              * a burst of scroll from the first event after a quiet spell — is
-             * the row's if it begins mostly sideways, and the list's otherwise,
-             * for the whole of it. A vertical scroll with a little drift in it
-             * used to move the row and swallow the scroll.
+             * the row's if it begins clearly sideways, at least
+             * [SideScrollDirectionRatio] times as far across as up or down, and
+             * the list's otherwise, for the whole of it. A vertical scroll with
+             * a little drift in it used to move the row and swallow the scroll.
+             * And the other way: a sideways scroll's events that were only up or
+             * down went on to the list, which scrolled out from under the row
+             * being swiped.
              *
              * A pan ends with an event of its own and settles then, flicked by
              * how it was moving; a scroll has no end, and settles once it has
-             * been quiet for [SwipeActionsDefaults.SettleAfterScroll].
+             * been quiet for [SwipeActionsDefaults.SettleAfterScroll] — or at
+             * once, carried past its point of no return. What scroll follows a
+             * pan's end, or a scroll let go of past that point, before a quiet
+             * spell is a trackpad coasting after its fingers lifted, and moves
+             * nothing. A scroll let go of for being quiet was a wheel's notch,
+             * or a trackpad stopped, and the next notch moves the row again.
              */
             .then(
                 if (swipeable) {
@@ -910,12 +973,31 @@ fun SwipeActions(
                     Modifier.pointerInput(state, scope, isRtl, startTravel, endTravel, actionWidthPx) {
                         val stepPx = SwipeActionsDefaults.ScrollStep.toPx()
                         val dpPx = 1.dp.toPx()
-                        val decidePx = viewConfiguration.touchSlop * SideScrollDecisionShare
+                        // The whole slop, and not the 0.4 of it a finger's drag
+                        // decides on: a pan has no press to begin with, so this
+                        // is all there is to tell a swipe from a scroll by, and
+                        // its first few pixels are the fingers landing. In a
+                        // browser's pixels, which are dp, for its scroll.
+                        val decidePx = viewConfiguration.touchSlop
+                        val decideCssPx = viewConfiguration.touchSlop / dpPx
                         var waiting: Job? = null
                         // The gesture's direction: undecided, the row's, or the list's.
                         var ours: Boolean? = null
                         var gathered = Offset.Zero
                         var lastScroll = 0L
+                        // The gesture has been let go of — its pan ended, or its
+                        // scroll carried past the point of no return — and what
+                        // scroll follows before a quiet spell is its momentum: a
+                        // trackpad's fingers have lifted and it is still coasting.
+                        // It used to be taken as more of the gesture, and each
+                        // event put off the settle, or cancelled one already under
+                        // way and started the wait again: a row swiped all the way
+                        // across sat at the edge until the coasting had died away.
+                        var coasting = false
+                        // Whether this gesture's scroll has come in fractions of a
+                        // notch: a Mac's trackpad, which is then followed as the
+                        // fingers go, not counted in notches. See below.
+                        var precise = false
                         var panned = 0f
                         val panVelocity = VelocityTracker1D(isDataDifferential = false)
 
@@ -929,16 +1011,44 @@ fun SwipeActions(
                             dealt.at(state.anchoredState.offset)
                         }
 
+                        // The scroll was let go of for being quiet, and the next
+                        // notch, however soon, starts a gesture of its own.
+                        var settledQuietly = false
+
+                        // A scroll has no end: it is let go of once it has been quiet.
+                        //
+                        // And let go of, it is not coasting: a trackpad's momentum
+                        // follows a pan's end, or a scroll's run past the point of
+                        // no return, with no quiet between. Found in the 0.5.0
+                        // review, 2026-10-21: this settle said coasting too, and a
+                        // wheel's notches a fifth of a second apart, Shift and the
+                        // wheel or a tilt at an easy pace, came after it and inside
+                        // the quiet spell that ends coasting, so every one after the
+                        // first was taken and ignored, and the row never opened.
+                        // Now the next notch moves the row on from wherever the
+                        // settle has got it to.
+                        fun settleWhenQuiet() {
+                            waiting = scope.launch {
+                                delay(SwipeActionsDefaults.SettleAfterScroll)
+                                dealt.reset()
+                                settledQuietly = true
+                                settle(0f)
+                            }
+                        }
+
                         fun decide(delta: Offset, threshold: Float): Boolean? {
                             if (ours == null) {
                                 gathered += delta
-                                if (gathered.getDistance() >= threshold) ours = abs(gathered.x) > abs(gathered.y)
+                                if (gathered.getDistance() >= threshold) {
+                                    ours = abs(gathered.x) >= abs(gathered.y) * SideScrollDirectionRatio
+                                }
                             }
                             return ours
                         }
 
                         fun begin() {
                             ours = null
+                            precise = false
                             gathered = Offset.Zero
                             pointOfNoReturn.reset()
                             pointOfNoReturn.at(0)
@@ -952,6 +1062,7 @@ fun SwipeActions(
                                 when (event.type) {
                                     PointerEventType.PanStart -> {
                                         begin()
+                                        coasting = false
                                         panned = 0f
                                         panVelocity.resetTracking()
                                     }
@@ -959,17 +1070,24 @@ fun SwipeActions(
                                         val pan = changes.fold(Offset.Zero) { sum, it -> sum + it.panOffset }
                                         if (decide(pan, decidePx) != true) continue
                                         changes.forEach { it.consume() }
-                                        // Pixels that follow the fingers: the row
-                                        // goes with them, as it does with one.
-                                        move(pan.x)
-                                        panned += pan.x
+                                        // Pixels that follow the fingers, at the
+                                        // trackpad's gain: they are accelerated,
+                                        // and a finger's are not. The speed is
+                                        // the row's, so it is what the throw is
+                                        // judged on.
+                                        val moved = pan.x * SwipeActionsDefaults.TrackpadGain
+                                        move(moved)
+                                        panned += moved
                                         panVelocity.addDataPoint(changes.first().uptimeMillis, panned)
                                     }
                                     PointerEventType.PanEnd -> {
                                         if (ours == true) {
                                             changes.forEach { it.consume() }
                                             val velocity = panVelocity.calculateVelocity()
-                                            settle(if (isRtl) -velocity else velocity)
+                                            settle(if (isRtl) -velocity else velocity, trackpadFlickVelocityPx)
+                                            // Its momentum may follow as scroll.
+                                            coasting = true
+                                            lastScroll = changes.first().uptimeMillis
                                         }
                                         dealt.reset()
                                         ours = null
@@ -979,17 +1097,81 @@ fun SwipeActions(
                                         // Says nothing about direction, so decides nothing.
                                         if (delta == Offset.Zero) continue
                                         val now = changes.first().uptimeMillis
-                                        if (now - lastScroll > SideScrollQuietMillis) begin()
+                                        val quiet = now - lastScroll > SideScrollQuietMillis
                                         lastScroll = now
-                                        // A notch is a whole decision on its own.
-                                        if (decide(delta, 0f) != true || delta.x == 0f) continue
-                                        changes.forEach { it.consume() }
-                                        move(-sideScrollDistance(delta.x, stepPx, dpPx, platformScrollDeltaInPixels))
-                                        waiting = scope.launch {
-                                            delay(SwipeActionsDefaults.SettleAfterScroll)
-                                            dealt.reset()
-                                            settle(0f)
+                                        if (coasting) {
+                                            // Momentum of a gesture already let go of:
+                                            // the row's, and it moves nothing.
+                                            if (!quiet) {
+                                                if (abs(delta.x) >= abs(delta.y)) changes.forEach { it.consume() }
+                                                continue
+                                            }
+                                            coasting = false
                                         }
+                                        if (quiet || settledQuietly) begin()
+                                        settledQuietly = false
+                                        // A Mac's trackpad, in fractions of a notch:
+                                        // reported 2026-10-21 as feeling *"even
+                                        // more sensitive"* after the trackpad gain,
+                                        // which was only ever a pan's, and a desktop
+                                        // has no pans. Each fraction was a share of
+                                        // a 24dp notch, two and a half times what
+                                        // the same fingers scroll a list on a Mac.
+                                        // A wheel's whole notch never sets it, so a
+                                        // Mac's mouse still turns a notch at a time.
+                                        if (platformPreciseScrollDp > 0f && (delta.x.hasFraction() || delta.y.hasFraction())) {
+                                            precise = true
+                                        }
+                                        val preciseUnitPx = platformPreciseScrollDp * dpPx
+                                        // A notch is a whole decision on its own;
+                                        // a browser's pixels, and a trackpad's
+                                        // fractions, gather the slop first, as a
+                                        // pan's do.
+                                        val threshold = when {
+                                            platformScrollDeltaInPixels -> decideCssPx
+                                            precise -> decidePx / preciseUnitPx
+                                            else -> 0f
+                                        }
+                                        if (decide(delta, threshold) != true) continue
+                                        // The row's, up and down included, until it
+                                        // is let go of. A trackpad's fingers drift,
+                                        // and an event that was only up or down went
+                                        // on to the list, which scrolled out from
+                                        // under a row held half open: *"it's
+                                        // difficult to hold it in position"*.
+                                        changes.forEach { it.consume() }
+                                        if (delta.x == 0f) {
+                                            // Still the gesture: it is not let go of yet.
+                                            waiting?.cancel()
+                                            settleWhenQuiet()
+                                            continue
+                                        }
+                                        move(
+                                            -if (precise) {
+                                                preciseScrollDistance(delta.x, stepPx, preciseUnitPx, SwipeActionsDefaults.TrackpadGain)
+                                            } else {
+                                                sideScrollDistance(
+                                                    delta.x, stepPx, dpPx, platformScrollDeltaInPixels,
+                                                    gain = SwipeActionsDefaults.TrackpadGain,
+                                                )
+                                            }
+                                        )
+                                        // Carried past the point of no return, it is let
+                                        // go of now, not once the scroll has been quiet,
+                                        // which on a trackpad is once its coasting has
+                                        // died away. It waited for the far edge first,
+                                        // which is the row's whole width away and which
+                                        // a swipe on a trackpad never reaches: the row
+                                        // sat past the point until the coasting stopped.
+                                        // A scroll says nothing of the fingers lifting,
+                                        // so there is no later moment to wait for.
+                                        if (committing) {
+                                            dealt.reset()
+                                            coasting = true
+                                            settle(0f)
+                                            continue
+                                        }
+                                        settleWhenQuiet()
                                     }
                                     else -> Unit
                                 }
@@ -1100,10 +1282,26 @@ fun SwipeActions(
                     }
                 }
         ) {
-            content()
+            // The row's focus ring drawn inside it, as its actions' are: the
+            // row is clipped to [shape] here, and a ring drawn round it, as a
+            // `ListItem` draws one anywhere else, was cut away whole.
+            CompositionLocalProvider(LocalRingInside provides true) { content() }
         }
     }
 }
+
+/**
+ * Whether a row draws its focus ring just inside its edge rather than round it,
+ * for a row in a container that clips it to its own shape.
+ *
+ * Found in the 0.5.0 review, 2026-10-21, as the sides of a `ListItem`'s ring
+ * cut away by the clip that keeps a swiped row in its row. More than the sides
+ * had gone, and since before that clip: [SwipeActions] clips the row it slides
+ * to [SwipeActions]'s shape, so that the page shows between the row and its
+ * actions, and the ring a `ListItem` draws outside its bounds never showed at
+ * all. A row a keyboard had reached said nothing of it.
+ */
+internal val LocalRingInside = staticCompositionLocalOf { false }
 
 /**
  * Where a released swipe goes. Pure, so every rule in [SwipeActions]'s "How it
@@ -1602,6 +1800,16 @@ private fun Modifier.clickableAction(onClick: () -> Unit, label: String, interac
  */
 private val SwipeFlickVelocity: Dp = 400.dp
 
+/**
+ * The same, for a trackpad's pan, which is judged on the row's speed rather
+ * than the fingers'. Three times a finger's, set 2026-10-21 for 0.5.0: a pan let
+ * go at a finger's flick speed threw the row open, and nearly every pan is that
+ * fast, so a flick of 72px across a row of two actions opened both. At this a
+ * pan let go quickly still throws the row, and one let go at an ordinary pace
+ * settles by where it is.
+ */
+private val SwipeTrackpadFlickVelocity: Dp = 1200.dp
+
 /** How far a flick has to have travelled for its direction to mean anything. */
 private val SwipeFlickTravel: Dp = 12.dp
 
@@ -1723,69 +1931,37 @@ private class ConfirmDraw {
  * How far one scroll event moves a swipe row, in pixels, from its delta.
  *
  * A delta in notches — everywhere but the web — moves the row [stepPx] a notch.
- * A delta in CSS pixels — the web, see [platformScrollDeltaInPixels] — moves it one
- * dp a pixel, and never more than [stepPx] in one event: a trackpad's few pixels
- * follow the fingers, and a mouse wheel's hundred-pixel click moves the row as far
- * as a notch does anywhere else.
+ * A delta in CSS pixels — the web, see [platformScrollDeltaInPixels] — moves it
+ * [gain] of a dp a pixel, and never more than [stepPx] in one event: a trackpad's
+ * few pixels follow the fingers, and a mouse wheel's hundred-pixel click moves the
+ * row as far as a notch does anywhere else. A swipe row's gain is
+ * [SwipeActionsDefaults.TrackpadGain]; a top bar's is 1.
  */
-internal fun sideScrollDistance(delta: Float, stepPx: Float, density: Float, inPixels: Boolean): Float =
-    if (inPixels) (delta * density).coerceIn(-stepPx, stepPx) else delta * stepPx
+internal fun sideScrollDistance(delta: Float, stepPx: Float, density: Float, inPixels: Boolean, gain: Float = 1f): Float =
+    if (inPixels) (delta * density * gain).coerceIn(-stepPx, stepPx) else delta * stepPx
 
 /**
- * How much of the touch slop a trackpad's pan gathers before the row decides
- * whether it is sideways — the share a finger's drag uses, for the same reason.
+ * How far one scroll event of a Mac's trackpad moves a swipe row, in pixels:
+ * [unitPx] a unit of its fractional [delta], as a list on a Mac scrolls, at
+ * [gain], and never more than [stepPx] in one event, which a trackpad's coasting
+ * can reach. See `platformPreciseScrollDp`.
  */
-private const val SideScrollDecisionShare = 0.4f
+internal fun preciseScrollDistance(delta: Float, stepPx: Float, unitPx: Float, gain: Float): Float =
+    (delta * unitPx * gain).coerceIn(-stepPx, stepPx)
+
+/** Whether this is a fraction of a notch, as a trackpad's are and a wheel's are not. */
+private fun Float.hasFraction(): Boolean = this != kotlin.math.round(this)
+
+/**
+ * How many times as far across as up or down a pan or a scroll has to have gone
+ * for the row to take it as sideways. It took whichever way had gone further, so
+ * a push upward that drifted 8px as the fingers landed was a swipe: see
+ * [SwipeActionsDefaults.TrackpadGain] for the report.
+ */
+private const val SideScrollDirectionRatio = 2f
 
 /** A scroll quiet for this long has ended, and the next is a new gesture to decide. */
 private const val SideScrollQuietMillis = 250L
-
-/** Where a row is, for a press elsewhere to be told from one on it. Not state: written in layout, read in input. */
-private class RowPlace {
-    var coordinates: LayoutCoordinates? = null
-}
-
-/**
- * The [SwipeActions] rows showing their actions, each told of every press —
- * where, on the screen — to close at one that is not on it.
- *
- * One for the process rather than one for each `OverlayHost`: a row inside a
- * host nested in another is closed by a press in the outer one too.
- */
-internal object OpenSwipeRows {
-    private val open = LinkedHashMap<Any, (Offset) -> Unit>()
-
-    fun add(key: Any, onPress: (Offset) -> Unit) {
-        open[key] = onPress
-    }
-
-    fun remove(key: Any) {
-        open.remove(key)
-    }
-
-    /** A press went down at [screen], on the screen. */
-    fun pressedAt(screen: Offset) {
-        if (open.isEmpty()) return
-        for (onPress in open.values.toList()) onPress(screen)
-    }
-}
-
-/**
- * Tells [OpenSwipeRows] of every press that goes down in this node, before
- * anything in it sees the press, and takes nothing from it: on an app's root —
- * `OverlayHost` puts it there — so a press anywhere closes a row left open.
- */
-@Composable
-internal fun Modifier.closesOpenSwipeRows(): Modifier {
-    val placed = remember { RowPlace() }
-    return onGloballyPositioned { placed.coordinates = it }.pointerInput(Unit) {
-        awaitEachGesture {
-            val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-            val coordinates = placed.coordinates?.takeIf { it.isAttached } ?: return@awaitEachGesture
-            OpenSwipeRows.pressedAt(coordinates.localToScreen(down.position))
-        }
-    }
-}
 
 /** Whether this is a side's actions shown, waiting for a tap. */
 private fun SwipeValue.isReveal(): Boolean = this == SwipeValue.Start || this == SwipeValue.End

@@ -99,26 +99,11 @@ import io.kontour.ui.theme.Theme
  */
 @Composable
 private fun Screen(content: @Composable BoxScope.() -> Unit) {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            // Tall enough that a sheet at `Half` still leaves the page behind it
-            // readable, and a modal sheet's content is not cut off on a phone.
-            .height(520.dp)
-            .border(
-                width = Theme.sizing.borderWidth,
-                color = Theme.colours.outline,
-                shape = Theme.shapes.medium,
-            )
-            .clip(Theme.shapes.medium),
-        containerColour = Theme.colours.surface,
-    ) {
-        OverlayHost(Modifier.fillMaxSize()) {
-            Box(Modifier.fillMaxSize()) {
-                MapGround()
-                content()
-            }
-        }
+    // Tall enough that a sheet at `Half` still leaves the page behind it
+    // readable, and a modal sheet's content is not cut off on a phone.
+    DemoWindow(Modifier.fillMaxWidth().height(520.dp)) {
+        MapGround()
+        content()
     }
 }
 
@@ -417,17 +402,25 @@ private val sheetDismissible = Knob.Flag("Dismissible", initial = true)
  */
 private val sheetOpen = Knob.Flag("Open", initial = true)
 
+/**
+ * Whether the screen shrinks back behind a modal sheet, `recedes`. Off is for a
+ * screen with a map or a video behind, which the platform moves on every frame
+ * of the shrink. Read as the sheet opens, so turning it starts the sheet over.
+ */
+private val sheetRecedes = Knob.Flag("Recede the page", initial = true)
+
 internal val ModalBottomSheetDemo = ComponentDemo(
     slug = "modal-bottom-sheet",
-    knobs = listOf(sheetOpen, sheetDismissible, sheetAlignment),
+    knobs = listOf(sheetOpen, sheetDismissible, sheetRecedes, sheetAlignment),
 ) {
     // Keyed on the knob, so toggling it *resets* the sheet rather than fighting
     // it. The sheet has two inputs — the knob and its own dismissal — and one
     // of them has to win; making the knob a reset means a sheet swiped away
     // comes back on the next toggle, which is the behaviour a reader expects
     // from a control labelled "Open". The button below reopens it directly.
-    var open by remember(this[sheetOpen]) { mutableStateOf(this[sheetOpen]) }
+    var open by remember(this[sheetOpen], this[sheetRecedes]) { mutableStateOf(this[sheetOpen]) }
     val dismissible = this[sheetDismissible]
+    val recedes = this[sheetRecedes]
     Screen {
         Button(
             onClick = { open = true },
@@ -439,6 +432,7 @@ internal val ModalBottomSheetDemo = ComponentDemo(
             visible = open,
             onDismissRequest = { open = false },
             alignment = this@ComponentDemo[sheetAlignment],
+            recedes = recedes,
             dismissible = dismissible,
         ) {
             SheetHeader {

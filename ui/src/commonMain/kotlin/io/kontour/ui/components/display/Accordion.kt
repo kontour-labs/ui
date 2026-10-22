@@ -82,7 +82,7 @@ fun Accordion(
     header: ListItemScope.() -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    chevron: ImageVector? = null,
+    chevron: ImageVector? = Theme.icons.chevronDown,
     expandedLabel: String = Theme.strings.expanded,
     collapsedLabel: String = Theme.strings.collapsed,
     interactionSource: MutableInteractionSource? = null,

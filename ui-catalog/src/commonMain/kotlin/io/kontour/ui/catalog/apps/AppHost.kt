@@ -26,6 +26,7 @@ import io.kontour.icons.tabler.outline.X
 import io.kontour.ui.adaptive.WindowSizeClassProvider
 import io.kontour.ui.catalog.CatalogSettings
 import io.kontour.ui.catalog.apps.board.BoardApp
+import io.kontour.ui.catalog.apps.energy.EnergyApp
 import io.kontour.ui.catalog.apps.messages.MessagesApp
 import io.kontour.ui.catalog.apps.transit.TransitApp
 import io.kontour.ui.components.action.IconButton
@@ -111,6 +112,7 @@ internal fun AppHost(app: MiniApp, onLeave: () -> Unit) {
                             MiniApp.Transit -> TransitApp()
                             MiniApp.Messages -> MessagesApp()
                             MiniApp.Board -> BoardApp()
+                            MiniApp.Energy -> EnergyApp()
                         }
                     }
                 }

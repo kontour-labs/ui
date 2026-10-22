@@ -1,5 +1,9 @@
 package io.kontour.ui.overlay
 
+import kotlin.math.min
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.layout.layout
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -41,11 +45,13 @@ import io.kontour.ui.foundation.ContentScope
 import io.kontour.ui.foundation.ContentSlot
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.ProvideTextStyle
+import io.kontour.ui.foundation.PassThroughSurface
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.LocalInputModality
 import io.kontour.ui.interaction.rememberLongPressFeedback
 import io.kontour.ui.motion.ScrollDefaults
+import io.kontour.ui.theme.Shadow
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.Tone
 import kotlinx.coroutines.delay
@@ -106,6 +112,36 @@ fun Modifier.tooltip(
     alignment: OverlayAlignment = OverlayAlignment.Centre,
     enabled: Boolean = true,
     interactionSource: MutableInteractionSource? = null,
+): Modifier = tooltip(side, alignment, enabled, interactionSource) { +text }
+
+/**
+ * Shows [content] when the user asks what this control is: the same triggers as
+ * the `text` form, with the bubble's own slots for what it says.
+ *
+ * ```kotlin
+ * IconButton(
+ *     onClick = ::openFilters,
+ *     icon = Tabler.Outline.Filter,
+ *     contentDescription = "Filter routes",
+ *     modifier = Modifier.tooltip {
+ *         +Tabler.Outline.Keyboard
+ *         +"Filter routes (F)"
+ *     },
+ * )
+ * ```
+ *
+ * The slots are a [Tooltip]'s: text with `+`, an icon or a painter beside it,
+ * set at the bubble's own size and ink. Like the `text` form it sets no
+ * semantics, and for the same reason: what the tooltip says, the control's own
+ * `contentDescription` must say already.
+ */
+@Composable
+fun Modifier.tooltip(
+    side: OverlaySide = OverlaySide.Top,
+    alignment: OverlayAlignment = OverlayAlignment.Centre,
+    enabled: Boolean = true,
+    interactionSource: MutableInteractionSource? = null,
+    content: @Composable ContentScope.() -> Unit,
 ): Modifier {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val hovered by interactions.collectIsHoveredAsState()
@@ -137,7 +173,7 @@ fun Modifier.tooltip(
     TooltipOverlay(
         visible = showing,
         anchor = { bounds },
-        content = { +text },
+        content = content,
         // Nothing to pass: this entry point is a modifier on the *trigger*, and
         // the bubble it shows is not addressable from the call site. Use the
         // `Tooltip` composable when the bubble itself needs one.
@@ -207,6 +243,8 @@ fun Tooltip(
     side: OverlaySide = OverlaySide.Top,
     alignment: OverlayAlignment = OverlayAlignment.Centre,
     onDismissRequest: () -> Unit = {},
+    /** What the bubble looks like: see [TooltipStyle]. */
+    style: TooltipStyle = TooltipStyle.Plain,
     content: @Composable ContentScope.() -> Unit,
 ) {
     var bounds by remember { mutableStateOf<Rect?>(null) }
@@ -220,7 +258,22 @@ fun Tooltip(
         side = side,
         alignment = alignment,
         onDismissRequest = onDismissRequest,
+        style = style,
     )
+}
+
+/**
+ * What a tooltip's bubble looks like.
+ *
+ * [Plain] for a word or a line about a control: the inverse surface, an arrow
+ * to what it is about, small type. [Card] for something to read off: the
+ * raised surface a menu is drawn on, edged and shadowed as one, standing a
+ * little off what it is about and with no arrow, for a few lines with figures
+ * in them, a chart's values at a place among them.
+ */
+enum class TooltipStyle {
+    Plain,
+    Card,
 }
 
 /**
@@ -237,6 +290,7 @@ internal fun TooltipOverlay(
     side: OverlaySide,
     alignment: OverlayAlignment,
     onDismissRequest: () -> Unit,
+    style: TooltipStyle = TooltipStyle.Plain,
     /**
      * The bubble's identity in the host. One per call by default. A caller
      * that composes a fresh one for each gesture passes its own, kept across
@@ -248,6 +302,8 @@ internal fun TooltipOverlay(
 ) {
     val host = LocalOverlayHost.current
     val colours = Theme.colours
+    val cardGap = Theme.spacing.xs
+    val cardRoom = TooltipDefaults.MaxWidth
     val modality = LocalInputModality.current
     val dismiss by rememberUpdatedState(onDismissRequest)
     // Not read by the caller: the bounds change on every frame the trigger
@@ -273,7 +329,7 @@ internal fun TooltipOverlay(
 
     DisposableEffect(Unit) { onDispose { host.hide(key) } }
 
-    LaunchedEffect(visible, anchored, side, alignment) {
+    LaunchedEffect(visible, anchored, side, alignment, style) {
         if (!visible || !anchored) {
             host.hide(key)
             return@LaunchedEffect
@@ -296,14 +352,21 @@ internal fun TooltipOverlay(
                         // the few places a flourish costs nothing — it is already
                         // transient, and nobody is waiting on it to finish before
                         // acting.
-                        fromScale = 0.8f,
+                        fromScale = if (style == TooltipStyle.Card) 0.95f else 0.8f,
                         side = side,
                         alignment = alignment,
-                        gap = 0.dp,
+                        // A card stands off what it is about, where an arrow
+                        // would have joined the two.
+                        gap = if (style == TooltipStyle.Card) cardGap else 0.dp,
                         margin = MenuDefaults.ScreenMargin,
-                        arrow = ArrowSpec(colour = colours.surfaceInverse, panelShape = Theme.shapes.container),
+                        // A card opens on its side only where it fits whole,
+                        // and on the other where it does not: squeezed into
+                        // the last of the room by a chart's end, its rows
+                        // broke their names over two lines.
+                        minimumPanel = if (style == TooltipStyle.Card) cardRoom else AnchoredOverlayDefaults.MinimumPanel,
+                        arrow = if (style == TooltipStyle.Card) null else ArrowSpec(colour = colours.surfaceInverse, panelShape = Theme.shapes.container),
                     ) {
-                        TooltipBubble(latestContent, latestModifier)
+                        TooltipBubble(latestContent, latestModifier, style)
                     }
                 },
             )
@@ -317,26 +380,53 @@ internal fun TooltipOverlay(
 }
 
 @Composable
-private fun TooltipBubble(content: @Composable ContentScope.() -> Unit, modifier: Modifier) {
-    Surface(
+private fun TooltipBubble(content: @Composable ContentScope.() -> Unit, modifier: Modifier, style: TooltipStyle) {
+    val card = style == TooltipStyle.Card
+    // A surface a press goes through: the bubble only says what is under the
+    // pointer, and a tap on it is a tap on what it is over.
+    PassThroughSurface(
         // The caller's modifier first, so a `widthIn` of their own wins the
         // constraint rather than being clamped by the default behind it.
         modifier = modifier
             .widthIn(max = TooltipDefaults.MaxWidth),
         shape = Theme.shapes.container,
-        containerColour = Theme.colours.surfaceInverse,
-        contentColour = Theme.colours.onSurfaceInverse,
+        containerColour = if (card) Theme.colours.surfaceRaised else Theme.colours.surfaceInverse,
+        contentColour = if (card) Theme.colours.content else Theme.colours.onSurfaceInverse,
+        // A card's edge and shadow are an overlay panel's, so it sits over a
+        // page as a menu does: see `OverlaySurface`.
+        border = if (card) BorderStroke(Theme.sizing.borderWidth, Theme.colours.outlineSubtle) else null,
+        shadow = if (card) Theme.elevation.overlay else Shadow.None,
     ) {
         // Scrolls for the same reason `PopoverPanel` does: an anchored overlay is
         // bounded to the room on its own side now, and a bound without a scroller is
         // a bound that loses text. A tooltip is two lines and will almost never use
         // it — almost never is not never, at 200% type against a short side.
+        //
+        // A scroller only once its words overflow. A scroller is a pointer
+        // target wherever it is, and disabled still is one, so the bubble
+        // swallowed taps aimed at what was under it — another sector of a
+        // chart, the next bar — when it is the one overlay meant never to
+        // block. Until then its words are measured as tall as they are, and
+        // the bubble is no target at all.
+        val scroll = rememberScrollState()
+        var overflows by remember { mutableStateOf(false) }
         Box(
             Modifier
-                .verticalScroll(rememberScrollState(), flingBehavior = ScrollDefaults.flingBehavior())
+                .then(
+                    if (overflows) {
+                        Modifier.verticalScroll(scroll, flingBehavior = ScrollDefaults.flingBehavior())
+                    } else {
+                        Modifier.layout { measurable, constraints ->
+                            val placeable = measurable.measure(constraints.copy(maxHeight = Constraints.Infinity))
+                            if (constraints.hasBoundedHeight && placeable.height > constraints.maxHeight) overflows = true
+                            val height = if (constraints.hasBoundedHeight) min(placeable.height, constraints.maxHeight) else placeable.height
+                            layout(placeable.width, height) { placeable.placeRelative(0, 0) }
+                        }
+                    }
+                )
                 .padding(
                     horizontal = Theme.spacing.sm,
-                    vertical = Theme.spacing.xxs,
+                    vertical = if (card) Theme.spacing.xs else Theme.spacing.xxs,
                 )
         ) {
             ProvideTextStyle(Theme.typography.labelMedium) {
@@ -525,53 +615,16 @@ private fun CoachMarkBubble(
     dismissLabel: String,
     onDismiss: () -> Unit,
 ) {
-    val announced = Theme.strings.sentences(listOf(title, message))
-    Surface(
-        modifier = Modifier
-            .widthIn(max = 320.dp)
-            .semantics(mergeDescendants = true) { contentDescription = announced },
-        shape = Theme.shapes.container,
-        containerColour = colours.container,
-        contentColour = colours.content,
-        shadow = Theme.elevation.overlay,
+    // The tour's bubble, with the one way on a lone mark has: acknowledging
+    // rather than ending, and filled, as the tour's is.
+    CoachmarkPanel(
+        title = title,
+        message = message,
+        icon = icon,
+        colours = colours,
+        said = Theme.strings.sentences(listOf(title, message)),
     ) {
-        // As `TooltipBubble` above: bounded to its side, so it needs somewhere for
-        // the overflow to go. A coach mark carries a title *and* a paragraph, so it
-        // is the likelier of the two to want it.
-        Column(
-            modifier = Modifier
-                .verticalScroll(rememberScrollState(), flingBehavior = ScrollDefaults.flingBehavior())
-                .padding(Theme.spacing.md),
-            verticalArrangement = Arrangement.spacedBy(Theme.spacing.xxs),
-        ) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                if (icon != null) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        size = Theme.sizing.iconMedium,
-                    )
-                }
-                Text(title, style = Theme.typography.titleSmall)
-            }
-            Text(message, style = Theme.typography.bodySmall)
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = Theme.spacing.xxs),
-                horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs, Alignment.End),
-            ) {
-                Button(
-                    onClick = onDismiss,
-                    variant = ButtonVariant.Ghost,
-                    // Ghost takes its label from LocalContentColour, which the
-                    // bubble's Surface has already set to the tone's ink.
-                    size = ButtonSize.Small,
-                ) { +dismissLabel }
-            }
-        }
+        Box(Modifier.weight(1f))
+        CoachmarkOnward(label = dismissLabel, colours = colours, onClick = onDismiss)
     }
 }

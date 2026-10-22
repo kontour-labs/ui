@@ -160,16 +160,6 @@ private fun Block(block: Block) {
 private fun CodeBlock(block: Block.Code) {
     val scroll = rememberScrollState()
     val shape = Theme.shapes.small
-    // Two seconds of a tick after a copy, so the press says it did something:
-    // the clipboard is invisible, and a button that changes nothing reads as a
-    // button that failed.
-    var copied by remember(block) { mutableStateOf(false) }
-    LaunchedEffect(copied) {
-        if (copied) {
-            delay(2_000)
-            copied = false
-        }
-    }
     Box(
         Modifier
             .fillMaxWidth()
@@ -196,17 +186,34 @@ private fun CodeBlock(block: Block.Code) {
         // Over the code's top-right corner rather than beside it: a column of
         // its own would take 40dp from every block for a button most readers
         // never press. A line long enough to run under it scrolls out.
-        IconButton(
-            onClick = {
-                copyText(block.code)
-                copied = true
-            },
-            icon = if (copied) Tabler.Outline.Check else Tabler.Outline.Copy,
-            contentDescription = if (copied) "Copied" else "Copy code",
-            size = ButtonSize.Small,
-            modifier = Modifier.align(Alignment.TopEnd).padding(Theme.spacing.xxs),
-        )
+        CopyButton(block.code, "Copy code", Modifier.align(Alignment.TopEnd).padding(Theme.spacing.xxs))
     }
+}
+
+/**
+ * Copies [text], and says so with a tick for two seconds: the clipboard is
+ * invisible, and a button that changes nothing reads as a button that failed.
+ * For a code block and a line of code alike.
+ */
+@Composable
+internal fun CopyButton(text: String, label: String, modifier: Modifier = Modifier) {
+    var copied by remember(text) { mutableStateOf(false) }
+    LaunchedEffect(copied) {
+        if (copied) {
+            delay(2_000)
+            copied = false
+        }
+    }
+    IconButton(
+        onClick = {
+            copyText(text)
+            copied = true
+        },
+        icon = if (copied) Tabler.Outline.Check else Tabler.Outline.Copy,
+        contentDescription = if (copied) "Copied" else label,
+        size = ButtonSize.Small,
+        modifier = modifier,
+    )
 }
 
 /**

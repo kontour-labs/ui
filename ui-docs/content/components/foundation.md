@@ -31,21 +31,29 @@ component — a button's leading icon, a menu item's icon, an empty state's
 illustration — is an `ImageVector` or `Painter` parameter, so the choice of icon
 library stays an application decision.
 
-The exception is `foundation/SystemIcons.kt`: the handful of glyphs a component
-draws on its own behalf, because they are structure rather than content. A
-submenu with no chevron gives no sign it opens anything, and a menu item with no
-tick cannot show which option is current. Making the caller supply those means
-every component ships looking broken until someone remembers to pass one in.
+The exception is `Theme.icons`, a `SystemIcons`: the handful of glyphs a
+component draws on its own behalf, because they are structure rather than
+content. A submenu with no chevron gives no sign it opens anything, and a menu
+item with no tick cannot show which option is current. Making the caller supply
+those means every component ships looking broken until someone remembers to
+pass one in.
 
-`SystemIcons` is **public**, because it is shipped rather than hidden:
-`SheetHeader.closeIcon` defaults to `SystemIcons.Close`, and a default a caller
-can read but cannot write is worse than no default. The type is `ImageVector`,
-from a dependency the library already exposes, so nothing about the icon set
-leaks into the API with it.
+They are Tabler's by default and the app's to change. `KontourTheme(icons =
+SystemIcons(close = …))` replaces the glyphs it is given and keeps Tabler's for
+the rest, `ProvideTokens(icons = Theme.icons.copy(…))` does the same for part
+of an app, and a component that draws one takes it as a parameter too. Until
+0.5.0 `SystemIcons` was an object, and a select's chevron or a toast's close
+could only be changed by forking the component.
 
-Each glyph is a separate top-level declaration, so the ones `:ui` never touches
-are stripped by R8 and by the JS/Wasm dead-code eliminator rather than
-travelling with the artifact.
+It is not a data class, on purpose. A constructor argument is an override,
+`null` unless given, and each glyph falls back to Tabler only when it is read,
+so a glyph no component of the app draws is never reached and is stripped by
+R8 and by the JS, Wasm and Native compilers rather than travelling with the
+app. A data class would hold all of them in its default instance.
+
+A few marks are drawn rather than taken from it, because they move: a
+checkbox's tick draws itself in, a switch's tick turns into its dash, and a
+password field's slash crosses its eye.
 
 ### Why Tabler
 

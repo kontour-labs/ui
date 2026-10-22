@@ -85,6 +85,18 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 from doctree import COMPONENTS, CONTENT, FAMILY, INDEXES, family_of  # noqa: E402
 
+
+# The library's own Kotlin: `:ui`'s, and the charts', which are published apart
+# so that an app without a chart carries none of them, and are held to every
+# rule here all the same. `libraryKotlinSources` in `ui/build.gradle.kts` is the
+# same list for the Gradle gates.
+LIBRARY_SOURCES = (Path("ui/src/commonMain/kotlin"), Path("ui-charts/src/commonMain/kotlin"))
+
+
+def library_files() -> list[Path]:
+    """Every Kotlin file of the library, in a stable order."""
+    return sorted(path for root in LIBRARY_SOURCES for path in root.rglob("*.kt"))
+
 # Found rather than named. The registry has already moved source set once — out
 # of `commonTest` and into `commonMain`, so the documentation site could read
 # the same list the contract suite does — and a hardcoded path turned this guard
@@ -347,7 +359,7 @@ def public_composables() -> dict[str, Path]:
     whatever they attach to rather than on pages of their own.
     """
     found: dict[str, Path] = {}
-    for path in Path("ui/src/commonMain/kotlin").rglob("*.kt"):
+    for path in library_files():
         for match in COMPOSABLE_HEADER.finditer(path.read_text()):
             visibility, receiver, name = match.group(1).strip(), match.group(2), match.group(3)
             if visibility in ("internal", "private") or not name[0].isupper():
@@ -363,7 +375,7 @@ def public_modifiers() -> dict[str, Path]:
     factories stay out: they are documented beside what they remember.
     """
     found: dict[str, Path] = {}
-    for path in Path("ui/src/commonMain/kotlin").rglob("*.kt"):
+    for path in library_files():
         for match in COMPOSABLE_HEADER.finditer(path.read_text()):
             visibility, receiver, name = match.group(1).strip(), match.group(2), match.group(3)
             if visibility in ("internal", "private") or receiver != "Modifier":
@@ -385,7 +397,9 @@ MODIFIERS_IN_GUIDES = {
     "Modifier.concentric": "tokens.md",
     "Modifier.dragSource": "drag-and-drop.md",
     "Modifier.contentSwipeBack": "navigation3.md",
+    "Modifier.fillPattern": "accessibility.md",
     "Modifier.focusRing": "accessibility.md",
+    "Modifier.onPressOutside": "overlays.md",
     "Modifier.pageEffects": "navigation3.md",
     "Modifier.sharedBounds": "components/page-transition.md",
     "Modifier.sharedElement": "components/page-transition.md",
@@ -453,7 +467,7 @@ def symbols_explaining_a_parameter() -> set[str]:
     adjacent to it.
     """
     found: set[str] = set()
-    for path in Path("ui/src/commonMain/kotlin").rglob("*.kt"):
+    for path in library_files():
         lines = path.read_text().split("\n")
         enclosing: str | None = None
         for index, line in enumerate(lines):
@@ -619,7 +633,7 @@ def undemoed_flags() -> list[str]:
     component one.
     """
     flags: dict[str, set[str]] = {}
-    for path in Path("ui/src/commonMain/kotlin").rglob("*.kt"):
+    for path in library_files():
         if "theme" in path.parts:
             continue
         text = path.read_text()
@@ -693,7 +707,7 @@ def uncursored_clicks() -> list[str]:
     pass and a reader would see an arrow over a button.
     """
     behind: list[str] = []
-    for path in sorted(Path("ui/src/commonMain/kotlin").rglob("*.kt")):
+    for path in library_files():
         text = LINE_COMMENT.sub("", BLOCK_COMMENT.sub("", path.read_text()))
         clicks = len(CLICK_HANDLER.findall(text))
         if clicks == 0:
@@ -772,7 +786,7 @@ def haptic_sites() -> list[str]:
     section first.
     """
     sites: list[str] = []
-    for path in sorted(Path("ui/src/commonMain/kotlin").rglob("*.kt")):
+    for path in library_files():
         text = LINE_COMMENT.sub("", BLOCK_COMMENT.sub("", path.read_text()))
         count = len(HAPTIC_CALL.findall(text))
         if count:
@@ -804,8 +818,9 @@ HAPTIC_FILE_NAMES = {
     "Select": "MultiSelect",
     "TableRows": "Table",
     "Pressable": "Modifier.pressable",
-    "DragHost": "Modifier.dragSource",
+    "DragHost": ("Modifier.dragSource", "DocumentTabs"),
     "MarkerDrag": ("NavBar", "NavRail", "TabBar"),
+    "ChartLegend": "Chart",
 }
 
 # The mechanism rather than a component: one defines the dispatcher, one is the
@@ -880,7 +895,7 @@ def haptics_policy_drift() -> list[str]:
             policy.add(name)
 
     firing = set()
-    for path in sorted(Path("ui/src/commonMain/kotlin").rglob("*.kt")):
+    for path in library_files():
         if path.name in HAPTIC_MECHANISM:
             continue
         text = LINE_COMMENT.sub("", BLOCK_COMMENT.sub("", path.read_text()))
@@ -1028,7 +1043,7 @@ def circles() -> list[str]:
     corner" in `ui-docs/content/tokens.md`.
     """
     problems: list[str] = []
-    for path in sorted(Path("ui/src/commonMain/kotlin").rglob("*.kt")):
+    for path in library_files():
         text = LINE_COMMENT.sub("", BLOCK_COMMENT.sub("", path.read_text()))
         pills = len(PILL_USE.findall(text))
         if pills:
@@ -1048,7 +1063,7 @@ def hand_rolled_rounded_rects() -> list[str]:
     because it is made from a shape that does.
     """
     offenders: list[str] = []
-    for path in sorted(Path("ui/src/commonMain/kotlin").rglob("*.kt")):
+    for path in library_files():
         if path.name in ROUNDED_RECT_ALLOWED:
             continue
         text = LINE_COMMENT.sub("", BLOCK_COMMENT.sub("", path.read_text()))
@@ -1078,7 +1093,21 @@ MAX_SILENT_FOCUS_TRAPS = 0
 # popover's 320dp, a text area's three to eight lines, the durations that became
 # `Duration`s — into Defaults objects a caller can read them from, and this
 # count had never seen them where they were. The same numbers, now counted.
-MAX_DEFAULTS_LITERALS = 99
+#
+# **108** for 0.5.0, raised 2026-10-16 when this began reading `:ui-charts`: its
+# `ChartDefaults` holds nine, a line's width, a point's size, a bar's corner and
+# share of its band, a sector's gap, a pattern's ink, a chart's height and the
+# most places a screen reader is walked through one at a time. Facts about a
+# chart rather than dials a brand turns, so on the charts' own Defaults.
+#
+# **107**, lowered 2026-10-17: a bar's corner was one of the nine, and is
+# the theme's small shape now, as every other corner in the library is.
+#
+# **108**, raised 2026-10-21 for 0.5.0: `SwipeActionsDefaults.TrackpadGain`,
+# the 0.6 of a pixel a swipe row moves for each pixel of a trackpad's pan, which
+# had been 1 and was reported as "really sensitive". A fact about how the row
+# reads a trackpad, beside its `ScrollStep`, rather than a dial a brand turns.
+MAX_DEFAULTS_LITERALS = 108
 
 # Every field on `ComponentDefaults` is read by something.
 #
@@ -1102,7 +1131,7 @@ COMPONENT_DEFAULTS_FIELD = re.compile(r"^    val (\w+): ", re.M)
 def defaults_literals() -> int:
     """Hardcoded numbers still sitting inside a `*Defaults` object."""
     total = 0
-    for path in sorted(Path("ui/src/commonMain/kotlin").rglob("*.kt")):
+    for path in library_files():
         lines = path.read_text().split("\n")
         for index, line in enumerate(lines):
             if not DEFAULTS_OBJECT.match(line):
@@ -1145,7 +1174,7 @@ DRAG_HANDLER_REFERENCE = re.compile(r"\bon(?:Start|Delta|End)\s*=\s*::")
 def drag_handlers_by_reference() -> list[str]:
     """Drag handlers passed as `::localFunction`, which capture at birth."""
     offenders = []
-    for path in sorted(Path("ui/src/commonMain/kotlin").rglob("*.kt")):
+    for path in library_files():
         text = LINE_COMMENT.sub("", BLOCK_COMMENT.sub("", path.read_text()))
         for match in DRAG_HANDLER_REFERENCE.finditer(text):
             line = text.count("\n", 0, match.start()) + 1
@@ -1177,7 +1206,7 @@ def scrollers_off_the_library_fling() -> list[str]:
     fling at once, so each scroller has to ask.
     """
     offenders = []
-    for path in sorted(Path("ui/src/commonMain/kotlin").rglob("*.kt")):
+    for path in library_files():
         if path.name in SNAPPING_SCROLLERS:
             continue
         text = LINE_COMMENT.sub("", BLOCK_COMMENT.sub("", path.read_text()))
@@ -1243,7 +1272,7 @@ def silent_focus_traps() -> list[str]:
     `ScrimStyle.Transparent` and want opposite answers.
     """
     silent: list[str] = []
-    for path in sorted(Path("ui/src/commonMain/kotlin").rglob("*.kt")):
+    for path in library_files():
         # Block comments are blanked *keeping their newlines*, so the line
         # number below is the one in the file rather than the one in a string
         # this function invented. A line comment cannot contain a newline, so
@@ -1294,11 +1323,11 @@ def unswept_enums() -> list[str]:
     this is Python, the same wall `MAX_WITHOUT_DEMO` names above.
     """
     enums: set[str] = set()
-    for path in Path("ui/src/commonMain/kotlin").rglob("*.kt"):
+    for path in library_files():
         enums |= set(re.findall(r"^\s*(?:public\s+)?enum class (\w+)", path.read_text(), re.M))
 
     takes: set[str] = set()
-    for path in Path("ui/src/commonMain/kotlin").rglob("*.kt"):
+    for path in library_files():
         text = path.read_text()
         for match in COMPOSABLE_HEADER.finditer(text):
             visibility, name = match.group(1).strip(), match.group(3)
@@ -1368,7 +1397,7 @@ def public_declarations() -> set[str]:
         re.compile(r"^[ \t]*(?:(?:public|internal|private)\s+)?"
                    r"va[lr]\s+(?:<[^>]*>\s*)?(?:([A-Za-z_][\w.]*)\.)?(\w+)", re.MULTILINE),
     ]
-    for path in Path("ui/src/commonMain/kotlin").rglob("*.kt"):
+    for path in library_files():
         text = path.read_text()
         for pattern in patterns:
             for receiver, name in pattern.findall(text):
@@ -1614,7 +1643,7 @@ def main() -> int:
     # dense with parameter names by design, which is what makes them worth
     # checking and what would otherwise make them rot fastest.
     library = "".join(
-        path.read_text() for path in Path("ui/src/commonMain/kotlin").rglob("*.kt")
+        path.read_text() for path in library_files()
     )
     for page in component_pages:
         section = ACCESSIBILITY_BODY.search(page.read_text())

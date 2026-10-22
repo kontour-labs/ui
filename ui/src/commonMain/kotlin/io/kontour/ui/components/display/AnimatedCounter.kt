@@ -281,10 +281,15 @@ fun AnimatedCounter(
     }
 
     // Once per font, not per frame: the widest digit is a property of the type,
-    // and every cell is that wide whatever it currently holds.
-    val digitWidth: Dp = remember(figures, density, measurer) {
+    // and every cell is that wide whatever it currently holds. The reader's own
+    // digits as well as 0 to 9: the default format writes Arabic-Indic or
+    // Devanagari ones where the locale does, and a cell measured only from the
+    // Western digits clipped them.
+    val zero = Theme.formats.symbols.zeroDigit
+    val digitWidth: Dp = remember(figures, density, measurer, zero) {
         with(density) {
-            (0..9).maxOf { measurer.measure(it.toString(), figures).size.width }.toDp()
+            val digits = ('0'..'9') + (0..9).map { zero + it }
+            digits.distinct().maxOf { measurer.measure(it.toString(), figures).size.width }.toDp()
         }
     }
 

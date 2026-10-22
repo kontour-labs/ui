@@ -73,7 +73,6 @@ import io.kontour.ui.foundation.LocalSelectionIndicatorLeaving
 import io.kontour.ui.foundation.SelectionIndicatorBox
 import io.kontour.ui.foundation.BarSurface
 import io.kontour.ui.foundation.SurfaceDefaults
-import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.foundation.rememberSelectionIndicatorState
 import io.kontour.ui.interaction.rememberTapFeedback
@@ -716,7 +715,7 @@ private class RailScope(
                 initialFade = rowReveal.initial,
                 trailing = {
                     Icon(
-                        imageVector = SystemIcons.ChevronDown,
+                        imageVector = Theme.icons.chevronDown,
                         contentDescription = null,
                         modifier = Modifier.chevronTurn(expanded, label = "navGroupChevron"),
                         size = Theme.sizing.iconMedium,
@@ -784,7 +783,7 @@ private fun RailToggle(
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val strings = Theme.strings
     IconButton(
-        icon = if (rtl) SystemIcons.ChevronLeft else SystemIcons.ChevronRight,
+        icon = if (rtl) Theme.icons.chevronLeft else Theme.icons.chevronRight,
         contentDescription = if (expanded) collapseLabel else expandLabel,
         onClick = { onExpandedChange(!expanded) },
         rotation = if (expanded) ChevronTurn else 0f,

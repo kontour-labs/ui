@@ -7,9 +7,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.absoluteOffset
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -23,8 +23,9 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.ui.Alignment
+import androidx.compose.ui.AbsoluteAlignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerEventPass
@@ -37,9 +38,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.navigationevent.NavigationEvent
-import io.kontour.icons.tabler.Tabler
-import io.kontour.icons.tabler.outline.ArrowLeft
-import io.kontour.icons.tabler.outline.ArrowRight
 import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.adaptive.ContainerGaps
 import io.kontour.ui.adaptive.OverlapInsets
@@ -128,18 +126,28 @@ fun ModalSideSheet(
     dismissible: Boolean = true,
     dismissLabel: String = Theme.strings.close,
     /**
-     * Shown as a back arrow at the sheet's leading edge, above the content.
+     * Shown as a back button at the sheet's leading edge, above the content,
+     * with `backIcon` on it.
      *
      * For a sheet that was pushed onto from another one — a stop, then a route
      * within it. `null` for a sheet with nothing behind it, where the scrim and
      * a close button in the content are the way out.
      *
-     * The arrow follows the reading direction rather than the sheet's side: back
-     * means back, and a start-side sheet does not point the other way.
+     * The chevron follows the reading direction rather than the sheet's side:
+     * back means back, and a start-side sheet does not point the other way.
      */
     onBack: (() -> Unit)? = null,
     backLabel: String = Theme.strings.back,
+    backIcon: ImageVector = Theme.icons.chevronBack,
     paneTitle: String? = null,
+    /**
+     * Whether the screen behind shrinks back as the sheet comes in, under a
+     * [ScrimStyle.Dimmed] scrim, as a [ModalBottomSheet]'s does. `false` leaves it
+     * where it is, still dimmed: for a screen with a map, a video or another
+     * platform view behind, which Android and iOS move on every frame the screen
+     * shrinks. See [ModalBottomSheet]'s.
+     */
+    recedes: Boolean = true,
     /**
      * What the sheet's *content* keeps clear of. Every edge including the
      * keyboard: a side sheet is full height, so it meets the status bar and the
@@ -162,6 +170,7 @@ fun ModalSideSheet(
     val latestPaneTitle by rememberUpdatedState(paneTitle)
     val latestOnBack by rememberUpdatedState(onBack)
     val latestBackLabel by rememberUpdatedState(backLabel)
+    val latestBackIcon by rememberUpdatedState(backIcon)
     // And whether it may be put away, which the scrim, the back gesture and the
     // swipe towards its edge all ask as the reader tries rather than once, when
     // it opened: see `OverlayEntry.dismissibleNow`.
@@ -169,7 +178,7 @@ fun ModalSideSheet(
 
     DisposableEffect(Unit) { onDispose { host.hide(key) } }
 
-    LaunchedEffect(visible, side, width, scrim) {
+    LaunchedEffect(visible, side, width, scrim, recedes) {
         if (!visible) {
             host.hide(key)
             return@LaunchedEffect
@@ -198,7 +207,7 @@ fun ModalSideSheet(
                 // because the blur costs 7.3x the frame for every frame the
                 // sheet is open. Two sheets that receded differently would read
                 // as two components.
-                backdrop = if (scrim == ScrimStyle.Dimmed) {
+                backdrop = if (scrim == ScrimStyle.Dimmed && recedes) {
                     BackdropStyle.Scale
                 } else {
                     BackdropStyle.None
@@ -226,6 +235,7 @@ fun ModalSideSheet(
                         paneTitle = latestPaneTitle,
                         onBack = latestOnBack,
                         backLabel = latestBackLabel,
+                        backIcon = latestBackIcon,
                         progress = LocalOverlayProgress.current,
                         swipeAway = latestDismissible,
                         // Captured as an object, not a measurement: the modifier
@@ -286,6 +296,7 @@ fun SideSheet(
     /** See [ModalSideSheet]. */
     onBack: (() -> Unit)? = null,
     backLabel: String = Theme.strings.back,
+    backIcon: ImageVector = Theme.icons.chevronBack,
     paneTitle: String? = null,
     /** See [ModalSideSheet]. */
     windowInsets: WindowInsets = WindowInsets.allEdges,
@@ -317,6 +328,7 @@ fun SideSheet(
         paneTitle = paneTitle,
         onBack = onBack,
         backLabel = backLabel,
+        backIcon = backIcon,
         windowInsets = windowInsets,
         progress = { progress.value },
         content = content,
@@ -341,6 +353,7 @@ private fun SideSheetPanel(
     paneTitle: String?,
     onBack: (() -> Unit)?,
     backLabel: String,
+    backIcon: ImageVector,
     windowInsets: WindowInsets,
     // How far in the sheet has slid, 0 to 1. Driven from outside in both
     // directions — by the overlay host for a modal sheet, by the sheet's own
@@ -355,9 +368,12 @@ private fun SideSheetPanel(
     val density = LocalDensity.current
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
 
-    // Physical edge, once the layout direction has been applied.
+    // Physical edge, once the layout direction has been applied, and so placed
+    // and slid by physical edges: `CenterEnd` and `offset` apply the direction
+    // a second time, and right to left an end sheet came in at the start,
+    // across the content it was meant to sit beside.
     val fromRight = (side == SheetSide.End) != isRtl
-    val alignment = if (fromRight) Alignment.CenterEnd else Alignment.CenterStart
+    val alignment = if (fromRight) AbsoluteAlignment.CenterRight else AbsoluteAlignment.CenterLeft
     val travel = with(density) { width.toPx() }
     // Under reduced motion the panel fades where it will rest instead of
     // sliding the width of itself across the window: the host's progress
@@ -410,7 +426,7 @@ private fun SideSheetPanel(
                 .fillMaxHeight()
                 // Read in placement, so opening and closing re-place the sheet
                 // without measuring or recomposing it.
-                .offset {
+                .absoluteOffset {
                     val slides = !fadeInPlace || dragged.value
                     val hidden = if (slides) travel * (1f - progress().coerceIn(0f, 1f)) else 0f
                     IntOffset(x = (if (fromRight) hidden else -hidden).roundToInt(), y = 0)
@@ -430,8 +446,9 @@ private fun SideSheetPanel(
                 }
         ) {
             // Mirrored for a start-side sheet, so the rounded edge is always the
-            // one facing the content rather than the window edge.
-            val panelShape = if (fromRight) shape else shape.mirrorHorizontally()
+            // one facing the content rather than the window edge. By side, not
+            // by physical edge: the shape's corners follow the direction already.
+            val panelShape = if (side == SheetSide.End) shape else shape.mirrorHorizontally()
             PanelGround(panelShape, containerColour, contentColour) {
                 CompositionLocalProvider(LocalSheetState provides null) {
                     Column(
@@ -441,15 +458,14 @@ private fun SideSheetPanel(
                     ) {
                         if (onBack != null) {
                             IconButton(
-                                // Reading direction, not sheet side. Back is
-                                // back; a start-side sheet does not point the
-                                // other way because it happens to open from the
-                                // left.
-                                icon = if (isRtl) {
-                                    Tabler.Outline.ArrowRight
-                                } else {
-                                    Tabler.Outline.ArrowLeft
-                                },
+                                // Reading direction, not sheet side: the
+                                // default is `chevronBack`, read where the sheet
+                                // was called. Back is back; a start-side sheet
+                                // does not point the other way because it
+                                // happens to open from the left. A chevron, as a
+                                // top bar's and a sheet header's are, where it
+                                // was the one arrow in the library.
+                                icon = backIcon,
                                 contentDescription = backLabel,
                                 onClick = onBack,
                                 variant = ButtonVariant.Ghost,

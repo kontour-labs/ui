@@ -61,7 +61,6 @@ import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.RowContentScope
 import io.kontour.ui.foundation.contentScope
 import io.kontour.ui.foundation.Text
-import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.kontourIndication
@@ -385,7 +384,7 @@ fun InputChip(
      * with — which is what a `null` default did — was a removal nobody could
      * find. Pass `null` only for a chip removed some other way.
      */
-    removeIcon: ImageVector? = SystemIcons.Close,
+    removeIcon: ImageVector? = Theme.icons.close,
     onClick: (() -> Unit)? = null,
     interactionSource: MutableInteractionSource? = null,
     content: @Composable ChipScope.() -> Unit

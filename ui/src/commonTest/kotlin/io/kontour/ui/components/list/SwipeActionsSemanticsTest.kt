@@ -33,7 +33,7 @@ class SwipeActionsSemanticsTest {
     @Test
     fun aDisabledRowOffersNoActions() = runComposeUiTest {
         var enabled by mutableStateOf(true)
-        val delete = SwipeAction(label = "Delete", icon = SystemIcons.Close, onAction = {}, background = Color.Red)
+        val delete = SwipeAction(label = "Delete", icon = SystemIcons.Default.close, onAction = {}, background = Color.Red)
         setContent {
             KontourTheme(reduceMotion = true) {
                 SwipeActions(modifier = Modifier.fillMaxWidth().height(72.dp), enabled = enabled, end = listOf(delete)) {

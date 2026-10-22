@@ -77,7 +77,7 @@ class ButtonNameTest {
             KontourTheme {
                 ExtendedFloatingActionButton(
                     onClick = {},
-                    icon = SystemIcons.ChevronForward,
+                    icon = SystemIcons.Default.chevronForward,
                     contentDescription = "Start trip to Perth Station",
                     expanded = true,
                 ) { +"Start" }

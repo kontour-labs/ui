@@ -16,6 +16,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.v2.runComposeUiTest
+import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.theme.KontourTheme
 import kotlinx.datetime.LocalDate
 import kotlin.test.Test
@@ -134,7 +135,7 @@ class CalendarTodayButtonTest {
     }
 
     private fun ComposeUiTest.datePicker(
-        todayIcon: ImageVector? = DatePickerDefaults.TodayIcon,
+        todayIcon: ImageVector? = SystemIcons.Default.today,
         showing: LocalDate = LocalDate(2026, 9, 1),
     ): CalendarNavigationState {
         lateinit var navigation: CalendarNavigationState

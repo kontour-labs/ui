@@ -35,7 +35,7 @@ import kotlin.test.assertEquals
 @OptIn(ExperimentalTestApi::class)
 class SwipeReorderTest {
 
-    private val delete = SwipeAction(label = "Delete", icon = SystemIcons.Close, onAction = {}, background = Color.Red)
+    private val delete = SwipeAction(label = "Delete", icon = SystemIcons.Default.close, onAction = {}, background = Color.Red)
 
     private class Probe {
         val order = mutableStateListOf("A", "B", "C", "D")

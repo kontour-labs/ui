@@ -15,6 +15,147 @@ from the version the app is on.
 
 ---
 
+## 0.4.6 to 0.5.0
+
+From 0.4.5, nothing changes in 0.4.6 (see [below](#045-to-046)), so this
+section is the whole of the way from either. Most of this release is new:
+charts, in a module an app takes only if it wants them, document tabs, a list
+row you type into, and more. What an app changes is short. The library's glyphs
+are the theme's, so code that named one of `SystemIcons`' changes. Thirteen
+components take the glyphs they draw, the stepped progress indicators take
+`stepProgress` and `weights`, and the modal sheets `recedes`, partway through
+their parameters, so an argument after one, passed by position, is named; each
+fails to compile rather than meaning something else. One does not: `Table`'s
+`narrowStickyColumns`, a Boolean after `stickyColumns`, where a positional
+`striped` lands. `Strings`, `ComponentDefaults` and `CalendarEvent` have new
+fields and parameters, each defaulted and last, and `Tooltip` one before its
+content.
+
+### `SystemIcons.Close` is `Theme.icons.close`
+
+The library's own glyphs are read from the theme, so that an app can replace
+them. Each is a property of a `SystemIcons`, in lower camel case, and
+`DatePickerDefaults.TodayIcon` is one of them, `today`.
+
+```diff
+- IconButton(icon = SystemIcons.Close, contentDescription = "Close", onClick = close)
++ IconButton(icon = Theme.icons.close, contentDescription = "Close", onClick = close)
+- DatePicker(…, todayIcon = DatePickerDefaults.TodayIcon)
++ DatePicker(…, todayIcon = Theme.icons.today)
+```
+
+Outside a composition, where `Theme` cannot be read (a list built at the top
+of a file), `SystemIcons.Default.close` is Tabler's.
+
+To use another icon set's glyphs throughout, give the theme a set:
+
+```diff
+- KontourTheme { App() }
++ KontourTheme(icons = SystemIcons(close = FontAwesome.Solid.Times)) { App() }
+```
+
+### Name the arguments after a new parameter
+
+Each of these is defaulted, so a call that names its arguments needs nothing.
+One that passes the arguments after it by position names them:
+
+```diff
+- Pagination(page, pageCount, { page = it }, Modifier, true, 2, "Back", "Next")
++ Pagination(page, pageCount, { page = it }, Modifier, true, 2, previousLabel = "Back", nextLabel = "Next")
+```
+
+`Pagination`'s labels come after `previousIcon` and `nextIcon` now. The same
+for:
+
+- `Select`'s, `MultiSelect`'s and `Combobox`'s arguments after `leadingIcon`,
+  where `chevron` is new;
+- `FileField`'s after `leadingIcon`, where `attachIcon` and `removeIcon` are;
+- `Stepper`'s after `format`, where `decrementIcon` and `incrementIcon` are;
+- `ToastHost`'s after `showDismiss`, where `dismissIcon` is;
+- `TopBar`'s, `SheetHeader`'s, `SideSheet`'s and `ModalSideSheet`'s after
+  `backLabel`, where `backIcon` is;
+- `Table`'s after `onSortChange`, where `sortAscendingIcon` and
+  `sortDescendingIcon` are;
+- `StepProgress`'s and `CircularStepProgress`'s after `working`, where
+  `stepProgress` is, and their `gap` after `weights`;
+- `ModalBottomSheet`'s after `fadeUnder`, and `ModalSideSheet`'s after
+  `paneTitle`, where `recedes` is.
+
+Each fails to compile rather than meaning something else. Name the argument.
+`EventCalendarDefaults.Header`'s `previousIcon`, `nextIcon` and `todayIcon`
+come last, and `KeyValueList`'s `compact` just before its content, so a call
+to either compiles as it is.
+
+### `Table` has `narrowStickyColumns` after `stickyColumns`
+
+Defaulted, so a call that names its arguments needs nothing. One that passed
+the arguments after `stickyColumns` by position names them: the seventh place
+is `narrowStickyColumns` now, and a `true` meant for `striped` still compiles,
+and narrows the pinned columns instead of striping the rows.
+
+```kotlin
+// 0.4.5
+Table(rows, Modifier, true, null, rememberTableState(), 1, true) { /* columns */ }
+
+// 0.5.0
+Table(rows, Modifier, true, null, rememberTableState(), 1, striped = true) { /* columns */ }
+```
+
+### Check
+
+- **`Strings` built by position.** `labelledValue`, `selectAllRows`,
+  `sortAscending`, `sortDescending`, `notSorted`, `showDay`, `moveLeft`,
+  `moveRight`, `newTab`, `closeTab` and `moreOptions` are new and come last, so a
+  `Strings(...)` with named arguments, or `copy(...)`, is untouched. An app that
+  bridges its own resources with `Strings.from` gets their English until it adds
+  `kontour_labelledValue` (`%1$s, %2$s`), `kontour_selectAllRows`,
+  `kontour_sortAscending`, `kontour_sortDescending`, `kontour_notSorted`,
+  `kontour_showDay`, `kontour_moveLeft`, `kontour_moveRight`,
+  `kontour_newTab`, `kontour_closeTab` (`%1$s`) and `kontour_moreOptions`.
+- **What a stat says.** Its supporting line and trend are joined with
+  `Strings.sentences` rather than an English full stop. In English that is the
+  same sentence; an app with its own `sentences` hears its own separator.
+- **Fields that grew a glyph.** `SearchField` leads with a magnifier and ends
+  with a clear button, `NavSearch` leads with the magnifier, `PasswordField` and
+  `SecretField` have their reveal toggle, and `Accordion` and
+  `ExpandingListItem` their chevron, without being given one: each was `null`,
+  which drew nothing, and for `SearchField` and the password fields left out
+  the control itself. Pass `null` to keep the old look.
+- **A side sheet's back is a chevron**, `Theme.icons.chevronBack`, as a top
+  bar's and a sheet header's are. It was the one arrow in the library.
+- **A side sheet's corner is the panel's, 28dp**, where it was a sheet's 34.
+  Pass `shape` for the old one.
+- **A modal bottom sheet is wider on a wide window**, up to
+  `ComponentDefaults.modalSheetMaxWidth`, 560dp, where it stopped at a
+  `BottomSheet`'s 480. Give the theme's `componentDefaults` a
+  `modalSheetMaxWidth` equal to its `sheetMaxWidth` for the old width.
+- **A `Tooltip` given its content by position.** `style` comes before
+  `content`, so a call that passed every argument by position, the content
+  last inside the parentheses, no longer compiles; pass the content as the
+  trailing lambda, or name it.
+
+  What compiled against 0.4.5, and does not now:
+
+  ```
+  Tooltip(open, Modifier, OverlaySide.Top, OverlayAlignment.Centre, {}, { +"Recentre" })
+  ```
+
+  And in 0.5.0:
+
+  ```kotlin
+  Tooltip(open, Modifier, OverlaySide.Top, OverlayAlignment.Centre, {}) { +"Recentre" }
+  ```
+
+---
+
+## 0.4.5 to 0.4.6
+
+Nothing to change. Two crash fixes and nothing else: a list on
+`rememberScrollbarListState()` leaving while it measured its rows, and a
+`ListSection` in a lazy list. See the [changelog](changelog.md#046--21-october-2026).
+
+---
+
 ## 0.4.4 to 0.4.5
 
 The repository moves, and two things to rewrite — `PullToRefresh` takes its

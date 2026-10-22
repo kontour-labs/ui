@@ -70,6 +70,8 @@ its own.
 
 Under reduced motion the sheet fades in and out where it rests instead of
 sliding its own width across the window, and the page behind it does not recede.
+`recedes = false` keeps the page still at every setting, for a map or a video
+behind the sheet, as a [`ModalBottomSheet`](modal-bottom-sheet.md)'s does.
 A gesture is the exception, because a drag is never touched: a drag towards the
 sheet's own edge, or a back swipe, carries the panel with the finger, and the
 rest of that close, or the way back, slides with it.

@@ -264,17 +264,39 @@ internal val AvatarDemo = ComponentDemo(slug = "avatar", knobs = listOf(avatarSi
 private val progressIndeterminate = Knob.Flag("Indeterminate")
 private val progressWorking = Knob.Flag("Step working")
 
+/** `stepProgress`: the step fills as it goes, like a batch of uploads, and moves on when it is full. */
+private val progressMeasured = Knob.Flag("Step measured")
+
+/** `weights`: a short first step, and each after it longer. */
+private val progressUneven = Knob.Flag("Uneven steps")
+
 /** `gap = 0.dp`: the steps as one continuous bar, with no seams between them. */
 private val progressGapless = Knob.Flag("No gap")
 
 internal val ProgressDemo = ComponentDemo(
     slug = "progress",
-    knobs = listOf(progressIndeterminate, progressWorking, progressGapless),
+    knobs = listOf(progressIndeterminate, progressWorking, progressMeasured, progressUneven, progressGapless),
 ) {
     val indeterminate = this[progressIndeterminate]
     val working = this[progressWorking]
+    val measured = this[progressMeasured]
     val gap = if (this[progressGapless]) 0.dp else ProgressDefaults.StepGap
+    val weights = if (this[progressUneven]) UnevenSteps else null
     var step by remember { mutableStateOf(2) }
+    var within by remember { mutableStateOf(0f) }
+    if (measured) {
+        LaunchedEffect(Unit) {
+            while (true) {
+                delay(UploadTick)
+                within += 0.1f
+                if (within > 1f) {
+                    within = 0f
+                    step = step % 4 + 1
+                }
+            }
+        }
+    }
+    val stepProgress = if (measured) within.coerceAtMost(1f) else null
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
@@ -298,6 +320,8 @@ internal val ProgressDemo = ComponentDemo(
                 current = if (indeterminate) null else step,
                 total = 4,
                 working = working,
+                stepProgress = stepProgress,
+                weights = weights,
                 gap = gap,
             )
             // Two unknowns, and the knobs show they are different. No current
@@ -310,6 +334,8 @@ internal val ProgressDemo = ComponentDemo(
                 current = if (indeterminate) null else step,
                 total = 4,
                 working = working,
+                stepProgress = stepProgress,
+                weights = weights,
                 gap = gap,
                 modifier = Modifier.weight(1f),
             )
@@ -321,6 +347,12 @@ internal val ProgressDemo = ComponentDemo(
         }
     }
 }
+
+/** The demo's uneven steps: short, then longer, then longest. */
+private val UnevenSteps = listOf(1f, 2f, 3f, 4f)
+
+/** How often the demo's measured step moves on a tenth. */
+private val UploadTick = 250.milliseconds
 
 private val bannerTone = Knob.Choice("Tone", Tone.entries.toList(), Tone.Warning)
 

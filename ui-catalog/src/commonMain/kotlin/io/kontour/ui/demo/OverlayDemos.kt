@@ -27,6 +27,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.kontour.icons.tabler.Tabler
+import io.kontour.icons.tabler.outline.CurrentLocation
 import io.kontour.icons.tabler.outline.Bell
 import io.kontour.icons.tabler.outline.Bookmark
 import io.kontour.icons.tabler.outline.Copy
@@ -76,6 +77,7 @@ import io.kontour.ui.overlay.ToastHost
 import io.kontour.ui.overlay.ToastPosition
 import io.kontour.ui.theme.Tone
 import io.kontour.ui.overlay.Tooltip
+import io.kontour.ui.overlay.TooltipStyle
 import io.kontour.ui.overlay.rememberToastHostState
 import io.kontour.ui.overlay.tooltip
 import io.kontour.ui.theme.Theme
@@ -97,34 +99,19 @@ import kotlinx.coroutines.launch
  */
 @Composable
 private fun Stage(height: Dp = 400.dp, content: @Composable BoxScope.() -> Unit) {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(height)
-            .border(
-                width = Theme.sizing.borderWidth,
-                color = Theme.colours.outline,
-                shape = Theme.shapes.medium,
+    DemoWindow(Modifier.fillMaxWidth().height(height)) {
+        Column(
+            modifier = Modifier.padding(Theme.spacing.md),
+            verticalArrangement = Arrangement.spacedBy(Theme.spacing.xxs),
+        ) {
+            Text("Perth Underground", style = Theme.typography.titleSmall)
+            Text(
+                "Platform 2 · Joondalup line",
+                style = Theme.typography.bodySmall,
+                colour = Theme.colours.contentMuted,
             )
-            .clip(Theme.shapes.medium),
-        containerColour = Theme.colours.surface,
-    ) {
-        OverlayHost(Modifier.fillMaxSize()) {
-            Box(Modifier.fillMaxSize()) {
-                Column(
-                    modifier = Modifier.padding(Theme.spacing.md),
-                    verticalArrangement = Arrangement.spacedBy(Theme.spacing.xxs),
-                ) {
-                    Text("Perth Underground", style = Theme.typography.titleSmall)
-                    Text(
-                        "Platform 2 · Joondalup line",
-                        style = Theme.typography.bodySmall,
-                        colour = Theme.colours.contentMuted,
-                    )
-                }
-                content()
-            }
         }
+        content()
     }
 }
 
@@ -325,7 +312,7 @@ internal val DropdownMenuDemo = ComponentDemo(
                 item("Journey length", selected = order == 1, onClick = { order = 1 })
                 divider()
                 // On a phone it opens in place over its row; with a mouse, beside it.
-                submenu("Add to a list", leadingIcon = SystemIcons.Plus) {
+                submenu("Add to a list", leadingIcon = SystemIcons.Default.plus) {
                     item("Favourites") { echo("Added to Favourites") }
                     item("Morning commute") { echo("Added to Morning commute") }
                 }
@@ -385,8 +372,12 @@ internal val ContextMenuAreaDemo = ComponentDemo(slug = "context-menu-area") {
     }
 }
 
-internal val TooltipDemo = ComponentDemo(slug = "tooltip") {
+/** The bubble, or a card for something to read off. */
+private val tooltipStyle = Knob.Choice("Style", TooltipStyle.entries.toList(), TooltipStyle.Plain)
+
+internal val TooltipDemo = ComponentDemo(slug = "tooltip", knobs = listOf(tooltipStyle)) {
     var open by remember { mutableStateOf(false) }
+    val style = this[tooltipStyle]
     Stage {
         Column(
             modifier = Modifier.align(Alignment.Center),
@@ -399,7 +390,12 @@ internal val TooltipDemo = ComponentDemo(slug = "tooltip") {
                     contentDescription = "Save this trip",
                     onClick = { open = !open },
                 )
-                Tooltip(visible = open) { +"Save this trip" }
+                // The bubble's slots: an icon beside the words, sized and inked
+                // as the bubble's own.
+                Tooltip(visible = open, style = style) {
+                    +Tabler.Outline.Star
+                    +"Saved trips show on Home"
+                }
             }
             // The modifier is what a caller nearly always wants: it tracks hover
             // and focus itself and honours the input modality, so it never
@@ -408,7 +404,10 @@ internal val TooltipDemo = ComponentDemo(slug = "tooltip") {
                 onClick = { echo("Recentre") },
                 variant = ButtonVariant.Secondary,
                 size = ButtonSize.Small,
-                modifier = Modifier.tooltip("Bring the map back to you"),
+                modifier = Modifier.tooltip {
+                    +Tabler.Outline.CurrentLocation
+                    +"Bring the map back to you"
+                },
             ) { +"Hover me" }
         }
     }

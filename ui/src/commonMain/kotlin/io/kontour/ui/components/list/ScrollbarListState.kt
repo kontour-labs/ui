@@ -17,6 +17,8 @@ import androidx.compose.runtime.remember
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.TimeSource
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.Job
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.foundation.lazy.layout.PrefetchScheduler
@@ -67,7 +69,15 @@ fun rememberScrollbarListState(
         MeasuredLists[state] = rows
         onDispose {
             MeasuredLists.remove(state)
-            strategy.cancelAll()
+            // Forgotten, not let go of. Reported from an app on 0.4.5 as a
+            // crash, "LayoutNode should be attached to an owner", leaving a
+            // page while its list was still being measured: by the time this
+            // runs the list may already have left, and letting go of a row
+            // held composed in a list that has gone is what Compose refuses.
+            // The list's own leaving disposes every row it holds, and the
+            // queued work, run, finds its list gone and does nothing.
+            strategy.forget()
+            frames.clear()
         }
     }
     return state
@@ -152,9 +162,30 @@ private class MeasuringPrefetch(private val rows: RowSizes, private val frames: 
     }
 
     fun cancelAll() {
-        for (handle in inFlight.values) handle.cancel()
+        for (handle in inFlight.values) letGo(handle)
         inFlight.clear()
         landed.clear()
+    }
+
+    /** Every row asked for, forgotten without being let go of: for a list that has gone. */
+    fun forget() {
+        inFlight.clear()
+        landed.clear()
+    }
+
+    /**
+     * [handle]'s row let go of — unless its list has already left the screen,
+     * when Compose refuses, and the list's leaving has disposed the row
+     * anyway. A state kept above its list, across tabs or while a spinner
+     * stands in for it, can come to let go of rows of a list that has gone
+     * and been replaced; nothing else is caught.
+     */
+    private fun letGo(handle: LazyLayoutPrefetchState.PrefetchHandle) {
+        try {
+            handle.cancel()
+        } catch (gone: IllegalStateException) {
+            if (gone.message?.contains("attached") != true) throw gone
+        }
     }
 }
 
@@ -197,6 +228,12 @@ private class FramePrefetchScheduler : PrefetchScheduler {
         waiting.trySend(Unit)
     }
 
+    /** Drops every request waiting: the list they were for has gone. */
+    fun clear() {
+        queue.clear()
+        aheadQueue.clear()
+    }
+
     suspend fun run() {
         while (true) {
             if (queue.isEmpty() && aheadQueue.isEmpty()) waiting.receive()
@@ -206,7 +243,15 @@ private class FramePrefetchScheduler : PrefetchScheduler {
                 override fun availableTimeNanos(): Long =
                     (Budget - started.elapsedNow()).inWholeNanoseconds.coerceAtLeast(0L)
             }
+            // **Nothing for a list that is going.** Its effect is cancelled as
+            // it leaves, and a frame already under way ran on: a request's
+            // callback let go of rows whose list had left the screen, and
+            // Compose refused — "LayoutNode should be attached to an owner",
+            // from a phone, with this coroutine `Cancelling` under it. Asked
+            // before each request, since a request is what can see it go.
+            val job = currentCoroutineContext()[Job]
             while (queue.isNotEmpty() && scope.availableTimeNanos() > 0L) {
+                if (job?.isActive == false) return
                 val request = queue.first()
                 // True while it has more to do: it stays at the front.
                 val more = with(request) { scope.execute() }
@@ -218,6 +263,7 @@ private class FramePrefetchScheduler : PrefetchScheduler {
             }
             if (stillSince == Long.MIN_VALUE) stillSince = now
             if (aheadQueue.isNotEmpty() && queue.isEmpty() && now - stillSince >= QuietNanos) {
+                if (job?.isActive == false) return
                 val request = aheadQueue.first()
                 val more = with(request) { scope.execute() }
                 if (!more) aheadQueue.removeFirst()

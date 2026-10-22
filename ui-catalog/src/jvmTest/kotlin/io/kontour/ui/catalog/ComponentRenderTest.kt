@@ -109,6 +109,7 @@ class ComponentRenderTest {
                 width = CanvasWidth,
                 height = spec.renderHeight?.times(2) ?: CanvasHeight,
                 trim = InkMargin,
+                allowOverflow = spec.sizesToCanvas,
             ) {
                 Frame(dark = dark, contrast = contrast) { spec.content(Modifier, true) {} }
             }
@@ -133,6 +134,7 @@ class ComponentRenderTest {
                     width = CanvasWidth,
                     height = state.height?.times(2) ?: spec.renderHeight?.times(2) ?: CanvasHeight,
                     trim = InkMargin,
+                    allowOverflow = spec.sizesToCanvas,
                 ) {
                     Frame(dark = dark, contrast = contrast) { state.content(Modifier) }
                 }
@@ -320,6 +322,9 @@ class ComponentRenderTest {
             // between words and marks. Their ink is held to text contrast by the
             // scheme instead.
             "Stat" to "text on the page, no container",
+            // Since 0.5.0 it draws its chevron by default, at the far end from
+            // its title, and a walk down the middle crosses the gap between.
+            "Accordion" to "a title and its chevron on the page, no container",
             "KeyValueList" to "text on the page, no container",
             "RelativeTimeText" to "text on the page, no container",
             "EmptyState" to "text on the page, no container",
@@ -333,6 +338,15 @@ class ComponentRenderTest {
             "ColourPicker" to "a picture of colour, not a container; its cursors carry a double ring",
             "Avatar" to "a row of discs with gaps; each is a fill, or edged when it has neither name nor picture",
             "Table" to "rows of text divided by rules; it draws no frame unless it is outlined",
+            "Chart" to "marks and labels on the page, no container",
+            "SectorChart" to "sectors on the page, no container; a gap of the page's ground between them",
+            "Sparkline" to "a line on the page, no container",
+            "ChartDataTable" to "a Table of a chart's numbers: rows of text divided by rules, and no frame",
+            // A modal's scrim is the first thing a walk meets, and a scrim is a
+            // dimming, not an edge: its job is to be quieter than what it covers.
+            // The panel inside it carries the overlay's own edge.
+            "AlertDialog" to "a scrim's dimming at the walk's first step; the dialog inside it carries its own edge",
+            "CommandPalette" to "a scrim's dimming at the walk's first step; the palette inside it carries its own edge",
             "DatePicker" to "a grid of dates on the page, no container; its buttons carry their own edges",
             "DateRangePicker" to "a grid of dates on the page, no container; its buttons carry their own edges",
             "DateTimePicker" to "a grid of dates and wheels on the page, no container; its buttons carry their own edges",

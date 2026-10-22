@@ -40,10 +40,10 @@ import sys
 from pathlib import Path
 
 TABLES = Path("ui-docs/build/generated/apiTables/ApiTables.kt")
-PAGES = Path("ui/build/dokka/html/scripts/pages.json")
-
-# The site prefixes every derived path with the reference's module directory.
-MODULE = "kontour-ui"
+# One per module the site links into: the library's, and the charts', which
+# `lay-out-site.py --api-module` mounts beside it. A derived path starts with
+# the module's directory, as each `pages.json` location does.
+PAGES = [Path("ui/build/dokka/html/scripts/pages.json"), Path("ui-charts/build/dokka/html/scripts/pages.json")]
 
 ENTRY = re.compile(r'^\s*"([^"]+)" to "([^"]+)",$', re.MULTILINE)
 
@@ -59,8 +59,8 @@ def derived() -> dict[str, str]:
 
 
 def published() -> set[str]:
-    """Every location Dokka wrote a page for."""
-    return {entry["location"] for entry in json.loads(PAGES.read_text())}
+    """Every location Dokka wrote a page for, in every module."""
+    return {entry["location"] for pages in PAGES for entry in json.loads(pages.read_text())}
 
 
 def page_symbols() -> list[tuple[str, str]]:
@@ -77,7 +77,9 @@ def page_symbols() -> list[tuple[str, str]]:
 
 
 def main() -> int:
-    for required, task in ((TABLES, ":ui-docs:generateApiTables"), (PAGES, ":ui:dokkaGenerateHtml")):
+    needed = [(TABLES, ":ui-docs:generateApiTables")]
+    needed += [(pages, f":{pages.parts[0]}:dokkaGenerateHtml") for pages in PAGES]
+    for required, task in needed:
         if not required.exists():
             print(f"missing {required} — run `./gradlew {task}` first", file=sys.stderr)
             return 2
@@ -87,7 +89,7 @@ def main() -> int:
     problems = []
 
     for symbol, path in sorted(paths.items()):
-        if f"{MODULE}/{path}" not in locations:
+        if path not in locations:
             problems.append(f"{symbol} -> {path} is not a page the reference published")
 
     # A page whose symbol has no path falls back to the reference's index,

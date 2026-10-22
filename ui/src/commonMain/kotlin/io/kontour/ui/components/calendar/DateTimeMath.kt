@@ -84,7 +84,14 @@ internal fun movedStart(proposed: Long, length: Long, day: Long, oneDay: Boolean
     return proposed.coerceIn(day, maxOf(day, latest))
 }
 
+/**
+ * The day an event from [start] to [end] has its last minute on: one ending at
+ * midnight ends the day before, and one with no length ends where it starts.
+ * Every view of a calendar asks it, and asked it in a line of its own in each.
+ */
+internal fun lastDayOf(start: LocalDateTime, end: LocalDateTime): LocalDate =
+    if (end > start) end.plusMinutes(-1).date else start.date
+
 /** Whether an event from [start] to [end] is all on one day. */
-internal fun onOneDay(start: LocalDateTime, end: LocalDateTime): Boolean =
-    (if (end > start) end.plusMinutes(-1).date else start.date) == start.date
+internal fun onOneDay(start: LocalDateTime, end: LocalDateTime): Boolean = lastDayOf(start, end) == start.date
 

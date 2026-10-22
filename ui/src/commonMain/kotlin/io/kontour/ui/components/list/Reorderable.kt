@@ -281,7 +281,9 @@ enum class ReorderHandleSide { Start, End }
  * because that is what a mouse does, and holding a button still for half a
  * second to pick up a row is a gesture nobody has ever tried. Dragging a lazy
  * list with a mouse is not a thing desktops do, so there is nothing for an
- * immediate drag to fight with there.
+ * immediate drag to fight with there. On the row it goes a few dp first, and
+ * mostly up or down, so a click on the row is still a click and a drag sideways
+ * still reaches [SwipeActions] inside it.
  *
  * The dragged row lifts — scaled slightly, shadowed, and above its neighbours —
  * because a row that moves without lifting reads as the list glitching rather
@@ -429,6 +431,7 @@ fun LazyItemScope.ReorderableItem(
         currentIndex = { currentIndex },
         landing = landing,
         longPressed = longPressed,
+        decidesForMouse = true,
     )
 
     val handleDrags = Modifier.reorderDrag(
@@ -438,6 +441,7 @@ fun LazyItemScope.ReorderableItem(
         currentIndex = { currentIndex },
         landing = landing,
         longPressed = longPressed,
+        decidesForMouse = false,
     )
 
     Box(
@@ -706,6 +710,11 @@ private fun ReorderGrip(
  * handle and a bare row. A long press exists to keep a drag from stealing a
  * scroll; neither a mouse over a lazy list nor a press on a dedicated grip has a
  * scroll to steal, so neither should have to wait half a second for one.
+ *
+ * [decidesForMouse] is the row's, not the handle's: a mouse on a whole row
+ * goes as far as a swipe decides on before it is a pick-up, and only mostly up
+ * or down, so a click with a pixel of jitter in it is still a click and a drag
+ * sideways is still a swipe. A grip has nothing inside it to lose that way.
  */
 private fun Modifier.reorderDrag(
     state: ReorderableState,
@@ -714,6 +723,7 @@ private fun Modifier.reorderDrag(
     currentIndex: () -> Int,
     landing: LandingFeedback,
     longPressed: () -> Unit,
+    decidesForMouse: Boolean,
 ): Modifier = if (!enabled) {
     this
 } else {
@@ -738,19 +748,25 @@ private fun Modifier.reorderDrag(
         //
         // The row and its handle are two of these over overlapping areas, and
         // both see every down — `awaitFirstDown(requireUnconsumed = false)`.
-        // Movement sorts them out by itself, because the winner consumes and the
-        // long-press loop gives up the moment its finger travels. A press held
-        // *still* on the grip does not: the row's half-second would elapse, fire
-        // a `LongPress`, and start a drag the grip is about to start again.
+        // Movement does not sort them out. The long-press loop gives up when its
+        // finger travels, but a row carried by its grip travels with the finger,
+        // so in the row's own terms a carry is a finger held still: the row's
+        // half-second elapsed under it, and the row took the moves from the grip
+        // and put the row down after a crossing or two. A press held still on
+        // the grip is the same thing without the carry.
         //
-        // So starting is conditional on nobody having the row, and everything
-        // after it is conditional on this node having been the one that took it.
+        // So taking it at all is conditional on nobody having the row — the
+        // detector's `takes`, asked before it says or claims anything — and
+        // everything after it is conditional on this node having been the one
+        // that took it.
         // Without the second half a node that never started would still call
         // `stop()` on the drag that did.
         var owned = false
         // Whether the row passed another. A pick-up let go of where it was
         // landed nowhere new, and says so by saying nothing.
         var crossed = false
+        // Whether a hold is what is picking it up now, from `onHeld`.
+        var held = false
 
         val onStart: (Offset) -> Unit = {
             if (state.draggingIndex == null) {
@@ -759,11 +775,14 @@ private fun Modifier.reorderDrag(
                 // announces that a threshold was reached and the row is now
                 // yours to move — on the [immediate] path there is no threshold
                 // to announce, and firing it there was a haptic for a
-                // mouse-down on a grip.
-                if (!immediate()) longPressed()
+                // mouse-down on a grip. Told by the detector rather than read
+                // off [immediate], which a mouse after a touch still answers
+                // as a finger.
+                if (held) longPressed()
                 crossed = false
                 state.start(currentIndex())
             }
+            held = false
         }
         val onDrag: (PointerInputChange, Offset) -> Unit = { change, amount ->
             if (owned) {
@@ -792,6 +811,10 @@ private fun Modifier.reorderDrag(
             // Once lifted, the row's alone: its own swipe actions, inside it,
             // cannot take the carry. See `SwipeReorderTest`.
             exclusive = true,
+            decidesForMouse = decidesForMouse,
+            onHeld = { held = true },
+            // Not a row the other of the two is already carrying: see `takes`.
+            takes = { state.draggingIndex == null },
         )
     }
 }

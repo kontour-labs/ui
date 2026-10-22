@@ -2,7 +2,8 @@
 
 A Compose Multiplatform design system on Compose **Foundation**, with no
 Material, for Android, iOS, desktop and the web. Published as `io.kontour:ui`,
-`io.kontour:ui-nav3` and `io.kontour:haptics` to `https://maven.kontour.io`.
+`io.kontour:ui-nav3`, `io.kontour:ui-charts` and `io.kontour:haptics` to
+`https://maven.kontour.io`.
 
 This file is the working summary and the list of traps. The full reasons are
 in these files, which win where this file disagrees with them:
@@ -21,11 +22,13 @@ in these files, which win where this file disagrees with them:
 |---|---|
 | `ui/` | The library: theme, tokens, every component. `src/commonMain/kotlin/io/kontour/ui/` |
 | `ui-nav3/` | Navigation 3 scene strategies over the pane scaffolds |
+| `ui-charts/` | Charts: `Chart`, `SectorChart`, `Sparkline`, `ChartDataTable`. New in 0.5.0 |
 | `haptics/` | Platform haptics, no Compose in it |
 | `ui-catalog/` | The gallery's demos, and most of the tests: the contract suite, the screenshot goldens, the sweeps |
 | `ui-samples/` | The documentation's examples, compiled against `:ui` and copied into the pages |
 | `ui-docs/` | The site (`docs.kontour.io/ui`), a Wasm app. Its pages are `ui-docs/content/*.md` |
 | `showcase/` | Hosts for the gallery: desktop, Android, an iOS Xcode project |
+| `probes/` | Five tiny web apps that exist to be weighed: what an app on the library ships |
 | `docs/` | Python checks and generators, and the contributor docs under `docs/building/` |
 
 ## Conventions that bite
@@ -35,14 +38,14 @@ in these files, which win where this file disagrees with them:
   `Theme.colours`. A sample with `color =` fails `checkKdocSamples`.
 - **Tokens, not literals**: `Theme.colours`, `Theme.spacing`, `Theme.typography`,
   `Theme.shapes`, `Theme.motion`. English a component says on its own goes in
-  `Theme.strings`.
+  `Theme.strings`, and a glyph it draws on its own comes from `Theme.icons`.
 - **Parameter order** is checked by `:ui:checkApiConventions`: `modifier` first
   among the optionals, `enabled` straight after it, `interactionSource` after
-  every non-slot. Its eighteen rules are listed in `contributing.md`.
+  every non-slot. Its nineteen rules are listed in `contributing.md`.
 - **Every public change goes into the API dump**: run `./gradlew :ui:updateKotlinAbi`
-  (and `:ui-nav3:`, `:haptics:`) and read the diff. A break gets a **Breaking**
-  line in `ui-docs/content/changelog.md`'s Unreleased section and a before and
-  after in `ui-docs/content/migrating.md`.
+  (and `:ui-nav3:`, `:ui-charts:`, `:haptics:`) and read the diff. A break gets
+  a **Breaking** line in `ui-docs/content/changelog.md`'s Unreleased section
+  and a before and after in `ui-docs/content/migrating.md`.
 - **Comments and docs say why**, in plain sentences, and the long ones carry
   history ("Raised 2026-10-08 for 0.4.3 …"). Match the voice of the file you're in.
 - **Commit messages** are `Area: what changed, in words`, with a body that
@@ -136,6 +139,14 @@ the history of every raise above them:
 
 There is also `MAX_FILES` (14) for the number of files in the distribution.
 
+**The site's figure is not an app's.** It holds every component and demo. What
+an app ships is measured by the probes in [`probes/`](probes/README.md), with
+`python3 docs/check-bundle-size.py --probes` and their own `PROBE_CEILINGS`:
+`theme` is what `KontourTheme` alone costs every app, and `button` and `icon`
+show that unused components and icons are left out. A probe that grows is
+something every app now pays for, and `docs/probe-attribution.py probes/theme`
+says what.
+
 ### Check it before CI does
 
 `app` grows by about **15–25 gzip bytes for every net line** added to
@@ -163,9 +174,10 @@ Central), measure it directly:
 python3 docs/check-bundle-size.py
 ```
 
-**Where it doesn't**, CI measures it. The *Build the site* job takes about nine
-minutes and runs beside *Test*, which takes about fifty, so read its *Check the
-bundle size* step first instead of waiting for the whole run.
+**Where it doesn't**, CI measures it, in a run the owner starts (see **CI**:
+don't start one yourself). Estimate with the lines above, and say what you
+estimate. In a run, the *Build the site* job takes about nine minutes beside
+*Test*'s fifty, so read its *Check the bundle size* step first.
 
 ### Raising a ceiling
 
@@ -194,10 +206,22 @@ resource), and the job is to find it.
 
 [`.github/workflows/ci.yml`](.github/workflows/ci.yml), on GitHub's runners.
 
+**CI minutes cost the owner money. Don't start a run yourself.** Check locally
+instead: the JVM tests, the goldens, `checkApiConventions`, `checkKdocSamples`
+and the five Python checks all run in a sandbox once Gradle's cache is warm.
+Use a git worktree, so you can keep editing while a build runs. What can't run
+locally is the ABI dump of every target, the bundle size and Android. That is
+not a reason to run CI either: say what is unchecked, and let the owner decide
+when a run is worth it. If they ask for one, batch everything first and start
+**one** run, without **full** unless they ask for it. Don't re-run for each
+fix, and cancel a run that a newer push has made pointless. If a run is going
+when you are told to stop, cancel it.
+
 - **It runs on pushes to `main`, on `v*` tags, and when started by hand**, and
-  never on a pull request or a push to another branch. To check a branch:
-  Actions → CI → Run workflow, on the branch, with **full** ticked. A run
-  started by hand skips nothing.
+  never on a pull request or a push to another branch. Pushing a branch is
+  free. Starting a run on it is the owner's call: Actions → CI → Run workflow,
+  on the branch, with **full** ticked only when asked. A run started by hand
+  skips nothing.
 - Jobs: *Compile every target* (about 8 min), *Build the site* (about 9),
   *Test* (about 15, or 50 with full), then *Deploy* and *Publish*. Each gate
   leaves a `passed-<gate>-<fingerprint>` marker, and a push skips the gates

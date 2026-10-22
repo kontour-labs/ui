@@ -3,7 +3,7 @@
 A Compose Multiplatform design system, built on **Foundation** — no Material.
 
 Android, iOS, desktop and the web from one source set.
-<!--counts-->169 public components across 131 pages<!--/counts-->, every one with
+<!--counts-->175 public components across 134 pages<!--/counts-->, every one with
 a demo you can operate, a compiled example and a generated parameter table.
 
 ```kotlin
@@ -47,12 +47,14 @@ dependencyResolutionManagement {
 ```toml
 # gradle/libs.versions.toml
 [versions]
-kontour = "0.4.5"
+kontour = "0.5.0"
 
 [libraries]
 kontour-ui = { module = "io.kontour:ui", version.ref = "kontour" }
 # Navigation 3 scene strategies over the pane scaffolds, if the app uses it
 kontour-ui-nav3 = { module = "io.kontour:ui-nav3", version.ref = "kontour" }
+# Charts, if the app draws any
+kontour-ui-charts = { module = "io.kontour:ui-charts", version.ref = "kontour" }
 ```
 
 ```kotlin
@@ -74,9 +76,10 @@ change.
 |---|---|
 | `io.kontour:ui` | The theme, the tokens and every component |
 | `io.kontour:ui-nav3` | [Navigation 3](ui-docs/content/navigation3.md) scene strategies, and page transitions that follow the back gesture |
+| `io.kontour:ui-charts` | [Charts](ui-docs/content/components/charts.md): `Chart`, `SectorChart` and `Sparkline`, in a module of their own so an app with none carries none |
 | `io.kontour:haptics` | [Platform haptics](ui-docs/content/haptics.md) with no Compose in it. `:ui` brings it; on its own for an app that wants only the effects |
 
-Keep all three on the same version. Each is published for Android (minSdk 29),
+Keep all four on the same version. Each is published for Android (minSdk 29),
 iOS (`iosArm64`, `iosSimulatorArm64`), the desktop JVM, and the web as JS and
 Wasm, built with **Kotlin 2.4.10** against **Compose Multiplatform 1.12.1**,
 which is the floor: an app on 1.11 hits binary incompatibility.

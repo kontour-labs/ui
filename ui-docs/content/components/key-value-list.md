@@ -50,6 +50,12 @@ a details panel look untidy. `labelWidth` was a floor each row took for itself,
 so one label longer than it pushed its own value out of line with the rest, and
 the columns held only while every label was short.
 
+**`compact` for a small container of its own** — a tooltip, a popover. The rows
+take the text style and colour around them rather than a page's, sit closer,
+and the list is only as wide as its rows. A chart's tooltip lists its series
+this way, each with its swatch beside its name:
+`KeyValueList(labelWidth = 0.dp, compact = true) { … }`.
+
 ---
 
 ## Accessibility

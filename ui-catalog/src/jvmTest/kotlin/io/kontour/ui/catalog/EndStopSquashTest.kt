@@ -387,7 +387,14 @@ class EndStopSquashTest {
             val probe = (bounds.left + StackedProbe).toInt()
             val top = Offset(bounds.center.x, bounds.top + bounds.height * StackedFirst)
             val last = Offset(bounds.center.x, bounds.top + bounds.height * StackedLast)
-            val track = scene.frames(1).getRGB((bounds.right - TrackProbe).toInt(), bounds.center.y.toInt())
+            // The bottom of the track, which is as far from the thumb's shadow
+            // as this control goes. This was read at the middle, a hair below
+            // the resting thumb, while the thumb was still fading in on the
+            // third frame, in a layer that clipped its shadow away. Since
+            // 2026-10-21 the thumb arrives whole (`Arrival`), its shadow falls
+            // across the middle of the track, and a ground read there is grey
+            // enough that the whole column counted as fill.
+            val track = scene.frames(1).getRGB((bounds.right - TrackProbe).toInt(), (bounds.bottom - TrackProbe).toInt())
 
             // Down to the last row and held there, with nothing refused yet.
             scene.press(top)

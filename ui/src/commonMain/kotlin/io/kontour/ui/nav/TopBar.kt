@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
+import io.kontour.ui.interaction.banded
 import io.kontour.ui.components.display.Carousel
 import io.kontour.ui.components.display.CarouselState
 import io.kontour.ui.components.display.PageIndicator
@@ -31,6 +32,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.unit.isSpecified
@@ -55,7 +57,6 @@ import io.kontour.ui.foundation.LocalContainerColour
 import io.kontour.ui.foundation.ProvideContentColour
 import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.BarSurface
-import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.adaptive.topEdges
 import io.kontour.ui.motion.smoothstep
 import io.kontour.ui.platform.platformOverscrollMovesContent
@@ -112,6 +113,8 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.Velocity
 import kotlin.math.abs
 import kotlin.math.roundToInt
+import io.kontour.ui.components.list.sideScrollDistance
+import io.kontour.ui.platform.platformScrollDeltaInPixels
 
 /** How much room a [TopBar] takes, and where its title sits. */
 enum class TopBarStyle {
@@ -130,6 +133,10 @@ enum class TopBarStyle {
 
     /**
      * Two lines: actions on the first, a large title on the second.
+     *
+     * With no back button, navigation or actions the first line is left out,
+     * and the title keeps the margin it has at its sides, `Theme.spacing.md`,
+     * above it — or the status bar, where that is deeper, rather than both.
      *
      * Collapses to [Small] as the content scrolls: the bar grows shorter, and
      * the title travels up into the first line, shrinking as it goes, to where
@@ -216,6 +223,7 @@ fun TopBar(
     style: TopBarStyle = TopBarStyle.Small,
     onBack: (() -> Unit)? = null,
     backLabel: String = Theme.strings.back,
+    backIcon: ImageVector = Theme.icons.chevronBack,
     navigation: (@Composable () -> Unit)? = null,
     actions: (@Composable RowScope.() -> Unit)? = null,
     /**
@@ -310,6 +318,7 @@ fun TopBar(
             modifier = outer,
             onBack = onBack,
             backLabel = backLabel,
+            backIcon = backIcon,
             navigation = navigation,
             actions = actions,
             containerColour = containerColour,
@@ -358,7 +367,7 @@ fun TopBar(
                         .heightIn(min = TopBarDefaults.Height)
                         .padding(horizontal = Theme.spacing.xs),
                     centred = style == TopBarStyle.Centred,
-                    leading = { BarNavigation(onBack, backLabel, navigation) },
+                    leading = { BarNavigation(onBack, backLabel, backIcon, navigation) },
                     title = {
                         // Centred when the bar could centre it and started when it
                         // could not — see `CentredBarTitle` — so a Centred bar
@@ -383,11 +392,14 @@ fun TopBar(
                     // The first line is left out when it would be empty, so the
                     // large title takes the space the back button would have
                     // had: a bar with nothing to put on that line was drawing
-                    // 56dp of nothing above its own title.
+                    // 56dp of nothing above its own title. It keeps a margin
+                    // above the title instead, where no status bar gives it
+                    // one; see `LargeBar`.
                     hasControls = onBack != null || navigation != null || actions != null,
-                    leading = { BarNavigation(onBack, backLabel, navigation) },
+                    leading = { BarNavigation(onBack, backLabel, backIcon, navigation) },
                     actions = actions,
                     slots = slots,
+                    windowInsets = windowInsets,
                     minExpanded = floor,
                 )
             }
@@ -442,6 +454,7 @@ private fun HeroBar(
     modifier: Modifier,
     onBack: (() -> Unit)?,
     backLabel: String,
+    backIcon: ImageVector,
     navigation: (@Composable () -> Unit)?,
     actions: (@Composable RowScope.() -> Unit)?,
     containerColour: Color,
@@ -550,9 +563,10 @@ private fun HeroBar(
                                 progress = progress,
                                 onMeasured = { shrink, travel -> collapseState?.measured(shrink, travel) },
                                 hasControls = onBack != null || navigation != null || actions != null,
-                                leading = { BarNavigation(onBack, backLabel, navigation) },
+                                leading = { BarNavigation(onBack, backLabel, backIcon, navigation) },
                                 actions = actions,
                                 slots = slots,
+                                windowInsets = windowInsets,
                                 minExpanded = (open - insetTop).coerceAtLeast(0.dp),
                                 hero = geometry,
                                 endReserve = dotsReserve,
@@ -828,6 +842,11 @@ private fun LargeBar(
     actions: (@Composable RowScope.() -> Unit)?,
     slots: ListItemScope,
     /**
+     * What the bar is padded by above, read only for a bar with no first line,
+     * whose title keeps [Theme.spacing]'s `md` above it where the inset is less.
+     */
+    windowInsets: WindowInsets,
+    /**
      * The least the bar is open: a [TopBarStyle.Hero] bar's picture's height, or
      * the height asked of a [TopBarStyle.Large] one, less the inset above. The
      * title then rests at the bottom of it.
@@ -852,6 +871,7 @@ private fun LargeBar(
     val gutter = Theme.spacing.xs
     val margin = Theme.spacing.md
     val below = Theme.spacing.sm
+    val above = Theme.spacing.md
     val title = slots.label
     val subtitle = slots.supporting
     // Where the large title's first line ends, measured below and drawn from.
@@ -970,7 +990,18 @@ private fun LargeBar(
         // centred in the bar together, and the bar at least a row tall.
         val stack = (tiny?.height ?: 0) + (subSmall?.height ?: 0)
         val collapsed = maxOf(row, stack)
-        val top = if (hasControls) row else 0
+        // Above the title, the first line; or, with nothing to put on it, the
+        // large title's margin, less whatever the inset already gives. Without
+        // the first line the status bar was the only room above the title, and
+        // in a desktop window, with none, the title's line box started on the
+        // window's top edge, higher than a Small bar's title sits: *"on desktop
+        // in your mini-apps, the large top bar has no spacing above it"*,
+        // 2026-10-21. The larger of the two rather than both, so a phone's bar,
+        // whose status bar is deeper than the margin, is what it was. The open
+        // bar's alone: collapsed, the bar is a Small one, with no more above it.
+        // Read here, in layout, and only for a bar with no first line, so an
+        // ordinary one does not take on a read of the insets.
+        val top = if (hasControls) row else (above.roundToPx() - windowInsets.getTop(this)).coerceAtLeast(0)
         val needed = top + (big?.height ?: 0) + (sub?.height ?: 0) + below.roundToPx()
         val expanded = maxOf(needed, collapsed, minExpanded.roundToPx())
         // A hero's room above the title: the title rests at the bottom of the
@@ -1273,7 +1304,7 @@ class TopBarCollapseState internal constructor(initialProgress: Float) {
         } else {
             travel * (1f - own)
         }
-        return if (limit <= 0f) 0f else limit * (1f - 1f / (p * PushBand / limit + 1f))
+        return banded(p, limit, PushBand)
     }
 
     /** How far a push moves the content under a following bar: up, with the bar's foot. */
@@ -1578,6 +1609,27 @@ class TopBarCollapseState internal constructor(initialProgress: Float) {
     private var settlingTo: Float = 0f
 
     /**
+     * Moves the bar by a wheel's or a trackpad's [by] pixels the content
+     * declined — towards its end collapses — in [scope], from where the last
+     * one was taking it. Whether that used them: not when the bar is already
+     * at that end, nor when it does not collapse at all.
+     *
+     * It used to finish the bar all the way for anything declined, which a
+     * notch at a time was meant to: but a trackpad sends a scroll in dozens of
+     * small pieces, and the first of them threw the whole bar open at a list's
+     * top — *"it isn't smooth, it sort of just jumps if you scroll slowly"*. A
+     * bar now opens as far as the wheel or the fingers went, as the list moves.
+     */
+    internal fun nudgeForWheel(by: Float, scope: CoroutineScope): Boolean {
+        if (travel <= 0f || follows != null || by == 0f) return false
+        val from = if (settling?.isActive == true) settlingTo else progress
+        // Opening at the content's start is spent over the bar's height alone,
+        // as a scroll's is: see `spend`.
+        val length = if (by < 0f && shrink > 0f) shrink else travel
+        return finishForWheel((from + by / length).coerceIn(0f, 1f), scope)
+    }
+
+    /**
      * Finishes the bar towards [target] — 0 open, 1 collapsed — for a wheel's
      * notch the content declined, in [scope]. Whether that used the notch: not
      * when the bar is already there, nor when it does not collapse at all.
@@ -1787,8 +1839,9 @@ fun rememberTopBarCollapseState(
  * a mouse wheel. A list declines a wheel's notch outright when it cannot scroll
  * any further that way, so the notch never becomes a scroll and no connection
  * hears of it — and a list at its top is exactly where a bar opens. So a notch
- * the content declined finishes the bar the way it turned: towards the
- * content's start, open; towards its end, collapsed. A notch the content
+ * the content declined moves the bar as far as the notch would have scrolled,
+ * the way it turned — towards the content's start, opening — and a trackpad's
+ * small pieces of scroll move it as little as they go. A notch the content
  * scrolled by moves the bar as any scroll does.
  *
  * The other is for a finger pushing past the content's end, on iOS, where the
@@ -1845,12 +1898,15 @@ fun Modifier.topBarCollapse(state: TopBarCollapseState): Modifier =
                         if (change.isConsumed) continue
                         val delta = change.scrollDelta
                         if (delta.y == 0f || abs(delta.y) < abs(delta.x)) continue
-                        val target = if (delta.y > 0f) 1f else 0f
-                        if (state.finishForWheel(target, this@coroutineScope)) change.consume()
+                        val by = sideScrollDistance(delta.y, WheelStep.toPx(), 1.dp.toPx(), platformScrollDeltaInPixels)
+                        if (state.nudgeForWheel(by, this@coroutineScope)) change.consume()
                     }
                 }
             }
         }
+
+/** How far a wheel's notch the content declined moves a collapsing bar: about what a notch scrolls a list. */
+private val WheelStep = 64.dp
 
 /** The collapse whose [topBarCollapse] a node is inside, for a bar to tell whether it is inside its own. */
 private val ModifierLocalTopBarCollapse = modifierLocalOf<TopBarCollapseState?> { null }
@@ -1904,12 +1960,13 @@ private class BarStaysNode(var state: TopBarCollapseState) : Modifier.Node(), La
 internal fun BarNavigation(
     onBack: (() -> Unit)?,
     backLabel: String,
+    backIcon: ImageVector,
     navigation: (@Composable () -> Unit)?,
 ) {
     when {
         navigation != null -> navigation()
         onBack != null -> IconButton(
-            icon = SystemIcons.ChevronBack,
+            icon = backIcon,
             contentDescription = backLabel,
             onClick = onBack,
         )

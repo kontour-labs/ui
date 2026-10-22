@@ -3,6 +3,7 @@ package io.kontour.ui.overlay
 import io.kontour.ui.theme.clipProxy
 import io.kontour.ui.platform.webRole
 import io.kontour.ui.platform.WebRole
+import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.layout.ColumnScope
@@ -13,6 +14,7 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.util.lerp
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusTarget
@@ -117,7 +119,6 @@ import io.kontour.ui.foundation.HorizontalDivider
 import io.kontour.ui.foundation.LocalContentColour
 import io.kontour.ui.foundation.ProvideContentColour
 import io.kontour.ui.foundation.ProvideTextStyle
-import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.InputModality
 import io.kontour.ui.input.LocalInputModality
@@ -548,7 +549,10 @@ private fun MenuPanel(
             val stacked = measurables.drop(1).mapIndexed { index, measurable ->
                 val level = levels.open.getOrNull(index)
                 val full = measurable.maxIntrinsicHeight(width)
-                val grown = level?.progress?.value ?: 1f
+                // Held at nothing: the spring a level closes on settles a
+                // hair past it, and a level shorter than its own row is a
+                // level drawn over the row below.
+                val grown = (level?.progress?.value ?: 1f).coerceAtLeast(0f)
                 val from = level?.rowHeight?.roundToInt() ?: full
                 val height = if (reduced) full else lerp(from.toFloat(), full.toFloat(), grown).roundToInt()
                 // Over its row if it fits there, shifted up inside the menu if
@@ -579,7 +583,10 @@ private fun LevelStack(below: () -> MenuLevel?, levels: MenuLevels, surface: @Co
     Box(propagateMinConstraints = true) {
         surface()
         val above = below()
-        if (above != null) {
+        // Not under a level already on its way out: the menu below is the
+        // reader's again from the moment it starts to close, not from when the
+        // last of it has gone.
+        if (above != null && !above.closing) {
             Box(
                 Modifier
                     .matchParentSize()
@@ -763,7 +770,7 @@ private fun MenuLevelSurface(
             trailing {
                 val slot = this
                 Box(Modifier.graphicsLayer { rotationZ = turn * level.progress.value.coerceIn(0f, 1f) }) {
-                    with(slot) { +SystemIcons.ChevronForward }
+                    with(slot) { +Theme.icons.chevronForward }
                 }
             }
         }
@@ -814,8 +821,16 @@ internal class MenuLevels {
         val closing = open.subList(index, open.size).filter { !it.closing }
         if (closing.isEmpty()) return
         closing.forEach { it.closing = true }
+        // On the spring it opened on, so it leaves the way it came. It closed on
+        // `tweenFast`, the whole height of a long submenu in a tenth of a
+        // second against the spring's third to open it: *"its closing
+        // animation feels a lot quicker and less fluent than its opening
+        // animation, especially in longer lists"*. The longer the list, the
+        // further the same tween had to carry it, and the faster it went.
+        val spec: FiniteAnimationSpec<Float> =
+            if (motion.reduceMotion) motion.tweenFast() else motion.springOrTween(motion.springDefault)
         scope.launch {
-            closing.map { launch { it.progress.animateTo(0f, motion.tweenFast()) } }.joinAll()
+            closing.map { launch { it.progress.animateTo(0f, spec) } }.joinAll()
             open.removeAll(closing)
         }
     }
@@ -866,8 +881,6 @@ internal val LocalMenuRowSizing = staticCompositionLocalOf { false }
 
 /** A row's place in a long list of options, or -1 for a row of an ordinary menu. */
 internal val LocalMenuRowPlace = compositionLocalOf { -1 }
-
-private fun lerp(from: Float, to: Float, fraction: Float): Float = from + (to - from) * fraction
 
 /**
  * One row in a menu.
@@ -1223,7 +1236,7 @@ fun SubMenu(
             interactionSource = interactions,
         ) {
             label()
-            trailing { +SystemIcons.ChevronForward }
+            trailing { +Theme.icons.chevronForward }
         }
     }
 
@@ -1323,7 +1336,7 @@ private fun InPlaceSubMenuRow(
         interactionSource = interactionSource,
     ) {
         label()
-        trailing { +SystemIcons.ChevronForward }
+        trailing { +Theme.icons.chevronForward }
     }
 }
 

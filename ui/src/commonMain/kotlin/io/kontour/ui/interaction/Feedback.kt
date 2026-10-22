@@ -520,7 +520,8 @@ private class DefaultFeedbackDispatcher(
 fun rememberTapFeedback(): TapFeedback {
     val feedback = LocalFeedback.current
     val floor = LocalFeedbackFloor.current
-    return remember(feedback, floor) { TapFeedback(feedback, floor) }
+    val hover = LocalHoverWatch.current
+    return remember(feedback, floor, hover) { TapFeedback(feedback, floor, hover) }
 }
 
 /** What [rememberTapFeedback] hands back: call it to acknowledge a press. */
@@ -528,10 +529,14 @@ fun rememberTapFeedback(): TapFeedback {
 class TapFeedback internal constructor(
     private val feedback: FeedbackDispatcher,
     private val floor: FeedbackFloor,
+    private val hover: HoverWatch,
 ) {
-    /** Reports a press, unless another light report has just been felt. */
+    /**
+     * Reports a press, unless another light report has just been felt — or the
+     * pointer is only passing over, which is no press: see `HoverWatch`.
+     */
     operator fun invoke() {
-        if (floor.claim(FeedbackIntent.Tap)) feedback.perform(FeedbackIntent.Tap)
+        if (!hover.hovering && floor.claim(FeedbackIntent.Tap)) feedback.perform(FeedbackIntent.Tap)
     }
 }
 
@@ -553,7 +558,8 @@ class TapFeedback internal constructor(
 fun rememberToggleFeedback(): ToggleFeedback {
     val feedback = LocalFeedback.current
     val floor = LocalFeedbackFloor.current
-    return remember(feedback, floor) { ToggleFeedback(feedback, floor) }
+    val hover = LocalHoverWatch.current
+    return remember(feedback, floor, hover) { ToggleFeedback(feedback, floor, hover) }
 }
 
 /** What [rememberToggleFeedback] hands back: call it with the value being changed to. */
@@ -561,9 +567,11 @@ fun rememberToggleFeedback(): ToggleFeedback {
 class ToggleFeedback internal constructor(
     private val feedback: FeedbackDispatcher,
     private val floor: FeedbackFloor,
+    private val hover: HoverWatch,
 ) {
-    /** Reports a toggle turning [on] or off, rate-limited like a tap. */
+    /** Reports a toggle turning [on] or off, rate-limited like a tap, and never for a hover. */
     operator fun invoke(on: Boolean) {
+        if (hover.hovering) return
         val intent = if (on) FeedbackIntent.ToggleOn else FeedbackIntent.ToggleOff
         if (floor.claim(intent)) feedback.perform(intent)
     }
@@ -580,6 +588,7 @@ class ToggleFeedback internal constructor(
 @Composable
 internal fun rememberLongPressFeedback(): () -> Unit {
     val feedback = LocalFeedback.current
-    return remember(feedback) { { feedback.perform(FeedbackIntent.LongPress) } }
+    val hover = LocalHoverWatch.current
+    return remember(feedback, hover) { { if (!hover.hovering) feedback.perform(FeedbackIntent.LongPress) } }
 }
 

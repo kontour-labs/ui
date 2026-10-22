@@ -1,8 +1,9 @@
 # Releasing
 
 A release is a tag. Push `v0.4.5` and CI tests what has not been tested for
-that tree, publishes `io.kontour:ui`, `io.kontour:ui-nav3` and
-`io.kontour:haptics` at `0.4.5` to Kontour's Maven repository,
+that tree, publishes `io.kontour:ui`, `io.kontour:ui-nav3`,
+`io.kontour:ui-charts` (from 0.5.0) and `io.kontour:haptics` at `0.4.5` to
+Kontour's Maven repository,
 **`https://maven.kontour.io`**, and deploys the documentation labelled with it.
 Nothing else publishes.
 

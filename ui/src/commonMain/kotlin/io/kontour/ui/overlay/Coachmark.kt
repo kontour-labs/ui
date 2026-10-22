@@ -1,5 +1,8 @@
 package io.kontour.ui.overlay
 
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -61,6 +64,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.motion.ScrollDefaults
 import io.kontour.ui.a11y.highContrast
 import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.ButtonDefaults
@@ -1037,101 +1041,155 @@ private fun CoachmarkBubble(
     val hasPrevious = index > 0
     val hasNext = index < count - 1
 
+    // Said once, as one sentence with where it is in the tour: the words
+    // below are drawn and not read. The merged bubble used to say its title
+    // and message, and then the same title, the same message and "2 / 5" from
+    // the texts merged into it, which a screen reader reads as "two slash
+    // five".
+    val formats = Theme.formats
+    val spoken = buildList {
+        add(title)
+        add(message)
+        if (count > 1) add(strings.itemOfCount(formats.quantity(index + 1), formats.quantity(count)))
+    }
+    CoachmarkPanel(
+        title = title,
+        message = message,
+        icon = step.icon,
+        colours = colours,
+        said = strings.sentences(spoken),
+        modifier = modifier,
+    ) {
+        // Where you are, on the left. A tour with no count is one the
+        // user cannot decide whether to sit through.
+        if (count > 1) {
+            Text(
+                text = strings.tourPosition(formats.quantity(index + 1), formats.quantity(count)),
+                modifier = Modifier.clearAndSetSemantics { },
+                style = Theme.typography.labelSmall,
+                // Faded beside the message at the standard tier (5.4:1); ink at the
+                // enhanced one, which asks 7.
+                colour = if (highContrast()) colours.content else colours.content.copy(alpha = StepCountAlpha),
+            )
+        }
+        Box(Modifier.weight(1f))
+        // Skip, past the rest to the last step, and Back: as quiet as
+        // each other, and as far apart as Back is from the way on. Two
+        // ghost buttons side by side each keep their invisible pad,
+        // which put twice of it between their words — Skip looked to
+        // have more room on its right than anything else in the row.
+        val skips = tour.showSkip && hasNext
+        if (skips || hasPrevious) {
+            val pad = Theme.componentDefaults.buttonPaddingSmall
+            Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs - pad)) {
+                if (skips) {
+                    Button(
+                        onClick = tour::skip,
+                        variant = ButtonVariant.Ghost,
+                        size = ButtonSize.Small,
+                    ) { +strings.skipTour }
+                }
+                if (hasPrevious) {
+                    Button(
+                        onClick = tour::previous,
+                        variant = ButtonVariant.Ghost,
+                        size = ButtonSize.Small,
+                    ) { +strings.back }
+                }
+            }
+        }
+        // Done on the last step of a tour, which is what finishing one is;
+        // "Got it" is a lone mark's, acknowledging rather than ending.
+        CoachmarkOnward(
+            label = when {
+                hasNext -> strings.next
+                count > 1 -> strings.done
+                else -> strings.gotIt
+            },
+            colours = colours,
+            onClick = tour::next,
+        )
+    }
+}
+
+/**
+ * A coach mark's bubble: its tone's solid, the title with its icon, the
+ * message, and a row of [actions] under them. One for a tour's steps and for a
+ * lone [Modifier.coachmark], which each drew their own and had drifted apart:
+ * only one scrolled when its words ran past the room it had, and only one
+ * filled its way on.
+ *
+ * Said once, as [said]: the words drawn here are not read, or a screen reader
+ * hears the title and message twice.
+ */
+@Composable
+internal fun CoachmarkPanel(
+    title: String,
+    message: String,
+    icon: ImageVector?,
+    colours: SolidTone,
+    said: String,
+    modifier: Modifier = Modifier,
+    actions: @Composable RowScope.() -> Unit,
+) {
     Surface(
         modifier = modifier
             .widthIn(max = BubbleMaxWidth)
-            .semantics(mergeDescendants = true) {
-                contentDescription = strings.sentences(listOf(title, message))
-            },
+            .semantics(mergeDescendants = true) { contentDescription = said },
         shape = Theme.shapes.container,
         containerColour = colours.container,
         contentColour = colours.content,
         shadow = Theme.elevation.overlay,
     ) {
+        // Bounded to its side, as a tooltip's bubble is, so it needs somewhere
+        // for the overflow to go: a title and a paragraph at large type can run
+        // past the room beside what it points at.
         Column(
-            modifier = Modifier.padding(Theme.spacing.md),
+            modifier = Modifier
+                .verticalScroll(rememberScrollState(), flingBehavior = ScrollDefaults.flingBehavior())
+                .padding(Theme.spacing.md),
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.xxs),
         ) {
             Row(
+                modifier = Modifier.clearAndSetSemantics { },
                 horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                step.icon?.let { Icon(it, contentDescription = null, size = Theme.sizing.iconMedium) }
+                icon?.let { Icon(it, contentDescription = null, size = Theme.sizing.iconMedium) }
                 Text(title, style = Theme.typography.titleSmall)
             }
-            Text(message, style = Theme.typography.bodySmall)
-
+            Text(message, style = Theme.typography.bodySmall, modifier = Modifier.clearAndSetSemantics { })
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = Theme.spacing.xxs),
                 horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
                 verticalAlignment = Alignment.CenterVertically,
-            ) {
-                // Where you are, on the left. A tour with no count is one the
-                // user cannot decide whether to sit through.
-                if (count > 1) {
-                    Text(
-                        text = strings.tourPosition(Theme.formats.quantity(index + 1), Theme.formats.quantity(count)),
-                        style = Theme.typography.labelSmall,
-                        // Faded beside the message at the standard tier (5.4:1); ink at the
-                        // enhanced one, which asks 7.
-                        colour = if (highContrast()) colours.content else colours.content.copy(alpha = StepCountAlpha),
-                    )
-                }
-                Box(Modifier.weight(1f))
-                // Skip, past the rest to the last step, and Back: as quiet as
-                // each other, and as far apart as Back is from the way on. Two
-                // ghost buttons side by side each keep their invisible pad,
-                // which put twice of it between their words — Skip looked to
-                // have more room on its right than anything else in the row.
-                val skips = tour.showSkip && hasNext
-                if (skips || hasPrevious) {
-                    val pad = Theme.componentDefaults.buttonPaddingSmall
-                    Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs - pad)) {
-                        if (skips) {
-                            Button(
-                                onClick = tour::skip,
-                                variant = ButtonVariant.Ghost,
-                                size = ButtonSize.Small,
-                            ) { +strings.skipTour }
-                        }
-                        if (hasPrevious) {
-                            Button(
-                                onClick = tour::previous,
-                                variant = ButtonVariant.Ghost,
-                                size = ButtonSize.Small,
-                            ) { +strings.back }
-                        }
-                    }
-                }
-                // The way on, filled in the bubble's ink so it reads as the
-                // button it is beside Back: as two ghost buttons on the accent
-                // the pair read as words, and the last step's was asked for
-                // as if it were not there — *"there needs to be a "done" and
-                // "back" button in the final item's coachmark"*. Done on the
-                // last step of a tour, which is what finishing one is; "Got
-                // it" is a lone mark's, acknowledging rather than ending.
-                Button(
-                    onClick = tour::next,
-                    variant = ButtonVariant.Primary,
-                    size = ButtonSize.Small,
-                    colours = ButtonDefaults.colours(
-                        ButtonVariant.Primary,
-                        container = colours.content,
-                        content = colours.container,
-                        border = null,
-                    ),
-                ) {
-                    +when {
-                        hasNext -> strings.next
-                        count > 1 -> strings.done
-                        else -> strings.gotIt
-                    }
-                }
-            }
+                content = actions,
+            )
         }
     }
+}
+
+/**
+ * A coach mark's way on, filled in the bubble's ink so it reads as the button
+ * it is: two ghost buttons on the accent read as words, and the last step's was
+ * asked for as if it were not there — *"there needs to be a "done" and "back"
+ * button in the final item's coachmark"*.
+ */
+@Composable
+internal fun CoachmarkOnward(label: String, colours: SolidTone, onClick: () -> Unit) {
+    Button(
+        onClick = onClick,
+        variant = ButtonVariant.Primary,
+        size = ButtonSize.Small,
+        colours = ButtonDefaults.colours(
+            ButtonVariant.Primary,
+            container = colours.content,
+            content = colours.container,
+            border = null,
+        ),
+    ) { +label }
 }
 
 /** A tone's solid pair: what a coach mark is filled with, and what is written on it. */

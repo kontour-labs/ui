@@ -263,6 +263,15 @@ compose.resources {
 // `buildSrc/src/main/kotlin/MaterialContainment.kt`.
 checkNoMaterial()
 
+// The library's own Kotlin: this module's `commonMain`, and the charts', which
+// are published apart (an app without a chart carries none of them) and held to
+// every rule this module is. Read by the two gates below; `:ui-charts` runs
+// neither itself, so CI's `:ui:` tasks are what cover it.
+fun libraryKotlinSources(): List<Directory> = listOf(
+    layout.projectDirectory.dir("src/commonMain/kotlin"),
+    rootProject.layout.projectDirectory.dir("ui-charts/src/commonMain/kotlin"),
+)
+
 // ---------------------------------------------------------------------------
 // API conventions
 // ---------------------------------------------------------------------------
@@ -280,8 +289,12 @@ val checkApiConventions = tasks.register("checkApiConventions") {
     group = "verification"
     description = "Fails if a public component breaks the library's API conventions."
 
-    val sources = layout.projectDirectory.dir("src/commonMain/kotlin")
-    inputs.dir(sources).withPropertyName("commonMain")
+    // This module's sources, and `:ui-charts`'. The charts are a published
+    // module of their own so that an app without a chart carries none of them,
+    // and are held to the same rules as everything here, which is simplest to
+    // say by reading them here too. See `libraryKotlinSources`.
+    val sourceRoots = libraryKotlinSources()
+    inputs.files(sourceRoots).withPropertyName("commonMain")
     // Nothing is produced; this makes the task cacheable rather than always out
     // of date, which matters because `check` depends on it.
     outputs.file(layout.buildDirectory.file("reports/api-conventions.txt"))
@@ -314,15 +327,16 @@ val checkApiConventions = tasks.register("checkApiConventions") {
         // one is a default the caller cannot write: it renders in the API
         // reference as `closeIcon: ImageVector = SystemIcons.Close` and there is
         // no `SystemIcons` to reach for.
-        val internalTypes = sources.asFileTree.matching { include("**/*.kt") }
+        val internalTypes = sourceRoots.flatMap { it.asFileTree.matching { include("**/*.kt") } }
             .flatMap { file -> KotlinSignatures.types(file.readText()) }
             .filter { it.visibility == "internal" }
             .map { it.name }
             .toSet()
 
-        sources.asFileTree.matching { include("**/*.kt") }.forEach { file ->
+        val sourceFiles = sourceRoots.flatMap { root -> root.asFileTree.matching { include("**/*.kt") }.map { it to root } }
+        sourceFiles.forEach { (file, root) ->
             val text = file.readText()
-            val rel = file.relativeTo(sources.asFile).path
+            val rel = file.relativeTo(root.asFile).path
 
             // No user-visible English welded into a default.
             //
@@ -337,9 +351,10 @@ val checkApiConventions = tasks.register("checkApiConventions") {
             // data class. This rule does not have that problem, which is the
             // argument for having it rather than trusting the sweep.
             //
-            // `Theme.strings.x` and a non-literal expression both pass. So does
-            // `Strings.kt` itself, which is where the words are supposed to be.
-            if (!rel.endsWith("theme/Strings.kt")) {
+            // `Theme.strings.x` and a non-literal expression both pass. So do
+            // `Strings.kt` itself and the charts' `ChartStrings.kt`, which are
+            // where the words are supposed to be.
+            if (!rel.endsWith("theme/Strings.kt") && !rel.endsWith("charts/ChartStrings.kt")) {
                 KotlinSignatures.declarations(text)
                     .filter { it.isPublic }
                     .forEach { declaration ->
@@ -355,6 +370,22 @@ val checkApiConventions = tasks.register("checkApiConventions") {
                                 }
                             }
                     }
+            }
+
+            // Tabler is imported in two files and no others.
+            //
+            // A component that names a Tabler glyph itself draws a glyph the app
+            // cannot change: until 0.5.0 that was a select's chevron, a toast's
+            // close and a side sheet's back arrow, among thirteen of them, and
+            // the only way to swap one was to fork the component. They are read
+            // from `Theme.icons` now, whose fallbacks are in `SystemIcons.kt`,
+            // and the key caps a `Kbd` is passed are in `Kbd.kt`. A third file
+            // with an import is a glyph that skipped the theme.
+            if (Regex("""(?m)^import io\.kontour\.icons\.""").containsMatchIn(text) &&
+                !rel.endsWith("foundation/SystemIcons.kt") && !rel.endsWith("components/display/Kbd.kt")
+            ) {
+                problems += "$rel :: imports Tabler — read the glyph from `Theme.icons`, and add it to " +
+                    "`SystemIcons` if it is not there, so that an app can replace it"
             }
 
             // Every public scope carries both markers.
@@ -500,7 +531,7 @@ val checkApiConventions = tasks.register("checkApiConventions") {
             // which reached a screen reader in English whatever the app's
             // language, with no parameter to change them. A template made only
             // of interpolations passes: it is assembling words from elsewhere.
-            if (!rel.endsWith("theme/Strings.kt")) {
+            if (!rel.endsWith("theme/Strings.kt") && !rel.endsWith("charts/ChartStrings.kt")) {
                 val code = text
                     .replace(Regex("""/\*[\s\S]*?\*/""")) { m -> "\n".repeat(m.value.count { it == '\n' }) }
                     .replace(Regex("//[^\n]*"), "")
@@ -750,8 +781,9 @@ val checkApiConventions = tasks.register("checkApiConventions") {
                     // carries no `@Composable` — it collects composable content
                     // rather than being it — but it is the trailing lambda a
                     // caller writes their content in, so it belongs in the same
-                    // place and under the same name.
-                    val builderType = Regex("[A-Za-z]+Scope\\.\\(\\)\\s*->")
+                    // place and under the same name. A generic scope is one too:
+                    // `ChartScope<X, Y>.() -> Unit` is a chart's marks.
+                    val builderType = Regex("[A-Za-z]+Scope(<[^>]*>)?\\.\\(\\)\\s*->")
                     val interactionIndex = names.indexOfFirst {
                         it == "interactionSource"
                     }.takeIf { it >= 0 && params[it].optional } ?: -1
@@ -848,8 +880,11 @@ val checkKdocSamples = tasks.register("checkKdocSamples") {
     description = "Fails if a KDoc sample names a parameter that does not exist, omits a required one, " +
         "or calls another scope's member inside a builder lambda."
 
-    val sources = layout.projectDirectory.dir("src/commonMain/kotlin")
-    inputs.dir(sources).withPropertyName("commonMain")
+    // `:ui-charts`' samples call `:ui` as much as their own, and `:ui`'s pages
+    // show charts, so both modules' declarations are what a sample is judged
+    // against, and both modules' KDoc is read.
+    val sourceRoots = libraryKotlinSources()
+    inputs.files(sourceRoots).withPropertyName("commonMain")
     val repository = rootProject.layout.projectDirectory
     val pages = files(
         repository.dir("ui-docs/content").asFileTree.matching { include("**/*.md") },
@@ -871,7 +906,7 @@ val checkKdocSamples = tasks.register("checkKdocSamples") {
         val call = Regex("""\b([A-Z]\w*)\s*\(""")
         val namedArgument = Regex("""(?:\A|,)\s*(\w+)\s*=(?!=)""")
 
-        val files = sources.asFileTree.matching { include("**/*.kt") }.files.sortedBy { it.path }
+        val files = sourceRoots.flatMap { it.asFileTree.matching { include("**/*.kt") }.files }.sortedBy { it.path }
 
         // Every declared function, mapped to its parameter list.
         //
@@ -1064,7 +1099,7 @@ val checkKdocSamples = tasks.register("checkKdocSamples") {
 
         files.forEach { file ->
             val text = file.readText()
-            val rel = file.relativeTo(sources.asFile).path
+            val rel = file.relativeTo(sourceRoots.first { file.startsWith(it.asFile) }.asFile).path
             kdoc.findAll(text).forEach { doc ->
                 val first = text.substring(0, doc.range.first).count { it == '\n' } + 1
 

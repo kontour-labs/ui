@@ -36,9 +36,40 @@ appears from a touch that was really a tap.
 Modifier.tooltip("Save this trip")
 ```
 
+Or with the bubble's slots, the same as the component's: words with `+`, and an
+icon or a painter beside them, set at the bubble's own size and ink.
+
+```kotlin
+Modifier.tooltip {
+    +Tabler.Outline.CurrentLocation
+    +"Bring the map back to you"
+}
+```
+
 A tooltip is **not** an accessible name. A screen reader reads the control's own
 `contentDescription`, so an icon button still needs one — the tooltip is for
 people who can see the icon and cannot name it.
+
+## A card to read off
+
+`style = TooltipStyle.Card` draws the bubble as a small card instead: the
+raised surface a menu is drawn on, edged and shadowed as one, standing a little
+off what it is about with no arrow. It is for a few lines with figures in them,
+which the inverse bubble's small, tight type does not suit. A chart's tooltip
+is one.
+
+```kotlin
+Box {
+    Meter(value = charge)
+    Tooltip(visible = showingCharge, side = OverlaySide.End, style = TooltipStyle.Card) {
+        +"81% charged, full by 6:40"
+    }
+}
+```
+
+A card opens on the side it is asked for only where it fits whole, and on the
+other side where it does not, rather than squeezing its lines into the room
+that is left.
 
 ---
 
@@ -57,7 +88,8 @@ The coach-mark form merges its title and body into one description
 unrelated nodes, and its dismiss button carries a real label.
 
 At high contrast the bubble is the enhanced scheme's inverse surface and ink,
-which already stand apart from the page, so it takes no edge. A coach mark's
+which already stand apart from the page, so it takes no edge. A card keeps
+its edge and shadow at every tier, as a menu does. A coach mark's
 dismiss button is a ghost button and gains the edge those take at this tier.
 
 Under reduced motion a tooltip and a coach mark fade in where they will sit

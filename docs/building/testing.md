@@ -269,7 +269,7 @@ in even though it carries no `@Composable`.
 
 It also refuses four parameter names outright, each with the reason:
 `supportingText`, `headline`, `isEnabled`, `onDismiss` — and the rest of the
-eighteen rules in [`contributing.md`](contributing.md#the-shape-of-a-component):
+nineteen rules in [`contributing.md`](contributing.md#the-shape-of-a-component):
 no English in a default or an announcement, no default a caller cannot write,
 time as a `Duration`, `show<Part>` for a switch, `initial<What>` for a starting
 value, no two KDoc blocks in a row, a KDoc on everything a caller holds or
@@ -333,7 +333,7 @@ reachable dial.
 
 ## Screenshot goldens
 
-Two kinds, both in `ui-catalog/screenshots/`, both **compared** rather than
+Three kinds, all in `ui-catalog/screenshots/`, all **compared** rather than
 regenerated. A mismatch fails and writes the render plus a diff with every
 changed pixel in magenta to `ui-catalog/build/screenshot-diffs/`.
 
@@ -343,6 +343,13 @@ changed pixel in magenta to `ui-catalog/build/screenshot-diffs/`.
 - **Per-component renders**, under `screenshots/components/`, are one specimen
   on its own, light and dark, driven from the registry. These are what the
   [component pages](../../ui-docs/content/components.md) show.
+- **Variant renders**, under `screenshots/components-rtl/` and
+  `screenshots/components-fontscale2/`, are a few of those specimens again, right
+  to left and at twice the type size: the ones with a direction in them, and
+  the ones with text in a box that has to grow round it. `ComponentVariantRenderTest`
+  names them. The sweeps already ask whether anything clips or stays in English;
+  these are for a chevron pointing the wrong way, or a label wrapped into a
+  shape nobody meant, which only a picture shows.
 
 A component whose defining state is not its resting one also declares a
 `RenderState`, which adds `<slug>-<state>-{light,dark}.png` beside the resting
@@ -377,6 +384,13 @@ schemes would otherwise be found one run at a time. And each per-component
 render is read back and required to differ from its own corner pixel: a
 component that draws nothing produces a clean card, and the golden would then
 *defend* the blank.
+
+A golden that is not committed is written on the first run and passes, which
+is how a new one is recorded here. On CI, which sets `CI` and throws its
+checkout away, that would be a picture nobody ever compares against, and the
+three chart specimens went a round like that in 0.5.0. So on CI a missing golden
+fails, and its render is in `screenshot-diffs` as `<name>-actual.png` to be
+looked at and committed.
 
 ### Run the gate after the last edit, not before it
 
@@ -969,6 +983,8 @@ Counts are therefore the gates.
 | `ThemeSwitchCostDiagnostic` | `:ui-catalog` | *times* a switch under the overlay it is made from, and **counts** the recompositions across one |
 | `FrameReadout` | `:ui-catalog`, on screen | real frames, on a real device |
 | `docs/check-bundle-size.py` | CI | gzip bytes a reader downloads |
+| `docs/check-bundle-size.py --probes` | CI | gzip bytes an app on the library ships, one small app at a time |
+| `docs/probe-attribution.py` | CI, printed | what is in a probe's Wasm, by package |
 | `docs/measure-web.mjs` | local only | a real browser on the built site |
 
 ### The two things a count cannot see
@@ -1029,6 +1045,29 @@ was not what the reports were about, which is the claim that was needed.
 `docs/check-bundle-size.py` is the half that does run in CI, because bytes are the
 same everywhere. Skia is ratcheted separately from the application binary — at
 roughly two thirds of the payload it would swamp any total that mixed them.
+
+The site's figure is the whole library, gallery and documentation, so it says
+how fast the site grows and nothing about what an app ships. `--probes` weighs
+the five apps in [`probes/`](../../probes/README.md) instead, each one the
+library with a little drawn on it, and prints each against the probe it is read
+from: `theme` against `empty` is what the theme alone costs every app,
+`button` against `theme` is one component, and `icons` against `icon` is
+forty-nine icons. A probe has its own ceiling, `PROBE_CEILINGS`, under the same
+rule as the site's. `probe-attribution.py` then says what the weight is made of,
+by package, from the binary before Binaryen stripped its names: a package in
+`theme` at all is one every app pays for.
+
+iOS cannot be weighed in CI, which has no Mac, and the probes are web apps. On
+a Mac, link the gallery's framework in release and read the binary's segments:
+
+```sh
+./gradlew :ui-catalog:linkReleaseFrameworkIosArm64
+xcrun size -m ui-catalog/build/bin/iosArm64/releaseFramework/Catalog.framework/Catalog
+```
+
+That is the whole gallery, so the same caveat as the site's applies. The
+resources beside it, `composeResources/` and the fonts in it, are the same in
+every app.
 
 `countPhases` has to be applied through a component's **real public content
 slot**. A replica assembled by the test is the easiest way to write a performance

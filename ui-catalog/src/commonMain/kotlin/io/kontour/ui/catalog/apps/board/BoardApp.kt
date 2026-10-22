@@ -57,6 +57,7 @@ import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.nav.TopBar
+import io.kontour.ui.overlay.tooltip
 import io.kontour.ui.sheet.ModalBottomSheet
 import io.kontour.ui.sheet.SheetHeader
 import io.kontour.ui.theme.Theme
@@ -214,7 +215,12 @@ private fun LaneColumn(
 /** A card: what it is, and how many files it holds. Picked up anywhere on it. */
 @Composable
 private fun TaskCard(task: Task, onClick: () -> Unit) {
-    Card(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
+    // The files by name on hover or focus, beside the clip they hang from.
+    val files = Modifier.tooltip(enabled = task.attachments.isNotEmpty()) {
+        +Tabler.Outline.Paperclip
+        +task.attachments.joinToString(", ") { it.name }
+    }
+    Card(onClick = onClick, modifier = Modifier.fillMaxWidth().then(files)) {
         Text(task.title, style = Theme.typography.bodyMedium)
         if (task.attachments.isNotEmpty()) {
             Row(

@@ -9,6 +9,7 @@ import androidx.compose.foundation.text.selection.DisableSelection
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.runtime.remember
@@ -24,7 +25,6 @@ import io.kontour.ui.interaction.rememberTapFeedback
 import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.action.IconButton
-import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.LocalContentColour
 import io.kontour.ui.foundation.ProvideContentColour
 import io.kontour.ui.foundation.Text
@@ -75,6 +75,8 @@ import io.kontour.ui.theme.Theme
  * @param contentDescription Names the whole control. Required: `+` and `−` say
  *   nothing about what is being counted.
  * @param format Renders the number. For units — "2 bags", "£4.50".
+ * @param decrementIcon The "less" button's glyph, `Theme.icons.dash` by default.
+ * @param incrementIcon The "more" button's glyph, `Theme.icons.plus` by default.
  */
 @Composable
 fun Stepper(
@@ -88,6 +90,8 @@ fun Stepper(
     size: ButtonSize = ButtonSize.Medium,
     valueWidth: Dp = StepperDefaults.ValueWidth,
     format: (Int) -> String = rememberIntegerFormat(),
+    decrementIcon: ImageVector = Theme.icons.dash,
+    incrementIcon: ImageVector = Theme.icons.plus,
     decrementLabel: String = Theme.strings.decrease,
     incrementLabel: String = Theme.strings.increase,
     /**
@@ -163,7 +167,7 @@ fun Stepper(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         IconButton(
-            icon = SystemIcons.Dash,
+            icon = decrementIcon,
             contentDescription = decrementLabel,
             onClick = {
                 tap()
@@ -210,7 +214,7 @@ fun Stepper(
         }
 
         IconButton(
-            icon = SystemIcons.Plus,
+            icon = incrementIcon,
             contentDescription = incrementLabel,
             onClick = {
                 tap()

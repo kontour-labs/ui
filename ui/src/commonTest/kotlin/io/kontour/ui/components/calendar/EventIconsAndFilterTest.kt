@@ -85,7 +85,7 @@ class EventIconsAndFilterTest {
 
     @Test
     fun anIconLeadsAnEventsTitleInEachOfItsShapes() {
-        val icon = SystemIcons.Close
+        val icon = SystemIcons.Default.close
         // A block in the hours, a bar across days, a line in a month's day.
         for ((view, event) in listOf(CalendarView.Week to meeting, CalendarView.Week to trip, CalendarView.Month to meeting)) {
             val plain = inset(view, event)
@@ -96,9 +96,9 @@ class EventIconsAndFilterTest {
 
     @Test
     fun anIconIsPartOfWhatAnEventIs() {
-        val plane = meeting.copy(icon = SystemIcons.Close)
+        val plane = meeting.copy(icon = SystemIcons.Default.close)
         assertNotEquals(meeting, plane)
-        assertEquals(SystemIcons.Close, plane.icon)
+        assertEquals(SystemIcons.Default.close, plane.icon)
         assertEquals(plane, plane.copy())
         assertEquals(plane.hashCode(), plane.copy().hashCode())
     }

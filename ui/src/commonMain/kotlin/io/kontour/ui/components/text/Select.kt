@@ -70,7 +70,6 @@ import io.kontour.ui.foundation.ProvideContentColour
 import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.RowContentScope
 import io.kontour.ui.foundation.RowContentScopeImpl
-import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.Cursor
 import io.kontour.ui.input.pointerCursor
@@ -201,6 +200,8 @@ fun rememberSelectState(initialExpanded: Boolean = false): SelectState =
  * @param optionIcon Draws an icon beside each option in the menu, and beside the
  *   value in the closed field. Not drawn where [optionContent] or [valueContent]
  *   draws the option instead.
+ * @param chevron The mark at the end of the field that says it opens, turned
+ *   over while it is open. `Theme.icons.chevronDown` by default.
  * @param otherText What was typed for an answer of the user's own, `""` until
  *   something is; `null` while one of the options is the answer, or none is.
  * @param onOtherTextChange Called as "Other" is picked, as its box is typed in,
@@ -238,6 +239,7 @@ fun <T> Select(
     supporting: String? = null,
     errorMessage: String? = null,
     leadingIcon: ImageVector? = null,
+    chevron: ImageVector = Theme.icons.chevronDown,
     variant: TextFieldVariant = TextFieldVariant.Outlined,
     colours: TextFieldColours = TextFieldDefaults.colours(variant),
     metrics: TextFieldMetrics = TextFieldDefaults.metrics(),
@@ -272,6 +274,7 @@ fun <T> Select(
         supporting = supporting,
         errorMessage = errorMessage,
         leadingIcon = leadingIcon ?: chosen?.takeIf { drawsValue == null }?.let { optionIcon?.invoke(it) },
+        chevron = chevron,
         colours = colours,
         metrics = metrics,
         state = state,
@@ -416,6 +419,7 @@ fun <T> MultiSelect(
     supporting: String? = null,
     errorMessage: String? = null,
     leadingIcon: ImageVector? = null,
+    chevron: ImageVector = Theme.icons.chevronDown,
     variant: TextFieldVariant = TextFieldVariant.Outlined,
     colours: TextFieldColours = TextFieldDefaults.colours(variant),
     metrics: TextFieldMetrics = TextFieldDefaults.metrics(),
@@ -460,6 +464,7 @@ fun <T> MultiSelect(
         supporting = supporting,
         errorMessage = errorMessage,
         leadingIcon = leadingIcon,
+        chevron = chevron,
         colours = colours,
         metrics = metrics,
         state = state,
@@ -591,6 +596,7 @@ fun <T> Combobox(
     supporting: String? = null,
     errorMessage: String? = null,
     leadingIcon: ImageVector? = null,
+    chevron: ImageVector = Theme.icons.chevronDown,
     variant: TextFieldVariant = TextFieldVariant.Outlined,
     colours: TextFieldColours = TextFieldDefaults.colours(variant),
     metrics: TextFieldMetrics = TextFieldDefaults.metrics(),
@@ -631,6 +637,7 @@ fun <T> Combobox(
         supporting = supporting,
         errorMessage = errorMessage,
         leadingIcon = leadingIcon,
+        chevron = chevron,
         colours = colours,
         metrics = metrics,
         state = state,
@@ -782,6 +789,7 @@ private fun SelectFrame(
     supporting: String?,
     errorMessage: String?,
     leadingIcon: ImageVector?,
+    chevron: ImageVector,
     colours: TextFieldColours,
     metrics: TextFieldMetrics,
     state: SelectState,
@@ -866,7 +874,7 @@ private fun SelectFrame(
         leadingIcon = leadingIcon,
         trailing = {
             Icon(
-                imageVector = SystemIcons.ChevronDown,
+                imageVector = chevron,
                 contentDescription = null,
                 modifier = Modifier
                     .chevronTurn(expanded, label = "selectChevron")

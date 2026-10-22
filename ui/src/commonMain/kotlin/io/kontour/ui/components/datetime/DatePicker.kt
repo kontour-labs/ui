@@ -79,7 +79,6 @@ import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.foundation.Icon
-import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
@@ -116,58 +115,6 @@ object DatePickerDefaults {
      * the past.
      */
     fun currentDate(): LocalDate = Clock.System.todayIn(TimeZone.currentSystemDefault())
-
-    /**
-     * The glyph on the way back to today's month: a small calendar page with the
-     * day marked. Drawn by the library, so a picker has the button without an
-     * icon set; see `todayIcon`.
-     */
-    val TodayIcon: ImageVector get() = TodayGlyph
-}
-
-/** A calendar page, its two rings and header rule, and a marked day. 24 by 24, stroked. */
-private val TodayGlyph: ImageVector by lazy {
-    ImageVector.Builder(
-        name = "Today",
-        defaultWidth = 24.dp,
-        defaultHeight = 24.dp,
-        viewportWidth = 24f,
-        viewportHeight = 24f,
-    ).apply {
-        path(
-            stroke = SolidColor(Color.Black),
-            strokeLineWidth = 2f,
-            strokeLineCap = StrokeCap.Round,
-            strokeLineJoin = StrokeJoin.Round,
-        ) {
-            // The page.
-            moveTo(6f, 5f)
-            horizontalLineTo(18f)
-            arcToRelative(2f, 2f, 0f, false, true, 2f, 2f)
-            verticalLineTo(19f)
-            arcToRelative(2f, 2f, 0f, false, true, -2f, 2f)
-            horizontalLineTo(6f)
-            arcToRelative(2f, 2f, 0f, false, true, -2f, -2f)
-            verticalLineTo(7f)
-            arcToRelative(2f, 2f, 0f, false, true, 2f, -2f)
-            close()
-            // The rings, and the rule under the month.
-            moveTo(16f, 3f)
-            verticalLineTo(7f)
-            moveTo(8f, 3f)
-            verticalLineTo(7f)
-            moveTo(4f, 11f)
-            horizontalLineTo(20f)
-        }
-        // Today, marked.
-        path(fill = SolidColor(Color.Black)) {
-            moveTo(8f, 14.5f)
-            horizontalLineTo(11f)
-            verticalLineTo(17.5f)
-            horizontalLineTo(8f)
-            close()
-        }
-    }.build()
 }
 
 /**
@@ -453,8 +400,8 @@ fun DatePicker(
      * one in a dialog.
      * Pass an app's own to match its set, or null to leave a button out.
      */
-    previousIcon: ImageVector? = SystemIcons.ChevronBack,
-    nextIcon: ImageVector? = SystemIcons.ChevronForward,
+    previousIcon: ImageVector? = Theme.icons.chevronBack,
+    nextIcon: ImageVector? = Theme.icons.chevronForward,
     /**
      * The glyph on the button that brings the calendar back to [today]'s month.
      *
@@ -465,7 +412,7 @@ fun DatePicker(
      * Shown only while the calendar is somewhere else, and only when [today] is
      * known — which is the whole of when it has anything to do.
      */
-    todayIcon: ImageVector? = DatePickerDefaults.TodayIcon,
+    todayIcon: ImageVector? = Theme.icons.today,
     /**
      * Turns the month and year into a button that opens two wheels, drawn with
      * this glyph beside it.
@@ -564,10 +511,10 @@ fun DateRangePicker(
     /** See [DatePicker]. */
     showDecorationLine: Boolean = decorationFor != null,
     /** See [DatePicker]. */
-    previousIcon: ImageVector? = SystemIcons.ChevronBack,
-    nextIcon: ImageVector? = SystemIcons.ChevronForward,
+    previousIcon: ImageVector? = Theme.icons.chevronBack,
+    nextIcon: ImageVector? = Theme.icons.chevronForward,
     /** See [DatePicker]. */
-    todayIcon: ImageVector? = DatePickerDefaults.TodayIcon,
+    todayIcon: ImageVector? = Theme.icons.today,
     /**
      * Turns the month and year into a button that opens two wheels, drawn with
      * this glyph beside it.

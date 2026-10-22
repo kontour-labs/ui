@@ -2,6 +2,11 @@ package io.kontour.ui.components.calendar
 
 import androidx.compose.foundation.layout.size
 import androidx.compose.ui.Modifier
+import io.kontour.ui.locale.DateStyle
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.hasContentDescription
@@ -184,16 +189,23 @@ class ScheduleViewTest {
         lateinit var state: EventCalendarState
         lateinit var formats: LocaleFormats
         lateinit var strings: Strings
+        /** A weekday's line over a number's, in pixels at the test's type size: what a day's gutter has to hold. */
+        var dayLines = 0f
         val clicked = mutableListOf<CalendarEvent>()
     }
 
-    private fun ComposeUiTest.schedule(list: List<CalendarEvent> = events): Probe {
+    private fun ComposeUiTest.schedule(list: List<CalendarEvent> = events, fontScale: Float = 1f): Probe {
         val probe = Probe()
         setContent {
+            val density = LocalDensity.current
             KontourTheme(reduceMotion = true) {
+                CompositionLocalProvider(LocalDensity provides Density(density.density, fontScale)) {
                 OverlayHost(Modifier.size(400.dp, 700.dp)) {
                     probe.formats = Theme.formats
                     probe.strings = Theme.strings
+                    probe.dayLines = with(LocalDensity.current) {
+                        Theme.typography.labelSmall.lineHeight.toPx() + Theme.typography.titleMedium.lineHeight.toPx()
+                    }
                     probe.state = rememberEventCalendarState(today, CalendarView.Schedule, LocalTime(8, 0), DayOfWeek.MONDAY)
                     EventCalendar(
                         state = probe.state,
@@ -203,10 +215,39 @@ class ScheduleViewTest {
                         modifier = Modifier.size(400.dp, 700.dp),
                     )
                 }
+                }
             }
         }
         waitForIdle()
         return probe
+    }
+
+    /**
+     * A day is a button named by its date, whose action is showing it. The date
+     * was the action's label, so the button had no name and said a date as
+     * what pressing it does.
+     */
+    @Test
+    fun aDayIsNamedByItsDateAndShowsTheDay() = runComposeUiTest {
+        val probe = schedule()
+        val day = onNode(hasContentDescription(probe.formats.date(today, DateStyle.Full)))
+        day.assertExists()
+        assertEquals(probe.strings.showDay, day.fetchSemanticsNode().config[SemanticsActions.OnClick].label)
+    }
+
+    /**
+     * At 200% type a day's weekday and number have the room their lines need,
+     * where a 48dp gutter and a 32dp ring cut them. Measured on the day's own
+     * node, since the two lines inside it are silent: the day says its date.
+     */
+    @Test
+    fun aDaysNumberFitsAtLargeType() = runComposeUiTest {
+        val probe = schedule(fontScale = 2f)
+        val day = onNode(hasContentDescription(probe.formats.date(today, DateStyle.Full))).fetchSemanticsNode()
+        assertTrue(
+            day.size.height >= probe.dayLines,
+            "today's gutter is ${day.size.height}px tall at 200% type, under the ${probe.dayLines}px its two lines need",
+        )
     }
 
     @Test

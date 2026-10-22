@@ -4,6 +4,7 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.vector.ImageVector
 import io.kontour.icons.tabler.Tabler
 import io.kontour.icons.tabler.outline.Calendar
+import io.kontour.icons.tabler.outline.ChartLine
 import io.kontour.icons.tabler.outline.Click
 import io.kontour.icons.tabler.outline.Components
 import io.kontour.icons.tabler.outline.Forms
@@ -56,6 +57,7 @@ val demoFamilies: List<DemoFamily> = listOf(
     DemoFamily("Text editing", Tabler.Outline.SquareRoundedLetterT, textEditingDemos),
     DemoFamily("Date and time", Tabler.Outline.Calendar, dateTimeDemos),
     DemoFamily("Display", Tabler.Outline.LayoutGrid, displayDemos),
+    DemoFamily("Charts", Tabler.Outline.ChartLine, chartDemos),
     DemoFamily("Collections", Tabler.Outline.LayoutList, collectionDemos),
     DemoFamily("Overlays", Tabler.Outline.Stack2, overlayDemos),
     DemoFamily("Sheets", Tabler.Outline.LayoutBottombar, sheetDemos),

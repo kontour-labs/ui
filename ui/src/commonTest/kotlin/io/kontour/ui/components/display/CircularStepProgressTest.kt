@@ -39,6 +39,55 @@ class CircularStepProgressTest {
         onNodeWithContentDescription("Step 3 of 5").assertExists()
     }
 
+    /**
+     * Measured within the step, it is heard as how far through the steps it
+     * has got, a step and a half of four, and as a step in progress.
+     */
+    @Test
+    fun aMeasuredStepIsHeardAsHowFarItHasGot() = runComposeUiTest {
+        setContent {
+            KontourTheme {
+                StepProgress(current = 2, total = 4, stepProgress = 0.5f)
+                CircularStepProgress(current = 2, total = 4, stepProgress = 0.5f, contentDescription = "Ring")
+            }
+        }
+        val halfway = SemanticsMatcher.expectValue(
+            SemanticsProperties.ProgressBarRangeInfo,
+            ProgressBarRangeInfo(current = 1.5f, range = 0f..4f),
+        )
+        onNodeWithContentDescription("Step 2 of 4, in progress").assert(halfway)
+        onNodeWithContentDescription("Ring").assert(halfway)
+    }
+
+    /**
+     * A measured step past the end is drawn full, so it is heard as the last
+     * step and not as part-way through it: step 6 of 4 at half way was three
+     * and a half of four under a bar drawn full. One before the start is the
+     * same, empty.
+     */
+    @Test
+    fun aMeasuredStepOutsideTheRowIsHeardAsTheBarIsDrawn() = runComposeUiTest {
+        setContent {
+            KontourTheme {
+                StepProgress(current = 6, total = 4, stepProgress = 0.5f, contentDescription = "Past")
+                CircularStepProgress(current = 6, total = 4, stepProgress = 0.5f, contentDescription = "Ring")
+                StepProgress(current = 0, total = 4, stepProgress = 0.5f, contentDescription = "Before")
+            }
+        }
+        val full = SemanticsMatcher.expectValue(
+            SemanticsProperties.ProgressBarRangeInfo,
+            ProgressBarRangeInfo(current = 4f, range = 0f..4f, steps = 3),
+        )
+        onNodeWithContentDescription("Past").assert(full)
+        onNodeWithContentDescription("Ring").assert(full)
+        onNodeWithContentDescription("Before").assert(
+            SemanticsMatcher.expectValue(
+                SemanticsProperties.ProgressBarRangeInfo,
+                ProgressBarRangeInfo(current = 0f, range = 0f..4f, steps = 3),
+            )
+        )
+    }
+
     /** An unknown step is not step zero: it says it is in progress, and claims no position. */
     @Test
     fun anUnknownStepIsIndeterminate() = runComposeUiTest {

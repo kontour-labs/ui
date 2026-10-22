@@ -23,6 +23,11 @@ binary is invisible inside a number Skia dominates. Splitting them is what makes
 this a ratchet on our own code.
 
     python3 docs/check-bundle-size.py [--dist DIR] [--update]
+    python3 docs/check-bundle-size.py --probes [--update]
+
+`--probes` weighs the apps in `probes/` instead: one app each, so the figure is
+what an app on the library ships rather than what the site does. See
+`probes/README.md` for what each one answers.
 
 `--update` rewrites the ceilings in this file to what was just measured. Use it
 when a change is *meant* to move a number, in the same commit, so the diff shows
@@ -196,14 +201,72 @@ import sys
 # plus +509 −63 in the gallery, the drag-and-drop demo among them.
 #
 # `app` and `total` through `--update`'s rule by hand, over CI's figures.
+#
+# Raised 2026-10-17 for 0.5.0, from CI's own measurement on
+# `claude/trusting-dijkstra-w1a6rz` (8579d74a, run 116), the first run to build
+# the site with the charts' range bars, stems, box plots, streams and heat
+# maps. `app` is 3,914,619: +17,573 gzip on run 115's 3,897,046 (4d91ceca), and
+# over its ceiling by 14,619. `total` is 7,698,863, inside its ceiling, and
+# stays, as do `skiko` (3,324,678), `js` (103,303), `fonts` (352,932) and
+# `other` (3,331). Read by source, lines added and removed since 4d91ceca:
+#
+#   charts     +1,644 −419   the new marks, the heat map's ramp and scale, the
+#                            tooltip and selection shared by both charts
+#   gallery    +285   −80    the new kinds' demos and specimens, one demo window
+#   the site   +205   −41    lines of pages: the chart page's new sections
+#   :ui        +286   −273   one copy each of a coach mark's bubble, an
+#                            event's ground and last day, and tone ink
+#
+# `app` through `--update`'s rule by hand, over CI's figure.
+#
+# Raised 2026-10-20 for 0.5.0, from CI's own measurement on
+# `claude/trusting-dijkstra-w1a6rz` (132164c7, run 39368579474), the first run
+# to build the site with the gallery's Energy app. `total` is 7,803,298: +104,435
+# gzip on run 116's 7,698,863 (8579d74a), and over its ceiling by 3,298. `app` is
+# 4,019,056, +104,437 on run 116's 3,914,619 and 20,944 inside its ceiling, so it
+# stays, as do `skiko` (3,324,678), `js` (103,301), `fonts` (352,932) and `other`
+# (3,331). About 20 gzip bytes a net line, in line with the rate above. Read by
+# source, lines added and removed since 8579d74a:
+#
+#   :ui        +2,702 −233   DocumentTabs, TextFieldListItem and `field`, the
+#                            modal sheet's width and `recedes`, the cheaper
+#                            receding band, overlays ending bring-into-view
+#   gallery    +2,302 −28    the Energy app, the other apps' use of the new
+#                            components, the new demos
+#   the site   +448   −23    lines of pages: DocumentTabs, TextFieldListItem,
+#                            the sheet pages, the changelog and migrating
+#   charts     +138   −67    the tooltip's leaving and the sector selection
+#
+# `total` through `--update`'s rule by hand, over CI's figure.
+#
+# Raised 2026-10-21 for 0.5.0, from CI's own measurement on
+# `claude/trusting-dijkstra-w1a6rz` (0fa5cca9, run 39537937356), the first run
+# to build the site with the charts' card tooltip and presentation moves. `app`
+# is 4,054,432: +35,376 gzip on 132164c7's 4,019,056, and over its ceiling by
+# 14,432. `total` is 7,838,676, inside its ceiling, and stays, as do `skiko`
+# (3,324,678), `js` (103,303), `fonts` (352,932) and `other` (3,331). About 14
+# gzip bytes a net line, under the rate above. Read by source, lines added and
+# removed since 132164c7:
+#
+#   :ui        +1,143 −172   the tooltip's card, a step's progress and weights,
+#                            the toast stack held to its front, three days a
+#                            day at a time, the caret's aim, swipe's clip
+#   charts     +1,136 −216   the card tooltip and its total, the selection's
+#                            wash, the end axis, the moves between ways of
+#                            drawing, the legend's switches
+#   the site   +389   −17    lines of pages: the chart and tooltip pages, the
+#                            changelog and migrating
+#   gallery    +219   −30    the energy app's hour tooltip, the sheets' panes
+#
+# `app` through `--update`'s rule by hand, over CI's figure.
 
 CEILINGS = {
     "skiko": 3_430_000,
-    "app": 3_900_000,
+    "app": 4_180_000,
     "js": 110_000,
     "fonts": 370_000,
     "other": 10_000,
-    "total": 7_800_000,
+    "total": 8_040_000,
 }
 
 # The whole *distribution*, in files — `dist.rglob("*")`, which is every file the
@@ -215,6 +278,51 @@ CEILINGS = {
 # be asked for, which is still worth bounding — but a change that adds a lazily
 # fetched resource is spending against a different budget than it looks.
 MAX_FILES = 14
+
+# The probes in `probes/`, in gzip bytes of each one's own `.wasm`, under the
+# same rule as `CEILINGS`. Each is listed with the probe it is read against,
+# because the difference is the answer (`probes/README.md`) and the absolute
+# figure mostly Compose.
+#
+# A probe with no ceiling fails: the first run prints the figures, and a
+# ceiling is set from them by `--probes --update` with a note here saying where
+# they came from.
+#
+# Set 2026-10-16 for 0.5.0 from CI's first measurement, on
+# `claude/trusting-dijkstra-w1a6rz` (a7500415): `empty` 570,451; `theme`
+# 728,179, +157,728 on it, which is what `KontourTheme` costs every app;
+# `button` 803,990, +75,811 on `theme`, which is one component and everything
+# it uses. `icon` and `icons` were 684,759 and 692,540, about 159 gzip bytes an
+# icon, measured without a `Text`, so `icon` came out *under* `theme` by the
+# text stack it left out. Both now draw the same `Text` as `theme`, and their
+# ceilings here are `theme`'s plus the icons, estimated, until a run measures
+# them. Each through `--update`'s rule, to the thousand.
+#
+# What `theme` is made of, from `probe-attribution.py` on the same run, before
+# Binaryen: Compose's runtime, node and collection code first, then
+# `io.kontour.ui.theme` at 100,713, `kotlin.text.regex` at 74,655 and
+# `kotlinx.datetime.format` at 46,396. The last two are reached from the theme's
+# defaults rather than from anything drawn, and are where to look first.
+#
+# Measured again 2026-10-17 on CI (05644143), the ceilings unmoved: the theme's
+# six `Regex` calls became loops, and `theme` fell from 728,602 to 710,069,
+# 18,533 less, with `button`, `icon` and `icons` down with it. `kotlin.text.regex`
+# is still 55,268 before Binaryen, so something outside `:ui` reaches it too.
+PROBE_CEILINGS: dict[str, int] = {
+    "empty": 588_000,
+    "theme": 751_000,
+    "button": 829_000,
+    "icon": 753_000,
+    "icons": 761_000,
+}
+
+PROBE_BASELINES = {
+    "empty": None,
+    "theme": "empty",
+    "button": "theme",
+    "icon": "theme",
+    "icons": "icon",
+}
 
 COMPRESSIBLE = {".html", ".css", ".js", ".mjs", ".json", ".wasm", ".svg"}
 
@@ -248,7 +356,11 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--dist", default="ui-docs/build/dist/wasmJs/productionExecutable")
     parser.add_argument("--update", action="store_true")
+    parser.add_argument("--probes", action="store_true")
     options = parser.parse_args()
+
+    if options.probes:
+        return check_probes(options.update)
 
     dist = pathlib.Path(options.dist)
     if not dist.is_dir():
@@ -312,6 +424,81 @@ def main() -> int:
         return 1
 
     print("\n  Under every ceiling.")
+    return 0
+
+
+def probe_wasm(name: str) -> list[pathlib.Path]:
+    """The probe's own optimised binary: what Binaryen wrote, and only that."""
+    build = pathlib.Path("probes") / name / "build"
+    return sorted(build.glob("**/productionExecutable/optimized/*.wasm"))
+
+
+def check_probes(update: bool) -> int:
+    sizes: dict[str, tuple[int, int]] = {}
+    missing = []
+    for name in PROBE_BASELINES:
+        files = probe_wasm(name)
+        if not files:
+            missing.append(name)
+            continue
+        sizes[name] = (sum(transfer_size(f) for f in files), sum(f.stat().st_size for f in files))
+    if missing:
+        print("no optimised binary for " + ", ".join(missing) + ". Build them first:\n")
+        for name in missing:
+            print(f"  ./gradlew :probes:{name}:compileProductionExecutableKotlinWasmJsOptimize")
+        return 2
+
+    if update:
+        source = pathlib.Path(__file__).read_text()
+        body = "".join(
+            f'    "{name}": {int(gz * 1.03 / 1_000 + 1) * 1_000:_},\n' for name, (gz, _) in sizes.items()
+        )
+        source = re.sub(
+            r"^(PROBE_CEILINGS: dict\[str, int\] = \{\n)(?:    .*\n)*(\})",
+            lambda m: m.group(1) + body + m.group(2),
+            source,
+            count=1,
+            flags=re.M,
+        )
+        pathlib.Path(__file__).write_text(source)
+        print("  probe ceilings updated")
+        return 0
+
+    print("              gzip         raw     against   difference   ceiling")
+    over = []
+    for name, (gz, raw) in sizes.items():
+        baseline = PROBE_BASELINES[name]
+        difference = f"{gz - sizes[baseline][0]:+12,}" if baseline else " " * 12
+        ceiling = PROBE_CEILINGS.get(name)
+        if ceiling is None:
+            verdict = "none set"
+            over.append((name, gz, None))
+        elif gz > ceiling:
+            verdict = f"OVER by {gz - ceiling:,}"
+            over.append((name, gz, ceiling))
+        else:
+            verdict = f"{ceiling - gz:,} to spare"
+        print(f"  {name:>8}  {gz:10,}  {raw:10,}   {baseline or '':>9} {difference}   {verdict}")
+
+    if "icons" in sizes and "icon" in sizes:
+        each = (sizes["icons"][0] - sizes["icon"][0]) / 49
+        print(f"\n  One more icon: about {each:,.0f} gzip bytes.")
+
+    if over:
+        print()
+        for name, measured, ceiling in over:
+            if ceiling is None:
+                print(f"    {name}: {measured:,}, and no ceiling — set one with --probes --update")
+            else:
+                print(f"    {name}: {measured:,} against {ceiling:,}")
+        print(
+            "\n  A probe grew past its ceiling, or has none. If the growth is the point of\n"
+            "  the change, raise it with --probes --update and a note above\n"
+            "  PROBE_CEILINGS. If not, something every app pays for arrived."
+        )
+        return 1
+
+    print("\n  Every probe under its ceiling.")
     return 0
 
 

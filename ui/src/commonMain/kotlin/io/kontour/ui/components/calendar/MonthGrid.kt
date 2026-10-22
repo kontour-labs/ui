@@ -88,6 +88,7 @@ import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.plus
+import io.kontour.ui.input.secondaryClick
 
 /**
  * A month of day boxes, a week to a row, scrolling up and down through the
@@ -302,8 +303,9 @@ private fun Modifier.eventRow(top: Dp, row: Int, gap: Dp, itemPx: () -> Float): 
 private fun WeekdayRow(scope: CalendarScope) {
     val periods = scope.state.periods
     val weekStart = periods.weekStart(scope.state.date)
+    val widest = widestWeekdayName(scope.formats, Theme.typography.labelSmall) + Theme.spacing.xxs
     BoxWithConstraints(Modifier.fillMaxWidth()) {
-        val narrow = maxWidth / DaysPerWeek < WeekdayAbbreviatedWidth
+        val narrow = !abbreviatesWeekdays(maxWidth / DaysPerWeek, widest, WeekdayAbbreviatedWidth)
         Row(Modifier.fillMaxWidth().padding(vertical = Theme.spacing.xxs).clearAndSetSemantics { }) {
             for (column in 0 until DaysPerWeek) {
                 val day = dayInWeek(weekStart, column).dayOfWeek
@@ -320,7 +322,10 @@ private fun WeekdayRow(scope: CalendarScope) {
     }
 }
 
-/** Below this a column has room for a weekday's letter, not its abbreviation. */
+/**
+ * Below this a column has room for a weekday's letter, not its abbreviation —
+ * or below the widest abbreviation, where that is wider: see `widestWeekdayName`.
+ */
 private val WeekdayAbbreviatedWidth = 40.dp
 
 /** A week row's height in a calendar given no height of its own: its date and three events. */
@@ -711,6 +716,10 @@ private fun DayList(scope: CalendarScope, listing: DayListing?, month: PlacedAt,
  * attached to the bar as we move it"*. Its title is where the event's own is,
  * at the start of what the row shows of it, and goes with it.
  *
+ * **Outlined where it lands.** Under each piece, on its days and its line and
+ * neither leaning nor hopping — a dragged end on its day rather than stretched
+ * toward the pointer — a faint outline of it: see [LandingOutline].
+ *
  * @param slot How far down its row a new event's copy is: under the date.
  * @param item How tall a row's line of events is.
  */
@@ -771,6 +780,14 @@ internal fun DaysGhostLayer(
                         contentAt = { (piece.shownLeft(dayWidth.px, gapPx) - piece.drawnLeft(dayWidth.px, gapPx)).roundToInt() },
                         modifier = Modifier.layoutId(piece.week),
                     )
+                    // Where it would land, outlined under it: see [LandingOutline].
+                    LandingOutline(
+                        tone = shown.tone,
+                        presentation = presentation,
+                        clippedStart = !piece.startsHere,
+                        clippedEnd = !piece.endsHere,
+                        modifier = Modifier.layoutId(LandingOf(piece.week)),
+                    )
                 }
             }
         },
@@ -826,12 +843,15 @@ internal fun DaysGhostLayer(
                 // Into another week, it is there: a hop across the month would not be an end stretching.
                 hop.drawnAt(nowStart to nowEnd, target, still) { last, aim -> if (last.top != aim.top) Rect.Zero else null }
             }
-            val placed = pieces.mapIndexedNotNull { i, piece ->
-                val rect = if (i == moving && stretched != null) stretched else rectOf(piece)
-                val measurable = measurables.firstOrNull { it.layoutId == piece.week } ?: return@mapIndexedNotNull null
-                rect to measurable.measure(Constraints.fixed(rect.width.roundToInt().coerceAtLeast(0), rect.height.roundToInt().coerceAtLeast(0)))
+            fun measure(id: Any, rect: Rect) = measurables.firstOrNull { it.layoutId == id }?.let {
+                rect to it.measure(Constraints.fixed(rect.width.roundToInt().coerceAtLeast(0), rect.height.roundToInt().coerceAtLeast(0)))
             }
+            val placed = pieces.mapIndexedNotNull { i, piece -> measure(piece.week, if (i == moving && stretched != null) stretched else rectOf(piece)) }
+            // The end on its day, not stretching toward the pointer: where it lands.
+            val landings = pieces.mapNotNull { piece -> measure(LandingOf(piece.week), rectOf(piece)) }
             return@Layout layout(w, h) {
+                // Under the copy.
+                landings.forEach { (rect, placeable) -> placeable.placeRelative(rect.left.roundToInt(), rect.top.roundToInt()) }
                 placed.forEach { (rect, placeable) -> placeable.placeRelative(rect.left.roundToInt(), rect.top.roundToInt()) }
             }
         }
@@ -858,12 +878,18 @@ internal fun DaysGhostLayer(
         val dy = drawn.top - snapped.top
         // Each piece by the week it is in: one a scrolling month has not
         // composed yet waits a frame, rather than taking another week's shape.
-        val placed = dayPieces(nowStart, nowEnd, rowStart, weeks, days).mapNotNull { piece ->
-            val measurable = measurables.firstOrNull { it.layoutId == piece.week } ?: return@mapNotNull null
+        val pieces = dayPieces(nowStart, nowEnd, rowStart, weeks, days)
+        fun measure(id: Any, piece: GhostPiece) = measurables.firstOrNull { it.layoutId == id }?.let {
             val width = (piece.drawnRight(cell, gapPx) - piece.drawnLeft(cell, gapPx)).roundToInt().coerceAtLeast(0)
-            piece to measurable.measure(Constraints.fixed(width, (itemPx - gapPx).roundToInt().coerceAtLeast(0)))
+            piece to it.measure(Constraints.fixed(width, (itemPx - gapPx).roundToInt().coerceAtLeast(0)))
         }
+        val placed = pieces.mapNotNull { piece -> measure(piece.week, piece) }
+        val landings = pieces.mapNotNull { piece -> measure(LandingOf(piece.week), piece) }
         layout(w, h) {
+            // On its days, not leaning and not hopping — where it lands — and under the copy.
+            landings.forEach { (piece, placeable) ->
+                placeable.placeRelative(piece.drawnLeft(cell, gapPx).roundToInt(), (piece.row * rowHeight + y).roundToInt())
+            }
             placed.forEach { (piece, placeable) ->
                 placeable.placeRelative((piece.drawnLeft(cell, gapPx) + dx).roundToInt(), (piece.row * rowHeight + y + dy).roundToInt())
             }
@@ -881,9 +907,6 @@ internal interface GhostRows {
     fun top(): Float
     fun height(): Float
 }
-
-/** The day an event's last minute is on. */
-private fun lastDayOf(start: LocalDateTime, end: LocalDateTime): LocalDate = if (end > start) end.plusMinutes(-1).date else start.date
 
 /**
  * A piece of the copy a carry by days draws: one a row it is in.
@@ -981,3 +1004,6 @@ private const val RebaseCells = 1.5f
 
 /** The id of the copy a carry by days draws: nothing an app's events could be. */
 private object DaysGhostId
+
+/** What a piece's landing outline is known by in the layer: its week's, and not its copy's. */
+private data class LandingOf(val week: LocalDate)

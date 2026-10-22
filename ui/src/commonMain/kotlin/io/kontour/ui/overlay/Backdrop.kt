@@ -18,7 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.graphics.addOutline
-import androidx.compose.ui.graphics.PathFillType
+import androidx.compose.ui.graphics.PathOperation
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.geometry.Rect
@@ -28,15 +28,16 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.RenderEffect
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.TileMode
-import androidx.compose.ui.graphics.Matrix
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
@@ -123,6 +124,13 @@ enum class BackdropStyle {
  * rasteriser's seam, and it is the same one pixel on every density.
  */
 private const val SeamOverlap = 1f
+
+/**
+ * How far a corner's piece of the band reaches past the content's rectangle,
+ * under the straight sides, in pixels: past the one pixel two antialiased edges
+ * share, so the pieces overlap rather than meet. See `drawAround`.
+ */
+private const val FilletOverlap = 3f
 
 /**
  * How far the blur's softened edge reaches inside the content it is applied to,
@@ -665,6 +673,7 @@ internal fun Modifier.backdropGround(
             geometry.hole.addOutline(
                 clipShapes[step].createOutline(size, layoutDirection, this)
             )
+            geometry.cutCorners(clipShapes[step], size, this)
             geometry.size = size
             geometry.step = step
         }
@@ -710,26 +719,13 @@ internal fun Modifier.backdropGround(
             return@drawWithContent
         }
 
-        geometry.matrix.reset()
         // The same shift the content's layer applies, or the hole and the
         // content stop being the same rectangle and the band shows down one
         // side of it. Applied outside the scale, because `translationY` on a
         // `graphicsLayer` is in the *parent's* coordinates and is not scaled.
-        geometry.matrix.translate(0f, -shift)
-        geometry.matrix.translate(size.width / 2f, size.height / 2f)
-        geometry.matrix.scale(scaleX - overlapX, scaleY - overlapY)
-        geometry.matrix.translate(-size.width / 2f, -size.height / 2f)
-
-        // Only the hole scales. The band's outer rect is the host, which does
-        // not move, so the transform cannot be applied to the combined path.
-        geometry.scaled.reset()
-        geometry.scaled.addPath(geometry.hole)
-        geometry.scaled.transform(geometry.matrix)
-
-        geometry.band.reset()
-        geometry.band.fillType = PathFillType.EvenOdd
-        geometry.band.addRect(Rect(Offset.Zero, size))
-        geometry.band.addPath(geometry.scaled)
+        // See [drawAround] for how the band is drawn from it.
+        val bandScaleX = scaleX - overlapX
+        val bandScaleY = scaleY - overlapY
 
         // And the app's own background under the content's blurred edge, which
         // is the fourth way the page behind the host was reaching the screen and
@@ -764,24 +760,13 @@ internal fun Modifier.backdropGround(
             // actually is this frame rather than as deep as the animation has
             // got, and the blur's rather than the recede's. See its KDoc.
             val reach = 2f * haloPx * blurFraction(b)
-            geometry.matrix.reset()
-            geometry.matrix.translate(0f, -shift)
-            geometry.matrix.translate(size.width / 2f, size.height / 2f)
-            geometry.matrix.scale(
-                (scaleX - reach / size.width).coerceAtLeast(0f),
-                (scaleY - reach / size.height).coerceAtLeast(0f),
+            drawAround(
+                geometry,
+                scaleX = (scaleX - reach / size.width).coerceAtLeast(0f),
+                scaleY = (scaleY - reach / size.height).coerceAtLeast(0f),
+                shift = shift,
+                colour = backing,
             )
-            geometry.matrix.translate(-size.width / 2f, -size.height / 2f)
-
-            geometry.inner.reset()
-            geometry.inner.addPath(geometry.hole)
-            geometry.inner.transform(geometry.matrix)
-
-            geometry.ring.reset()
-            geometry.ring.fillType = PathFillType.EvenOdd
-            geometry.ring.addRect(Rect(Offset.Zero, size))
-            geometry.ring.addPath(geometry.inner)
-            drawPath(geometry.ring, backing)
         }
 
         // Opaque, and that is the fix for the reported white flash. This used to
@@ -802,7 +787,61 @@ internal fun Modifier.backdropGround(
         // header and [overlayBackdrop] — and a corner cannot be rounded from
         // underneath.
         drawContent()
-        drawPath(geometry.band, Color.Black)
+        drawAround(geometry, bandScaleX, bandScaleY, shift, Color.Black)
+    }
+}
+
+/**
+ * Fills everything in the host outside its content's outline scaled by
+ * [scaleX] and [scaleY] about the middle and lifted by [shift]: the band round a
+ * receding page, or the ring under its blurred edge.
+ *
+ * **In pieces whose shape never changes from frame to frame**, and that is the
+ * whole of the cost. This was one path: the host with the scaled outline cut out
+ * of it, even-odd, rebuilt on every frame the page moved — a screen-sized,
+ * non-convex path with new geometry each time, which a GPU renderer tessellates
+ * or rasterises afresh on every one of them. On Android and iOS that was paid on
+ * every frame a sheet arrived, left or was dragged, on top of the page's own
+ * drawing. Reported over a map and a video, where the page's own drawing already
+ * filled the frame: *"it tends to drop quite a few frames and lag"*.
+ *
+ * Now the four straight sides are rectangles, the cheapest thing there is to
+ * draw, and the four corners are [GroundGeometry.fillets]: each the corner's box
+ * less the outline, cut once per size and per step of the corner's ramp and drawn
+ * under this frame's scale rather than rebuilt for it. A path drawn under a
+ * changing transform is the same path, which a renderer can keep; a path
+ * rebuilt every frame is a new one.
+ *
+ * The fillets reach a little past the content's rectangle, under the sides: two
+ * opaque fills of one colour that share an antialiased edge would leave the
+ * hairline [SeamOverlap] exists to close, and overlapping by more than a pixel
+ * leaves no edge between them at all.
+ */
+private fun DrawScope.drawAround(
+    geometry: GroundGeometry,
+    scaleX: Float,
+    scaleY: Float,
+    shift: Float,
+    colour: Color,
+) {
+    val width = size.width
+    val height = size.height
+    val left = width / 2f * (1f - scaleX)
+    val right = width - left
+    val top = height / 2f * (1f - scaleY) - shift
+    val bottom = height / 2f * (1f + scaleY) - shift
+    fun strip(l: Float, t: Float, r: Float, b: Float) {
+        if (r > l && b > t) drawRect(colour, Offset(l, t), Size(r - l, b - t))
+    }
+    strip(0f, 0f, width, top)
+    strip(0f, bottom, width, height)
+    strip(0f, top, left, bottom)
+    strip(right, top, width, bottom)
+    withTransform({
+        translate(top = -shift)
+        scale(scaleX, scaleY, pivot = Offset(width / 2f, height / 2f))
+    }) {
+        for (fillet in geometry.fillets) drawPath(fillet, colour)
     }
 }
 
@@ -1012,28 +1051,45 @@ private const val LeastReducedSigma = 4f
 /**
  * The ground's scratch geometry, kept across frames.
  *
- * Scratch held across frames rather than allocated inside one, for a modifier
- * that runs on every frame of every sheet animation. [hole] is the expensive
- * one — a squircle is four corners of trigonometry and twelve cubics — and is
- * rebuilt only when the host resizes; the rest are rewritten in place.
+ * Held across frames rather than built inside one, for a modifier that runs
+ * on every frame of every sheet animation. [hole] is the expensive one — a
+ * squircle is four corners of trigonometry and twelve cubics — and it and the
+ * [fillets] cut from it are rebuilt only when the host resizes or the corner's
+ * ramp takes a step. Nothing here changes on a frame that only moves the page.
  */
 private class GroundGeometry {
     /** The content's outline at full size. Rebuilt only when the host resizes. */
     val hole = Path()
 
-    /** [hole] under this frame's scale. */
-    val scaled = Path()
+    /**
+     * What lies outside [hole] in each of its corners, at full size: the
+     * corner's box less the outline, the box reaching [FilletOverlap] past the
+     * host's edges. Cut with [hole], and drawn under each frame's scale by
+     * `drawAround` rather than rebuilt for it.
+     */
+    var fillets: List<Path> = emptyList()
+        private set
 
-    /** [hole] a halo's depth further in, which is the ring's inner edge. */
-    val inner = Path()
+    /** Cuts [fillets] from [hole], which has just been built from [shape] at [size]. */
+    fun cutCorners(shape: CornerBasedShape, size: Size, density: Density) {
+        val radius = maxOf(
+            maxOf(shape.topStart.toPx(size, density), shape.topEnd.toPx(size, density)),
+            maxOf(shape.bottomEnd.toPx(size, density), shape.bottomStart.toPx(size, density)),
+        )
+        // A smoothed corner leaves the straight edge before its radius does:
+        // at most twice the radius along each side, at full smoothing.
+        val reach = (radius * 2f + FilletOverlap).coerceAtMost(minOf(size.width, size.height) / 2f)
+        val out = FilletOverlap
+        fillets = listOf(
+            Rect(-out, -out, reach, reach),
+            Rect(size.width - reach, -out, size.width + out, reach),
+            Rect(size.width - reach, size.height - reach, size.width + out, size.height + out),
+            Rect(-out, size.height - reach, reach, size.height + out),
+        ).map { box ->
+            Path.combine(PathOperation.Difference, Path().apply { addRect(box) }, hole)
+        }
+    }
 
-    /** The host, with [scaled] cut out of it. */
-    val band = Path()
-
-    /** The host, with [inner] cut out of it. */
-    val ring = Path()
-
-    val matrix = Matrix()
     var size: Size? = null
 
     /** Which of the ramp's thirteen shapes [hole] was built from. */

@@ -11,6 +11,15 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.CoroutineScope
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.unit.Velocity
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.NestedScrollDispatcher
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
@@ -60,6 +69,8 @@ import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -72,6 +83,9 @@ import io.kontour.ui.input.InputModality
 import io.kontour.ui.input.LocalInputModality
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.input.pointerIconFor
+import io.kontour.ui.sheet.LocalSheetState
+import io.kontour.ui.sheet.flingingInPlace
+import io.kontour.ui.sheet.SheetState
 import io.kontour.ui.theme.Theme
 import kotlin.math.roundToInt
 import kotlin.time.Duration
@@ -240,7 +254,7 @@ fun Scrollbar(
     // scrollbar that thinned out halfway through one would be reporting that
     // the grip had been lost.
     val active = (pointer && (hovered || dragged)) || touch.held
-    val source = rememberScrollbarSource(state)
+    val source = rememberScrollbarSource(state, orientation)
     // Held, the thumb keeps its length, and a pixel of it the content it was.
     SideEffect { source.hold(dragged || touch.held) }
     // A list with an index down its edge has that for a scrollbar.
@@ -302,6 +316,9 @@ fun Scrollbar(
 
     Box(
         modifier = modifier
+            // A drag of the thumb goes through the scroll chain round the
+            // list, as a swipe of it does: see [ScrollbarSource.dragBy].
+            .scrollbarChain(source)
             // Nothing to announce: the list already conveys its own position.
             .clearAndSetSemantics {}
             // Clear of what is over the scroller's ends, and outside everything
@@ -457,7 +474,7 @@ fun Modifier.scrollbar(
     val touch = remember { ScrollbarTouchGrip() }
     val active = (pointer && (grip.hovered || grip.dragging)) || touch.held
     val look = rememberScrollbarLook(state, pointer, alwaysVisible, active, thickness, hoveredThickness, touch.held)
-    val source = rememberScrollbarSource(state)
+    val source = rememberScrollbarSource(state, orientation)
     // Held, the thumb keeps its length, and a pixel of it the content it was.
     SideEffect { source.hold(grip.dragging || touch.held) }
     val density = LocalDensity.current
@@ -469,6 +486,11 @@ fun Modifier.scrollbar(
     val direction = LocalLayoutDirection.current
     val clear = trackClearance(contentPadding, orientation, direction, density)
     track.update(orientation, direction, margin, strip, minThumb, corner, clear)
+    // In a sheet, the track stops where the sheet's foot is shown: see
+    // `SheetState.hiddenBelow`.
+    val sheet = LocalSheetState.current
+    val placed = remember { ScrollerPlacement() }
+    track.hiddenBelow = if (sheet == null) NothingHidden else { { sheet.hiddenBelow(placed.coordinates) } }
     val reach = with(density) { TouchGripReach.toPx() }
     val slop = with(density) { TouchGripSlop.toPx() }
     touch.update(
@@ -496,6 +518,9 @@ fun Modifier.scrollbar(
     // and a node taken off the scroller mid-press cancels the press on
     // everything inside it: the row, or the menu item, the tap was for.
     return this
+        // Before the content's own scroll, so a drag of the thumb goes up the
+        // chain past the content rather than into it.
+        .scrollbarChain(source)
         // There all along and the arrow, overriding nothing, until the pointer
         // is on the bar: Compose asks the nodes under a press at the moment it
         // goes down. See `heldCursor`.
@@ -513,6 +538,7 @@ fun Modifier.scrollbar(
         // On the scroller itself, so it sees a finger before the content does,
         // and takes only the one on the thumb.
         .then(ScrollbarTouchGripElement(touch, shareWithSiblings = false))
+        .then(if (sheet == null) Modifier else Modifier.onPlaced { placed.coordinates = it })
         .drawWithContent {
             drawContent()
             // Looked at whether or not it is drawn, so the thumb follows a
@@ -669,6 +695,17 @@ private fun trackPadding(padding: PaddingValues, orientation: Orientation, direc
         )
     }
 
+/**
+ * Where a scroller is laid out, for a sheet to say how much of it is out of
+ * sight. Held, not state: the coordinates are live, and what moves them — the
+ * sheet — is what a draw that reads them subscribes to.
+ */
+private class ScrollerPlacement {
+    var coordinates: LayoutCoordinates? = null
+}
+
+private val NothingHidden: () -> Float = { 0f }
+
 /** Where a [Modifier.scrollbar]'s track is in its scroller, and where the thumb is on it. All in pixels. */
 private class ScrollbarTrack {
     var orientation = Orientation.Vertical
@@ -680,6 +717,13 @@ private class ScrollbarTrack {
     private var minThumb = 0f
     private var corner = 0f
     private var clear = TrackClearance.None
+
+    /**
+     * How much of the scroller's far end is out of sight, below a sheet's foot:
+     * see [SheetState.hiddenBelow]. Nothing for a scroller that is not in a
+     * sheet, or one that runs across.
+     */
+    var hiddenBelow: () -> Float = NothingHidden
 
     fun update(
         orientation: Orientation,
@@ -699,14 +743,55 @@ private class ScrollbarTrack {
         this.clear = clear
     }
 
-    private fun length(size: Size): Float =
-        ((if (orientation == Orientation.Vertical) size.height else size.width) -
-            2 * (margin + corner) - clear.lead - clear.trail).coerceAtLeast(0f)
+    private fun hidden(size: Size): Float =
+        if (orientation != Orientation.Vertical) 0f else hiddenBelow().coerceIn(0f, size.height)
 
-    /** The distance the thumb can travel, and its length, for [geometry] in a scroller [size]. */
+    private fun length(size: Size, hidden: Float): Float =
+        ((if (orientation == Orientation.Vertical) size.height else size.width) -
+            2 * (margin + corner) - clear.lead - clear.trail - hidden).coerceAtLeast(0f)
+
+    /**
+     * [geometry] for the part of a scroller [size] long that is in sight, when
+     * [hidden] of its foot is not: the thumb as long a share of what is in sight
+     * as that is of the content, and as far along as what has been scrolled is
+     * of all there is below the top of the view.
+     *
+     * The second is why a thumb at the end of a half-height sheet's list stops
+     * short of the foot of its track. The list cannot scroll its last rows into
+     * the part of the sheet that is shown — they are behind the screen's edge,
+     * where the sheet's content runs on — and a thumb at the foot would say
+     * there was nothing more to see.
+     */
+    private fun inSight(size: Size, geometry: ScrollbarGeometry, hidden: Float): ScrollbarGeometry {
+        val viewport = size.height
+        if (hidden <= 0f || viewport <= 0f) return geometry
+        val ahead = geometry.scrollable
+        return ScrollbarGeometry(
+            fraction = geometry.fraction * (viewport - hidden) / viewport,
+            position = if (ahead + hidden <= 0f) 0f else geometry.position * ahead / (ahead + hidden),
+            scrollable = ahead + hidden,
+        )
+    }
+
+    /**
+     * How far the thumb travels along the track as [geometry]'s position goes
+     * from 0 to 1, and its length, for [geometry] in a scroller [size]: what a
+     * drag of the thumb divides by, so the thumb stays under the pointer.
+     */
     fun travel(size: Size, geometry: ScrollbarGeometry): Pair<Float, Float> {
-        val length = length(size)
-        val thumb = (length * geometry.fraction).coerceAtLeast(minThumb).coerceAtMost(length)
+        val hidden = hidden(size)
+        val shown = inSight(size, geometry, hidden)
+        val (travel, thumb) = shownTravel(size, shown, hidden)
+        // The thumb is drawn at `shown.position`, which is `geometry.position`
+        // scaled by this, so the drag is divided by as much less.
+        val ahead = geometry.scrollable
+        val scale = if (hidden <= 0f || ahead + hidden <= 0f) 1f else ahead / (ahead + hidden)
+        return travel * scale to thumb
+    }
+
+    private fun shownTravel(size: Size, shown: ScrollbarGeometry, hidden: Float): Pair<Float, Float> {
+        val length = length(size, hidden)
+        val thumb = (length * shown.fraction).coerceAtLeast(minThumb).coerceAtMost(length)
         return (length - thumb) to thumb
     }
 
@@ -731,7 +816,7 @@ private class ScrollbarTrack {
     /** Where the track starts and ends along its axis, from its start in the reading direction. */
     private fun alongRange(size: Size): Pair<Float, Float> {
         val full = if (orientation == Orientation.Vertical) size.height else size.width
-        return clear.lead to (full - clear.trail)
+        return clear.lead to (full - clear.trail - hidden(size))
     }
 
     /**
@@ -754,9 +839,11 @@ private class ScrollbarTrack {
 
     /** The thumb's rectangle, [width] across, or null where there is no room for one. */
     fun thumb(size: Size, direction: LayoutDirection, geometry: ScrollbarGeometry, width: Float): Rect? {
-        val (travel, thumb) = travel(size, geometry)
+        val hidden = hidden(size)
+        val shown = inSight(size, geometry, hidden)
+        val (travel, thumb) = shownTravel(size, shown, hidden)
         if (thumb <= 0f) return null
-        val along = clear.lead + margin + corner + travel * geometry.position
+        val along = clear.lead + margin + corner + travel * shown.position
         return when (orientation) {
             Orientation.Vertical -> {
                 val x = if (direction == LayoutDirection.Rtl) clear.side + margin else size.width - clear.side - margin - width
@@ -1117,7 +1204,42 @@ internal class ScrollbarSource(private val state: ScrollableState) {
 
     fun hold(on: Boolean) {
         if (on && !held) frozenScrollable = estimate().scrollable
+        // Let go: a fling of nothing, so what collapses as the content scrolls
+        // settles where a swipe let go would have left it.
+        if (!on && held) settle()
         held = on
+    }
+
+    /**
+     * The scroll chain round the content: what a drag of the thumb is offered
+     * first and told of after, as a swipe's is. See [dragBy].
+     */
+    var chain: NestedScrollDispatcher? = null
+
+    /** Which way the thumb drags the content, for the chain's offsets. */
+    var vertical: Boolean = true
+
+    /** The sheet the scroller is in, if it is in one: see [dragBy]. */
+    var sheet: SheetState? = null
+
+    /** Where a let-go's fling to the chain runs. */
+    var scope: CoroutineScope? = null
+
+    private fun along(amount: Float): Offset = if (vertical) Offset(0f, amount) else Offset(amount, 0f)
+
+    private fun Offset.along(): Float = if (vertical) y else x
+
+    private fun settle() {
+        val chain = chain ?: return
+        val scope = scope ?: return
+        scope.launch {
+            // Not a release of a sheet it is in, as the drag was not a drag
+            // of one: see [flingingInPlace].
+            flingingInPlace {
+                val left = Velocity.Zero - chain.dispatchPreFling(Velocity.Zero)
+                chain.dispatchPostFling(Velocity.Zero, left)
+            }
+        }
     }
 
     private var frozenScrollable = 0f
@@ -1246,7 +1368,33 @@ internal class ScrollbarSource(private val state: ScrollableState) {
             position <= 0f && along < 0f -> -scrollable.coerceAtLeast(1f) * EndPush
             else -> (position - was) * scrollable
         }
-        driven += state.dispatchRawDelta(delta)
+        // **Through the scroll chain, as a swipe goes**, not straight into the
+        // content: a large top bar collapses from what its connection is
+        // offered, and a thumb dragged down the list offered it nothing, so
+        // the bar stayed open over a list scrolled to its middle — *"if you
+        // drag the scrollbar, the bar doesn't collapse"*. Offered first, the
+        // content scrolls what is left, and the chain is told what it did.
+        // A chain's offsets are the way a finger moves, against the content's.
+        // Only once it is in the chain: a dispatcher not yet attached has none.
+        val chain = chain?.takeIf { runCatching { it.coroutineScope.isActive }.getOrDefault(false) }
+        if (chain == null) {
+            driven += state.dispatchRawDelta(delta)
+            return
+        }
+        // **Not a drag of the sheet it is in**, though: a sheet's connection
+        // opens the sheet first on a drag of its content up, and the thumb
+        // dragged down a half-height sheet's list opened it to full height
+        // before the list moved. The sheet is told this one scrolls in place.
+        val moved = sheet?.scrollingInPlace { through(chain, delta) } ?: through(chain, delta)
+        driven += moved
+    }
+
+    /** [delta] offered to [chain], the rest scrolled, and the chain told: what the content moved. */
+    private fun through(chain: NestedScrollDispatcher, delta: Float): Float {
+        val ahead = delta + chain.dispatchPreScroll(along(-delta), NestedScrollSource.UserInput).along()
+        val moved = state.dispatchRawDelta(ahead)
+        chain.dispatchPostScroll(along(-moved), along(-(ahead - moved)), NestedScrollSource.UserInput)
+        return moved
     }
 }
 
@@ -1254,11 +1402,26 @@ internal class ScrollbarSource(private val state: ScrollableState) {
 private const val EndPush = 4f
 
 @Composable
-private fun rememberScrollbarSource(state: ScrollableState): ScrollbarSource {
+private fun rememberScrollbarSource(state: ScrollableState, orientation: Orientation): ScrollbarSource {
     val source = remember(state) { ScrollbarSource(state) }
     source.shownFraction = rememberShownFraction(source)
+    source.vertical = orientation == Orientation.Vertical
+    source.sheet = LocalSheetState.current
+    source.scope = rememberCoroutineScope()
     return source
 }
+
+/**
+ * A node in the scroll chain for the thumb to drag the content through: see
+ * [ScrollbarSource.dragBy]. It takes nothing itself; it only passes a drag of
+ * the thumb up to whatever is above it, a top bar's connection among them.
+ */
+private fun Modifier.scrollbarChain(source: ScrollbarSource): Modifier {
+    val chain = source.chain ?: NestedScrollDispatcher().also { source.chain = it }
+    return nestedScroll(TakesNothing, chain)
+}
+
+private object TakesNothing : NestedScrollConnection
 
 /**
  * The thumb's length as drawn: the estimate's, eased toward it with a gentle

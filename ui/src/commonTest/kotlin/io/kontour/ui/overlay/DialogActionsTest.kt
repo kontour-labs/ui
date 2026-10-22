@@ -303,6 +303,38 @@ class DialogActionsTest {
         assertEquals(neutral.height, save.height, "a short button beside a tall one")
     }
 
+    /**
+     * Where a button's longest word does not fit its share, the buttons stack
+     * rather than break it: at twice the type size in a narrow window "Cancel"
+     * came out "Cance / l" and "Remove" "Remo / ve". The answer goes first, the
+     * way out last, each the whole width.
+     */
+    @Test
+    fun aWordTooWideForItsShareStacksTheButtons() = runComposeUiTest {
+        setContent {
+            KontourTheme(reduceMotion = true) {
+                CompositionLocalProvider(LocalDensity provides Density(LocalDensity.current.density, fontScale = 2f)) {
+                    Box(Modifier.width(280.dp).height(800.dp)) {
+                        OverlayHost(Modifier.fillMaxSize()) {
+                            AlertDialog(
+                                visible = true,
+                                onDismissRequest = {},
+                                confirmLabel = "Remove",
+                                onConfirm = {},
+                                destructive = true,
+                            ) { +"Remove this favourite?" }
+                        }
+                    }
+                }
+            }
+        }
+        waitForIdle()
+        val remove = bounds("Remove")
+        val cancel = bounds("Cancel")
+        assertTrue(cancel.top >= remove.bottom, "the way out goes under the answer: $remove, $cancel")
+        assertEquals(remove.width, cancel.width, "each the whole width")
+    }
+
     @Test
     fun aLabelCanBeReadFromTheTheme() = runComposeUiTest {
         var expected = ""

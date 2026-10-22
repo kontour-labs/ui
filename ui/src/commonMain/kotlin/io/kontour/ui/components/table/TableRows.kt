@@ -1,9 +1,5 @@
 package io.kontour.ui.components.table
 
-import io.kontour.ui.foundation.snappedLineWidth
-import io.kontour.ui.foundation.snappedLineCentre
-import io.kontour.ui.platform.webRole
-import io.kontour.ui.platform.WebRole
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
@@ -23,15 +19,28 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.State
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.drawscope.withTransform
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.IntrinsicMeasurable
 import androidx.compose.ui.layout.IntrinsicMeasureScope
 import androidx.compose.ui.layout.Layout
@@ -52,6 +61,7 @@ import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -65,8 +75,9 @@ import io.kontour.ui.foundation.ContentSlot
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.ProvideContentColour
 import io.kontour.ui.foundation.ProvideTextStyle
-import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.Text
+import io.kontour.ui.foundation.snappedLineCentre
+import io.kontour.ui.foundation.snappedLineWidth
 import io.kontour.ui.input.insetFocusRing
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.LocalRowInteractionSource
@@ -74,6 +85,8 @@ import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.interaction.rememberTapFeedback
 import io.kontour.ui.interaction.rememberToggleFeedback
 import io.kontour.ui.motion.ScrollDefaults
+import io.kontour.ui.platform.WebRole
+import io.kontour.ui.platform.webRole
 import io.kontour.ui.theme.Theme
 
 /** Everything a row needs to know about the table it is in. */
@@ -88,6 +101,8 @@ internal data class TableEnv<T>(
     val striped: Boolean,
     val sort: TableSort?,
     val onSortChange: ((TableSort) -> Unit)?,
+    /** The ascending arrow, then the descending one. */
+    val sortIcons: Pair<ImageVector, ImageVector>,
     val selection: TableSelection,
     val selected: Set<Any>,
     val onSelectedChange: ((Set<Any>) -> Unit)?,
@@ -178,7 +193,7 @@ private fun <T> HeaderCell(env: TableEnv<T>, index: Int) {
                 // From part-way, a tap selects the rest; from all, it clears them.
                 onClick = { env.onSelectedChange?.invoke(if (all) env.selected - keys.toSet() else env.selected + keys) },
                 enabled = env.enabled && keys.isNotEmpty(),
-                modifier = Modifier.semantics { contentDescription = strings.selectAll },
+                modifier = Modifier.semantics { contentDescription = strings.selectAllRows },
             )
         }
         return
@@ -195,22 +210,30 @@ private fun <T> HeaderCell(env: TableEnv<T>, index: Int) {
             .semantics(mergeDescendants = true) {
                 heading()
                 collectionItemInfo = CollectionItemInfo(0, 1, index, 1)
-                if (sorted != null) {
-                    stateDescription = if (sorted.direction == SortDirection.Ascending) {
-                        strings.sortedAscending
-                    } else {
-                        strings.sortedDescending
-                    }
+                when {
+                    sorted?.direction == SortDirection.Ascending -> stateDescription = strings.sortedAscending
+                    sorted != null -> stateDescription = strings.sortedDescending
+                    // A sortable header that is not the sort said nothing, and
+                    // a reader could not tell it from one that sorts nothing.
+                    sortable -> stateDescription = strings.notSorted
                 }
             }
             .then(
                 if (onSortChange != null && sortable) {
+                    // Said as what the tap will do, which is not what the
+                    // header is: a column sorted ascending sorts descending.
+                    val next = env.sort?.toggled(column.key) ?: TableSort(column.key)
                     Modifier.pointerCursor(enabled = env.enabled).clickable(
                         interactionSource = interactions,
                         indication = kontourIndication(RectangleShape, pressScale = 1f),
                         enabled = env.enabled,
+                        onClickLabel = if (next.direction == SortDirection.Ascending) {
+                            strings.sortAscending
+                        } else {
+                            strings.sortDescending
+                        },
                         role = Role.Button,
-                    ) { onSortChange(env.sort?.toggled(column.key) ?: TableSort(column.key)) }
+                    ) { onSortChange(next) }
                 } else {
                     Modifier
                 },
@@ -233,9 +256,9 @@ internal fun <T> HeaderCellContent(env: TableEnv<T>, column: TableColumn<T>, mod
             if (sorted != null) {
                 Icon(
                     imageVector = if (sorted.direction == SortDirection.Ascending) {
-                        SystemIcons.SortAscending
+                        env.sortIcons.first
                     } else {
-                        SystemIcons.SortDescending
+                        env.sortIcons.second
                     },
                     contentDescription = null,
                     tint = colour,
@@ -429,13 +452,11 @@ internal fun <T> FooterCellContent(env: TableEnv<T>, column: TableColumn<T>, mod
 private fun TableRowLayout(env: TableEnv<*>, modifier: Modifier, cell: @Composable (column: Int) -> Unit) {
     val layout = env.layout
     val scroll = env.scroll
-    val pinnedPolicy = remember(layout) {
-        CellGroupPolicy(
-            widths = IntArray(layout.pinned) { layout.widths[it] },
-            starts = IntArray(layout.pinned) { layout.starts[it] },
-            scroll = null,
-        )
-    }
+    // How far the pinned columns have narrowed, which changes only over the
+    // first stretch of a scroll across: derived, so a scroll past it re-lays
+    // nothing out.
+    val narrowing = remember(layout, scroll) { derivedStateOf { layout.narrowing(scroll.value) } }
+    val pinnedPolicy = remember(layout, narrowing) { PinnedGroupPolicy(layout, narrowing) }
     val panePolicy = remember(layout, scroll) {
         val first = layout.pinned
         CellGroupPolicy(
@@ -447,7 +468,11 @@ private fun TableRowLayout(env: TableEnv<*>, modifier: Modifier, cell: @Composab
     val minHeight = env.rowMinHeight
     Layout(
         content = {
-            Layout(content = { for (column in 0 until layout.pinned) cell(column) }, measurePolicy = pinnedPolicy)
+            Layout(
+                content = { for (column in 0 until layout.pinned) cell(column) },
+                modifier = if (layout.narrowRange > 0) Modifier.fadedWhereCut(layout, narrowing) else Modifier,
+                measurePolicy = pinnedPolicy,
+            )
             Layout(
                 content = { for (column in layout.pinned until layout.count) cell(column) },
                 modifier = Modifier.clipToBounds(),
@@ -461,11 +486,14 @@ private fun TableRowLayout(env: TableEnv<*>, modifier: Modifier, cell: @Composab
             measurables[0].maxIntrinsicHeight(layout.pinnedWidth),
             measurables[1].maxIntrinsicHeight(layout.paneWidth),
         )
+        // The pinned columns are laid out at their whole widths, and the pane
+        // starts where they are shown to end: narrowed, it is that much wider.
+        val shown = layout.shownPinnedWidth(narrowing.value)
         val pinned = measurables[0].measure(Constraints.fixed(layout.pinnedWidth, height))
-        val pane = measurables[1].measure(Constraints.fixed(layout.paneWidth, height))
+        val pane = measurables[1].measure(Constraints.fixed(layout.viewport - shown, height))
         layout(layout.viewport, height) {
             pinned.placeRelative(0, 0)
-            pane.placeRelative(layout.pinnedWidth, 0)
+            pane.placeRelative(shown, 0)
         }
     }
 }
@@ -504,6 +532,110 @@ private class CellGroupPolicy(
 }
 
 /**
+ * Lays a row's pinned cells side by side, each laid out at its column's whole
+ * width and shown only as wide as [narrowing] leaves it: cut at that width, so
+ * nothing in it reflows as it narrows. Read when the cells are placed, so a
+ * frame of the narrowing moves and cuts them without measuring anything.
+ */
+private class PinnedGroupPolicy(
+    private val columns: TableColumnsLayout,
+    private val narrowing: State<Float>,
+) : MeasurePolicy {
+
+    override fun MeasureScope.measure(measurables: List<Measurable>, constraints: Constraints): MeasureResult {
+        val height = if (constraints.hasFixedHeight) {
+            constraints.maxHeight
+        } else {
+            measurables.mapIndexed { index, it -> it.maxIntrinsicHeight(columns.widths[index]) }
+                .maxOrNull()?.coerceAtLeast(constraints.minHeight) ?: constraints.minHeight
+        }
+        val placeables = measurables.mapIndexed { index, it -> it.measure(Constraints.fixed(columns.widths[index], height)) }
+        return layout(constraints.maxWidth, height) {
+            val fraction = narrowing.value
+            placeables.forEachIndexed { index, it ->
+                val at = columns.shownStart(index, fraction)
+                val shown = columns.shownWidth(index, fraction)
+                if (shown < columns.widths[index]) {
+                    it.placeRelativeWithLayer(at, 0) {
+                        clip = true
+                        shape = StartOf(shown)
+                    }
+                } else {
+                    it.placeRelative(at, 0)
+                }
+            }
+        }
+    }
+
+    override fun IntrinsicMeasureScope.maxIntrinsicHeight(measurables: List<IntrinsicMeasurable>, width: Int): Int =
+        measurables.mapIndexed { index, it -> it.maxIntrinsicHeight(columns.widths[index]) }.maxOrNull() ?: 0
+
+    override fun IntrinsicMeasureScope.minIntrinsicHeight(measurables: List<IntrinsicMeasurable>, width: Int): Int =
+        measurables.mapIndexed { index, it -> it.minIntrinsicHeight(columns.widths[index]) }.maxOrNull() ?: 0
+}
+
+/** The first [width] px of a cell, from its start: what a narrowed pinned column shows of it. */
+private class StartOf(private val width: Int) : Shape {
+    override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline =
+        Outline.Rectangle(
+            if (layoutDirection == LayoutDirection.Ltr) {
+                Rect(0f, 0f, width.toFloat(), size.height)
+            } else {
+                Rect(size.width - width, 0f, size.width, size.height)
+            },
+        )
+}
+
+/**
+ * Fades each narrowed pinned cell out over its last few dp, where it is cut, as
+ * a cut title fades: whatever is in the cell, its text and its icons alike.
+ * Only while they are narrowed, when the group is drawn on a layer of its own
+ * for the fade to cut into; never at rest.
+ *
+ * One ramp a pixel wide, made once for the node and stretched over each cut,
+ * rather than a gradient made for each pinned column on every frame: the cuts
+ * move on every frame of a scroll across, and the ramp's ends were all that
+ * changed.
+ */
+private fun Modifier.fadedWhereCut(columns: TableColumnsLayout, narrowing: State<Float>): Modifier {
+    return graphicsLayer {
+        compositingStrategy = if (narrowing.value > 0f) CompositingStrategy.Offscreen else CompositingStrategy.Auto
+    }.drawWithCache {
+        val ltr = layoutDirection == LayoutDirection.Ltr
+        val ramp = Brush.horizontalGradient(
+            colors = if (ltr) listOf(Color.Black, Color.Transparent) else listOf(Color.Transparent, Color.Black),
+            startX = 0f,
+            endX = 1f,
+        )
+        val reach = CutFade.toPx()
+        val height = size.height
+        onDrawWithContent {
+            drawContent()
+            val fraction = narrowing.value
+            if (fraction <= 0f) return@onDrawWithContent
+            for (index in 0 until columns.pinned) {
+                val shown = columns.shownWidth(index, fraction)
+                if (shown >= columns.widths[index]) continue
+                val end = (columns.shownStart(index, fraction) + shown).toFloat()
+                val from = end - minOf(reach, shown.toFloat())
+                val left = if (ltr) from else size.width - end
+                val right = if (ltr) end else size.width - from
+                if (right <= left) continue
+                withTransform({
+                    translate(left = left)
+                    scale(scaleX = right - left, scaleY = 1f, pivot = Offset.Zero)
+                }) {
+                    drawRect(brush = ramp, size = Size(1f, height), blendMode = BlendMode.DstIn)
+                }
+            }
+        }
+    }
+}
+
+/** How far in from where it is cut a narrowed pinned cell fades out. */
+private val CutFade = 16.dp
+
+/**
  * The rules a row draws over itself: along its top or bottom edge, between its
  * columns in a grid, and at the pinned columns' edge whenever something has
  * scrolled under it — read in draw, so scrolling redraws the rules and nothing
@@ -526,18 +658,23 @@ private fun Modifier.tableRules(env: TableEnv<*>, top: Color?, bottom: Color?): 
     if (bottom != null) {
         drawLine(bottom, Offset(0f, size.height - hair / 2f), Offset(size.width, size.height - hair / 2f), hair)
     }
+    // Where the pinned columns are shown to end, narrowed as the pane scrolls,
+    // and the pane moved in by what they gave up.
+    val narrowing = layout.narrowing(shift)
+    val pinnedEnd = layout.shownPinnedWidth(narrowing)
+    val given = layout.pinnedWidth - pinnedEnd
     if (env.lines == TableLines.Grid) {
         for (index in 0 until layout.count - 1) {
             if (index == layout.pinned - 1) continue
             if (index < layout.pinned) {
-                vertical(layout.end(index).toFloat())
+                vertical((layout.shownStart(index, narrowing) + layout.shownWidth(index, narrowing)).toFloat())
             } else {
-                val end = (layout.end(index) - shift).toFloat()
-                if (end > layout.pinnedWidth && end < layout.viewport) vertical(end)
+                val end = (layout.end(index) - shift - given).toFloat()
+                if (end > pinnedEnd && end < layout.viewport) vertical(end)
             }
         }
     }
-    if (layout.pinned > 0 && (env.lines == TableLines.Grid || shift > 0)) vertical(layout.pinnedWidth.toFloat())
+    if (layout.pinned > 0 && (env.lines == TableLines.Grid || shift > 0)) vertical(pinnedEnd.toFloat())
 }
 
 @Composable

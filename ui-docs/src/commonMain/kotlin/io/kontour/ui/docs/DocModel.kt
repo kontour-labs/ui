@@ -188,6 +188,7 @@ val familyOrder: List<String> = listOf(
     "Text editing",
     "Date and time",
     "Display",
+    "Charts",
     "Collections",
     "Overlays",
     "Sheets",

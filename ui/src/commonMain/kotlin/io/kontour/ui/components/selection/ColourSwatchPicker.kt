@@ -34,7 +34,6 @@ import io.kontour.ui.interaction.rememberTapFeedback
 import io.kontour.ui.a11y.contentColourFor
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.foundation.Icon
-import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.kontourIndication
@@ -200,7 +199,7 @@ private fun Swatch(
         }
         if (mark > 0f) {
             Icon(
-                imageVector = SystemIcons.Check,
+                imageVector = Theme.icons.check,
                 contentDescription = null,
                 modifier = Modifier.scale(mark),
                 tint = tick,

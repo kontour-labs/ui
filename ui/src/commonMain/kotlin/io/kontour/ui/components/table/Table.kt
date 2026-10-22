@@ -19,6 +19,7 @@ import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
@@ -325,11 +326,18 @@ class TableScope<T> internal constructor() {
  * @param stickyColumns How many columns stay pinned at the start as the rest
  *   scroll across. Pinned columns never cover more than half the table; past that
  *   the last of them scroll too.
+ * @param narrowStickyColumns Whether the pinned columns narrow a little as the
+ *   rest are scrolled across, giving the rest more room: to about two thirds of
+ *   their width over the first stretch of the scroll, cut and faded at their
+ *   ends rather than wrapped, and back as the table returns to its start.
  * @param striped Every other row on a quiet ground, for reading across a wide row.
  * @param lines The rules between rows and between columns.
  * @param outlined A border round the whole table, with a card's corners.
  * @param sort The current sort, which the header shows.
  * @param onSortChange Makes headers sortable, and is handed the sort a tap asks for.
+ * @param sortAscendingIcon The arrow on a column sorted smallest first,
+ *   `Theme.icons.sortAscending` by default.
+ * @param sortDescendingIcon The arrow on a column sorted largest first.
  * @param selection How rows are picked.
  * @param selected The keys of the selected rows.
  * @param onSelectedChange Handed the keys selected after a row or checkbox is tapped.
@@ -348,11 +356,14 @@ fun <T> Table(
     key: ((item: T) -> Any)? = null,
     state: TableState = rememberTableState(),
     stickyColumns: Int = 0,
+    narrowStickyColumns: Boolean = false,
     striped: Boolean = false,
     lines: TableLines = TableLines.Rows,
     outlined: Boolean = false,
     sort: TableSort? = null,
     onSortChange: ((TableSort) -> Unit)? = null,
+    sortAscendingIcon: ImageVector = Theme.icons.sortAscending,
+    sortDescendingIcon: ImageVector = Theme.icons.sortDescending,
     selection: TableSelection = TableSelection.None,
     selected: Set<Any> = emptySet(),
     onSelectedChange: ((Set<Any>) -> Unit)? = null,
@@ -417,6 +428,7 @@ fun <T> Table(
             striped = striped,
             sort = sort,
             onSortChange = onSortChange,
+            sortIcons = sortAscendingIcon to sortDescendingIcon,
             selection = selection,
             selected = selected,
             onSelectedChange = onSelectedChange,
@@ -488,6 +500,11 @@ fun <T> Table(
             viewport = viewport,
             pinnedRequested = stickyColumns.coerceAtLeast(0) + if (leading) 1 else 0,
             pinCap = TablePinCap,
+            narrowTo = if (narrowStickyColumns) StickyNarrowTo else 1f,
+            narrowFloor = StickyNarrowest.roundToPx(),
+            narrowRange = StickyNarrowOver.roundToPx(),
+            // The checkbox column keeps its width: a checkbox cut is no checkbox.
+            keepWidth = if (leading) 1 else 0,
         )
         state.horizontal.updateBounds(maxValue = layout.maxScroll, viewport = layout.paneWidth)
 
@@ -561,6 +578,15 @@ private val EmptyColumns = resolveTableColumns(emptyList(), 0, 0, 1f)
 
 /** How much of the table pinned columns may cover before the last of them scrolls too. */
 private const val TablePinCap: Float = 0.5f
+
+/** How much of its width a pinned column keeps, narrowed: see `narrowStickyColumns`. */
+private const val StickyNarrowTo: Float = 0.7f
+
+/** The narrowest a pinned column is made, if it was wider: a word or two of a name still shows. */
+private val StickyNarrowest = 64.dp
+
+/** How far the table scrolls across while its pinned columns narrow: the first stretch, as a top bar collapses over a page's first. */
+private val StickyNarrowOver = 64.dp
 
 /**
  * Which rows a fitted column is measured against: all of them up to fifty, and

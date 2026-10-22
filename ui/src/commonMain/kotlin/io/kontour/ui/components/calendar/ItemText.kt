@@ -5,6 +5,7 @@ import io.kontour.ui.foundation.Icon
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,33 +13,21 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.BlendMode
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.CompositingStrategy
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.constrainHeight
 import androidx.compose.ui.unit.constrainWidth
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import io.kontour.ui.a11y.highContrast
+import io.kontour.ui.a11y.contrastEdge
+import io.kontour.ui.foundation.FadingText
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.interaction.pressable
 import io.kontour.ui.theme.Theme
@@ -57,50 +46,6 @@ internal fun calendarItemStyle(): TextStyle {
 
 /** The item type's size against the small label's. */
 private const val ItemTypeScale = 0.92f
-
-/**
- * One line of [text] that is cut where it runs out of room, its last few
- * letters fading out rather than given up to an ellipsis: in a narrow day an
- * ellipsis is a letter's room, and a fade says the same in none. Cut hard at
- * high contrast, where a fade is ink that is neither there nor not.
- */
-@Composable
-internal fun FadingText(text: String, style: TextStyle, modifier: Modifier = Modifier, colour: Color = Color.Unspecified) =
-    FadingText(AnnotatedString(text), style, modifier, colour)
-
-/** [FadingText] with styles of its own: a block's times, with an end on a later day raised. */
-@Composable
-internal fun FadingText(text: AnnotatedString, style: TextStyle, modifier: Modifier = Modifier, colour: Color = Color.Unspecified) {
-    var cut by remember { mutableStateOf(false) }
-    val fade = if (highContrast()) 0.dp else ItemFade
-    Text(
-        text,
-        style = style,
-        colour = colour,
-        maxLines = 1,
-        softWrap = false,
-        onTextLayout = { cut = it.hasVisualOverflow },
-        modifier = modifier
-            .graphicsLayer { compositingStrategy = if (cut && fade > 0.dp) CompositingStrategy.Offscreen else CompositingStrategy.Auto }
-            .drawWithContent {
-                drawContent()
-                if (!cut || fade <= 0.dp) return@drawWithContent
-                val width = minOf(fade.toPx(), size.width / 3f)
-                val rtl = layoutDirection == LayoutDirection.Rtl
-                val from = if (rtl) width else size.width - width
-                val to = if (rtl) 0f else size.width
-                drawRect(
-                    Brush.horizontalGradient(listOf(Color.Transparent, Color.Black), startX = from, endX = to),
-                    topLeft = Offset(if (rtl) 0f else from, 0f),
-                    size = Size(width, size.height),
-                    blendMode = BlendMode.DstOut,
-                )
-            },
-    )
-}
-
-/** How much of a cut title fades out. */
-private val ItemFade = 12.dp
 
 /**
  * Which of a line's parts it has room for, the title always: its dot, and the
@@ -236,7 +181,7 @@ internal fun EventBar(event: CalendarEvent, lines: Int = 1) {
 
 /** An event's tone's dot, or its icon in the dot's colour where it has one: what leads a line. */
 @Composable
-private fun ToneMark(event: CalendarEvent, style: TextStyle, dotSize: Dp) {
+internal fun ToneMark(event: CalendarEvent, style: TextStyle, dotSize: Dp) {
     val colour = toneColours(event.tone).solid
     val icon = event.icon
     if (icon != null) {
@@ -303,10 +248,15 @@ internal fun MoreChip(
     val formats = Theme.formats
     val strings = Theme.strings
     val described = strings.moreEvents(formats.quantity(count))
+    // Edged at the high contrast tier, as every control on a quiet ground is.
+    // It went without: the file it shared with `FadingText` read the tier for
+    // the fade, and the check that asks for the edge took that for this.
+    val edge = contrastEdge()
     Box(
         contentAlignment = Alignment.CenterStart,
         modifier = modifier
             .background(if (muted) Theme.colours.surface else Theme.colours.surfaceSunken, Theme.shapes.control)
+            .then(if (edge != null) Modifier.border(edge, Theme.shapes.control) else Modifier)
             .pressable(onClick = onClick, shape = Theme.shapes.control, enabled = enabled, minimumTouchTarget = false)
             .semantics { contentDescription = described },
     ) {

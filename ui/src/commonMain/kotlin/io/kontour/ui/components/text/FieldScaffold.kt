@@ -46,11 +46,13 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.dragdrop.LocalOverlayLayer
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.motion.AnimatedSlot
@@ -118,7 +120,7 @@ internal fun FieldScaffold(
      * Null leaves the frame inert, which is right for a field whose frame is
      * already a control: `Select`'s whole frame opens a menu.
      */
-    onFrameTap: (() -> Unit)? = null,
+    onFrameTap: ((frame: LayoutCoordinates?, at: Offset) -> Unit)? = null,
     /**
      * On the outline: the whole of what is drawn round, which with [below] is
      * more than the frame. A select anchors its menu here, so the menu drops
@@ -135,6 +137,8 @@ internal fun FieldScaffold(
 ) {
     val motion = Theme.motion
     val isError = errorMessage != null
+    // Where the frame is, for a press on it: see [frameTap].
+    val spot = remember { FrameSpot() }
 
     // Focus that the *frame* reacts to, which is not the same as focus.
     //
@@ -188,19 +192,31 @@ internal fun FieldScaffold(
     // it is focused, since that is what shrinks the space it has to be seen in.
     //
     // In the scaffold, so `Select`, `Combobox` and `MultiSelect` have it too.
+    //
+    // In a sheet or a dialog, once the field has come to rest, and with room
+    // for the keyboard under it: see [FieldKeyboardRoom].
     val requester = remember { BringIntoViewRequester() }
     val keyboard = WindowInsets.ime
     val density = LocalDensity.current
-    LaunchedEffect(focused) {
+    val inOverlay = LocalOverlayLayer.current > 0
+    val room = remember { FieldKeyboardRoom() }
+    LaunchedEffect(focused, inOverlay) {
         if (!focused) return@LaunchedEffect
-        snapshotFlow { keyboard.getBottom(density) }.collectLatest { requester.bringIntoView() }
+        snapshotFlow { keyboard.getBottom(density) }.collectLatest { keyboardHeight ->
+            if (inOverlay) {
+                room.awaitRest()
+                requester.bringIntoView(room.boundsAbove(keyboardHeight))
+            } else {
+                requester.bringIntoView()
+            }
+        }
     }
 
     // No `verticalArrangement`: the message slot carries the gap above it, so a
     // field that stops being in error loses the message *and* its gap over the
     // same animation. With `spacedBy` the gap went in one frame at the end —
     // the vertical case of the snap `AnimatedSlot` documents.
-    Column(modifier = modifier.fillMaxWidth().bringIntoViewRequester(requester)) {
+    Column(modifier = modifier.fillMaxWidth().onPlaced { room.coordinates = it }.bringIntoViewRequester(requester)) {
         if (label != null) {
             Text(
                 // The one label that does not reach `contentScope`: a field
@@ -230,7 +246,7 @@ internal fun FieldScaffold(
         fun FrameRow(modifier: Modifier) = Row(
             modifier = modifier
                 .then(frameModifier)
-                .then(if (onFrameTap != null) Modifier.frameTap(onFrameTap) else Modifier)
+                .then(if (onFrameTap != null) Modifier.frameTap(spot, onFrameTap) else Modifier)
                 // Each side is padded for what is actually on it. A glyph does
                 // not fill its own box, so an icon padded like text reads as
                 // further in than the text beside it — see
@@ -417,16 +433,19 @@ internal fun FieldScaffold(
  * field, and saying so is what stops the host clearing the focus it just asked
  * for.
  */
-private fun Modifier.frameTap(onTap: () -> Unit): Modifier = pointerInput(onTap) {
-    awaitEachGesture {
-        awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-        val release = waitForUpOrCancellation()
-        if (release != null && !release.isConsumed) {
-            release.consume()
-            onTap()
+internal fun Modifier.frameTap(spot: FrameSpot, onTap: (frame: LayoutCoordinates?, at: Offset) -> Unit): Modifier =
+    // Where the frame is, and where on it the press let go, so the field can
+    // put its caret by the press: see [CaretAim].
+    onPlaced { spot.coordinates = it }.pointerInput(onTap) {
+        awaitEachGesture {
+            awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+            val release = waitForUpOrCancellation()
+            if (release != null && !release.isConsumed) {
+                release.consume()
+                onTap(spot.coordinates, release.position)
+            }
         }
     }
-}
 
 /**
  * Where a field's parts were placed, for something that has to draw its way into

@@ -29,7 +29,7 @@ class SwipeActionsArityTest {
     private fun actions(count: Int) = List(count) { index ->
         SwipeAction(
             label = "Action $index",
-            icon = SystemIcons.Close,
+            icon = SystemIcons.Default.close,
             onAction = {},
             background = Color.Red,
         )

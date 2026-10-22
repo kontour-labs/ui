@@ -11,6 +11,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onAllNodesWithContentDescription
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.pressKey
@@ -158,5 +163,28 @@ class CommandPaletteKeyboardTest {
 
         assertTrue(fixture.ran.isEmpty(), "escape ran ${fixture.ran}")
         assertTrue(!fixture.visible, "escape should close the palette")
+    }
+
+    /**
+     * The highlight is said, not selected. It was published as the row being
+     * selected, so every arrow told a screen reader a choice had been made, and
+     * the field said nothing about where the arrows had got to.
+     */
+    @Test
+    fun theHighlightIsAnnouncedAndNotPublishedAsSelected() = runComposeUiTest {
+        val fixture = Fixture()
+        setContent { Harness(fixture) }
+        waitForIdle()
+
+        onNodeWithContentDescription("Plan a trip, 1 of 3").assertExists()
+        onNodeWithText("Plan a trip").performKeyInput { pressKey(Key.DirectionDown) }
+        waitForIdle()
+
+        onNodeWithContentDescription("Saved trips, 2 of 3").assertExists()
+        onAllNodes(SemanticsMatcher.expectValue(SemanticsProperties.Selected, true)).assertCountEquals(0)
+
+        fixture.query.edit { insert(length, "zzz") }
+        waitForIdle()
+        onAllNodesWithContentDescription("No matching commands").assertCountEquals(1)
     }
 }

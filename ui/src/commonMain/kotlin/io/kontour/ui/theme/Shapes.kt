@@ -33,7 +33,7 @@ import kotlin.math.min
  * | [field] | half its height, up to [Shapes.CapsuleCap] | Text fields, selects, time fields |
  * | [pill] | half its shorter side, uncapped | Avatars, scrollbars, swatches, day cells, FABs |
  * | [sheet] | 34dp top only | Bottom sheets |
- * | [sideSheet] | 34dp leading only | Side sheets |
+ * | [sideSheet] | 28dp leading only | Side sheets |
  *
  * ### The numbers line up on purpose
  *
@@ -122,13 +122,22 @@ import kotlin.math.min
  * overriding [control] moves the buttons and leaves avatars and scrollbars
  * alone.
  *
- * ### One number for sheets
+ * ### Sheets
  *
- * [sheet] and [sideSheet] are [extraLarge] — 34dp — with two corners zeroed, derived
- * rather than restated. A panel against the edge of the window should be square
- * where it meets that edge — a rounded corner there leaves a sliver of
- * background showing through — but it should be *the same radius* as a hero
- * panel on the side that faces the content, and for a while it silently was not.
+ * [sheet] is [extraLarge] — 34dp — and [sideSheet] is [large] — 28dp, the
+ * [panel] rung — each with two corners zeroed, derived rather than restated. A
+ * panel against the edge of the window should be square where it meets that
+ * edge — a rounded corner there leaves a sliver of background showing through —
+ * and the same radius as its rung on the side that faces the content, which for
+ * a while it silently was not.
+ *
+ * A side sheet is a panel beside the page, not a sheet over it: its rounded
+ * corners face the content, in the middle of the window, and meet no device
+ * corner to follow. At 34dp, smoothed, its top corner ran some 54dp along the
+ * top before the edge was straight, and crowded the title and the back button
+ * put in it — *"content doesn't fit properly at the top"*. At the panel's 28 it
+ * stays on the ladder, a rung inside a sheet's 34, and concentric with what sits
+ * in that corner: a capsule button's 18dp an 8dp step in comes to 26.
  */
 @Immutable
 data class Shapes(
@@ -249,7 +258,7 @@ data class Shapes(
      * the side facing the content, square against the window edge. Mirror it
      * with [mirrorHorizontally] for a leading-edge sheet.
      */
-    val sideSheet: CornerBasedShape = extraLarge.leadingCornersOnly(),
+    val sideSheet: CornerBasedShape = large.leadingCornersOnly(),
 ) {
     companion object {
         /**
@@ -357,7 +366,7 @@ fun kontourShapes(
         container = md,
         panel = lg,
         sheet = xl.topCornersOnly(),
-        sideSheet = xl.leadingCornersOnly(),
+        sideSheet = lg.leadingCornersOnly(),
     )
 }
 
@@ -445,6 +454,18 @@ fun CornerBasedShape.topCornersOnly(): CornerBasedShape = copy(
 fun CornerBasedShape.leadingCornersOnly(): CornerBasedShape = copy(
     topEnd = ZeroCornerSize,
     bottomEnd = ZeroCornerSize,
+)
+
+/** Keeps the bottom two corners and squares off the top two: a bar hanging below its baseline. */
+fun CornerBasedShape.bottomCornersOnly(): CornerBasedShape = copy(
+    topStart = ZeroCornerSize,
+    topEnd = ZeroCornerSize,
+)
+
+/** Keeps the two corners on the trailing edge and squares off the leading pair. */
+fun CornerBasedShape.trailingCornersOnly(): CornerBasedShape = copy(
+    topStart = ZeroCornerSize,
+    bottomStart = ZeroCornerSize,
 )
 
 /**

@@ -3,6 +3,7 @@ package io.kontour.ui.catalog.apps
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.vector.ImageVector
 import io.kontour.icons.tabler.Tabler
+import io.kontour.icons.tabler.outline.Bolt
 import io.kontour.icons.tabler.outline.Bus
 import io.kontour.icons.tabler.outline.LayoutKanban
 import io.kontour.icons.tabler.outline.Messages
@@ -59,6 +60,16 @@ internal enum class MiniApp(
         components = listOf(
             "dragItems", "dropList", "dragAutoScroll", "DropZone", "ExternalDrops", "FileField", "Card",
             "Tag", "BottomSheet", "Toast",
+        ),
+    ),
+    Energy(
+        title = "Energy",
+        summary = "A house's roof, battery and meter as charts of every kind, reports open as tabs, a " +
+            "wide table, a patterned week of tariffs, and the tariff typed into the rows of a list.",
+        icon = Tabler.Outline.Bolt,
+        components = listOf(
+            "Chart", "SectorChart", "Sparkline", "ChartDataTable", "DocumentTabs", "TextFieldListItem",
+            "Table", "KeyValueList", "EventCalendar", "fillPattern", "tooltip", "onPressOutside",
         ),
     ),
 }

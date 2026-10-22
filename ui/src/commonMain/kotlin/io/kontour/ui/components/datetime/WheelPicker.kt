@@ -48,6 +48,7 @@ import kotlinx.coroutines.CompletableDeferred
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.util.lerp
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -1509,20 +1510,17 @@ internal fun wheelFade(distance: Float, enhanced: Boolean = false): Float = when
     // The rows either side are values the reader can scroll to, and at the
     // enhanced tier they stay legible: 0.6 of the ink is 5.7:1 on white and 7.4
     // on black, where the standard tier's 0.2 is barely there.
-    enhanced && distance <= 1f -> lerp(1f, 0.75f, distance)
+    enhanced && distance <= 1f -> lerp(1f, 0.75f, distance.coerceAtLeast(0f))
     enhanced -> lerp(0.75f, 0.6f, (distance - 1f).coerceAtMost(1f))
-    distance <= 1f -> lerp(1f, 0.45f, distance)
+    distance <= 1f -> lerp(1f, 0.45f, distance.coerceAtLeast(0f))
     else -> lerp(0.45f, 0.2f, (distance - 1f).coerceAtMost(1f))
 }
 
 /** See [wheelFade]. The same three anchors, for scale. */
 internal fun wheelShrink(distance: Float): Float = when {
-    distance <= 1f -> lerp(1f, 0.86f, distance)
+    distance <= 1f -> lerp(1f, 0.86f, distance.coerceAtLeast(0f))
     else -> lerp(0.86f, 0.74f, (distance - 1f).coerceAtMost(1f))
 }
-
-private fun lerp(start: Float, stop: Float, fraction: Float): Float =
-    start + (stop - start) * fraction.coerceIn(0f, 1f)
 
 /**
  * How far past its ends the drum may be pulled, in rows.

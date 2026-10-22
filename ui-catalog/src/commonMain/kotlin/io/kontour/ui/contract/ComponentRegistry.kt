@@ -1,5 +1,6 @@
 package io.kontour.ui.contract
 
+import io.kontour.ui.demo.DemoWindow
 import io.kontour.ui.demo.demoCalendarEvents
 import io.kontour.ui.components.calendar.rememberEventCalendarState
 import io.kontour.ui.components.calendar.EventCalendar
@@ -28,6 +29,15 @@ import io.kontour.ui.components.selection.Knob
 import io.kontour.ui.components.datetime.ActivityCalendar
 import io.kontour.ui.components.datetime.ActivityMark
 import io.kontour.ui.components.display.BranchTimeline
+import io.kontour.ui.charts.Chart
+import io.kontour.ui.charts.ChartAxis
+import io.kontour.ui.charts.ChartDataTable
+import io.kontour.ui.charts.ChartSeries
+import io.kontour.ui.charts.ChartStacking
+import io.kontour.ui.charts.LinePattern
+import io.kontour.ui.charts.SeriesStyle
+import io.kontour.ui.charts.SectorChart
+import io.kontour.ui.charts.Sparkline
 import io.kontour.ui.components.table.Table
 import io.kontour.ui.components.table.TableSort
 import io.kontour.ui.components.display.BubbleSide
@@ -52,6 +62,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
@@ -64,6 +75,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -72,7 +84,9 @@ import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.unit.dp
 import io.kontour.icons.tabler.Tabler
 import io.kontour.icons.tabler.outline.AlertTriangle
+import io.kontour.icons.tabler.outline.Bookmark
 import io.kontour.icons.tabler.outline.Bus
+import io.kontour.icons.tabler.outline.DotsVertical
 import io.kontour.icons.tabler.outline.FileUpload
 import io.kontour.icons.tabler.outline.ChevronDown
 import io.kontour.icons.tabler.outline.CurrentLocation
@@ -140,6 +154,7 @@ import io.kontour.ui.components.display.Stat
 import io.kontour.ui.components.display.StepProgress
 import io.kontour.ui.components.display.CircularStepProgress
 import io.kontour.ui.components.display.rememberCarouselState
+import io.kontour.ui.components.list.TextFieldListItem
 import io.kontour.ui.components.list.DisclosureListItem
 import io.kontour.ui.components.list.ListItemSplit
 import io.kontour.ui.components.list.SplitListItem
@@ -191,10 +206,30 @@ import io.kontour.ui.nav.NavScope
 import io.kontour.ui.nav.Tab
 import io.kontour.ui.nav.TabBar
 import io.kontour.ui.overlay.OverlayHost
+import io.kontour.ui.overlay.OverlayAlignment
+import io.kontour.ui.a11y.contrastEdge
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.ui.unit.Dp
+import androidx.compose.foundation.layout.BoxScope
+import io.kontour.ui.sheet.SideSheet
+import io.kontour.ui.sheet.SheetHeader
+import io.kontour.ui.overlay.rememberOverlayQueue
+import io.kontour.ui.overlay.coachmark
+import io.kontour.ui.overlay.Tooltip
+import io.kontour.ui.overlay.Popover
+import io.kontour.ui.overlay.LocalOverlayQueue
+import io.kontour.ui.overlay.DropdownMenu
+import io.kontour.ui.overlay.CommandPalette
+import io.kontour.ui.overlay.Command
+import io.kontour.ui.overlay.AlertDialog
 import io.kontour.ui.overlay.ToastHost
 import io.kontour.ui.overlay.rememberToastHostState
 import io.kontour.ui.sheet.DragHandle
 import io.kontour.ui.theme.Theme
+import io.kontour.ui.dragdrop.rememberDropListState
+import io.kontour.ui.dragdrop.DragType
+import io.kontour.ui.nav.DocumentTabs
+import kotlin.math.abs
 import kotlin.time.Duration.Companion.minutes
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
@@ -326,6 +361,18 @@ class ComponentSpec(
      * where whoever widens a `Stepper`'s parts has to change it.
      */
     val minWidth: Int? = null,
+    /**
+     * Whether this specimen takes whatever width it is given, so that its size
+     * measured with no bound says nothing about whether it fits.
+     *
+     * False for almost everything. The renders measure a specimen with no bound
+     * to catch a row that cannot wrap running off the canvas, which a golden
+     * cannot see. But a chart given no width takes a phone's, 320dp, and a
+     * window of overlays takes its dialog's own 400dp; given the 300dp canvas,
+     * each fills it and no more. For these the fit check is off, and their
+     * goldens are what show they fit.
+     */
+    val sizesToCanvas: Boolean = false,
     /**
      * Extra renders beyond the resting one — see [RenderState].
      *
@@ -1174,6 +1221,256 @@ val componentRegistry: List<ComponentSpec> = buildList {
         }
     )
 
+    // Charts: pictures with descriptions, here for their renders at every tier
+    // and the width, reduced-motion and pseudo-locale sweeps. Their selection is
+    // under test in the charts module's own tests.
+    add(
+        ComponentSpec(
+            "Chart",
+            role = null,
+            activatedByClick = false,
+            expectsMinimumTarget = false,
+            underContract = false,
+            renderHeight = 240,
+            sizesToCanvas = true,
+            states = listOf(
+                // What a chart says about its data besides the data: a span
+                // shaded and named, a forecast's likely range, events pinned
+                // above the plot (two close enough that one stands on the
+                // other) and a target across it.
+                RenderState("annotated", height = 300) { modifier ->
+                    val weeks = (1..12).toList()
+                    val riders = listOf(420, 450, 440, 480, 520, 600, 580, 610, 640, 630, 660, 690)
+                    val ahead = (12..16).toList()
+                    val route = ChartSeries("Route 950")
+                    Chart(
+                        xAxis = ChartAxis.number(title = "Week"),
+                        yAxis = ChartAxis.number(title = "Riders"),
+                        modifier = modifier.fillMaxWidth().height(280.dp),
+                        contentDescription = "Riders by week, and the weeks ahead",
+                        showLegend = false,
+                        animateData = false,
+                    ) {
+                        region(xStart = 5, xEnd = 7, label = "Holidays")
+                        region(xStart = 12, label = "Forecast")
+                        band(ahead, x = { it }, yStart = { 690 + (it - 12) * 10 }, yEnd = { 690 + (it - 12) * 40 }, series = { route })
+                        line(weeks, x = { it }, y = { riders[it - 1] }, series = { route })
+                        line(ahead, x = { it }, y = { 690 + (it - 12) * 25 }, series = { route }, style = SeriesStyle(line = LinePattern.Dashed))
+                        rule(x = 3, label = "Launch")
+                        rule(x = 9, label = "v1.2")
+                        rule(x = 10, label = "Outage")
+                        rule(y = 700, label = "Target")
+                    }
+                },
+                // Two series in different units, each on its own axis: the
+                // riders as bars up the start edge, the takings as a line down
+                // the end, its labels on the riders' gridlines.
+                RenderState("end-axis") { modifier ->
+                    val days = listOf("Mon", "Tue", "Wed", "Thu", "Fri")
+                    val riders = listOf(640, 720, 690, 810, 905)
+                    val takings = listOf(1_790.0, 2_030.0, 1_950.0, 2_310.0, 2_640.0)
+                    Chart(
+                        xAxis = ChartAxis.category<String>(),
+                        yAxis = ChartAxis.number(title = "Riders"),
+                        endYAxis = ChartAxis.number(title = "Takings"),
+                        modifier = modifier.fillMaxWidth().height(220.dp),
+                        contentDescription = "Riders and takings this week",
+                        animateData = false,
+                    ) {
+                        bar(days, x = { it }, y = { riders[days.indexOf(it)] }, series = { ChartSeries("Riders") })
+                        onEndAxis {
+                            line(days, x = { it }, y = { takings[days.indexOf(it)] }, series = { ChartSeries("Takings") }, showPoints = true)
+                        }
+                    }
+                },
+                // A month's coldest and warmest days, a bar from one to the
+                // other, rounded at both ends.
+                RenderState("ranges") { modifier ->
+                    val months = listOf("Jan", "Feb", "Mar", "Apr", "May")
+                    val lows = listOf(19, 19, 17, 14, 11)
+                    val highs = listOf(27, 26, 25, 23, 20)
+                    Chart(
+                        xAxis = ChartAxis.category(months),
+                        yAxis = ChartAxis.number(title = "°C"),
+                        modifier = modifier.fillMaxWidth().height(220.dp),
+                        contentDescription = "Temperatures by month",
+                        animateData = false,
+                    ) {
+                        bar(months.indices.toList(), x = { months[it] }, yStart = { lows[it] }, yEnd = { highs[it] })
+                    }
+                },
+                // Off-peak and peak fares, a stem between each pair: the stem
+                // is drawn and not said, since its points say its ends.
+                RenderState("dumbbells") { modifier ->
+                    val routes = listOf("950", "951", "952", "T1")
+                    val offPeak = listOf(310, 280, 350, 420)
+                    val peak = listOf(440, 390, 500, 610)
+                    val outline = Theme.colours.outlineStrong
+                    Chart(
+                        xAxis = ChartAxis.category(routes),
+                        yAxis = ChartAxis.number(title = "Cents"),
+                        modifier = modifier.fillMaxWidth().height(220.dp),
+                        contentDescription = "Fares by route",
+                        animateData = false,
+                    ) {
+                        stem(routes.indices.toList(), x = { routes[it] }, yStart = { offPeak[it] }, yEnd = { peak[it] }, style = SeriesStyle(colour = outline))
+                        point(routes.indices.toList(), x = { routes[it] }, y = { offPeak[it] }, series = { ChartSeries("Off-peak") })
+                        point(routes.indices.toList(), x = { routes[it] }, y = { peak[it] }, series = { ChartSeries("Peak") })
+                    }
+                },
+                // Trip times on two routes, side by side, one of them with a
+                // trip held up past its whisker.
+                RenderState("boxes") { modifier ->
+                    val days = listOf("Mon", "Tue", "Wed")
+                    val trips = days.flatMap { day -> listOf(day to "950", day to "951") }
+                    Chart(
+                        xAxis = ChartAxis.category(days),
+                        yAxis = ChartAxis.number(title = "Minutes"),
+                        modifier = modifier.fillMaxWidth().height(220.dp),
+                        contentDescription = "Trip times by day",
+                        animateData = false,
+                    ) {
+                        box(
+                            trips,
+                            x = { it.first },
+                            samples = { (day, route) ->
+                                val middle = (if (route == "950") 28 else 34) + days.indexOf(day) * 2
+                                listOf(-6, -4, -3, -1, 0, 1, 2, 4, 5, 7).map { middle + it } + if (route == "951") listOf(middle + 25) else emptyList()
+                            },
+                            series = { ChartSeries(it.second) },
+                        )
+                    }
+                },
+                // Three routes' riders stacked about the middle: a stream.
+                RenderState("stream") { modifier ->
+                    val weeks = (1..8).toList()
+                    val routes = listOf("950" to 300, "951" to 180, "952" to 90)
+                    val riders = routes.flatMap { (route, base) -> weeks.map { week -> Triple(route, week, base + (week * 37 + base) % 120) } }
+                    Chart(
+                        xAxis = ChartAxis.number(title = "Week"),
+                        yAxis = ChartAxis.number(title = "Riders"),
+                        modifier = modifier.fillMaxWidth().height(220.dp),
+                        contentDescription = "Riders by week, by route",
+                        animateData = false,
+                    ) {
+                        area(riders, x = { it.second }, y = { it.third }, series = { ChartSeries(it.first) }, stacking = ChartStacking.Centred)
+                    }
+                },
+                // Riders by day and hour, each cell shaded by its count, with
+                // the scale under it.
+                RenderState("heatmap") { modifier ->
+                    val days = listOf("Mon", "Tue", "Wed", "Thu", "Fri")
+                    val hours = listOf("6am", "7am", "8am", "9am")
+                    val cells = days.indices.flatMap { d -> hours.indices.map { h -> Triple(days[d], hours[h], 20 + (d * 13 + h * 29) % 70) } }
+                    Chart(
+                        xAxis = ChartAxis.category(days),
+                        yAxis = ChartAxis.category(hours),
+                        modifier = modifier.fillMaxWidth().height(220.dp),
+                        contentDescription = "Riders by day and hour",
+                        animateData = false,
+                    ) {
+                        cell(cells, x = { it.first }, y = { it.second }, value = { it.third })
+                    }
+                },
+                // People by age, men to the left as negatives and written
+                // without their sign.
+                RenderState("pyramid") { modifier ->
+                    val ages = listOf("60+", "40–59", "20–39", "0–19")
+                    val people = ages.indices.flatMap { i -> listOf(Triple(ages[i], "Men", -(300 + i * 120)), Triple(ages[i], "Women", 320 + i * 110)) }
+                    val formats = Theme.formats
+                    Chart(
+                        xAxis = ChartAxis.number(title = "People", label = { formats.decimal(abs(it), 0) }),
+                        yAxis = ChartAxis.category(ages),
+                        modifier = modifier.fillMaxWidth().height(220.dp),
+                        contentDescription = "Population by age and sex",
+                        animateData = false,
+                    ) {
+                        bar(people, x = { it.third }, y = { it.first }, series = { ChartSeries(it.second) })
+                    }
+                },
+            ),
+        ) { modifier, _, _ ->
+            val months = listOf("Jul", "Aug", "Sep", "Oct")
+            val riders = listOf(620, 710, 680, 790)
+            Chart(
+                xAxis = ChartAxis.category(months),
+                yAxis = ChartAxis.number(title = "Riders"),
+                modifier = modifier.fillMaxWidth().height(220.dp),
+                contentDescription = "Riders by month",
+                animateData = false,
+            ) {
+                bar(months.indices.toList(), x = { months[it] }, y = { riders[it] }, series = { ChartSeries("Route 950") })
+                line(months.indices.toList(), x = { months[it] }, y = { riders[it] - 240 }, series = { ChartSeries("Route 951") })
+            }
+        }
+    )
+
+    add(
+        ComponentSpec(
+            "SectorChart",
+            role = null,
+            activatedByClick = false,
+            expectsMinimumTarget = false,
+            underContract = false,
+            renderHeight = 200,
+            sizesToCanvas = true,
+        ) { modifier, _, _ ->
+            val parts = listOf("Rent" to 45, "Food" to 30, "Travel" to 25)
+            SectorChart(
+                modifier = modifier.fillMaxWidth().height(180.dp),
+                innerRadius = 0.6f,
+                contentDescription = "Spending in September",
+                animateData = false,
+            ) {
+                sectors(parts, value = { it.second }, series = { ChartSeries(it.first) })
+            }
+        }
+    )
+
+    add(
+        ComponentSpec(
+            "Sparkline",
+            role = null,
+            activatedByClick = false,
+            expectsMinimumTarget = false,
+            underContract = false,
+        ) { modifier, _, _ ->
+            Sparkline(
+                values = listOf(640, 720, 690, 810, 905),
+                modifier = modifier.size(width = 96.dp, height = 28.dp),
+                contentDescription = "Route 950 this week",
+                animateData = false,
+            )
+        }
+    )
+
+    add(
+        // A chart's numbers as a table, the same content as `Chart`'s: read
+        // as a table is, so it is drawn and swept as `Table` is. It was the
+        // one chart component missing here, and so the one no render or
+        // sweep had seen.
+        ComponentSpec(
+            "ChartDataTable",
+            role = null,
+            activatedByClick = false,
+            expectsMinimumTarget = false,
+            underContract = false,
+            renderHeight = 220,
+        ) { modifier, _, _ ->
+            val months = listOf("Jul", "Aug", "Sep")
+            val riders = listOf(620, 710, 680)
+            ChartDataTable(
+                xAxis = ChartAxis.category(months),
+                yAxis = ChartAxis.number(title = "Riders"),
+                modifier = modifier,
+                striped = true,
+            ) {
+                bar(months.indices.toList(), x = { months[it] }, y = { riders[it] }, series = { ChartSeries("Route 950") })
+                bar(months.indices.toList(), x = { months[it] }, y = { riders[it] - 240 }, series = { ChartSeries("Route 951") })
+            }
+        }
+    )
+
     add(
         // A message, not a control. Here for its render and the layout rules —
         // a bubble has to survive 200% type in RTL, tail and all.
@@ -1432,6 +1729,26 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 modifier = modifier,
                 enabled = enabled,
                 label = "Origin",
+            )
+        }
+    )
+
+    // A list row you type into: the field is the control, named by the row's
+    // label, as a `TextField`'s is by its own.
+    add(
+        ComponentSpec(
+            name = "TextFieldListItem",
+            role = null,
+            expectsMinimumTarget = false,
+            activatedByClick = false,
+            control = ControlLocator.TextInput,
+            accessibleName = "Name",
+        ) { modifier, enabled, _ ->
+            TextFieldListItem(
+                state = rememberTextFieldState("Perth Underground"),
+                modifier = modifier,
+                enabled = enabled,
+                label = "Name",
             )
         }
     )
@@ -1909,6 +2226,57 @@ val componentRegistry: List<ComponentSpec> = buildList {
         }
     )
 
+    add(
+        // A strip of open documents. The control is the selected tab, as a
+        // bar's is its selected destination; three tabs, since every tab
+        // offers its moves and a "Close", and the action sweep follows each.
+        ComponentSpec(
+            name = "DocumentTabs",
+            role = Role.Tab,
+            control = ControlLocator.SelectedOption,
+            // It fills the width it is given, as a bar does; given none, its
+            // tabs are as wide as they go.
+            sizesToCanvas = true,
+            states = listOf(
+                // More than fit: shrunk to the narrowest, the strip scrolled to
+                // the selected tab at its end and faded at the other.
+                RenderState("overflowing") { modifier ->
+                    val many = (1..12).map { "Document $it" }
+                    val state = rememberDropListState(
+                        listState = rememberLazyListState(),
+                        type = SpecimenDocument,
+                        items = many,
+                        key = { it },
+                        label = "Open documents",
+                        itemLabel = { it },
+                        onDrop = {},
+                    )
+                    DocumentTabs(state, value = many.last(), onValueChange = {}, modifier = modifier.fillMaxWidth(), onClose = {}, onAdd = {})
+                },
+            ),
+        ) { modifier, enabled, onClick ->
+            val documents = listOf("Timetable", "Fares", "Route map")
+            val state = rememberDropListState(
+                listState = rememberLazyListState(),
+                type = SpecimenDocument,
+                items = documents,
+                key = { it },
+                label = "Open documents",
+                itemLabel = { it },
+                onDrop = {},
+            )
+            DocumentTabs(
+                state = state,
+                value = documents.first(),
+                onValueChange = { onClick() },
+                modifier = modifier.fillMaxWidth(),
+                enabled = enabled,
+                onClose = {},
+                onAdd = {},
+            )
+        }
+    )
+
     // --- Collections -----------------------------------------------------
     add(
         ComponentSpec("ListItem", Role.Button) { modifier, enabled, onClick ->
@@ -2150,6 +2518,10 @@ val componentRegistry: List<ComponentSpec> = buildList {
                         modifier = modifier.fillMaxWidth(),
                     )
                 },
+                // Step 2 measured, 40% of the way through it.
+                RenderState("measured") { modifier ->
+                    StepProgress(current = 2, total = 5, stepProgress = 0.4f, modifier = modifier.fillMaxWidth())
+                },
             ),
         ) { modifier, _, _ ->
             StepProgress(current = 2, total = 5, modifier = modifier.fillMaxWidth())
@@ -2170,6 +2542,9 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 },
                 RenderState("gapless") { modifier ->
                     CircularStepProgress(current = 2, total = 5, gap = 0.dp, modifier = modifier)
+                },
+                RenderState("measured") { modifier ->
+                    CircularStepProgress(current = 2, total = 5, stepProgress = 0.4f, modifier = modifier)
                 },
             ),
         ) { modifier, _, _ ->
@@ -2201,6 +2576,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
             name = "Toast",
             role = null,
             underContract = false,
+            sizesToCanvas = true,
             // **No `minWidth`, and that is the finding.**
             //
             // It carried 260 with a note saying a card "sizes itself to its
@@ -2239,7 +2615,10 @@ val componentRegistry: List<ComponentSpec> = buildList {
                     duration = 60_000.milliseconds,
                 )
             }
-            Box(modifier.fillMaxWidth().height(88.dp)) {
+            // Taller with the type, so at 200% a message wrapped to three lines
+            // still has the room a window would give it: at a fixed 88dp the
+            // host clipped the card to its first word.
+            Box(modifier.fillMaxWidth().height(growsWithType(88.dp))) {
                 // Its own host, so the toast is drawn inside the box this
                 // specimen was handed rather than wherever the surrounding
                 // harness happens to have mounted one. Every other specimen
@@ -2247,6 +2626,136 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 // not, and `WidthSweepTest` was measuring the gap.
                 OverlayHost(Modifier.fillMaxSize()) {
                     ToastHost(state = toasts)
+                }
+            }
+        }
+    )
+
+    // --- The overlays, open ------------------------------------------------
+    //
+    // Toast was the only overlay with a picture. A menu, a dialog, a palette, a
+    // coach mark, a tooltip, a popover and a side sheet were each documented,
+    // demoed and tested for behaviour, and none had ever been drawn by the
+    // render sweep, the width sweep or the pseudo-locale sweep, because a
+    // specimen that raises an overlay into the harness's ambient host is drawn
+    // wherever that host is rather than in the box it was handed. So each of
+    // these brings its own host, as `Toast` does, and is open at rest: the
+    // picture of a closed menu is a button.
+    //
+    // `visible` is fixed rather than hoisted, and every callback is empty. A
+    // sweep that taps one is tapping something that cannot change, which is
+    // what a specimen is.
+
+    add(
+        ComponentSpec(name = "DropdownMenu", role = null, underContract = false, renderHeight = 232, sizesToCanvas = true) { modifier, _, _ ->
+            OverlaySpecimen(modifier, height = 200.dp) {
+                // In the middle and centred on its anchor, so the menu's shadow
+                // has room on every side inside the window.
+                Box(Modifier.align(Alignment.TopCenter).padding(top = Theme.spacing.xs)) {
+                    IconButton(icon = Tabler.Outline.DotsVertical, contentDescription = "More", onClick = {})
+                    DropdownMenu(visible = true, onDismissRequest = {}, alignment = OverlayAlignment.Centre) {
+                        item("Share") {}
+                        item("Copy stop ID") {}
+                        item("Remove favourite", destructive = true) {}
+                    }
+                }
+            }
+        }
+    )
+
+    add(
+        ComponentSpec(name = "Tooltip", role = null, underContract = false, renderHeight = 152, sizesToCanvas = true) { modifier, _, _ ->
+            OverlaySpecimen(modifier, height = 120.dp) {
+                // Low in its box, so the bubble above it has the room it asks for.
+                Box(Modifier.align(Alignment.BottomCenter)) {
+                    IconButton(icon = Tabler.Outline.Bookmark, contentDescription = "Save this trip", onClick = {})
+                    Tooltip(visible = true) { +"Save this trip" }
+                }
+            }
+        }
+    )
+
+    add(
+        ComponentSpec(name = "Popover", role = null, underContract = false, renderHeight = 192, sizesToCanvas = true) { modifier, _, _ ->
+            OverlaySpecimen(modifier, height = 160.dp) {
+                Box(Modifier.align(Alignment.TopCenter)) {
+                    IconButton(icon = Tabler.Outline.InfoCircle, contentDescription = "Details", onClick = {})
+                    Popover(visible = true, onDismissRequest = {}) {
+                        Text("Runs every 15 minutes until 11pm.", style = Theme.typography.bodySmall)
+                    }
+                }
+            }
+        }
+    )
+
+    add(
+        ComponentSpec(name = "Modifier.coachmark", role = null, underContract = false, renderHeight = 232, sizesToCanvas = true) { modifier, _, _ ->
+            OverlaySpecimen(modifier, height = 200.dp) {
+                // A queue of its own, which a tip waits on so that six of them do
+                // not introduce themselves at once. This one is the only one.
+                CompositionLocalProvider(LocalOverlayQueue provides rememberOverlayQueue()) {
+                    Box(Modifier.align(Alignment.TopCenter)) {
+                        IconButton(
+                            icon = Tabler.Outline.Bookmark,
+                            contentDescription = "Save this trip",
+                            onClick = {},
+                            modifier = Modifier.coachmark(
+                                id = "save-trip",
+                                title = "Save this trip",
+                                message = "Saved trips show up on the home screen.",
+                            ),
+                        )
+                    }
+                }
+            }
+        }
+    )
+
+    add(
+        ComponentSpec(name = "AlertDialog", role = null, underContract = false, renderHeight = 372, sizesToCanvas = true) { modifier, _, _ ->
+            OverlaySpecimen(modifier, height = 340.dp) {
+                AlertDialog(
+                    visible = true,
+                    onDismissRequest = {},
+                    confirmLabel = "Remove",
+                    onConfirm = {},
+                    destructive = true,
+                ) {
+                    +"Remove this favourite?"
+                    message { +"Perth Underground will be taken off your home screen." }
+                }
+            }
+        }
+    )
+
+    add(
+        ComponentSpec(name = "CommandPalette", role = null, underContract = false, renderHeight = 352, sizesToCanvas = true) { modifier, _, _ ->
+            OverlaySpecimen(modifier, height = 320.dp) {
+                CommandPalette(
+                    visible = true,
+                    onDismissRequest = {},
+                    commands = SpecimenCommands,
+                    // Sized for the box rather than for a window, which is what
+                    // these three are for: the defaults would spend a third of
+                    // the box on the inset and clip the list.
+                    maxHeight = 288.dp,
+                    topInset = Theme.spacing.md,
+                )
+            }
+        }
+    )
+
+    add(
+        ComponentSpec(name = "SideSheet", role = null, underContract = false, renderHeight = 212, sizesToCanvas = true) { modifier, _, _ ->
+            OverlaySpecimen(modifier, height = 180.dp) {
+                Text("Stops", modifier = Modifier.padding(Theme.spacing.md))
+                SideSheet(visible = true, width = 180.dp, paneTitle = "Filters") {
+                    SheetHeader { +"Filters" }
+                    Text(
+                        "Only routes in the next hour",
+                        modifier = Modifier.padding(horizontal = Theme.spacing.md),
+                        style = Theme.typography.bodySmall,
+                    )
                 }
             }
         }
@@ -2994,6 +3503,38 @@ private fun SplitButtonSpecimen(
  * image every day — which is a golden that fails once a night and teaches
  * everyone to re-record without looking.
  */
+/**
+ * An overlay's specimen: a small window of [height] with a host of its own, so
+ * what is raised in it is drawn in the box the sweep handed over, as `Toast`'s
+ * is.
+ *
+ * A window rather than a bare box because a host clips its overlays to its
+ * bounds, as it should at the root of an app, where those bounds are the
+ * screen's. In a box on a page the same cut was a hard edge of shadow in the
+ * middle of the page, and read as a bug; at a window's edge it is what it is.
+ */
+@Composable
+private fun OverlaySpecimen(modifier: Modifier, height: Dp, content: @Composable BoxScope.() -> Unit) {
+    DemoWindow(
+        modifier = modifier.fillMaxWidth().height(growsWithType(height)),
+        edge = Theme.colours.outlineSubtle,
+        shape = Theme.shapes.large,
+        content = content,
+    )
+}
+
+/** [height], and more of it at a type size over 100%, as a window of text would be. */
+@Composable
+private fun growsWithType(height: Dp): Dp = height * LocalDensity.current.fontScale.coerceAtLeast(1f)
+
+/** Four of a transit app's commands, two with shortcuts, in two groups. */
+private val SpecimenCommands = listOf(
+    Command("plan", "Plan a trip", onAction = {}, shortcut = "⌘T", group = "Trips"),
+    Command("saved", "Saved trips", onAction = {}, group = "Trips"),
+    Command("stops", "Nearby stops", onAction = {}, group = "Stops"),
+    Command("alerts", "Service alerts", onAction = {}, shortcut = "⌘A", group = "Stops"),
+)
+
 private val SpecimenToday = LocalDate(2026, 6, 12)
 private val SpecimenMonth = LocalDate(2026, 6, 1)
 private val SpecimenDate = LocalDate(2026, 6, 18)
@@ -3045,3 +3586,6 @@ private fun rememberHeldDown(): MutableInteractionSource {
     LaunchedEffect(source) { source.emit(PressInteraction.Press(Offset.Zero)) }
     return source
 }
+
+/** What the document tabs specimen's strips carry. */
+private val SpecimenDocument = DragType<String>("specimenDocument")

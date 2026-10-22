@@ -93,6 +93,14 @@ A card picked up beside an edge does not scroll its list until it has been
 somewhere else first. Another scrolling thing — the row of columns a board sits
 in — takes `Modifier.dragAutoScroll`, and the innermost scrolls first.
 
+**A strip of [document tabs](components/document-tabs.md) is a drop list too**,
+laid out as a row. Its tabs ride the strip as they are carried, moving along it
+and not off it, kept between its first tab's start and its last tab's end and
+flat on the page and on its line. With `movesBetweenStrips` on, pulled well
+clear they lift and follow the pointer anywhere, and carried to within a
+strip's height of another strip they are drawn onto it and ride that one. Its moves are said
+as "Move left" and "Move right", as any row's are.
+
 ## Any target
 
 <!--sample:DropTargetTrash-->

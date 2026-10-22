@@ -87,7 +87,7 @@ class TimelineNodeIconTest {
         for (filled in listOf(true, false)) {
             val image = capture {
                 Timeline {
-                    TimelineItem(icon = SystemIcons.Plus, nodeColour = node, filled = filled) { +"Perth Busport" }
+                    TimelineItem(icon = SystemIcons.Default.plus, nodeColour = node, filled = filled) { +"Perth Busport" }
                     TimelineItem(connector = ConnectorStyle.None) { +"Elizabeth Quay" }
                 }
             }
@@ -100,7 +100,7 @@ class TimelineNodeIconTest {
         val image = capture {
             HorizontalTimeline {
                 TimelineItem { +"Ordered" }
-                TimelineItem(icon = SystemIcons.Plus, nodeColour = node) { +"Packed" }
+                TimelineItem(icon = SystemIcons.Default.plus, nodeColour = node) { +"Packed" }
                 TimelineItem(connector = ConnectorStyle.None) { +"Delivered" }
             }
         }
@@ -113,7 +113,7 @@ class TimelineNodeIconTest {
             val image = capture {
                 TimelineList {
                     item("Perth Busport")
-                    item("Walk 4 min", icon = SystemIcons.Plus, nodeColour = node, filled = filled)
+                    item("Walk 4 min", icon = SystemIcons.Default.plus, nodeColour = node, filled = filled)
                     item("Elizabeth Quay")
                 }
             }
@@ -125,7 +125,7 @@ class TimelineNodeIconTest {
     fun aBranchTimelineCommitHoldsItsIcon() {
         val image = capture {
             BranchTimeline(items = listOf("b", "a"), key = { it }, parents = { if (it == "b") listOf("a") else emptyList() }) { id ->
-                if (id == "b") item(icon = SystemIcons.Plus, nodeColour = node) { +"Commit b" } else item { +"Commit a" }
+                if (id == "b") item(icon = SystemIcons.Default.plus, nodeColour = node) { +"Commit b" } else item { +"Commit a" }
             }
         }
         assertIconNode(image, filled = true, "BranchTimeline")
@@ -136,7 +136,7 @@ class TimelineNodeIconTest {
         val other = Color(0xFFC02010)
         val image = capture {
             TimelineList {
-                item("Perth Busport", icon = SystemIcons.Plus, nodeColour = node)
+                item("Perth Busport", icon = SystemIcons.Default.plus, nodeColour = node)
                 item("Elizabeth Quay", nodeColour = other)
             }
         }
@@ -149,7 +149,7 @@ class TimelineNodeIconTest {
         val image = capture {
             TimelineList {
                 item("Perth Busport")
-                item("Boarding", loading = true, icon = SystemIcons.Plus, nodeColour = node)
+                item("Boarding", loading = true, icon = SystemIcons.Default.plus, nodeColour = node)
             }
         }
         val spinner = image.find(node).width / scale

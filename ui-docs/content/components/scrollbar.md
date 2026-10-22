@@ -117,6 +117,12 @@ LazyColumn(
 ) { items(stops) { StopRow(it) } }
 ```
 
+**In a sheet, the track stops at the bottom of the screen.** At half height, a
+sheet's content runs on below the screen, so `Modifier.scrollbar` stops its
+track where the sheet does, and the thumb's length is the share of the list you
+can see. See
+[Sheets](sheets.md#nested-scrolling).
+
 The full modality table is in
 [`accessibility.md`](../accessibility.md#input-modality).
 

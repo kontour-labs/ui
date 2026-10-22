@@ -78,6 +78,7 @@ import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.traversalIndex
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.drawText
@@ -402,7 +403,7 @@ fun ActivityCalendar(
         val words = describe(date, count)
         val meaning = grid.cellOf(date)?.let { (column, row) -> marks?.get(column * 7 + row)?.description }
             ?: return words
-        return "$words. $meaning"
+        return strings.sentences(listOf(words, meaning))
     }
 
     val labelStyle = Theme.typography.labelSmall
@@ -522,6 +523,12 @@ fun ActivityCalendar(
                         .semantics {
                             isTraversalGroup = true
                             collectionInfo = CollectionInfo(rowCount = 1, columnCount = columns)
+                            // The day the arrows have reached, once they have
+                            // moved: the grid is one focus stop, and the cursor
+                            // moving inside it was drawn and never said.
+                            if (interactive && cursor != null) {
+                                stateDescription = say(focusedDay, activity[focusedDay] ?: 0)
+                            }
                         }
                         .onKeyEvent { event ->
                             if (!interactive || event.type != KeyEventType.KeyDown) return@onKeyEvent false

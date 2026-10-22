@@ -107,7 +107,31 @@ class TopBarWheelTest {
             assertEquals(0, list.firstVisibleItemScrollOffset, "the list scrolled, so this is the other test")
             wheel(1, down = false)
             scene.frames(60)
-            assertEquals(0f, state.progress, "a notch back up left the bar at ${state.progress}")
+            assertEquals(true, state.progress < partWay, "a notch back up did not open the bar at all: ${state.progress}")
+            wheel(3, down = false)
+            scene.frames(60)
+            assertEquals(0f, state.progress, "notches back up left the bar at ${state.progress}")
+        }
+    }
+
+    /**
+     * A trackpad's small piece of scroll at a list's top opens the bar as far
+     * as it went, not all the way. Reported from a desktop as *"it isn't
+     * smooth, it sort of just jumps if you scroll slowly"*: anything the list
+     * declined finished the bar, so the first sliver of a slow trackpad scroll
+     * threw a part-way bar open.
+     */
+    @Test
+    fun aSliverOfTrackpadScrollAtTheTopOpensTheBarOnlyALittle() {
+        page(TopBarStyle.Hero) {
+            wheel(2, down = true)
+            scene.frames(60)
+            val partWay = state.progress
+            assertEquals(true, partWay > 0f && partWay < 1f, "two notches left the bar at $partWay, so this measured nothing")
+            scene.scroll(over, Offset(0f, -0.05f))
+            scene.frames(60)
+            val after = state.progress
+            assertEquals(true, after < partWay && after > 0f, "a sliver of scroll moved the bar from $partWay to $after")
         }
     }
 }

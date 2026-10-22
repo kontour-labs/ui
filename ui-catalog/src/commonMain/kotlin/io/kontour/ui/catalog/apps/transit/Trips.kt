@@ -1,5 +1,10 @@
 package io.kontour.ui.catalog.apps.transit
 
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.unit.dp
+import io.kontour.ui.charts.Chart
+import io.kontour.ui.charts.ChartAxis
+import io.kontour.ui.charts.rememberChartSelectionState
 import androidx.compose.foundation.layout.PaddingValues
 import io.kontour.ui.catalog.pageScroll
 import io.kontour.ui.theme.Tone
@@ -119,7 +124,8 @@ internal fun TripsPage(onTrip: (String) -> Unit) {
                                 onClick = { detail = !detail },
                             )
                             Popover(visible = detail, onDismissRequest = { detail = false }, title = { +formats.date(day) }) {
-                                KeyValueList {
+                                // Compact: a popover is a small container of its own.
+                                KeyValueList(compact = true) {
                                     for (trip in those) item(trip.title, trip.fare)
                                 }
                             }
@@ -141,6 +147,8 @@ internal fun TripsPage(onTrip: (String) -> Unit) {
                 +dollars(SpentThisWeek)
                 label("of the $${WeeklyCap.roundToInt()} weekly cap")
             }
+            TransitHeading("By month")
+            TripsByMonth()
             TransitHeading("Recent")
             Column(verticalArrangement = Arrangement.spacedBy(ListItemDefaults.Spacing)) {
                 trips.forEachIndexed { index, trip ->
@@ -159,6 +167,34 @@ internal fun TripsPage(onTrip: (String) -> Unit) {
         }
     }
 }
+
+/**
+ * The year's trips, a bar a month, from the same days the calendar shades:
+ * the calendar for a day, the bars for the shape of the year.
+ */
+@Composable
+private fun TripsByMonth() {
+    val byMonth = remember {
+        tripsByDay.entries
+            .groupBy { LocalDate(it.key.year, it.key.month, 1) }
+            .map { (first, days) -> first to days.sumOf { it.value } }
+            .sortedBy { it.first }
+    }
+    val months = remember { ChartAxis.date() }
+    val count = remember { ChartAxis.number(title = "Trips") }
+    Chart(
+        xAxis = months,
+        yAxis = count,
+        modifier = Modifier.fillMaxWidth().height(MonthsHeight).testTag("trips-by-month"),
+        selection = rememberChartSelectionState<LocalDate>(),
+        contentDescription = "Trips each month",
+        showLegend = false,
+    ) {
+        bar(byMonth, x = { it.first }, y = { it.second })
+    }
+}
+
+private val MonthsHeight = 180.dp
 
 /**
  * One trip, leg by leg, with who came along and how it went — and a way to
@@ -239,7 +275,7 @@ internal fun TripPage(trip: Trip) {
 private fun ReportSheet(visible: Boolean, onDismiss: () -> Unit, onSend: (String) -> Unit) {
     var reason by remember { mutableStateOf(Reasons.first()) }
     val more = rememberTextFieldState()
-    ModalBottomSheet(visible = visible, onDismissRequest = onDismiss) { padding ->
+    ModalBottomSheet(visible = visible, onDismissRequest = onDismiss, paneTitle = "Report a problem") { padding ->
         Column(
             Modifier.pageScroll(barPadding = PaddingValues()).padding(padding),
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm),

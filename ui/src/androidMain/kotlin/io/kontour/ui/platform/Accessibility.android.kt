@@ -130,3 +130,27 @@ private fun observeSetting(
     }
     return value
 }
+
+/**
+ * Colour correction, in Settings › Accessibility › Colour and motion: the
+ * nearest Android has to iOS's *Differentiate Without Colour*. A reader who
+ * corrects for how they see colour is a reader for whom colour alone does not
+ * tell two series apart.
+ *
+ * The key is the one the settings screen writes, `Settings.Secure`'s
+ * `accessibility_display_daltonizer_enabled`. It is not a public constant, so
+ * it is spelled out; an unknown key reads as its default, off, rather than
+ * throwing.
+ */
+@Composable
+actual fun platformPrefersDifferentiateWithoutColour(): Boolean {
+    val context = LocalContext.current
+    return observeSetting(
+        context = context,
+        uri = remember { Settings.Secure.getUriFor(DALTONIZER_ENABLED) },
+    ) { resolver ->
+        Settings.Secure.getInt(resolver, DALTONIZER_ENABLED, 0) == 1
+    }
+}
+
+private const val DALTONIZER_ENABLED = "accessibility_display_daltonizer_enabled"

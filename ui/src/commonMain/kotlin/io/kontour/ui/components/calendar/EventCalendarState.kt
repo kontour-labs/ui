@@ -7,6 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.listSaver
@@ -69,7 +70,30 @@ class EventCalendarState internal constructor(
         val now = periods
         if (now.firstDayOfWeek != firstDayOfWeek || now.weekCount != weekCount || now.anchor != anchor) {
             periods = CalendarPeriods(firstDayOfWeek, weekCount, anchor)
+            recounts++
         }
+    }
+
+    /**
+     * How many times the periods have been counted afresh, which the pager is
+     * made again for — a cut. Not by [slideDays], whose pager carries on.
+     */
+    internal var recounts: Int by mutableIntStateOf(0)
+        private set
+
+    /**
+     * Three days moved on [days] days, back if negative, by a swipe that came
+     * to rest on a day of its own: *"snap to any starting day, not just days
+     * that land on a multiple of 3"*. The threes are counted from a day that
+     * much later, so each one starts that much later and keeps its index, and
+     * the day the state is about keeps its place in its three. The pager is
+     * not made again — it is still moving, and `PeriodPager.slide` keeps what
+     * it shows where it was — and nothing pages, since no index changed.
+     */
+    internal fun slideDays(days: Int) {
+        if (days == 0) return
+        date = LocalDate.fromEpochDays(date.toEpochDays() + days)
+        periods = CalendarPeriods(periods.firstDayOfWeek, periods.weekCount, periods.anchor + days)
     }
 
     /** Today, as the calendar was last told — null when it was told nothing. */

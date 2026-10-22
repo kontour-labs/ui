@@ -53,7 +53,6 @@ import io.kontour.ui.foundation.CentredBarTitle
 import io.kontour.ui.foundation.ContentSlot
 import io.kontour.ui.foundation.ProvideContentColour
 import io.kontour.ui.foundation.ProvideTextStyle
-import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.nav.BarNavigation
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.Cursor
@@ -369,10 +368,11 @@ fun SheetHeader(
     modifier: Modifier = Modifier,
     onClose: (() -> Unit)? = closeEnclosingSheet(),
     closeLabel: String = Theme.strings.close,
-    closeIcon: ImageVector = SystemIcons.Close,
+    closeIcon: ImageVector = Theme.icons.close,
     style: SheetHeaderStyle = SheetHeaderStyle.Small,
     onBack: (() -> Unit)? = null,
     backLabel: String = Theme.strings.back,
+    backIcon: ImageVector = Theme.icons.chevronBack,
     navigation: (@Composable () -> Unit)? = null,
     actions: (@Composable RowScope.() -> Unit)? = null,
     content: ListItemScope.() -> Unit,
@@ -460,7 +460,7 @@ fun SheetHeader(
                         horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        BarNavigation(onBack, backLabel, navigation)
+                        BarNavigation(onBack, backLabel, backIcon, navigation)
                         slots.leading?.let { leading ->
                             Box(Modifier.recordHeight { drawn.leading = it }) { ContentSlot(content = leading) }
                         }
@@ -505,7 +505,7 @@ fun SheetHeader(
                 horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                BarNavigation(onBack, backLabel, navigation)
+                BarNavigation(onBack, backLabel, backIcon, navigation)
                 slots.leading?.let { leading ->
                     Box(Modifier.recordHeight { drawn.leading = it }) { ContentSlot(content = leading) }
                 }

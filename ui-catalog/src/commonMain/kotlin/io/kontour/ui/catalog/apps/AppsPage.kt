@@ -44,7 +44,7 @@ internal fun AppsPage(modifier: Modifier = Modifier) {
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
         ) {
             Text(
-                "Three small apps built from the library, each with its own navigation, sheets and back stack. " +
+                "Four small apps built from the library, each with its own navigation, sheets and back stack. " +
                     "They take the whole window while they run; back at an app's first page, or its close " +
                     "button, comes back here.",
                 style = Theme.typography.bodyMedium,
@@ -54,7 +54,7 @@ internal fun AppsPage(modifier: Modifier = Modifier) {
                 val apps = MiniApp.entries
                 val gap = Theme.spacing.md
                 // As many to a row as fit a phone wide, and the rows filled from
-                // the start: three on a desktop, two and one on a tablet.
+                // the start: three and one on a desktop, two and two on a tablet.
                 val across = ((maxWidth + gap) / (AppCardWidth + gap)).toInt().coerceIn(1, apps.size)
                 if (across > 1) {
                     Column(verticalArrangement = Arrangement.spacedBy(gap)) {
@@ -86,6 +86,7 @@ private fun AppCard(app: MiniApp, onOpen: () -> Unit, modifier: Modifier = Modif
             MiniApp.Transit -> SkylineArt(Modifier.fillMaxWidth().height(AppArtHeight))
             MiniApp.Messages -> ConversationArt(Modifier.fillMaxWidth().height(AppArtHeight))
             MiniApp.Board -> BoardArt(Modifier.fillMaxWidth().height(AppArtHeight))
+            MiniApp.Energy -> RoofArt(Modifier.fillMaxWidth().height(AppArtHeight))
         }
         Column(
             Modifier.padding(Theme.spacing.md),

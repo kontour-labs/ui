@@ -17,6 +17,8 @@ import androidx.compose.ui.layout.LayoutCoordinates
 import io.kontour.ui.components.selection.SliderDefaults
 import io.kontour.ui.foundation.IndicatorReach
 import io.kontour.ui.foundation.SelectionIndicatorState
+import io.kontour.ui.input.InputModality
+import io.kontour.ui.input.LocalInputModalityState
 import io.kontour.ui.interaction.DetentTicker
 import io.kontour.ui.interaction.DragClaim
 import io.kontour.ui.interaction.FeedbackIntent
@@ -34,7 +36,9 @@ import kotlin.math.abs
  * scroller is the one gesture it cannot share, so a rail whose destinations run
  * past its foot, or a scrollable tab bar whose tabs run past its edge, scrolls
  * instead, as it did before. The question is asked as the finger goes down, so a
- * window that grows or shrinks, or a destination added, answers it again.
+ * window that grows or shrinks, or a destination added, answers it again. A
+ * mouse drags it whether the row scrolls or not: a mouse scrolls with its wheel,
+ * so a drag along the row has nothing to take from.
  */
 enum class NavMarkerDrag {
     /** The marker cannot be dragged: a destination is chosen by a tap alone. */
@@ -115,18 +119,26 @@ internal fun rememberMarkerDrag(
  * and every destination added, and read here it costs nothing while it does. A
  * declined press is left wholly alone, so the scroller under it has the drag as
  * though this were not here.
+ *
+ * **Except to a mouse**, which scrolls a row with its wheel and not by dragging
+ * it, so a drag along a row that scrolls has nothing to take from: *"on
+ * desktop/web with a mouse, dragging the list won't make it scroll anyway"*.
  */
 @Composable
 internal fun Modifier.markerDrag(wiring: DragWiring, target: DragTarget, enabled: Boolean): Modifier {
     val drag = wiring.drag
     val ticker = wiring.ticker
+    // Read at the press, which the tracker has already seen: it hears each
+    // event on the initial pass, before this does on the main one.
+    val modality = LocalInputModalityState.current
+    val accepts: (Offset) -> Boolean = { drag.fits() || modality?.current == InputModality.Mouse }
     return if (drag.vertical) {
         verticalDragOwning(
             enabled = enabled,
             interactionSource = null,
             scope = wiring.scope,
             claimsOn = DragClaim.Direction,
-            accepts = { drag.fits() },
+            accepts = accepts,
             onStart = { at -> drag.begin(drag.inRow(target, at), ticker) },
             onDelta = { delta -> drag.move(delta, ticker) },
             onRelease = { drag.released = true },
@@ -138,7 +150,7 @@ internal fun Modifier.markerDrag(wiring: DragWiring, target: DragTarget, enabled
             interactionSource = null,
             scope = wiring.scope,
             claimsOn = DragClaim.Direction,
-            accepts = { drag.fits() },
+            accepts = accepts,
             onStart = { at -> drag.begin(drag.inRow(target, at), ticker) },
             onDelta = { delta -> drag.move(delta, ticker) },
             onRelease = { drag.released = true },

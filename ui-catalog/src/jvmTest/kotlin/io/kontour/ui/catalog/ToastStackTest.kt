@@ -390,6 +390,116 @@ class ToastStackTest {
     }
 
     /**
+     * A toast behind the front one is never drawn bigger than it.
+     *
+     * Reported: *"i've seen scenarios where the toast at the top (i.e. the one
+     * being displayed) is smaller than the ones at the back"*. Two of them, and
+     * both are the same fault. A card pushed back by a newer toast turned into a
+     * pill through a size animation, so for the length of it a three-line card
+     * stood out round a one-line toast on every side; and a pill is a fixed
+     * 72dp, so behind a front toast narrower than that it stood out at the sides
+     * for good.
+     *
+     * So every frame from the moment the short toast is shown is held to the
+     * short toast's own footprint, measured alone: no wider, and past its far
+     * edge by no more than one `ToastDefaults.Peek`, the band a toast behind is
+     * meant to show. The near edge is not checked, because that is where the
+     * front toast slides in from. Both anchors, because the far edge is the top
+     * of a bottom stack and the foot of a top one. "OK" in front, which is
+     * narrower than a pill, so the settled frames ask the second question too.
+     *
+     * Then the front one goes, and the long one has to come back at its own
+     * size: being held to the front's footprint is a rule about waiting behind
+     * it, not a size it keeps.
+     */
+    @Test
+    fun aToastBehindNeverShowsPastTheFrontOne() {
+        for (position in ToastPosition.entries) {
+            val short = footprintOf(position, "OK")
+            val long = footprintOf(position, LongMessage)
+            val frames = mutableListOf<Footprint?>()
+            var promoted: Footprint? = null
+
+            lateinit var toasts: ToastHostState
+            Scene(width = 600, height = SceneHeight) {
+                toasts = remember { ToastHostState() }
+                OverlayHost(Modifier.fillMaxSize()) {
+                    Box(Modifier.fillMaxSize().background(Color.White))
+                    ToastHost(toasts, position = position)
+                    LaunchedEffect(Unit) { toasts.show(LongMessage, duration = Duration.INFINITE) }
+                }
+            }.use { scene ->
+                scene.frames(40)
+                onComposeUiThread { toasts.show("OK", duration = Duration.INFINITE) }
+                repeat(40) { frames += scene.frame().footprint() }
+                onComposeUiThread { toasts.dismissCurrent() }
+                promoted = scene.frames(60).footprint()
+            }
+
+            assertNotNull(short, "a lone \"OK\" drew nothing at the $position")
+            assertNotNull(long, "a lone long toast drew nothing at the $position")
+            frames.forEachIndexed { frame, ink ->
+                assertNotNull(ink, "frame $frame of the $position stack drew nothing")
+                val past = if (position == ToastPosition.Bottom) short.top - ink.top else ink.bottom - short.bottom
+                assertTrue(
+                    ink.left >= short.left - Slack && ink.right <= short.right + Slack && past <= PeekPx + Slack,
+                    "frame $frame after \"OK\" arrived in front of a three-line toast at the " +
+                        "$position: the stack's ink spans x ${ink.left}..${ink.right}, y " +
+                        "${ink.top}..${ink.bottom}, against \"OK\" alone at x " +
+                        "${short.left}..${short.right}, y ${short.top}..${short.bottom}. " +
+                        "It reaches ${past}px past the far edge, where a peek is ${PeekPx}px, " +
+                        "and ${maxOf(short.left - ink.left, ink.right - short.right)}px past the " +
+                        "sides — the toast behind is bigger than the one in front of it.",
+                )
+            }
+            val back = assertNotNull(promoted, "nothing was left once \"OK\" went at the $position")
+            assertTrue(
+                abs(back.width - long.width) <= Slack && abs(back.height - long.height) <= Slack,
+                "once \"OK\" went, the long toast came back ${back.width} x ${back.height}px " +
+                    "at the $position against ${long.width} x ${long.height}px on its own — " +
+                    "it kept the size it was held to behind the short one.",
+            )
+        }
+    }
+
+    /** The bounds of every toast surface pixel in a frame. */
+    private class Footprint(val left: Int, val top: Int, val right: Int, val bottom: Int) {
+        val width get() = right - left + 1
+        val height get() = bottom - top + 1
+    }
+
+    private fun BufferedImage.footprint(): Footprint? {
+        var left = width
+        var top = -1
+        var right = -1
+        var bottom = -1
+        for (y in 0 until height) {
+            for (x in 0 until width) {
+                if (!isSurface(getRGB(x, y))) continue
+                if (top < 0) top = y
+                bottom = y
+                if (x < left) left = x
+                if (x > right) right = x
+            }
+        }
+        return if (top < 0) null else Footprint(left, top, right, bottom)
+    }
+
+    /** One pinned toast, settled, at [position]. */
+    private fun footprintOf(position: ToastPosition, message: String): Footprint? {
+        var ink: Footprint? = null
+        Scene(width = 600, height = SceneHeight) {
+            val toasts = remember { ToastHostState() }
+            OverlayHost(Modifier.fillMaxSize()) {
+                Box(Modifier.fillMaxSize().background(Color.White))
+                ToastHost(toasts, position = position)
+                LaunchedEffect(Unit) { toasts.show(message, duration = Duration.INFINITE) }
+            }
+        }.use { scene -> ink = scene.frames(40).footprint() }
+        return ink
+    }
+
+    /**
      * A toast that never reached the screen still expires.
      *
      * The clock lived in `ToastCard`, and a card is only composed for the
@@ -1449,6 +1559,13 @@ class ToastStackTest {
 
         /** Antialiasing and a pixel of shadow. */
         const val Slack = 4
+
+        /** `ToastDefaults.Peek`, 12dp, in this scene's pixels. */
+        const val PeekPx = 24
+
+        /** Three lines at this scene's width. */
+        const val LongMessage =
+            "Couldn't reach the timetable service, so the times shown here may be out of date until it answers again"
 
         /** Far enough into a band to be past its rounded corner. */
         const val Probe = 12

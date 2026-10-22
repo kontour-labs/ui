@@ -24,6 +24,9 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -67,6 +70,7 @@ import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.foundation.shape
 import io.kontour.ui.input.focusRing
+import io.kontour.ui.input.insetFocusRing
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.LocalRowEnabled
 import io.kontour.ui.interaction.LocalRowInteractionSource
@@ -256,18 +260,26 @@ internal fun ListItemImpl(
      * padding is the same either side.
      */
     centred: Boolean = false,
+    /**
+     * Drawn as [selected] is, and not published as it: the row a keyboard has
+     * arrowed to in a list it has not chosen from, a command palette's. Said
+     * as selected, every arrow press told a screen reader the choice had moved,
+     * and the row it left changed from a selectable control to a button.
+     */
+    highlighted: Boolean = false,
 ) {
     val colours = Theme.colours
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
+    val drawnSelected = selected || highlighted
 
     val container = when {
         !enabled -> disabledContainerColour
-        selected -> selectedContainerColour
+        drawnSelected -> selectedContainerColour
         else -> containerColour
     }
     val content = when {
         !enabled -> colours.contentDisabled
-        selected -> colours.accent.onContainer
+        drawnSelected -> colours.accent.onContainer
         else -> contentColour
     }
 
@@ -277,6 +289,7 @@ internal fun ListItemImpl(
 
     val controls = onClick != null || interaction != null
     val interactive = controls && enabled
+    val ringInside = LocalRingInside.current
     // Note the two conditions. A row with no `onClick` is not a control and gets
     // no click modifier at all; a row *with* one that is disabled is still a
     // control, and keeps the modifier with `enabled = false`. Dropping it would
@@ -338,7 +351,15 @@ internal fun ListItemImpl(
                     // Keyed on being a control at all, not on being enabled — a row that
                     // changed height when it greyed out would jump the list around it.
                     .then(if (controls) Modifier.minimumTouchTarget() else Modifier)
-                    .focusRing(interactions, shape, enabled = interactive)
+                    // Round the row, or inside it where it is clipped to a shape
+                    // of its own: see [LocalRingInside].
+                    .then(
+                        if (ringInside) {
+                            Modifier.insetFocusRing(interactions, shape, enabled = interactive)
+                        } else {
+                            Modifier.focusRing(interactions, shape, enabled = interactive)
+                        },
+                    )
                     .clip(shape.clipProxy())
                     .background(container, shape)
                     // `surfaceSunken` on `background` is **1.06:1** at the dark
@@ -351,7 +372,7 @@ internal fun ListItemImpl(
                     // A selected row is a tint 1.25:1 from the page at the
                     // enhanced tier; there it is outlined in the accent as well,
                     // over whatever edge the row already has.
-                    .optionalBorder(if (selected && enabled) selectionEdge() else null, shape)
+                    .optionalBorder(if (drawnSelected && enabled) selectionEdge() else null, shape)
                     .then(clickModifier)
                     // `xs`, not `sm`. The 12dp version put 24dp of air around a
                     // single line of text inside a row whose minimum is already 56dp,
@@ -538,6 +559,22 @@ private class SectionMeasurePolicy(
     private val rowInset: Dp,
 ) : MeasurePolicy {
 
+    /**
+     * Whether the body began with a row, and ended with one, as it was last
+     * placed: what the header's and the footer's insets go by.
+     *
+     * **Read where the body is placed, not where it is measured.** Asking a
+     * child for an alignment line during measure has Compose lay it out
+     * there and then, placing its children inside the section's measure, and
+     * in a lazy list's row on a phone that placed a node Compose had not
+     * filed yet: *"LayoutNode … not found in RectList"*, from a row's
+     * touch target, under `startsWithRow`. Rows, until the body says
+     * otherwise, as the intrinsics below assume; a body that is not is
+     * measured again with its words flush, as soon as it has been placed.
+     */
+    private var bodyStarts by mutableStateOf(true)
+    private var bodyEnds by mutableStateOf(true)
+
     override fun MeasureScope.measure(measurables: List<Measurable>, constraints: Constraints): MeasureResult {
         val headerPart = measurables.firstOrNull { it.part == SectionPart.Header }
         val bodyPart = measurables.first { it.part == SectionPart.Body }
@@ -564,8 +601,8 @@ private class SectionMeasurePolicy(
         }
         val body = bodyPart.measure(bodyConstraints)
 
-        val headerInset = given ?: if (body.startsWithRow()) beside else 0
-        val footerInset = given ?: if (body.endsWithRow()) beside else 0
+        val headerInset = given ?: if (bodyStarts) beside else 0
+        val footerInset = given ?: if (bodyEnds) beside else 0
 
         val header = headerPart?.measure(loose.offset(horizontal = -headerInset))
         val footer = footerPart?.measure(loose.offset(horizontal = -footerInset))
@@ -591,6 +628,11 @@ private class SectionMeasurePolicy(
                 y += body.height + gap
             }
             footer?.placeRelative(footerInset, y)
+            // Once placed, what it began and ended with: see [bodyStarts].
+            if (given == null) {
+                if (header != null) body.startsWithRow().let { if (it != bodyStarts) bodyStarts = it }
+                if (footer != null) body.endsWithRow().let { if (it != bodyEnds) bodyEnds = it }
+            }
         }
     }
 

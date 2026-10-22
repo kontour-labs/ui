@@ -5,11 +5,17 @@ import androidx.compose.foundation.gestures.AnchoredDraggableState
 import androidx.compose.foundation.gestures.DraggableAnchors
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.animation.core.AnimationSpec
-import androidx.compose.animation.core.animate
-import androidx.compose.foundation.gestures.animateTo
+import androidx.compose.animation.core.AnimationConstants
+import androidx.compose.animation.core.AnimationVector1D
+import androidx.compose.animation.core.TargetBasedAnimation
+import androidx.compose.animation.core.VectorConverter
+import androidx.compose.animation.core.getVelocityFromNanos
+import androidx.compose.foundation.gestures.AnchoredDraggableDefaults
 import androidx.compose.foundation.gestures.snapTo
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.MotionDurationScale
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -31,10 +37,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Velocity
 import io.kontour.ui.interaction.RubberBand
 import io.kontour.ui.theme.Motion
+import kotlin.coroutines.AbstractCoroutineContextElement
+import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlin.math.sign
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.withContext
 
 /**
  * Where a sheet is, and where it is going.
@@ -834,6 +844,32 @@ class SheetState internal constructor(
         }
 
     /**
+     * How far the sheet has arrived, 0..1: 0 off the bottom of the window, and 1
+     * once it shows as much as its lowest open detent, wherever it rests above
+     * that. What a modal sheet's scrim and receding page follow.
+     *
+     * Not [visibleFraction], which they followed until a sheet resting at `Half`
+     * or a peek pushed the page back only part of the way, with a corner part of
+     * the way between the screen's and the card's — beside a side sheet, which
+     * pushes it back the whole way: *"why is the backdrop scale between bottom
+     * sheets and side sheets different? look at the shape and the amount"*. The
+     * sheet being open is what the page answers, not how tall it is.
+     */
+    internal val arrivedFraction: Float
+        get() {
+            val anchors = anchoredState.anchors
+            var lowest = Float.NaN
+            for (detent in allowedDetents) {
+                if (detent == SheetDetent.Hidden) continue
+                val at = anchors.positionOf(detent)
+                if (!at.isNaN() && (lowest.isNaN() || at > lowest)) lowest = at
+            }
+            if (lowest.isNaN()) return visibleFraction
+            val shown = containerHeight - lowest
+            return if (shown <= 0f) visibleFraction else (visibleHeight / shown).coerceIn(0f, 1f)
+        }
+
+    /**
      * Where the sheet should go once it has anchors.
      *
      * A screen that starts with its sheet open calls [animateTo] from a
@@ -896,7 +932,9 @@ class SheetState internal constructor(
             // mid-fade, or the caller reopening — leaves [presence] wherever the
             // fade had got to, and a slide never touches it.
             if (target != SheetDetent.Hidden && presence.value != 1f) presence.snapTo(1f)
-            anchoredState.animateTo(target)
+            // Foundation's own `animateTo`, but one that keeps going when the
+            // anchors move under it: see [slide].
+            slide(target, anchoredState.lastVelocity, AnchoredDraggableDefaults.SnapAnimationSpec)
             return
         }
         val shown = anchoredState.settledValue != SheetDetent.Hidden
@@ -1334,15 +1372,68 @@ class SheetState internal constructor(
      * sheet is usually dragged by its handle, whose fling carried the speed all
      * along.
      */
-    private suspend fun carryTo(target: SheetDetent, velocity: Float, spec: AnimationSpec<Float>) {
+    private suspend fun carryTo(target: SheetDetent, velocity: Float, spec: AnimationSpec<Float>) =
+        slide(target, velocity, spec)
+
+    /**
+     * Animates to [target] from [velocity], and **goes on through a change of
+     * anchors** rather than starting again.
+     *
+     * `anchoredDrag` restarts its block whenever the anchors move, and the
+     * sheet's own slide is a tween that eases in: started afresh, it spent its
+     * first frame where it was and the next few barely moving. A keyboard
+     * sliding up under a sheet that has a field in it is the sheet's own
+     * bottom padding growing, so the anchors move on every frame of it, and
+     * every frame was a fresh start: the sheet stood still for the whole of the
+     * keyboard's slide and came up after it. The page behind, which recedes as
+     * far as the sheet has come against how far it has to go, swung back as
+     * the destination climbed away. Reported from Android as *"the sheet
+     * doesn't open over the ime for like half a second after the ime opens"*,
+     * with the backdrop shrinking, growing and shrinking again; and the same
+     * on the way down, as the keyboard leaves.
+     *
+     * So one curve for the whole move, over the distance the sheet set off to
+     * cover, on one clock that a restart picks up where it was; and the sheet
+     * as far along the way from where it set off to **wherever the detent is
+     * now** as the curve is along its own. A detent that moves stretches the
+     * rest of the way rather than starting it again, and how far the sheet has
+     * arrived is the curve's own progress, which only goes one way. In pixels
+     * rather than from nothing to one, so a spring stops as close to its
+     * detent as it always has: its threshold is in the units it runs in.
+     */
+    private suspend fun slide(target: SheetDetent, velocity: Float, spec: AnimationSpec<Float>) {
+        var from = Float.NaN
+        var span = 0f
+        var curve: TargetBasedAnimation<Float, AnimationVector1D>? = null
+        var startedAt = AnimationConstants.UnspecifiedTime
         anchoredState.anchoredDrag(targetValue = target) { anchors, latest ->
             val to = anchors.positionOf(latest)
             if (to.isNaN()) return@anchoredDrag
-            val from = anchoredState.offset.takeUnless { it.isNaN() } ?: to
-            // Already there: nothing to animate, as Foundation's own `animateTo`
-            // decides, and no frame to wait for.
-            if (from == to) return@anchoredDrag
-            animate(from, to, velocity, spec) { value, speed -> dragTo(value, speed) }
+            val along = curve ?: run {
+                from = anchoredState.offset.takeUnless { it.isNaN() } ?: to
+                // Already there: nothing to animate, as Foundation's own
+                // `animateTo` decides, and no frame to wait for.
+                if (from == to) return@anchoredDrag
+                span = to - from
+                TargetBasedAnimation(spec, Float.VectorConverter, 0f, span, AnimationVector1D(velocity))
+                    .also { curve = it }
+            }
+            // As `animate` reads it: the platform's animator duration setting,
+            // where none at all means the end at once.
+            val scale = currentCoroutineContext()[MotionDurationScale]?.scaleFactor ?: 1f
+            do {
+                val done = withFrameNanos { now ->
+                    if (startedAt == AnimationConstants.UnspecifiedTime) startedAt = now
+                    val played = if (scale == 0f) along.durationNanos else ((now - startedAt) / scale).toLong()
+                    // How much further, or less far, the detent now is.
+                    val stretch = (to - from) / span
+                    dragTo(
+                        from + along.getValueFromNanos(played) * stretch,
+                        along.getVelocityFromNanos(played) * stretch,
+                    )
+                    along.isFinishedFromNanos(played)
+                }
+            } while (!done)
         }
     }
 
@@ -1430,6 +1521,124 @@ class SheetState internal constructor(
     private fun flingMayLandOn(detent: SheetDetent): Boolean =
         detent in allowedDetents &&
             (detent != SheetDetent.Hidden || userDismissible || anchoredState.settledValue == SheetDetent.Hidden)
+
+    /**
+     * The nearest allowed detent above where the sheet is, or null at its top:
+     * where a wheel turned past the end of the content opens it to. See
+     * [sheetWheel].
+     */
+    internal fun detentAbove(): SheetDetent? {
+        val at = anchoredState.offset
+        if (at.isNaN()) return null
+        val anchors = anchoredState.anchors
+        var above: SheetDetent? = null
+        var nearest = Float.NEGATIVE_INFINITY
+        for (index in 0 until anchors.size) {
+            val position = anchors.positionAt(index)
+            val detent = anchors.anchorAt(index) ?: continue
+            if (position.isNaN() || detent !in allowedDetents) continue
+            if (position < at - 0.5f && position > nearest) {
+                nearest = position
+                above = detent
+            }
+        }
+        return above
+    }
+
+    /**
+     * Whether the content runs on below what the sheet shows, so that opening
+     * it further would show more of it. Not so for a sheet as tall as its
+     * content, whatever detents it has above.
+     */
+    internal fun cutOff(): Boolean = sheetHeight > visibleHeight + 0.5f
+
+    /**
+     * Where the sheet's content is in the window, for [hiddenBelow]: the box the
+     * sheet is laid out in. Live, as [sheetCoordinates] is.
+     */
+    internal var containerCoordinates: LayoutCoordinates? = null
+
+    /**
+     * How much of a scroller inside the sheet, laid out at [coordinates], hangs
+     * below what the sheet shows, in pixels. 0 for one that is all on screen.
+     *
+     * A sheet's content is measured as tall as the window at every detent and
+     * the sheet slides it down — it never resizes while it moves, which is what
+     * keeps a drag from measuring the content again on every frame (see
+     * `SheetFramePressureTest`). So at `Half` a list in a sheet is still a
+     * window tall and its lower half is under the screen's edge, or under a
+     * floating sheet's foot. A scrollbar on it reads this to stop its track
+     * where the sheet does: *"the scrollbar just stays at full height for some
+     * reason"*, reported 2026-10-21, was a thumb sized for twice the list that
+     * could be seen, running off the bottom of the screen half way down.
+     *
+     * Reads the sheet's position, so a draw that asks is drawn again as the
+     * sheet moves.
+     */
+    internal fun hiddenBelow(coordinates: LayoutCoordinates?): Float {
+        // Read for what they subscribe to: the coordinates below are live but
+        // are not state, and these are what moves them.
+        anchoredState.offset
+        drawnOvershoot
+        val container = containerCoordinates ?: return 0f
+        val sheet = sheetCoordinates ?: return 0f
+        if (coordinates == null || !coordinates.isAttached || !container.isAttached || !sheet.isAttached) return 0f
+        val height = coordinates.size.height.toFloat()
+        val foot = container.localPositionOf(coordinates, Offset(0f, height)).y
+        // The window's foot, or a floating sheet's own, whichever is higher.
+        val surfaceFoot = container.localPositionOf(sheet, Offset(0f, sheet.size.height.toFloat())).y
+        val shown = minOf(container.size.height.toFloat(), surfaceFoot)
+        return (foot - shown).coerceIn(0f, height)
+    }
+
+    /**
+     * How many scrollbar thumbs are scrolling the content through the scroll
+     * chain at this moment. Counted round the dispatch itself, which is
+     * synchronous, by [scrollingInPlace].
+     */
+    private var thumbsScrolling = 0
+
+    /**
+     * Runs [scroll], a drag of a scrollbar's thumb handed down the scroll chain,
+     * as a scroll the sheet does not take a share of.
+     *
+     * The thumb's drag goes through the chain as a swipe does, so a collapsing
+     * top bar follows it — and so it reached [nestedScrollConnection] as a drag
+     * of the content up, and a thumb dragged down a half-height sheet's list
+     * opened the sheet to full height before the list moved at all.
+     */
+    internal fun <T> scrollingInPlace(scroll: () -> T): T {
+        thumbsScrolling++
+        try {
+            return scroll()
+        } finally {
+            thumbsScrolling--
+        }
+    }
+
+    /**
+     * Whether the scroll the content is handing on is one the sheet leaves
+     * alone: a wheel's, a trackpad's or a scrollbar thumb's. Those scroll the
+     * content and only the content, at every detent; see [sheetWheel] for what
+     * a wheel does at the content's end.
+     */
+    private val scrollsInPlace: Boolean get() = finger.wheeling || thumbsScrolling > 0
+
+    /**
+     * Whether the fling the content is handing on is one the sheet leaves
+     * alone, for the same reason: a wheel's or a trackpad's as it stops, or a
+     * scrollbar thumb's let go, which says so with [flingingInPlace].
+     *
+     * A wheel flings at all because Compose flings a scrollable when a wheel
+     * stops if its fling is not Compose's own default, which is so under a
+     * `LocalScrollFeel`, on iOS by default, and for a list that snaps. Found
+     * in the 0.5.0 review, 2026-10-21: that fling came down the chain as a
+     * finger's does, and a flick of a trackpad in a half-height sheet's list
+     * opened the sheet to full height; one back up past the list's top could
+     * throw a sheet opened by a button closed.
+     */
+    private suspend fun flingsInPlace(): Boolean =
+        finger.wheeling || currentCoroutineContext()[FlingInPlaceKey] != null
 
     private fun nearestAllowed(at: Float): SheetDetent? {
         val anchors = anchoredState.anchors
@@ -1550,6 +1759,11 @@ class SheetState internal constructor(
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
                 val delta = available.y
                 if (source != NestedScrollSource.UserInput) return Offset.Zero
+                // A wheel, a trackpad or a scrollbar's thumb: the content's
+                // alone. They came this way as a finger's drag does, and the
+                // sheet took them first — a wheel over a half-height sheet's
+                // list opened the sheet to full height before the list moved.
+                if (scrollsInPlace) return Offset.Zero
                 // A stretch the finger opened closes before anything else moves.
                 val paid = payBackOvershoot(delta)
                 val offered = delta - paid
@@ -1570,6 +1784,10 @@ class SheetState internal constructor(
                 // Dragging down and the list had nothing left to give: the sheet
                 // takes the remainder and starts to close.
                 if (source != NestedScrollSource.UserInput) return Offset.Zero
+                // Nor, at the content's top, does a wheel's remainder close the
+                // sheet or drop it: it would be left between two detents with
+                // no release to settle it.
+                if (scrollsInPlace) return Offset.Zero
                 val offered = available.y
                 // **Did the list move?** The difference between what the child
                 // was offered and what it declined, which is how the sheet knows
@@ -1586,6 +1804,8 @@ class SheetState internal constructor(
             }
 
             override suspend fun onPreFling(available: Velocity): Velocity {
+                // A wheel's or a thumb's: the content's alone, as its scroll was.
+                if (flingsInPlace()) return Velocity.Zero
                 // **The sheet was moving under the finger when it let go**, so
                 // the release is the sheet's, whatever the list did earlier in
                 // the gesture. UIKit's rule: once a scroll view at its top has
@@ -1679,6 +1899,12 @@ class SheetState internal constructor(
                 // reaches here — with a zero velocity if the finger simply
                 // stopped — so this is the reliable place to forget it.
                 listScrolled = false
+                // A wheel's or a thumb's moved the content and not the sheet:
+                // nothing to settle, and only a stretch, were there one, to let go.
+                if (flingsInPlace()) {
+                    releaseOvershoot(settleSpec)
+                    return Velocity.Zero
+                }
                 // Already answered, in `onPreFling`, with nothing left over.
                 if (releasedBySheet) {
                     releasedBySheet = false
@@ -1845,6 +2071,14 @@ val LocalSheetState = staticCompositionLocalOf<SheetState?> { null }
 internal val LocalSheetBand = staticCompositionLocalOf { false }
 
 /**
+ * The widest the sheet below gets, where it is not [BottomSheetDefaults.MaxWidth]:
+ * what a [ModalBottomSheet] hands the sheet it draws, [BottomSheetDefaults.ModalMaxWidth].
+ * A local rather than a parameter, because `BottomSheet` is public and the cap is
+ * the modal's own. Read once, at the top of `BottomSheet`.
+ */
+internal val LocalSheetMaxWidth = staticCompositionLocalOf<Dp?> { null }
+
+/**
  * Marks the part of a sheet that [SheetDetent.peek] shows.
  *
  * Put it on the header. The sheet then peeks exactly far enough to show that,
@@ -1919,6 +2153,30 @@ private fun List<SheetDetent>.firstDetent(): SheetDetent =
  * decide whether it hides.
  */
 internal const val SheetProjectionSeconds: Float = 0.2f
+
+/**
+ * Runs [fling], a scrollbar thumb's let-go handed down the scroll chain, as a
+ * fling no sheet it passes through answers.
+ *
+ * The thumb flings nothing, so that whatever collapses as the content scrolls
+ * settles where a swipe let go would leave it, and a sheet took that for a
+ * release of its own. Found in the 0.5.0 review, 2026-10-21: the thumb's drag
+ * never moved the sheet, so nothing in the gesture said the list had, and the
+ * sheet's finger, which follows a mouse's press as it does a finger's, read the
+ * mouse as still moving when it let go. A thumb dragged quickly down a
+ * half-height sheet and let go closed the sheet, and up opened it to full
+ * height.
+ *
+ * Said in the fling's own coroutine rather than in a flag on the sheet: the
+ * fling suspends while anything in the chain settles, and a finger that lands
+ * in the meantime has a release of its own that the sheet must still answer.
+ */
+internal suspend fun flingingInPlace(fling: suspend () -> Unit): Unit = withContext(FlingInPlace) { fling() }
+
+/** Marks a fling's coroutine as [flingingInPlace]'s. */
+private object FlingInPlace : AbstractCoroutineContextElement(FlingInPlaceKey)
+
+private object FlingInPlaceKey : CoroutineContext.Key<FlingInPlace>
 
 /**
  * How fast a gesture on a sheet's **content** has to be leaving the glass to

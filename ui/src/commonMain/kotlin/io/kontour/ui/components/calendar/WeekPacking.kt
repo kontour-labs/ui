@@ -53,11 +53,7 @@ internal fun weekItems(weekStart: LocalDate, events: List<CalendarEvent>, lines:
     for (event in events) {
         val firstDay = event.start.date.toEpochDays()
         // The day its last minute is on: an event ending at midnight ends the day before.
-        val lastDay = if (event.end > event.start) {
-            event.end.plusMinutes(-1).date.toEpochDays()
-        } else {
-            firstDay
-        }
+        val lastDay = lastDayOf(event.start, event.end).toEpochDays()
         if (lastDay < weekFrom || firstDay > weekTo) continue
         // Shorter than a day and timed, it is in the hours — or a line, in a month.
         if (!lines && event.isTimed()) continue
@@ -99,7 +95,7 @@ internal fun barRows(events: List<CalendarEvent>, lines: Boolean): Map<CalendarE
     val spans = ArrayList<Span>()
     for ((index, event) in events.withIndex()) {
         val first = event.start.date.toEpochDays()
-        val last = if (event.end > event.start) event.end.plusMinutes(-1).date.toEpochDays() else first
+        val last = lastDayOf(event.start, event.end).toEpochDays()
         // As [weekItems] has it: the strip has only what is not in the hours.
         val bar = !event.isTimed() || (lines && last > first)
         if (bar) spans += Span(event, first, last, index)

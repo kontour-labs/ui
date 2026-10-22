@@ -296,6 +296,8 @@ internal fun LinePage(line: Line, onStop: (String) -> Unit) {
                 items = timetable(line, day),
                 modifier = Modifier.fillMaxWidth().padding(top = Theme.spacing.xs),
                 stickyColumns = 1,
+                // Narrowed as the times scroll under it, so a phone sees one more of them.
+                narrowStickyColumns = true,
                 striped = true,
             ) {
                 column("Service", width = ServiceColumn) { +it.service }

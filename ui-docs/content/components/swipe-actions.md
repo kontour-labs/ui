@@ -103,6 +103,15 @@ Presses are seen at the app's [`OverlayHost`](../overlays.md); without one round
 the app, a press on another swipe row still closes it, and one on anything else
 does not.
 
+**So does a scroll anywhere else, from a wheel or a trackpad**: a carousel or a
+table scrolled across, a row of chips, another swipe row, the list scrolled down.
+A finger's scroll starts with a press and always closed it; a wheel's and a
+trackpad's have none, and the row stayed open while the reader scrolled
+something beside it. The scroll still scrolls what it was aimed at. A scroll on
+the open row itself is the row's, as below, and moves it rather than closing it.
+Seen where presses are: at the `OverlayHost`, or without one, on another swipe
+row only.
+
 **One buzz at the one moment that has a consequence, and a soft tick as each
 action arrives.** It used to be four — a tick per action width uncovered, the
 threshold, a confirmation when the action ran, and a settle when the row came back
@@ -179,14 +188,19 @@ mean. A side where nothing opted in has no point of no return: carried as far as
 goes, it opens.
 
 On a desktop a sideways scroll moves the row as a drag would. A trackpad's
-two-finger push follows the fingers — on a Mac it arrives as a pan, in pixels — and
-settles when they lift; a mouse's sideways wheel moves the row 24dp a notch — two
-clicks open a single action, four the first of several — and settles shortly after
-the last. In a browser, where a scroll arrives in pixels rather than notches, a
-trackpad follows the fingers a pixel at a time and one event never moves the row
-more than a notch would. Either one is the
-row's only if it begins mostly sideways, and a vertical scroll with a little drift
-in it stays the list's.
+two-finger push follows the fingers — on a Mac it arrives as a pan, in pixels — at
+`SwipeActionsDefaults.TrackpadGain`, 0.6 of a pixel for each one, and settles when
+they lift; a mouse's sideways wheel moves the row 24dp a notch — two clicks open a
+single action, four the first of several — and settles shortly after the last. In
+a browser, where a scroll arrives in pixels rather than notches, a trackpad
+follows the fingers the same way and one event never moves the row more than a
+notch would. A trackpad's pixels are accelerated, so pixel for pixel, as it was, a
+flick of the fingers carried the row across its actions, and was reported as
+*"really sensitive"*. Either one is the row's only if it begins clearly sideways —
+over a whole touch slop, and twice as far across as up or down — and a vertical
+scroll with a little drift in it stays the list's. A pan let go of is thrown open
+only at three times the speed a finger's flick needs, which an ordinary push does
+not reach; it settles by where it is.
 
 **A scroll can make a full swipe**, the way a drag does. Carried past the point of
 no return, the outermost action takes the strip with the same buzz, and it runs

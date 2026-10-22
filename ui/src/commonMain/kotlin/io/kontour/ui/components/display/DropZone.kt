@@ -47,7 +47,8 @@ import io.kontour.ui.theme.Theme
  * - **Over it, and it would be taken**, a solid accent edge on the accent's
  *   ground.
  * - **Over it, and turned away** by the state's `accepts`, the same in the
- *   danger colour.
+ *   danger colour, and with `Theme.icons.danger` in place of its icon: the two
+ *   differed by colour alone, which is the one difference a reader may not see.
  *
  * For a target that takes only files and text from outside the app — an upload
  * area — make its state with the `rememberDropTargetState(label, external)`
@@ -134,6 +135,12 @@ fun DropZone(
         else -> if (enabled) colours.contentMuted else colours.contentDisabled
     }
 
+    // Turned away is said by the mark as well as by the colour.
+    val refusedGlyph = Theme.icons.danger
+    val slots = stateSlots(content).apply {
+        if (status == DropStatus.Refused) leading { +refusedGlyph }
+    }
+
     Box(
         modifier
             .fillMaxWidth()
@@ -144,7 +151,7 @@ fun DropZone(
         ProvideContentColour(text) {
             StateBlock(
                 modifier = Modifier,
-                slots = stateSlots(content),
+                slots = slots,
                 iconTint = icon,
                 assertive = false,
                 announced = false,

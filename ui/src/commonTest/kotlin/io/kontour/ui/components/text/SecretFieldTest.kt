@@ -36,7 +36,7 @@ class SecretFieldTest {
     fun aSecretFieldIsNotAPasswordToAutofill() = runComposeUiTest {
         setContent {
             KontourTheme {
-                SecretField(state = TextFieldState("kt_live_51Hx"), label = "API key", revealIcon = SystemIcons.ChevronDown)
+                SecretField(state = TextFieldState("kt_live_51Hx"), label = "API key", revealIcon = SystemIcons.Default.chevronDown)
             }
         }
         val field = onNode(hasSetTextAction()).fetchSemanticsNode().config
@@ -56,7 +56,7 @@ class SecretFieldTest {
                 SecretField(
                     state = TextFieldState("kt_live_51Hx"),
                     label = "API key",
-                    revealIcon = SystemIcons.ChevronDown,
+                    revealIcon = SystemIcons.Default.chevronDown,
                     revealLastTyped = false,
                 )
             }

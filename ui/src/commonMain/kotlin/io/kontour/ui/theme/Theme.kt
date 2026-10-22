@@ -15,6 +15,7 @@ import androidx.compose.ui.text.intl.Locale
 import io.kontour.ui.adaptive.LocalWindowSizeClass
 import io.kontour.ui.adaptive.PhoneDefault
 import io.kontour.ui.adaptive.rememberWindowSizeClassFromWindow
+import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.LocalContentColour
 import io.kontour.ui.foundation.LocalTextStyle
 import io.kontour.ui.foundation.textSelectionColours
@@ -24,6 +25,9 @@ import io.kontour.ui.input.rememberInputModalityState
 import io.kontour.ui.input.trackInputModality
 import io.kontour.ui.interaction.FeedbackDispatcher
 import io.kontour.ui.interaction.HapticsLevel
+import io.kontour.ui.interaction.HoverWatch
+import io.kontour.ui.interaction.LocalHoverWatch
+import io.kontour.ui.interaction.watchHover
 import io.kontour.ui.interaction.FeedbackFloor
 import io.kontour.ui.interaction.LocalFeedbackFloor
 import io.kontour.ui.interaction.LocalFeedback
@@ -131,6 +135,17 @@ object Theme {
      */
     val strings: Strings
         @Composable @ReadOnlyComposable get() = LocalStrings.current
+
+    /**
+     * Every glyph the library draws that the caller did not supply: a select's
+     * chevron, a toast's close, a sorted column's arrow. Tabler's unless the app
+     * gives `KontourTheme` a set of its own; see [SystemIcons].
+     *
+     * Read by parameter defaults where a component takes the glyph, as
+     * [strings] is, so a call site can still override one.
+     */
+    val icons: SystemIcons
+        @Composable @ReadOnlyComposable get() = LocalSystemIcons.current
 
     /**
      * How this reader writes everything that is not words: numbers, dates,
@@ -283,7 +298,19 @@ fun KontourTheme(
     motion: Motion = remember(reduceMotion) { kontourMotion(reduceMotion) },
     sizing: Sizing = remember(contrast) { kontourSizing(contrast) },
     componentDefaults: ComponentDefaults = remember { ComponentDefaults() },
+    /**
+     * Every word the library says on its own. **English, whatever `locale`
+     * is**: the locale changes how numbers and dates are written, and the words
+     * are the app's, built from its own resources with `Strings.from` and built
+     * again when its language changes. See `ui-docs/content/localisation.md`.
+     */
     strings: Strings = remember { Strings() },
+    /**
+     * Every glyph the library draws on its own behalf. Tabler's by default;
+     * `SystemIcons(close = …, chevronDown = …)` replaces the ones given and
+     * keeps Tabler's for the rest.
+     */
+    icons: SystemIcons = SystemIcons.Default,
     /**
      * The reader's locale: the device's, followed live, at the root; the
      * enclosing theme's in a nested one.
@@ -401,6 +428,7 @@ fun KontourTheme(
         LocalSizing provides sizing,
         LocalComponentDefaults provides componentDefaults,
         LocalStrings provides strings,
+        LocalSystemIcons provides icons,
         LocalLocaleFormats provides formats,
         LocalContrastLevel provides contrast,
         LocalBackdropBlur provides backdropBlur,
@@ -464,16 +492,21 @@ private fun ThemeContent(alreadyTracking: Boolean, content: @Composable () -> Un
         content()
     } else {
         val modality = rememberInputModalityState()
+        // Whether the pointer event in hand is a hover, which no haptic under
+        // the theme plays for: see `HoverWatch`. Once, with the modality tracker.
+        val hover = remember { HoverWatch() }
         CompositionLocalProvider(
             LocalInputModality provides modality.current,
             LocalInputModalityInstalled provides true,
             LocalInputModalityState provides modality,
+            LocalHoverWatch provides hover,
         ) {
             // Once, at the outermost theme: see `catchRestedFlicks`.
             val trail = remember { FingerTrail() }
             Box(
                 Modifier
                     .trackInputModality(modality)
+                    .watchHover(hover)
                     .then(if (platformLosesRestedFlicks) Modifier.catchRestedFlicks(trail) else Modifier)
                     .then(if (platformGuardsHomeIndicator) Modifier.guardHomeIndicator() else Modifier)
             ) {
@@ -615,6 +648,9 @@ val LocalComponentDefaults = staticCompositionLocalOf<ComponentDefaults> { error
 /** @see LocalColourScheme */
 val LocalStrings = staticCompositionLocalOf<Strings> { error(NOT_IN_THEME) }
 
+/** @see Theme.icons */
+val LocalSystemIcons = staticCompositionLocalOf<SystemIcons> { error(NOT_IN_THEME) }
+
 /**
  * The formats in use; read through [Theme.formats].
  *
@@ -691,6 +727,7 @@ fun ProvideTokens(
     sizing: Sizing = LocalSizing.current,
     componentDefaults: ComponentDefaults = LocalComponentDefaults.current,
     strings: Strings = LocalStrings.current,
+    icons: SystemIcons = LocalSystemIcons.current,
     formats: LocaleFormats = LocalLocaleFormats.current,
     content: @Composable () -> Unit,
 ) {
@@ -721,6 +758,7 @@ fun ProvideTokens(
         LocalSizing provides sizing,
         LocalComponentDefaults provides componentDefaults,
         LocalStrings provides strings,
+        LocalSystemIcons provides icons,
         LocalLocaleFormats provides formats,
         LocalContentColour provides
             if (contentColour == outgoingColours.content) {

@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -15,8 +14,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import io.kontour.icons.tabler.Tabler
 import io.kontour.icons.tabler.outline.Bus
@@ -37,27 +34,27 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * A press on another item leans the selection marker toward it, a little,
- * before the press lets go and the marker goes there.
+ * A press on another segment of a segmented control leans its thumb toward it,
+ * a little, before the press lets go and the thumb goes there. A press on a nav
+ * bar's, a nav rail's or a tab bar's destination does not.
  *
  * Asked for as *"if you tap another option, the indicator stretches/moves a
  * little bit towards it? a little bit like the animation before the segmented
- * control moves. same animation goes for dragging it"*. The segmented control's
- * thumb already leant toward a finger dragging it; this is the same reach, for
- * a press, in every control that draws its selection with the shared indicator:
- * the nav bar, the nav rail, the tab bar and the segmented control itself.
+ * control moves"*, and given to every control that draws its selection with
+ * the shared indicator. Taken back from the destinations as *"it looks a bit
+ * daft, especially when you're constantly switching tabs ... just get rid of
+ * the little eager jump beforehand"*: a page's destinations are switched
+ * between all day, and the marker twitched toward each before it went. A drag
+ * still leans them, as it goes: see `NavBarMarkerDragTest`.
  *
- * What is held:
+ * What is held, of the thumb:
  *
- * - **It moves toward the item pressed, and grows**, from the edge it is
+ * - **It moves toward the segment pressed, and grows**, from the edge it is
  *   leaving, by a fraction of its own size: at most a quarter of its span, and
  *   at most a fifth wider. A nudge, not the trip.
- * - **It lets go.** A press that slides off the item and is cancelled chooses
- *   nothing, and the marker is back where it was.
- * - **Not under reduced motion**, where the marker goes where it is sent
+ * - **A far segment leans it no further** than the next one along.
+ * - **Not under reduced motion**, where the thumb goes where it is sent
  *   without reaching for it first.
- * - **Mirrored** in a right-to-left bar, and **down a rail**, where the items
- *   are stacked.
  *
  * The marker is found from the pixels: a red page, a white bar and a blue
  * marker, as in `NavBarMarkerDragTest`.
@@ -77,17 +74,21 @@ class IndicatorAnticipationTest {
     }
 
     private val items = MutableList(4) { Rect.Zero }
+    private var control = Rect.Zero
 
     private fun centre(i: Int) = Offset(items[i].center.x, items[i].center.y)
 
+    /** The middle of the [i]th of the segmented control's four segments. */
+    private fun segment(i: Int) = Offset(control.left + control.width * (i + 0.5f) / 4f, control.center.y)
+
     @Test
-    fun aPressOnAnotherDestinationLeansTheMarkerTowardIt() {
+    fun aPressOnAnotherDestinationLeavesTheMarkerWhereItIs() {
         val clicks = mutableListOf<String>()
         navBar(clicks).use { scene ->
             val rest = scene.frames(30).alongRow(row())
             scene.press(centre(2))
             val held = scene.frames(30).alongRow(row())
-            assertLeans(rest, held, toward = 1, "a nav bar's marker, the third destination pressed")
+            assertStill(rest, held, "a nav bar's marker, the third destination pressed")
             assertEquals(emptyList(), clicks, "a destination was chosen before the press let go")
 
             // And a press is still a tap: the lift chooses it, and the marker goes.
@@ -101,78 +102,8 @@ class IndicatorAnticipationTest {
         }
     }
 
-    /** The far end leans no further than the next one along: a nudge, not a share of the trip. */
     @Test
-    fun aFarDestinationLeansNoFurtherThanTheNextOne() {
-        var rest = Run(0, -1)
-        val near = navBar().use { scene ->
-            rest = scene.frames(30).alongRow(row())
-            scene.press(centre(1))
-            scene.frames(30).alongRow(row())
-        }
-        assertTrue(near.centre - rest.centre > Visible, "the second destination pressed did not lean the marker, so this measures nothing")
-        val far = navBar().use { scene ->
-            scene.frames(30)
-            scene.press(centre(3))
-            scene.frames(30).alongRow(row())
-        }
-        assertTrue(
-            abs(far.centre - near.centre) <= Settled,
-            "pressing the fourth destination leant the marker to ${far.centre}px and the second to ${near.centre}px",
-        )
-    }
-
-    @Test
-    fun aPressThatSlidesOffLetsTheMarkerGoBack() {
-        val clicks = mutableListOf<String>()
-        navBar(clicks).use { scene ->
-            val rest = scene.frames(30).alongRow(row())
-            scene.press(centre(2))
-            val held = scene.frames(30).alongRow(row())
-            assertTrue(abs(held.centre - rest.centre) > Visible, "the press never leant the marker, so this measures nothing")
-
-            // Straight up, off the bar and onto the page: the press is cancelled.
-            val from = centre(2)
-            for (step in 1..10) {
-                scene.move(Offset(from.x, from.y - (from.y - 10f) * step / 10f))
-                scene.frame()
-            }
-            scene.release(Offset(from.x, 10f))
-            val after = scene.frames(40).alongRow(row())
-            assertEquals(emptyList(), clicks, "a press cancelled off the bar chose a destination")
-            assertTrue(
-                abs(after.start - rest.start) <= Settled && abs(after.end - rest.end) <= Settled,
-                "let go, the marker is at ${after.start}..${after.end}px, not back at ${rest.start}..${rest.end}px",
-            )
-        }
-    }
-
-    @Test
-    fun underReducedMotionTheMarkerStaysWhereItIs() {
-        navBar(reduceMotion = true).use { scene ->
-            val rest = scene.frames(30).alongRow(row())
-            scene.press(centre(2))
-            val held = scene.frames(30).alongRow(row())
-            assertTrue(
-                held.start == rest.start && held.end == rest.end,
-                "under reduced motion a press moved the marker from ${rest.start}..${rest.end}px to ${held.start}..${held.end}px",
-            )
-        }
-    }
-
-    @Test
-    fun rightToLeftItLeansTheOtherWay() {
-        navBar(rtl = true).use { scene ->
-            val rest = scene.frames(30).alongRow(row())
-            assertTrue(items[2].center.x < items[0].center.x, "the bar is not mirrored, so this measures nothing")
-            scene.press(centre(2))
-            val held = scene.frames(30).alongRow(row())
-            assertLeans(rest, held, toward = -1, "a right-to-left nav bar's marker")
-        }
-    }
-
-    @Test
-    fun downARailItLeansTowardTheItemBelow() {
+    fun aPressDownARailLeavesTheMarkerWhereItIs() {
         Scene(width = 400, height = 700, density = Density) {
             var here by mutableStateOf("a")
             Box(Modifier.fillMaxSize().background(Page)) {
@@ -186,12 +117,12 @@ class IndicatorAnticipationTest {
             val rest = first.alongColumn(column)
             scene.press(centre(2))
             val held = scene.frames(30).alongColumn(column)
-            assertLeans(rest, held, toward = 1, "a nav rail's marker, the third item pressed")
+            assertStill(rest, held, "a nav rail's marker, the third item pressed")
         }
     }
 
     @Test
-    fun aTabBarsMarkerLeansTowardTheTabPressed() {
+    fun aPressOnATabLeavesTheTabBarsMarkerWhereItIs() {
         Scene(width = 800, height = 200, density = Density) {
             var here by mutableStateOf(0)
             Box(Modifier.fillMaxSize().background(Color.White).padding(16.dp)) {
@@ -212,30 +143,58 @@ class IndicatorAnticipationTest {
             val rest = first.alongRow(y)
             scene.press(centre(2))
             val held = scene.frames(30).alongRow(y)
-            assertLeans(rest, held, toward = 1, "a tab bar's marker, the third tab pressed")
+            assertStill(rest, held, "a tab bar's marker, the third tab pressed")
         }
     }
 
-    /** And the control the reach came from: a press on a segment, not only a drag. */
+    /** The control the reach came from, and the one that keeps it. */
     @Test
     fun aSegmentedControlsThumbLeansTowardTheSegmentPressed() {
-        var bounds = Rect.Zero
-        Scene(width = 700, height = 200, density = Density) {
-            var selected by mutableStateOf(0)
-            Box(Modifier.fillMaxSize().background(Color.White).padding(20.dp)) {
-                SegmentedControl(
-                    options = listOf("Depart", "Arrive", "Last"),
-                    selectedIndex = selected,
-                    onSelectedIndexChange = { selected = it },
-                    modifier = Modifier.fillMaxWidth().reportBounds { bounds = it },
-                )
-            }
-        }.use { scene ->
-            val rest = scene.frames(30).thumb(bounds)
-            scene.press(Offset(bounds.left + bounds.width * 5f / 6f, bounds.center.y))
-            val held = scene.frames(30).thumb(bounds)
+        segmented().use { scene ->
+            val rest = scene.frames(30).thumb(control)
+            scene.press(segment(3))
+            val held = scene.frames(30).thumb(control)
             assertLeans(rest, held, toward = 1, "a segmented control's thumb, the last segment pressed")
         }
+    }
+
+    /** The far end leans no further than the next one along: a nudge, not a share of the trip. */
+    @Test
+    fun aFarSegmentLeansNoFurtherThanTheNextOne() {
+        var rest = Run(0, -1)
+        val near = segmented().use { scene ->
+            rest = scene.frames(30).thumb(control)
+            scene.press(segment(1))
+            scene.frames(30).thumb(control)
+        }
+        assertTrue(near.centre - rest.centre > Visible, "the second segment pressed did not lean the thumb, so this measures nothing")
+        val far = segmented().use { scene ->
+            scene.frames(30)
+            scene.press(segment(3))
+            scene.frames(30).thumb(control)
+        }
+        assertTrue(
+            abs(far.centre - near.centre) <= Settled,
+            "pressing the fourth segment leant the thumb to ${far.centre}px and the second to ${near.centre}px",
+        )
+    }
+
+    @Test
+    fun underReducedMotionTheThumbStaysWhereItIs() {
+        segmented(reduceMotion = true).use { scene ->
+            val rest = scene.frames(30).thumb(control)
+            scene.press(segment(2))
+            val held = scene.frames(30).thumb(control)
+            assertStill(rest, held, "under reduced motion, a segmented control's thumb")
+        }
+    }
+
+    /** [held] is where [rest] was, to a pixel: no lean. */
+    private fun assertStill(rest: Run, held: Run, what: String) {
+        assertTrue(
+            abs(held.start - rest.start) <= Settled && abs(held.end - rest.end) <= Settled,
+            "$what moved from ${rest.start}..${rest.end}px to ${held.start}..${held.end}px on a press",
+        )
     }
 
     /**
@@ -262,14 +221,22 @@ class IndicatorAnticipationTest {
         assertTrue(leaving >= -Settled, "$what's trailing edge moved away from where it is going, by ${-leaving}px")
     }
 
-    private fun navBar(
-        clicks: MutableList<String> = mutableListOf(),
-        reduceMotion: Boolean = false,
-        rtl: Boolean = false,
-    ): Scene = Scene(width = 800, height = 300, density = Density, reduceMotion = reduceMotion) {
-        var here by mutableStateOf("a")
-        val direction = if (rtl) LayoutDirection.Rtl else LayoutDirection.Ltr
-        CompositionLocalProvider(LocalLayoutDirection provides direction) {
+    private fun segmented(reduceMotion: Boolean = false): Scene =
+        Scene(width = 800, height = 200, density = Density, reduceMotion = reduceMotion) {
+            var selected by mutableStateOf(0)
+            Box(Modifier.fillMaxSize().background(Color.White).padding(20.dp)) {
+                SegmentedControl(
+                    options = listOf("Depart", "Arrive", "Last", "Next"),
+                    selectedIndex = selected,
+                    onSelectedIndexChange = { selected = it },
+                    modifier = Modifier.fillMaxWidth().reportBounds { control = it },
+                )
+            }
+        }
+
+    private fun navBar(clicks: MutableList<String> = mutableListOf()): Scene =
+        Scene(width = 800, height = 300, density = Density) {
+            var here by mutableStateOf("a")
             Box(Modifier.fillMaxSize().background(Page), contentAlignment = Alignment.BottomCenter) {
                 NavBar(
                     colours = NavDefaults.colours(
@@ -283,7 +250,6 @@ class IndicatorAnticipationTest {
                 }
             }
         }
-    }
 
     /** The four destinations, in a bar or a rail. */
     @Composable

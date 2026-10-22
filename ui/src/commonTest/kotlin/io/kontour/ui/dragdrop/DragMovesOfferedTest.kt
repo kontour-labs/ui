@@ -9,9 +9,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.semantics.SemanticsProperties
@@ -20,6 +22,7 @@ import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.v2.runComposeUiTest
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.overlay.OverlayHost
@@ -72,6 +75,50 @@ class DragMovesOfferedTest {
         assertEquals(listOf("Move to To do", "Move to Done"), movesOf("Fares"))
         assertEquals(listOf("Move to To do", "Move to Doing"), movesOf("Maps"))
     }
+
+    /**
+     * A row's items move left and right, not up and down: a column's words read
+     * out for a row of tabs. Right to left, back is right.
+     */
+    @Test
+    fun aRowOffersLeftAndRight() = rowMoves(LayoutDirection.Ltr, back = "Move left", forward = "Move right")
+
+    @Test
+    fun aRowRightToLeftOffersThemTheOtherWayRound() = rowMoves(LayoutDirection.Rtl, back = "Move right", forward = "Move left")
+
+    private fun rowMoves(direction: LayoutDirection, back: String, forward: String) = runComposeUiTest {
+        setContent {
+            KontourTheme {
+                CompositionLocalProvider(LocalLayoutDirection provides direction) {
+                    OverlayHost {
+                        val scroll = rememberLazyListState()
+                        val tabs = rememberDropListState(
+                            listState = scroll,
+                            type = Card,
+                            items = listOf("Timetable", "Fares", "Maps"),
+                            key = { it },
+                            label = "Tabs",
+                            itemLabel = { it },
+                            onDrop = {},
+                        )
+                        LazyRow(state = scroll, modifier = Modifier.fillMaxSize().dropList(tabs)) {
+                            dragItems(tabs) { _, tab -> Box(Modifier.width(96.dp)) { Text(tab) } }
+                        }
+                    }
+                }
+            }
+        }
+        waitForIdle()
+        assertEquals(listOf(forward), movesAlong("Timetable"))
+        assertEquals(listOf(back, forward), movesAlong("Fares"))
+        assertEquals(listOf(back), movesAlong("Maps"))
+    }
+
+    /** The moves along its own list offered for [card]. */
+    private fun ComposeUiTest.movesAlong(card: String): List<String> =
+        onAllNodes(hasMoves() and holds(card)).fetchSemanticsNodes().lastOrNull()
+            ?.config?.getOrNull(SemanticsActions.CustomActions).orEmpty()
+            .map { it.label }.filter { !it.startsWith("Move to") }
 
     /** The moves to other targets offered for [card]: none at all, where nothing offers any. */
     private fun ComposeUiTest.movesOf(card: String): List<String> =

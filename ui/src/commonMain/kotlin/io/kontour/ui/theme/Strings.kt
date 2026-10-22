@@ -433,6 +433,54 @@ data class Strings(
     },
     /** An event over several days in a schedule, on the last of them: "Until 17:00". */
     val untilTime: (time: String) -> String = { time -> "Until $time" },
+
+    // Added in 0.5.0, at the end so that the fields before keep their places.
+    /**
+     * A label and its value, said as one: a key-value list's row, "Operator,
+     * Transperth". A phrase rather than a comma written into the component,
+     * because not every language joins the two with a comma, or in that order.
+     */
+    val labelledValue: (label: String, value: String) -> String = { label, value -> "$label, $value" },
+    /**
+     * A table's header checkbox, which selects every row. Not [selectAll], the
+     * text editor's: some languages word the two differently.
+     */
+    val selectAllRows: String = "Select all rows",
+    /**
+     * What a tap on a sortable column's header does, as a screen reader says
+     * it: "Double-tap to sort ascending". [sortedAscending] is what it is.
+     */
+    val sortAscending: String = "Sort ascending",
+    /** The same, for a column a tap sorts largest first. */
+    val sortDescending: String = "Sort descending",
+    /**
+     * A sortable column's header while the table is sorted by another, so that
+     * a header that can be sorted says so before it is tapped.
+     */
+    val notSorted: String = "Not sorted",
+    /**
+     * What pressing a day in a calendar's schedule does, as a screen reader
+     * says it: "Double-tap to show day". The day is the button's name.
+     */
+    val showDay: String = "Show day",
+    /**
+     * Moves a thing one place back along a row a screen reader reads across:
+     * a document tab, a card in a row of them. [moveUp] and [moveDown] are a
+     * column's. Back is left, and right to left it is right.
+     */
+    val moveLeft: String = "Move left",
+    /** The same, one place forward: right, and right to left, left. */
+    val moveRight: String = "Move right",
+    /** A tab strip's "+": what a screen reader calls the button that opens another tab. */
+    val newTab: String = "New tab",
+    /** A document tab's ×, named for the tab it closes: "Close Timetable". */
+    val closeTab: (name: String) -> String = { name -> "Close $name" },
+    /**
+     * What a screen reader calls the action that opens a thing's menu, the one
+     * a finger held on it or a secondary click opens: a document tab's, and
+     * its "+"'s.
+     */
+    val moreOptions: String = "More options",
 ) {
     companion object {
         /**
@@ -623,6 +671,17 @@ data class Strings(
         deleteEvent = lookup.text("deleteEvent") ?: fallback.deleteEvent,
         eventMoved = { event, time -> lookup.phrase("eventMoved", null, event, time) ?: fallback.eventMoved(event, time) },
         eventDeleted = { event -> lookup.phrase("eventDeleted", null, event) ?: fallback.eventDeleted(event) },
+        labelledValue = { label, value -> lookup.phrase("labelledValue", null, label, value) ?: fallback.labelledValue(label, value) },
+        selectAllRows = lookup.text("selectAllRows") ?: fallback.selectAllRows,
+        sortAscending = lookup.text("sortAscending") ?: fallback.sortAscending,
+        sortDescending = lookup.text("sortDescending") ?: fallback.sortDescending,
+        notSorted = lookup.text("notSorted") ?: fallback.notSorted,
+        showDay = lookup.text("showDay") ?: fallback.showDay,
+        moveLeft = lookup.text("moveLeft") ?: fallback.moveLeft,
+        moveRight = lookup.text("moveRight") ?: fallback.moveRight,
+        newTab = lookup.text("newTab") ?: fallback.newTab,
+        closeTab = { name -> lookup.phrase("closeTab", null, name) ?: fallback.closeTab(name) },
+        moreOptions = lookup.text("moreOptions") ?: fallback.moreOptions,
         )
     }
 }
@@ -644,8 +703,16 @@ fun interface StringLookup {
     fun plural(key: String, quantity: Quantity): String? = null
 }
 
-/** [key]'s translation, in [quantity]'s plural form where it has one, filled with [arguments]. */
-private fun StringLookup.phrase(key: String, quantity: Quantity?, vararg arguments: String): String? =
+/**
+ * [key]'s translation, in [quantity]'s plural form where it has one, filled with
+ * [arguments] — `%1$s` and the rest, never through a platform formatter that
+ * would write the numbers in its own locale's digits.
+ *
+ * What [Strings.from] reads every phrase with, and public so that a module with
+ * words of its own — the charts' `ChartStrings` — reads its phrases the same
+ * way from the same lookup.
+ */
+fun StringLookup.phrase(key: String, quantity: Quantity?, vararg arguments: String): String? =
     (quantity?.let { plural(key, it) } ?: text(key))?.let { fillArguments(it, arguments) }
 
 /**
@@ -856,4 +923,15 @@ internal fun Strings.mapped(transform: (String) -> String): Strings = Strings(
     deleteEvent = transform(deleteEvent),
     eventMoved = { a0, a1 -> transform(eventMoved(a0, a1)) },
     eventDeleted = { a0 -> transform(eventDeleted(a0)) },
+    labelledValue = { a0, a1 -> transform(labelledValue(a0, a1)) },
+    selectAllRows = transform(selectAllRows),
+    sortAscending = transform(sortAscending),
+    sortDescending = transform(sortDescending),
+    notSorted = transform(notSorted),
+    showDay = transform(showDay),
+    moveLeft = transform(moveLeft),
+    moveRight = transform(moveRight),
+    newTab = transform(newTab),
+    closeTab = { a0 -> transform(closeTab(a0)) },
+    moreOptions = transform(moreOptions),
 )

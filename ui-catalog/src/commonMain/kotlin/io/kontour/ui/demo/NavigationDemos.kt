@@ -23,6 +23,18 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.kontour.icons.tabler.Tabler
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
+import io.kontour.ui.dragdrop.DropListState
+import io.kontour.ui.dragdrop.DropEvent
+import io.kontour.ui.dragdrop.DragType
+import io.kontour.ui.dragdrop.rememberDropListState
+import io.kontour.ui.nav.DocumentTabs
+import io.kontour.ui.foundation.Surface
+import io.kontour.ui.foundation.Icon
+import androidx.compose.foundation.layout.Row
+import io.kontour.icons.tabler.outline.Clock
+import io.kontour.icons.tabler.outline.AlertTriangle
 import io.kontour.icons.tabler.outline.Bell
 import io.kontour.icons.tabler.outline.Calendar
 import io.kontour.icons.tabler.outline.DotsVertical
@@ -106,24 +118,7 @@ import io.kontour.ui.components.list.listSection
  */
 @Composable
 private fun Frame(height: Dp, content: @Composable () -> Unit) {
-    Box(
-        Modifier
-            .fillMaxWidth()
-            .height(height)
-            .border(
-                width = Theme.sizing.borderWidth,
-                color = Theme.colours.outline,
-                shape = Theme.shapes.medium,
-            )
-            .clip(Theme.shapes.medium)
-            .background(Theme.colours.surfaceSunken),
-    ) {
-        // The ground a floating bar fades its page into, as a `Surface` would
-        // say: painted rather than a surface, the frame has to say it itself.
-        CompositionLocalProvider(LocalContainerColour provides Theme.colours.surfaceSunken) {
-            OverlayHost(Modifier.fillMaxSize()) { content() }
-        }
-    }
+    DemoWindow(Modifier.fillMaxWidth().height(height), ground = Theme.colours.surfaceSunken) { content() }
 }
 
 /** One demo destination. */
@@ -717,6 +712,145 @@ internal val TabBarDemo = ComponentDemo(
     }
 }
 
+/** An open document in the tabs demo: its title and the glyph its tab shows. */
+private class OpenDocument(val id: Int, val title: String, val icon: ImageVector)
+
+private val DocumentTab = DragType<OpenDocument>("documentTab")
+
+private val documentCloses = Knob.Flag("Close buttons", initial = true)
+private val documentAdds = Knob.Flag("Add button", initial = true)
+
+/** The strip's own default, on: off, a middle click on a tab is the app's. */
+private val documentMiddleClick = Knob.Flag("Middle click closes", initial = true)
+
+/** Two strips side by side, which take each other's tabs: drag one down off its strip and across. */
+private val documentSplit = Knob.Flag("Split view")
+
+internal val DocumentTabsDemo = ComponentDemo(
+    slug = "document-tabs",
+    knobs = listOf(documentCloses, documentAdds, documentMiddleClick, documentSplit),
+) {
+    var next by remember { mutableIntStateOf(5) }
+    val left = remember {
+        mutableStateListOf(
+            OpenDocument(0, "Timetable", Tabler.Outline.Clock),
+            OpenDocument(1, "Fares", Tabler.Outline.Ticket),
+            OpenDocument(2, "Route map", Tabler.Outline.Map),
+            OpenDocument(3, "Service alerts", Tabler.Outline.AlertTriangle),
+        )
+    }
+    val right = remember { mutableStateListOf(OpenDocument(4, "Stops near you", Tabler.Outline.Pin)) }
+    val closes = this[documentCloses]
+    val adds = this[documentAdds]
+    val middleClick = this[documentMiddleClick]
+    val split = this[documentSplit]
+
+    // The two strips, and which list each one is: a drop says where it came
+    // from by its strip, and the move is made between the two lists here.
+    val leftScroll = rememberLazyListState()
+    val rightScroll = rememberLazyListState()
+    val strips = remember { arrayOfNulls<DropListState<OpenDocument>>(2) }
+    fun documentsOf(strip: DropListState<*>?): MutableList<OpenDocument>? = when {
+        strip == null -> null
+        strip === strips[0] -> left
+        strip === strips[1] -> right
+        else -> null
+    }
+    fun move(drop: DropEvent<OpenDocument>, into: MutableList<OpenDocument>) {
+        documentsOf(drop.fromList)?.remove(drop.payload)
+        into.add(drop.index.coerceIn(0, into.size), drop.payload)
+    }
+    strips[0] = rememberDropListState(
+        leftScroll, DocumentTab, left, key = { it.id }, label = "Left pane", itemLabel = { it.title }, onDrop = { move(it, left) },
+    )
+    strips[1] = rememberDropListState(
+        rightScroll, DocumentTab, right, key = { it.id }, label = "Right pane", itemLabel = { it.title }, onDrop = { move(it, right) },
+    )
+
+    Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.md)) {
+        val make = { title: String, icon: ImageVector -> OpenDocument(next++, title, icon) }
+        DocumentPane(strips[0]!!, left, closes, adds, middleClick, split, Modifier.weight(1f), make)
+        if (split) {
+            DocumentPane(strips[1]!!, right, closes, adds, middleClick, split, Modifier.weight(1f), make)
+        }
+    }
+}
+
+/**
+ * A pane of the tabs demo: its strip, and under it the open document's page,
+ * joined to its tab. A right click on a tab or the "+", or a finger held still
+ * on one, opens a browser's menu for it.
+ */
+@Composable
+private fun DocumentPane(
+    state: DropListState<OpenDocument>,
+    documents: MutableList<OpenDocument>,
+    closes: Boolean,
+    adds: Boolean,
+    middleClick: Boolean,
+    split: Boolean,
+    modifier: Modifier,
+    make: (title: String, icon: ImageVector) -> OpenDocument,
+) {
+    var open by remember { mutableStateOf(documents.firstOrNull()) }
+    // What was closed here, last first, for "Reopen closed tab".
+    val closed = remember { mutableStateListOf<OpenDocument>() }
+    // A tab carried away to the other pane takes its page with it: the first opens.
+    val shown = open?.takeIf { it in documents } ?: documents.firstOrNull()
+    fun close(closing: OpenDocument) {
+        val at = documents.indexOf(closing)
+        documents.remove(closing)
+        closed.add(0, closing)
+        if (shown == closing) open = documents.getOrNull(at) ?: documents.lastOrNull()
+    }
+    fun add(made: OpenDocument, at: Int = documents.size) {
+        documents.add(at, made)
+        open = made
+    }
+    Column(modifier) {
+        DocumentTabs(
+            state = state,
+            value = shown,
+            onValueChange = { open = it },
+            modifier = Modifier.fillMaxWidth(),
+            onClose = if (closes) ::close else null,
+            onAdd = if (adds) {
+                { add(make("Untitled", Tabler.Outline.Plus)) }
+            } else {
+                null
+            },
+            // Between the two panes only when there are two.
+            movesBetweenStrips = split,
+            closeOnMiddleClick = middleClick,
+            tabMenu = { document ->
+                val at = documents.indexOf(document)
+                item("Duplicate") { add(make(document.title, document.icon), at + 1) }
+                divider()
+                item("Close others", enabled = closes && documents.size > 1) {
+                    documents.filter { it != document }.forEach(::close)
+                    open = document
+                }
+                item("Close to the right", enabled = closes && at < documents.lastIndex) {
+                    documents.drop(at + 1).forEach(::close)
+                    if (open !in documents) open = document
+                }
+            },
+            addMenu = {
+                item("New tab") { add(make("Untitled", Tabler.Outline.Plus)) }
+                item("Reopen closed tab", enabled = closed.isNotEmpty()) { add(closed.removeAt(0)) }
+            },
+            leading = { document -> Icon(document.icon, contentDescription = null) },
+        )
+        Surface(Modifier.fillMaxWidth().height(160.dp), containerColour = Theme.colours.surface) {
+            Text(
+                shown?.title ?: "Nothing open",
+                style = Theme.typography.titleMedium,
+                modifier = Modifier.padding(Theme.spacing.md),
+            )
+        }
+    }
+}
+
 internal val BreadcrumbsDemo = ComponentDemo(slug = "breadcrumbs") {
     // The last crumb has no `onClick`, which is what makes it the current page
     // rather than a link back to itself.
@@ -767,6 +901,7 @@ internal val navigationDemos = listOf(
     NavigationSuiteScaffoldDemo,
     TopBarDemo,
     TabBarDemo,
+    DocumentTabsDemo,
     BreadcrumbsDemo,
     PaginationDemo,
 )

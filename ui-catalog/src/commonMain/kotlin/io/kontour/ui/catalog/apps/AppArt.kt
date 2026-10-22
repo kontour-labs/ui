@@ -8,8 +8,11 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import kotlin.math.PI
+import kotlin.math.sin
 
 /*
  * The apps' pictures, drawn rather than loaded: the gallery runs with no
@@ -114,6 +117,47 @@ internal fun BoardArt(modifier: Modifier = Modifier) {
     }
 }
 
+/** A house with panels on its roof under the sun, and the day's curve of power behind: Energy's picture. */
+@Composable
+internal fun RoofArt(modifier: Modifier = Modifier) {
+    Canvas(modifier.clearAndSetSemantics {}) {
+        drawRect(Brush.verticalGradient(listOf(Noon, Morning)))
+        drawCircle(Sun, radius = size.minDimension * 0.11f, center = Offset(size.width * 0.8f, size.height * 0.24f))
+        // The day's power, a hill of bars behind the house.
+        val bars = 14
+        val bar = size.width / (bars * 1.6f)
+        for (i in 0 until bars) {
+            val h = size.height * (0.12f + 0.5f * sin(PI.toFloat() * (i + 0.5f) / bars))
+            drawRoundRect(
+                Curve,
+                topLeft = Offset(size.width * 0.04f + i * bar * 1.6f, size.height * 0.86f - h),
+                size = Size(bar, h),
+                cornerRadius = CornerRadius(bar * 0.3f),
+            )
+        }
+        // The house and its roof, the panels a grid on the near slope.
+        val wall = Offset(size.width * 0.3f, size.height * 0.56f)
+        val wide = size.width * 0.4f
+        drawRect(Wall, wall, Size(wide, size.height * 0.3f))
+        val roof = Path().apply {
+            moveTo(wall.x - wide * 0.08f, wall.y)
+            lineTo(wall.x + wide / 2, size.height * 0.28f)
+            lineTo(wall.x + wide * 1.08f, wall.y)
+            close()
+        }
+        drawPath(roof, Tiles)
+        for (row in 0 until 2) {
+            for (col in 0 until 3) {
+                val top = size.height * (0.40f + row * 0.065f)
+                val left = wall.x + wide * (0.14f + col * 0.12f) + row * wide * 0.04f
+                drawRect(Panel, Offset(left, top), Size(wide * 0.1f, size.height * 0.05f))
+            }
+        }
+        drawRect(Door, Offset(wall.x + wide * 0.62f, size.height * 0.7f), Size(wide * 0.14f, size.height * 0.16f))
+        drawRect(Ground, Offset(0f, size.height * 0.86f), Size(size.width, size.height * 0.14f))
+    }
+}
+
 private val Dusk = Color(0xFF2B2A5C)
 private val Ember = Color(0xFFE0796B)
 private val Haze = Color(0xFFF6C38B)
@@ -138,3 +182,12 @@ private val Lane = Color(0x33FFFFFF)
 private val CardFace = Color(0xFFFFFFFF)
 private val Lifted = Color(0xFFFFF3C4)
 private val Shade = Color(0x33000000)
+
+private val Noon = Color(0xFF8CCBF2)
+private val Morning = Color(0xFFDDF1F7)
+private val Curve = Color(0x66F2B63D)
+private val Wall = Color(0xFFF7F1E6)
+private val Tiles = Color(0xFF7A4B3A)
+private val Panel = Color(0xFF243B6B)
+private val Door = Color(0xFF4E6E58)
+private val Ground = Color(0xFF7DB36A)

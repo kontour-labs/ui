@@ -14,6 +14,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.nav.DocumentTabs
+import io.kontour.ui.foundation.Surface
+import io.kontour.ui.dragdrop.rememberDropListState
+import io.kontour.ui.dragdrop.DragType
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableIntStateOf
 import io.kontour.icons.tabler.Tabler
 import io.kontour.icons.tabler.outline.Basket
 import io.kontour.icons.tabler.outline.Bell
@@ -146,6 +154,99 @@ fun TabBarBasics() {
             +"Arrivals"
         }
     }
+}
+
+private class Paper(val id: Int, val title: String)
+
+private val PaperTab = DragType<Paper>("paper")
+
+@Composable
+fun DocumentTabsBasics() {
+    // Open documents as tabs: closed by their ×, opened by the "+", dragged
+    // into another order, and the open one joined to its page below.
+    val papers = remember { mutableStateListOf(Paper(1, "Timetable"), Paper(2, "Fares"), Paper(3, "Route map")) }
+    var open by remember { mutableStateOf<Paper?>(papers.first()) }
+    var next by remember { mutableIntStateOf(4) }
+    val tabs = rememberDropListState(
+        listState = rememberLazyListState(),
+        type = PaperTab,
+        items = papers,
+        key = { it.id },
+        label = "Open documents",
+        itemLabel = { it.title },
+        onDrop = { drop ->
+            papers.remove(drop.payload)
+            papers.add(drop.index.coerceAtMost(papers.size), drop.payload)
+        },
+    )
+
+    Column {
+        DocumentTabs(
+            state = tabs,
+            value = open,
+            onValueChange = { open = it },
+            onClose = { closing ->
+                papers.remove(closing)
+                if (open == closing) open = papers.lastOrNull()
+            },
+            onAdd = {
+                val untitled = Paper(next++, "Untitled")
+                papers.add(untitled)
+                open = untitled
+            },
+        )
+        Surface(Modifier.fillMaxWidth().height(160.dp)) {
+            Text(open?.title ?: "Nothing open")
+        }
+    }
+}
+
+@Composable
+fun DocumentTabsMenus() {
+    val papers = remember { mutableStateListOf(Paper(1, "Timetable"), Paper(2, "Fares"), Paper(3, "Route map")) }
+    val closed = remember { mutableStateListOf<Paper>() }
+    var open by remember { mutableStateOf<Paper?>(papers.first()) }
+    var next by remember { mutableIntStateOf(4) }
+    val tabs = rememberDropListState(
+        listState = rememberLazyListState(),
+        type = PaperTab,
+        items = papers,
+        key = { it.id },
+        label = "Open documents",
+        itemLabel = { it.title },
+        onDrop = { drop ->
+            papers.remove(drop.payload)
+            papers.add(drop.index.coerceAtMost(papers.size), drop.payload)
+        },
+    )
+
+    // A right click on a tab, or a finger held still on it, opens its menu
+    // with that tab; the "+" has one of its own. `item` closes the menu as it
+    // runs. A middle click still closes a tab: `closeOnMiddleClick = false`
+    // leaves the button to the app.
+    DocumentTabs(
+        state = tabs,
+        value = open,
+        onValueChange = { open = it },
+        onClose = { closing ->
+            papers.remove(closing)
+            closed.add(closing)
+            if (open == closing) open = papers.lastOrNull()
+        },
+        onAdd = { open = Paper(next++, "Untitled").also(papers::add) },
+        tabMenu = { paper ->
+            item("Close others", enabled = papers.size > 1) {
+                closed.addAll(papers.filter { it != paper })
+                papers.retainAll { it == paper }
+                open = paper
+            }
+        },
+        addMenu = {
+            item("Reopen closed tab", enabled = closed.isNotEmpty()) {
+                open = closed.removeAt(closed.lastIndex).also(papers::add)
+            }
+        },
+    )
 }
 
 @Composable

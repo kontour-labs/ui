@@ -8,6 +8,11 @@ import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.geometry.Offset
+import io.kontour.ui.locale.DateStyle
+import io.kontour.ui.locale.LocaleFormats
 import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.overlay.OverlayHost
@@ -57,6 +62,7 @@ class DaysViewsTest {
     private class Probe {
         lateinit var state: EventCalendarState
         lateinit var strings: Strings
+        lateinit var formats: LocaleFormats
     }
 
     private fun androidx.compose.ui.test.ComposeUiTest.calendar(view: CalendarView): Probe {
@@ -65,6 +71,7 @@ class DaysViewsTest {
             KontourTheme(reduceMotion = true) {
                 OverlayHost(Modifier.size(900.dp, 800.dp)) {
                     probe.strings = Theme.strings
+                    probe.formats = Theme.formats
                     probe.state = rememberEventCalendarState(wednesday, view, LocalTime(8, 0), DayOfWeek.MONDAY)
                     EventCalendar(state = probe.state, events = emptyList(), now = null, modifier = Modifier.size(900.dp, 800.dp))
                 }
@@ -84,6 +91,74 @@ class DaysViewsTest {
         onNode(hasContentDescription(probe.strings.nextDays) and hasClickAction()).performClick()
         waitForIdle()
         assertEquals(LocalDate(2026, 10, 17)..LocalDate(2026, 10, 19), probe.state.visibleDates)
+    }
+
+    /**
+     * Three days swiped a short way move on a day, not three: *"in 3-day
+     * calendar view, can we have the ability when swiping left/right to be able
+     * to snap to any starting day, not just days that land on a multiple of
+     * 3"*. A swipe a little under half the page is a day and a third of travel,
+     * and comes to rest on the day nearest where the finger let go, which is
+     * Thursday's. Everything that says what is shown goes with it: the dates,
+     * the day the state is about, and the columns on screen.
+     */
+    @Test
+    fun aShortSwipeMovesThreeDaysOnByOneDay() = runComposeUiTest {
+        val probe = calendar(CalendarView.ThreeDays)
+        assertEquals(wednesday..LocalDate(2026, 10, 16), probe.state.visibleDates)
+        swipeTowardsLater(PageShare)
+        val thursday = LocalDate(2026, 10, 15)
+        assertEquals(
+            thursday..LocalDate(2026, 10, 17),
+            probe.state.visibleDates,
+            "a swipe of ${(PageShare * 100).toInt()}% of the page moved the three days to ${probe.state.visibleDates}",
+        )
+        assertEquals(thursday, probe.state.date, "the day the state is about keeps its place in the three")
+        onNode(hasContentDescription(probe.formats.date(LocalDate(2026, 10, 17), DateStyle.Full)) and hasClickAction()).assertExists()
+        assertEquals(
+            0,
+            onAllNodes(hasContentDescription(probe.formats.date(wednesday, DateStyle.Full)) and hasClickAction()).fetchSemanticsNodes().size,
+            "Wednesday's column is still on screen after the three days moved on past it",
+        )
+        // The arrows still step three, from where the swipe left them.
+        onNode(hasContentDescription(probe.strings.nextDays) and hasClickAction()).performClick()
+        waitForIdle()
+        assertEquals(LocalDate(2026, 10, 18)..LocalDate(2026, 10, 20), probe.state.visibleDates)
+    }
+
+    /** A flick carries on past the next day, as a fling would, but no further than a page would have gone. */
+    @Test
+    fun aFlickCarriesThreeDaysOnSeveralDays() = runComposeUiTest {
+        val probe = calendar(CalendarView.ThreeDays)
+        swipeTowardsLater(FlickShare, steps = 4, still = false)
+        val moved = probe.state.visibleDates.start.toEpochDays() - wednesday.toEpochDays()
+        assertTrue(moved in 2..3, "a flick of ${(FlickShare * 100).toInt()}% of the page moved the three days $moved days")
+        assertEquals(2, probe.state.visibleDates.endInclusive.toEpochDays() - probe.state.visibleDates.start.toEpochDays())
+    }
+
+    /** The week still swipes a week at a time: the same short swipe is the whole of next week. */
+    @Test
+    fun aShortSwipeStillMovesAWeekByAWeek() = runComposeUiTest {
+        val probe = calendar(CalendarView.Week)
+        assertEquals(LocalDate(2026, 10, 12)..LocalDate(2026, 10, 18), probe.state.visibleDates)
+        swipeTowardsLater(PageShare)
+        assertEquals(LocalDate(2026, 10, 19)..LocalDate(2026, 10, 25), probe.state.visibleDates)
+    }
+
+    /**
+     * A finger across the hours, towards the later days — leftwards — by
+     * [share] of the calendar's width, over [steps] moves of a frame each.
+     * Held [still] at the end before lifting, so the release is not a flick.
+     */
+    private fun androidx.compose.ui.test.ComposeUiTest.swipeTowardsLater(share: Float, steps: Int = 40, still: Boolean = true) {
+        onRoot().performTouchInput {
+            val from = Offset(width * 0.7f, height * 0.6f)
+            down(from)
+            repeat(steps) { moveBy(Offset(-width * share / steps, 0f)) }
+            if (still) repeat(10) { moveBy(Offset.Zero) }
+            up()
+        }
+        waitForIdle()
     }
 
     @Test
@@ -157,5 +232,17 @@ class DaysViewsTest {
         val restored = EventCalendarState.Saver.restore(saved)!!
         assertEquals(3, restored.weekCount)
         assertEquals(state.visibleDates, restored.visibleDates)
+    }
+
+    private companion object {
+        /**
+         * A little under half the calendar's width: over the third of a page
+         * that pages a week, and a day and a third of three days' travel, which
+         * comes to rest on the nearest day.
+         */
+        const val PageShare = 0.42f
+
+        /** Quick and short: a quarter of the width in four frames. */
+        const val FlickShare = 0.25f
     }
 }

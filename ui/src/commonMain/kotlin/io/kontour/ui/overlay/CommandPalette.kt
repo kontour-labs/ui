@@ -44,8 +44,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.WindowInsets
 import io.kontour.ui.adaptive.allEdges
 import io.kontour.ui.components.display.Kbd
-import io.kontour.ui.components.list.ListItem
 import io.kontour.ui.components.list.ListItemDefaults
+import io.kontour.ui.components.list.listItemSlots
+import io.kontour.ui.components.list.ListItemImpl
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.foundation.layout.size
 import io.kontour.ui.components.list.fadingEdges
 import io.kontour.ui.foundation.GroupPosition
 import io.kontour.ui.foundation.shape
@@ -383,17 +390,51 @@ private fun PaletteBody(
             modifier = Modifier.padding(gap),
             verticalArrangement = Arrangement.spacedBy(gap),
         ) {
-            SearchField(
-                state = query,
-                placeholder = placeholder,
-                modifier = Modifier.fillMaxWidth().focusRequester(field),
-                shape = inner,
-                // No debounce. A palette filters a list already in memory, and
-                // a quarter-second lag between the key and the result is the
-                // whole difference between this feeling instant and feeling
-                // broken. The debounce exists for fields that hit the network.
-                debounce = Duration.ZERO,
-            )
+            // What a screen reader hears as the arrows move and as the list
+            // changes under the typing, without its focus leaving the field:
+            // the highlighted command and where it is, "Save as, 2 of 12", or
+            // that nothing matches. The highlight was published as the row
+            // being *selected*, which said a choice had been made on every
+            // arrow, and the field said nothing at all.
+            val strings = Theme.strings
+            val formats = Theme.formats
+            val said = if (found.isEmpty()) {
+                emptyLabel
+            } else {
+                val at = highlighted.coerceIn(found.indices)
+                strings.labelledValue(
+                    found[at].label,
+                    strings.itemOfCount(formats.quantity(at + 1), formats.quantity(found.size)),
+                )
+            }
+            // Over the field, in a box of the field's size, so the node takes
+            // no room of its own in the column.
+            Box {
+                SearchField(
+                    state = query,
+                    placeholder = placeholder,
+                    modifier = Modifier.fillMaxWidth().focusRequester(field),
+                    // The palette's own field: no magnifier, which the
+                    // placeholder already says, and no clear, which Escape is.
+                    searchIcon = null,
+                    clearIcon = null,
+                    shape = inner,
+                    // No debounce. A palette filters a list already in memory,
+                    // and a quarter-second lag between the key and the result is
+                    // the whole difference between this feeling instant and
+                    // feeling broken. The debounce exists for fields that hit
+                    // the network.
+                    debounce = Duration.ZERO,
+                )
+                Box(
+                    Modifier
+                        .size(1.dp)
+                        .semantics {
+                            liveRegion = LiveRegionMode.Polite
+                            contentDescription = said
+                        },
+                )
+            }
 
             if (found.isEmpty()) {
                 Text(
@@ -421,20 +462,29 @@ private fun PaletteBody(
                 ) {
                     itemsIndexed(found, key = { _, command -> command.id }) { index, command ->
                         val position = GroupPosition.of(index, found.size)
-                        ListItem(
-                            onClick = { run(index) },
+                        ListItemImpl(
+                            modifier = Modifier,
                             enabled = command.enabled,
-                            selected = index == highlighted,
-                            position = position,
+                            onClick = { run(index) },
+                            selected = false,
+                            // Drawn as selected, and not said to be: see `said`.
+                            highlighted = index == highlighted,
+                            role = Role.Button,
                             // The group's own corner rather than the default,
                             // so the rows are concentric with the panel too and
                             // not only with each other.
                             shape = position.shape(inner, ListItemDefaults.InnerCorner, Orientation.Vertical),
-                        ) {
-                            command.icon?.let { icon -> leading { +icon } }
-                            +command.label
-                            command.shortcut?.let { shortcut -> trailing { Kbd { +shortcut } } }
-                        }
+                            containerColour = Theme.colours.surfaceSunken,
+                            selectedContainerColour = Theme.colours.accent.container,
+                            contentColour = Theme.colours.content,
+                            minHeight = Dp.Unspecified,
+                            interactionSource = null,
+                            slots = listItemSlots {
+                                command.icon?.let { icon -> leading { +icon } }
+                                +command.label
+                                command.shortcut?.let { shortcut -> trailing { Kbd { +shortcut } } }
+                            },
+                        )
                     }
                 }
             }

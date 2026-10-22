@@ -39,7 +39,6 @@ import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.ButtonDefaults
 import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.ButtonVariant
-import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.InputModality
 import io.kontour.ui.input.LocalInputModality
@@ -141,9 +140,9 @@ fun DateTimePicker(
     isDateSelectable: (LocalDate) -> Boolean = { true },
     decorationFor: ((LocalDate) -> DayDecoration?)? = null,
     showDecorationLine: Boolean = decorationFor != null,
-    previousIcon: ImageVector? = SystemIcons.ChevronBack,
-    nextIcon: ImageVector? = SystemIcons.ChevronForward,
-    todayIcon: ImageVector? = DatePickerDefaults.TodayIcon,
+    previousIcon: ImageVector? = Theme.icons.chevronBack,
+    nextIcon: ImageVector? = Theme.icons.chevronForward,
+    todayIcon: ImageVector? = Theme.icons.today,
     chooserIcon: ImageVector? = null,
     minuteStep: Int = 1,
     now: (() -> LocalDateTime)? = DateTimePickerDefaults::currentDateTime,

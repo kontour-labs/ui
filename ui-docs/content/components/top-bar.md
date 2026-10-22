@@ -33,7 +33,11 @@ Column(Modifier.topBarCollapse(collapse)) {
 ### `Large`, and how it collapses
 
 `Large` puts the actions on a first line and a large title on a second, and
-collapses into a `Small` bar as the content scrolls. **The title travels**: it
+collapses into a `Small` bar as the content scrolls. **With nothing for the
+first line** — no back button, navigation or actions — the line is left out,
+and the title keeps the margin it has at its sides above it: `Theme.spacing.md`,
+or the status bar where that is deeper, not the two added. In a desktop window,
+with no status bar, the title used to start on the window's top edge. **The title travels**: it
 rises into the first line, shrinking from the large type to the small as it
 goes, and lands where a `Small` bar's title sits — beside the back button when
 there is one, at the margin when there is not, so without one it rises straight
@@ -72,8 +76,9 @@ desktop, which never move the content's top, are left as they are.
 
 **A mouse wheel opens it all the way too.** A list at its top declines a wheel's
 notch before it becomes a scroll, so nothing listening to the scroll hears it.
-`topBarCollapse` hears the notches the content declined, and finishes the bar
-the way the wheel turned. The state's `nestedScrollConnection` is still there
+`topBarCollapse` hears the notches the content declined, and moves the bar as
+far as each would have scrolled, the way the wheel turned; a trackpad's small
+pieces of scroll move it as little as they go, so a slow scroll opens it slowly. The state's `nestedScrollConnection` is still there
 for wiring the scroll yourself with `Modifier.nestedScroll`, without that.
 
 To drive it from anything else, pass `collapseProgress` directly: 0 open, 1

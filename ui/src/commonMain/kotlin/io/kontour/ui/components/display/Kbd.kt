@@ -172,9 +172,11 @@ fun Kbd(
  * it throughout — a row that mixes `KbdIcons.Command` with `"${KbdGlyphs.Option}"`
  * is two weights in one shortcut.
  *
- * Declared the same way as `SystemIcons`, one top-level `get()` each, so the
- * ones an app never touches are dropped by R8 and by the JS and Wasm dead-code
- * eliminators rather than travelling with the artifact.
+ * One `get()` each, as `SystemIcons`' fallbacks are, so the ones an app never
+ * touches are dropped by R8 and by the JS and Wasm dead-code eliminators rather
+ * than travelling with the artifact. Not part of `Theme.icons`: a key cap is
+ * what the caller passes, as any other icon is, and these are only there to be
+ * passed.
  */
 object KbdIcons {
     /** ⌘ — command. The one this object exists for. */

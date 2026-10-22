@@ -129,6 +129,7 @@ class ComponentDefaultsValuesTest {
         assertEquals(24.dp, d.backdropBlurRadius)
         assertEquals(12.dp, d.backdropInset)
         assertEquals(480.dp, d.sheetMaxWidth)
+        assertEquals(560.dp, d.modalSheetMaxWidth)
         assertEquals(480.dp, d.sideSheetWidth)
         assertEquals(12.dp, d.toastPeek)
         assertEquals(420.dp, d.toastMaxWidth)
@@ -202,6 +203,7 @@ class ComponentDefaultsValuesTest {
                 backdropBlurRadius = 24.dp,
                 backdropInset = 12.dp,
                 sheetMaxWidth = 480.dp,
+                modalSheetMaxWidth = 560.dp,
                 sideSheetWidth = 480.dp,
                 toastPeek = 12.dp,
                 toastMaxWidth = 420.dp,
@@ -215,6 +217,82 @@ class ComponentDefaultsValuesTest {
                 "Add it to whichever test above covers its section, and to this " +
                 "constructor call — the point of listing every one is that " +
                 "a new one cannot arrive unchecked.",
+        )
+    }
+
+    /**
+     * A theme written against 0.4.5 that gave these by position still builds
+     * the same object: whatever 0.5.0 added comes after the fifty-eight 0.4.5
+     * had, so none of theirs moves along one.
+     *
+     * `modalSheetMaxWidth` first went in beside `sheetMaxWidth`, and a call
+     * like this one then handed the side sheet's 480dp to the modal sheet, the
+     * toast's peek to the side sheet, and so on down the list, and compiled.
+     */
+    @Test
+    fun aCallByPositionFrom045StillMeansWhatItSaid() {
+        assertEquals(
+            ComponentDefaults(),
+            ComponentDefaults(
+                false, // uppercaseLabels
+                10.dp, // buttonPaddingXSmall
+                14.dp, // buttonPaddingSmall
+                20.dp, // buttonPaddingMedium
+                24.dp, // buttonPaddingLarge
+                32.dp, // buttonPaddingXLarge
+                4.dp, // buttonGapXSmall
+                6.dp, // buttonGapSmall
+                8.dp, // buttonGapMedium
+                8.dp, // buttonGapLarge
+                10.dp, // buttonGapXLarge
+                0.93f, // pressScaleSmall
+                0.95f, // pressScaleMedium
+                6.dp, // segmentedTrackPadding
+                6.dp, // toolbarPadding
+                3.dp, // sliderTickSize
+                48.dp, // listItemMinHeight
+                64.dp, // listItemTwoLineMinHeight
+                2.dp, // listItemSpacing
+                0.35f, // swipePositionalThreshold
+                6.dp, // scrollbarThickness
+                10.dp, // scrollbarHoveredThickness
+                88.dp, // swipeActionWidth
+                8.dp, // pageIndicatorDotSize
+                20.dp, // pageIndicatorActiveWidth
+                8.dp, // pageIndicatorGap
+                0.dp, // carouselHeroPeek
+                108.dp, // keyValueLabelWidth
+                96.dp, // keyValueMinValueWidth
+                48.dp, // marqueeGap
+                48.dp, // navInlineGlyph
+                40.dp, // navCircleSize
+                1.08f, // navSelectedIconScale
+                12.dp, // navBarItemGap
+                88.dp, // navRailCollapsedWidth
+                280.dp, // navRailExpandedWidth
+                24.dp, // navNestIndent
+                56.dp, // topBarHeight
+                112.dp, // topBarLargeHeight
+                360.dp, // topBarHeroHeight
+                48.dp, // tabBarHeight
+                4.dp, // menuGap
+                280.dp, // tooltipMaxWidth
+                560.dp, // commandPaletteWidth
+                360.dp, // commandPaletteMaxHeight
+                96.dp, // commandPaletteTopInset
+                8.dp, // coachmarkSpotlightPadding
+                24.dp, // backdropBlurRadius
+                12.dp, // backdropInset
+                12.dp, // sheetFloatingInset
+                480.dp, // sheetMaxWidth
+                480.dp, // sideSheetWidth
+                12.dp, // toastPeek
+                420.dp, // toastMaxWidth
+                72.dp, // toastPillWidth
+                36.dp, // toastPillHeight
+                4.dp, // scrollbarTouchThickness
+                64.dp, // eventCalendarHourHeight
+            ),
         )
     }
 }

@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.snapshots.SnapshotStateList
+import io.kontour.ui.catalog.apps.transit.dollars
 import io.kontour.ui.components.action.TextButton
 import io.kontour.ui.dragdrop.DragType
 import io.kontour.ui.dragdrop.DropListState
@@ -39,6 +40,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -788,12 +790,13 @@ private val tableOutlined = Knob.Flag("Outlined", initial = false)
 
 /** The route column pinned at the start while the rest scroll across. */
 private val tablePinRoute = Knob.Flag("Pin route", initial = true)
+private val tableNarrowPinned = Knob.Flag("Narrow pinned on scroll")
 
 private val tableFooter = Knob.Flag("Footer", initial = true)
 
 internal val TableDemo = ComponentDemo(
     slug = "table",
-    knobs = listOf(tableLines, tableSelection, tableStriped, tableOutlined, tablePinRoute, tableFooter),
+    knobs = listOf(tableLines, tableSelection, tableStriped, tableOutlined, tablePinRoute, tableNarrowPinned, tableFooter),
 ) {
     var sort by remember { mutableStateOf<TableSort?>(null) }
     var selected by remember { mutableStateOf(emptySet<Any>()) }
@@ -815,6 +818,7 @@ internal val TableDemo = ComponentDemo(
         modifier = Modifier.fillMaxWidth().height(320.dp),
         key = { it.id },
         stickyColumns = if (this[tablePinRoute]) 1 else 0,
+        narrowStickyColumns = this[tableNarrowPinned],
         striped = this[tableStriped],
         lines = this[tableLines],
         outlined = this[tableOutlined],
@@ -831,13 +835,11 @@ internal val TableDemo = ComponentDemo(
         column("Departs", numeric = true, sortable = false, footer = if (footer) ({ +"${rows.size} services" }) else null) {
             +it.departs
         }
-        column("Fare", numeric = true, footer = if (footer) ({ +dollars(rows.sumOf { it.fare }) }) else null) {
-            +dollars(it.fare)
+        column("Fare", numeric = true, footer = if (footer) ({ +dollars(rows.sumOf { it.fare } / 100f) }) else null) {
+            +dollars(it.fare / 100f)
         }
     }
 }
-
-private fun dollars(cents: Int): String = "$${cents / 100}.${(cents % 100).toString().padStart(2, '0')}"
 
 /** A card on the drag and drop demo's board. */
 private data class DemoTask(val id: Int, val title: String)
@@ -988,11 +990,44 @@ internal val DragAndDropDemo = ComponentDemo(
     }
 }
 
+private val fieldLabels = Knob.Flag("Labels", initial = true)
+private val fieldError = Knob.Flag("Error")
+private val fieldEnabled = Knob.Flag("Enabled", initial = true)
+
+/**
+ * A favourite's details as a group of rows you type into: a name and a
+ * nickname, and a note with no label. With labels off, every row is its field
+ * and its placeholder; the error shows on the nickname.
+ */
+internal val TextFieldListItemDemo = ComponentDemo(
+    slug = "text-field-list-item",
+    knobs = listOf(fieldLabels, fieldError, fieldEnabled),
+) {
+    val name = rememberTextFieldState("Perth Underground")
+    val nickname = rememberTextFieldState("Work")
+    val note = rememberTextFieldState()
+    val labels = this[fieldLabels]
+    val enabled = this[fieldEnabled]
+    val error = if (this[fieldError]) "Already used for Elizabeth Quay" else null
+    ListGroup {
+        field(name, enabled = enabled, label = if (labels) "Name" else null, placeholder = "Name", icon = Tabler.Outline.Star)
+        field(
+            nickname,
+            enabled = enabled,
+            label = if (labels) "Nickname" else null,
+            placeholder = "Nickname",
+            errorMessage = error,
+        )
+        field(note, enabled = enabled, placeholder = "Add a note", supporting = "Only you see this")
+    }
+}
+
 internal val collectionDemos = listOf(
     ListItemDemo,
     ExpandingListItemDemo,
     DisclosureListItemDemo,
     SplitListItemDemo,
+    TextFieldListItemDemo,
     ListSectionDemo,
     SwipeActionsDemo,
     ReorderableItemDemo,

@@ -58,6 +58,7 @@ import io.kontour.ui.motion.scrollSpec
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.Measurable
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -89,6 +90,7 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.plus
+import io.kontour.ui.input.secondaryClick
 
 /**
  * A day's hours, or a week's side by side: the days' headings, what takes the
@@ -468,8 +470,9 @@ private fun DayHeadings(scope: CalendarScope, period: Int, days: Int) {
     val colours = Theme.colours
     // A circle round the number, as tall as the number and a little more.
     val dayNumber = with(LocalDensity.current) { Theme.typography.titleSmall.lineHeight.toDp() } + Theme.spacing.xs
+    val widest = widestWeekdayName(scope.formats, Theme.typography.labelSmall) + Theme.spacing.xxs
     BoxWithConstraints(Modifier.fillMaxWidth()) {
-        val narrow = maxWidth / days < WeekdayHeadingWidth
+        val narrow = !abbreviatesWeekdays(maxWidth / days, widest, WeekdayHeadingWidth)
         Row(Modifier.fillMaxWidth()) {
             for (column in 0 until days) {
                 val date = start.plus(column, DateTimeUnit.DAY)
@@ -518,7 +521,10 @@ private fun DayHeadings(scope: CalendarScope, period: Int, days: Int) {
     }
 }
 
-/** Below this a day's heading has room for its weekday's letter, not its abbreviation. */
+/**
+ * Below this a day's heading has room for its weekday's letter, not its
+ * abbreviation — or below the widest abbreviation, where that is wider.
+ */
 private val WeekdayHeadingWidth = 48.dp
 
 /** What takes the whole day, above the hours: as bars across their days. */
@@ -1097,6 +1103,11 @@ internal val NearReach = 12.dp
  * never from what this composed with: the lean is state, and read beside a
  * start a composition behind it, a crossing put the copy back past the step it
  * had left for a frame — *"they feel like they're going backwards"*.
+ *
+ * **Outlined where it lands.** Under the copy, on the step itself and the
+ * same size, a faint outline of each piece: the copy leaning and hopping is
+ * near where the event will land, and the outline is where it will. See
+ * [LandingOutline].
  */
 @Composable
 private fun TimeGhost(scope: CalendarScope, period: Int, days: Int) {
@@ -1152,6 +1163,15 @@ private fun TimeGhost(scope: CalendarScope, period: Int, days: Int) {
                         val opening = event == null || edit.widened != event.id || edit.widen.targetValue == 1f
                         (if (opening) column - gapPx else column * edit.widenedLane.second - gapPx).roundToInt()
                     },
+                )
+            }
+            // Where each piece would land, outlined under it: see [LandingOutline].
+            for ((day) in composed) {
+                LandingOutline(
+                    tone = shown.tone,
+                    presentation = EventPresentation.Block,
+                    clippedStart = day > firstComposed,
+                    clippedEnd = day < lastComposed,
                 )
             }
         },
@@ -1212,12 +1232,27 @@ private fun TimeGhost(scope: CalendarScope, period: Int, days: Int) {
         // In from midnight by the gap only where it starts or ends there.
         fun topGap(day: Int) = if (day > firstDay) 0f else gapPx / 2
         fun footGap(day: Int) = if (day < lastDay) 0f else gapPx / 2
-        val placeables = measurables.take(pieces.size).mapIndexed { i, measurable ->
-            val (day, from, to) = pieces[i]
-            val rect = if (day == leanDay) drawn else box(day, from, to)
+        // The copies first, then their outlines, as composed: as many of each.
+        val copies = measurables.subList(0, composed.size)
+        val outlines = measurables.subList(composed.size, measurables.size)
+        fun measure(measurable: Measurable, day: Int, rect: Rect) =
             measurable.measure(Constraints.fixed((pieceWidth - gapPx).roundToInt().coerceAtLeast(0), (rect.height - topGap(day) - footGap(day)).roundToInt().coerceAtLeast(0)))
+        val placeables = copies.take(pieces.size).mapIndexed { i, measurable ->
+            val (day, from, to) = pieces[i]
+            measure(measurable, day, if (day == leanDay) drawn else box(day, from, to))
+        }
+        // On the step, not leaning and not hopping: where it lands.
+        val landings = outlines.take(pieces.size).mapIndexed { i, measurable ->
+            val (day, from, to) = pieces[i]
+            measure(measurable, day, box(day, from, to))
         }
         layout(w, h) {
+            // Under the copies.
+            landings.forEachIndexed { i, placeable ->
+                val (day, from, to) = pieces[i]
+                val rect = box(day, from, to)
+                placeable.place((rect.left + inset + gapPx / 2).roundToInt(), (rect.top + topGap(day)).roundToInt())
+            }
             placeables.forEachIndexed { i, placeable ->
                 val (day, from, to) = pieces[i]
                 val rect = if (day == leanDay) drawn else box(day, from, to).translate(dx, dy)
@@ -1237,9 +1272,6 @@ private fun Modifier.fillHeightOr(unbounded: Dp): Modifier = layout { measurable
     val placeable = measurable.measure(constraints.copy(minHeight = height, maxHeight = height))
     layout(placeable.width, placeable.height) { placeable.place(0, 0) }
 }
-
-/** The day an event's last minute is on. */
-private fun lastDayOf(start: LocalDateTime, end: LocalDateTime): LocalDate = if (end > start) end.plusMinutes(-1).date else start.date
 
 /** The days of an event between [pageStart] and [pageEnd]: each day's column and its minutes, from its start or midnight to its end or midnight. */
 private fun timedPieces(start: LocalDateTime, end: LocalDateTime, pageStart: LocalDate, pageEnd: LocalDate): List<Triple<Int, Int, Int>> = buildList {

@@ -241,15 +241,15 @@ class NavSearchMorphTest {
                         Box(Modifier.fillMaxSize().background(Color.White)) {
                             state = rememberNavSearchState()
                             NavBar {
-                                item(true, {}, key = "nearby", icon = SystemIcons.Check) { +"Nearby" }
+                                item(true, {}, key = "nearby", icon = SystemIcons.Default.check) { +"Nearby" }
                                 slot(weight = 1f) {
                                     NavSearch(
                                         state = state,
                                         placement = placement,
-                                        searchIcon = if (icon) SystemIcons.Check else null,
+                                        searchIcon = if (icon) SystemIcons.Default.check else null,
                                     )
                                 }
-                                item(false, {}, key = "routes", icon = SystemIcons.Close) { +"Routes" }
+                                item(false, {}, key = "routes", icon = SystemIcons.Default.close) { +"Routes" }
                             }
                         }
                     }

@@ -53,6 +53,12 @@ hands over, not a composable it writes.
   endDate = 16 Oct)` covers the 13th to the 16th.
 - **An event ending before it starts is refused** with a message naming the
   field, rather than drawn somewhere odd.
+- **A `pattern` says it again without colour.** A tentative meeting among
+  confirmed ones, a hold beside a meeting: `pattern = FillPattern.Diagonal`
+  hatches its block, its bar and its row in a schedule over its tone, in a wash
+  of its own ink, for a reader who cannot tell the tones apart. The same
+  patterns a chart's series take. Say what it means in the title as well, "Planning (tentative)", since a
+  screen reader hears the title and not the hatching.
 
 **The app keeps the events.** The calendar never changes `events`; it draws
 them and reports what was pressed. Either load what
@@ -64,8 +70,8 @@ show cost nothing.
 
 `CalendarView` is `Day`, `ThreeDays`, `Week`, `Month`, `Year` or `Schedule`, held by the
 `EventCalendarState` from `rememberEventCalendarState(initialDate,
-initialView)`. Three days start on the day the view was switched to, and step
-three at a time. The week view shows one week, or several side by side —
+initialView)`. Three days start on the day the view was switched to, step
+three at a time, and swipe to start on any day. The week view shows one week, or several side by side —
 `state.showWeeks(2)` for a fortnight, up to six, or `initialWeekCount` — and
 steps by as many.
 
@@ -102,7 +108,10 @@ fade, not a movement, so it plays under reduced motion too.
 
 **Moving about.** The header steps back and on, goes to today and switches
 the view. In the day and week views a sideways swipe steps too, the same way
-the date picker pages its months. An all-day bar that runs on into the next
+the date picker pages its months. Three days swipe a day at a time instead:
+let go, they come to rest on the day nearest where the finger left them, and a
+flick carries them on a day or more, as a fling would, up to three. The arrows
+still step three from wherever that left them. An all-day bar that runs on into the next
 page is on the same line there, and keeps one title as the pages slide: the
 title stays where it is on the screen while the bar moves under it, and goes
 with the bar only once the bar's end reaches it. Mid-swipe, the strip above
@@ -194,7 +203,13 @@ as a date range's end does: it sits on its step, leaning a little toward the
 pointer in the same frame the pointer moves, and as the pointer crosses into
 the next step, day or week it hops there — a tenth of a second, with no
 overshoot, from wherever it was. It never trails the pointer within a step,
-and never goes back the way it came.
+and never goes back the way it came. Under it, a faint dashed outline of the
+event in its own tone marks exactly where it would land if let go now: on the
+step, the copy's size and shape, square where it runs on past midnight or the
+edge of the week. It goes straight to the next step rather than easing there,
+and the copy hops after it. A dragged edge is outlined where it would end,
+however far the copy's edge stretches toward the pointer. At high contrast the
+outline's edge is the tone at full strength, at the stronger line.
 
 An event the app only shows, such as a holiday from a subscribed calendar,
 says so with `editable = false` and can't be moved or resized, though it can
@@ -295,7 +310,8 @@ the edits the app takes. After each edit, a screen reader is told where the
 event now is.
 
 While an event is carried, the copy left behind is faded and the place it
-would land is drawn as a lifted copy in its own tone with a stronger edge. In
+would land is drawn as a lifted copy in its own tone with a stronger edge,
+over a faint dashed outline on the step itself. In
 a month and in the all-day strip, that copy is a bar the event's length whose
 ends spring from day to day as the carry passes each one, a tick for each
 day, as a date range's end does. The copy has the event's own shape: square

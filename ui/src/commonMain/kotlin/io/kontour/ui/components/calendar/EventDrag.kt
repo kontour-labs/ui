@@ -506,7 +506,7 @@ internal class EventEdit(
     fun beginResize(event: CalendarEvent, atStart: Boolean, root: Offset, byDays: Boolean = false, top: Float? = null, fromEdge: Offset = Offset.Zero) {
         edgeOffset = fromEdge
         if (byDays) {
-            val day = if (atStart) event.start.date else endDay(event.start, event.end)
+            val day = if (atStart) event.start.date else lastDayOf(event.start, event.end)
             val box = days.of(day) ?: return
             grabDay = day
             overDay = day
@@ -607,13 +607,13 @@ internal class EventEdit(
             EditKind.ResizeEnd -> if (event != null && byDays) {
                 val to = settledDayAt(root - edgeOffset) ?: return
                 val last = maxOf(to, event.start.date)
-                val shift = last.toEpochDays() - endDay(event.start, event.end).toEpochDays()
+                val shift = last.toEpochDays() - lastDayOf(event.start, event.end).toEpochDays()
                 val end = maxOf(event.end.epochMinute + shift * MinutesPerDay, event.start.epochMinute + stepMinutes)
                 leanOn = 1
                 lean = Offset(dayLean(last, root).x, 0f)
                 propose(event.start, localDateTimeOfEpochMinute(end))
             } else if (event != null) {
-                val day = endDay(event.start, event.end)
+                val day = lastDayOf(event.start, event.end)
                 val (_, raw) = timeAt(root - edgeOffset, sameDayAs = day) ?: return
                 val dayStart = day.atMidnight.epochMinute
                 val minute = raw.coerceIn(dayStart, dayStart + MinutesPerDay)
@@ -624,7 +624,7 @@ internal class EventEdit(
             }
             EditKind.ResizeStart -> if (event != null && byDays) {
                 val to = settledDayAt(root - edgeOffset) ?: return
-                val first = minOf(to, endDay(event.start, event.end))
+                val first = minOf(to, lastDayOf(event.start, event.end))
                 val shift = first.toEpochDays() - event.start.date.toEpochDays()
                 val start = minOf(event.start.epochMinute + shift * MinutesPerDay, event.end.epochMinute - stepMinutes)
                 leanOn = -1
@@ -675,9 +675,6 @@ internal class EventEdit(
         )
     }
 
-    /** The day an event's last minute is on — for an edge dragged across midnight. */
-    private fun endDay(start: LocalDateTime, end: LocalDateTime): LocalDate =
-        if (end > start) end.plusMinutes(-1).date else start.date
 
     /**
      * Moves the proposal by keys: [minutes] either way, or only its end when

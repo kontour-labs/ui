@@ -12,7 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
@@ -24,6 +24,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -49,6 +50,7 @@ import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.minus
 import kotlinx.datetime.plus
+import io.kontour.ui.input.secondaryClick
 
 /** One row of a schedule: a month's heading, or a day and its events. */
 internal sealed interface ScheduleItem {
@@ -76,7 +78,7 @@ internal class ScheduleDay(val date: LocalDate, val events: List<CalendarEvent>)
 internal fun scheduleItems(events: List<CalendarEvent>, from: LocalDate, to: LocalDate, today: LocalDate?): List<ScheduleItem> {
     val byDay = HashMap<LocalDate, MutableList<CalendarEvent>>()
     for (event in events) {
-        val last = if (event.end > event.start) event.end.plusMinutes(-1).date else event.start.date
+        val last = lastDayOf(event.start, event.end)
         var day = maxOf(event.start.date, from)
         val end = minOf(last, to)
         while (day <= end) {
@@ -204,16 +206,28 @@ private fun ScheduleDayRow(scope: CalendarScope, day: ScheduleDay) {
     ) {
         // The day: its weekday over its number, ringed for today. Pressed, it
         // opens the day, as a month's number does.
+        //
+        // Named by its date and labelled by what pressing it does. The date
+        // was the click label, so the button had no name and said a date as
+        // its action. And no narrower than it was, rather than exactly that
+        // wide: at 200% type a weekday and its number outgrew 48dp and 32dp,
+        // and were cut.
+        val circle = maxOf(
+            ScheduleDayCircle,
+            with(LocalDensity.current) { Theme.typography.titleMedium.lineHeight.toDp() } + Theme.spacing.xs,
+        )
+        val said = formats.date(day.date, io.kontour.ui.locale.DateStyle.Full)
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier
-                .width(ScheduleGutter)
+                .widthIn(min = ScheduleGutter)
                 .pressable(
                     onClick = { scope.openDay(day.date) },
                     enabled = scope.enabled,
                     shape = Theme.shapes.control,
-                    onClickLabel = formats.date(day.date, io.kontour.ui.locale.DateStyle.Full),
+                    onClickLabel = scope.strings.showDay,
                 )
+                .semantics { contentDescription = said }
                 .padding(vertical = Theme.spacing.xxs),
         ) {
             Text(
@@ -222,7 +236,7 @@ private fun ScheduleDayRow(scope: CalendarScope, day: ScheduleDay) {
                 colour = quietInk(),
                 modifier = Modifier.clearAndSetSemantics { },
             )
-            Box(Modifier.size(ScheduleDayCircle).todayRing(isToday), contentAlignment = Alignment.Center) {
+            Box(Modifier.size(circle).todayRing(isToday), contentAlignment = Alignment.Center) {
                 Text(
                     formats.digits(day.date.day.toLong()),
                     style = Theme.typography.titleMedium,
@@ -276,15 +290,23 @@ private fun ScheduleEventRow(scope: CalendarScope, event: CalendarEvent, day: Lo
         modifier = Modifier
             .fillMaxWidth()
             .onGloballyPositioned { placed.coordinates = it }
-            .background(colours.container, shape)
-            .border(BorderStroke(Theme.sizing.borderWidth, colours.border), shape)
+            // The press before the ground, as `pressable` asks, so its wash is
+            // over the whole of the event, edge and all; and not shrunk, as a
+            // list's row is not. Until 2026-10-21 for 0.5.0 the ground came
+            // first: its edge was drawn over the wash, and the wash shrank
+            // while the ground stayed, so a press was a smaller box inside the
+            // event's, reported as a highlight "not the same shape as the
+            // event itself".
             .pressable(
                 onClick = { click?.invoke(event) },
                 enabled = scope.enabled && (click != null || menus),
                 shape = shape,
                 onLongClick = if (menus) openMenu else null,
+                pressScale = 1f,
                 minimumTouchTarget = false,
             )
+            // A block's ground, pattern and edge, as the week has it.
+            .eventGround(shape, colours.container, event.pattern, colours.onContainer, BorderStroke(Theme.sizing.borderWidth, colours.border))
             .then(if (menus) Modifier.secondaryClick { openMenu() } else Modifier)
             .onKeyEvent { key ->
                 if (key.type != KeyEventType.KeyDown || (key.key != Key.Delete && key.key != Key.Backspace)) return@onKeyEvent false
@@ -296,12 +318,7 @@ private fun ScheduleEventRow(scope: CalendarScope, event: CalendarEvent, day: Lo
             .padding(horizontal = Theme.spacing.sm, vertical = Theme.spacing.xs),
     ) {
         val style = Theme.typography.bodyMedium
-        val icon = event.icon
-        if (icon != null) {
-            ItemIcon(icon, style, tint = colours.solid)
-        } else {
-            Box(Modifier.size(Theme.spacing.sm).background(colours.solid, Theme.shapes.capsule))
-        }
+        ToneMark(event, style, Theme.spacing.sm)
         Column(Modifier.weight(1f).clearAndSetSemantics { }) {
             Text(event.title, style = style, colour = colours.onContainer, maxLines = 2, overflow = TextOverflow.Ellipsis)
             val time = scheduleTime(event, day, formats, strings)
@@ -326,7 +343,7 @@ private fun ScheduleEventRow(scope: CalendarScope, event: CalendarEvent, day: Lo
  */
 internal fun scheduleTime(event: CalendarEvent, day: LocalDate, formats: LocaleFormats, strings: Strings): AnnotatedString {
     if (event.allDay) return AnnotatedString(strings.allDay)
-    val lastDay = if (event.end > event.start) event.end.plusMinutes(-1).date else event.start.date
+    val lastDay = lastDayOf(event.start, event.end)
     return when {
         day <= event.start.date -> eventTimes(event.start, event.end, formats, strings)
         day >= lastDay && event.end != day.plus(1, DateTimeUnit.DAY).atMidnight -> AnnotatedString(strings.untilTime(formats.time(event.end.time)))
@@ -343,8 +360,8 @@ private const val ScheduleMonthsOn = 12
 /** Further than this many rows, a scroll to a day is a cut rather than a slide. */
 private const val FarScheduleRows = 30
 
-/** The day's column at the start of each row. */
+/** The least the day's column at the start of each row is wide. */
 private val ScheduleGutter = 48.dp
 
-/** Today's ring round a day's number. */
+/** The least today's ring round a day's number is across: more, as the number grows with the type. */
 private val ScheduleDayCircle = 32.dp

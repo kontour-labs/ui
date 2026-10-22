@@ -275,4 +275,20 @@ data class ComponentDefaults(
      * brand with roomier type wants it taller.
      */
     val eventCalendarHourHeight: Dp = 64.dp,
+    /**
+     * The widest a modal bottom sheet gets, on a window wider than that: wider
+     * than [sheetMaxWidth], which a sheet beside the page keeps.
+     *
+     * A modal sheet is the whole of what the reader is doing, over a page pushed
+     * back and dimmed, and at a panel's 480dp it stood in the middle of a tablet
+     * or a desktop window as a narrow strip: *"it looks a bit daft"*. Not the
+     * 640dp a sheet once had, which took half a modest desktop.
+     *
+     * Last, rather than beside [sheetMaxWidth], for the reason
+     * [scrollbarTouchThickness] is: it came in 0.5.0, and a `Dp` added in the
+     * middle would have taken the place of the one after it in a call that gave
+     * these by position, so a 0.4.5 theme would have built with every later
+     * width one along.
+     */
+    val modalSheetMaxWidth: Dp = 560.dp,
 )

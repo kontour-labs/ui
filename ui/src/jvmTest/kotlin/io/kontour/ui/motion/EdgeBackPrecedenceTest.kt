@@ -93,8 +93,8 @@ class EdgeBackPrecedenceTest {
             // Actions on both sides: whichever way the finger goes, the row would take it.
             SwipeActions(
                 state = row,
-                start = listOf(SwipeAction("Pin", SystemIcons.Close, onAction = {}, background = Color.Blue)),
-                end = listOf(SwipeAction("Remove", SystemIcons.Close, onAction = {}, background = Color.Red)),
+                start = listOf(SwipeAction("Pin", SystemIcons.Default.close, onAction = {}, background = Color.Blue)),
+                end = listOf(SwipeAction("Remove", SystemIcons.Default.close, onAction = {}, background = Color.Red)),
                 modifier = Modifier.fillMaxWidth().testTag("row"),
             ) { Text("Perth Busport", Modifier.fillMaxWidth().height(64.dp)) }
         }
@@ -118,7 +118,7 @@ class EdgeBackPrecedenceTest {
             // show, and used to fall through to the page's own swipe back.
             SwipeActions(
                 state = row,
-                end = listOf(SwipeAction("Remove", SystemIcons.Close, onAction = {}, background = Color.Red)),
+                end = listOf(SwipeAction("Remove", SystemIcons.Default.close, onAction = {}, background = Color.Red)),
                 modifier = Modifier.fillMaxWidth().testTag("row"),
             ) { Text("Elizabeth Quay", Modifier.fillMaxWidth().height(64.dp)) }
         }

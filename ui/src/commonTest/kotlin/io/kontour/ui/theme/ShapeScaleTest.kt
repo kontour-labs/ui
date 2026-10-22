@@ -202,17 +202,19 @@ class ShapeScaleTest {
     }
 
     @Test
-    fun sheetsAreExtraLargeWithTwoCornersOff() {
+    fun sheetsAreTheirRungsWithTwoCornersOff() {
         val size = Size(1000f, 1000f)
         val hero = shapes.extraLarge.topStart.toPx(size, density)
+        // A side sheet is a panel beside the page: the panel's rung.
+        val panel = shapes.large.topStart.toPx(size, density)
 
         assertEquals(hero, shapes.sheet.topStart.toPx(size, density))
         assertEquals(hero, shapes.sheet.topEnd.toPx(size, density))
         assertEquals(0f, shapes.sheet.bottomStart.toPx(size, density))
         assertEquals(0f, shapes.sheet.bottomEnd.toPx(size, density))
 
-        assertEquals(hero, shapes.sideSheet.topStart.toPx(size, density))
-        assertEquals(hero, shapes.sideSheet.bottomStart.toPx(size, density))
+        assertEquals(panel, shapes.sideSheet.topStart.toPx(size, density))
+        assertEquals(panel, shapes.sideSheet.bottomStart.toPx(size, density))
         assertEquals(0f, shapes.sideSheet.topEnd.toPx(size, density))
         assertEquals(0f, shapes.sideSheet.bottomEnd.toPx(size, density))
     }
