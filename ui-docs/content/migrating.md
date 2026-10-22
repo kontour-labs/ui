@@ -17,28 +17,39 @@ from the version the app is on.
 
 ## 0.4.5 to 0.5.0
 
-`SystemIcons` is the theme's now, so code that named one of its glyphs changes;
-`Strings` has new fields and `CalendarEvent` a new parameter, each defaulted
-and last, `Table` a new one after `stickyColumns`, the modal sheets one among
-their looks, and `Tooltip` one before its content. Thirteen components take the
-glyphs they draw, and the stepped progress indicators `stepProgress` and
-`weights`, partway through their parameters, so an argument after one, passed
-by position, is named. Charts are a new module, which an app takes only if it
-wants them.
+Most of this release is new: charts, in a module an app takes only if it wants
+them, document tabs, a list row you type into, and more. What an app on 0.4.5
+changes is short. The library's glyphs are the theme's, so code that named one
+of `SystemIcons`' changes. Thirteen components take the glyphs they draw, the
+stepped progress indicators take `stepProgress` and `weights`, and the modal
+sheets `recedes`, partway through their parameters, so an argument after one,
+passed by position, is named; each fails to compile rather than meaning
+something else. One does not: `Table`'s `narrowStickyColumns`, a Boolean after
+`stickyColumns`, where a positional `striped` lands. `Strings`,
+`ComponentDefaults` and `CalendarEvent` have new fields and parameters, each
+defaulted and last, and `Tooltip` one before its content.
 
-### `Table` has `narrowStickyColumns` after `stickyColumns`
+### `SystemIcons.Close` is `Theme.icons.close`
 
-Defaulted, so a call that names its arguments needs nothing. One that passed
-the arguments after `stickyColumns` by position names them: the seventh place
-is `narrowStickyColumns` now, and a `true` meant for `striped` still compiles,
-and narrows the pinned columns instead of striping the rows.
+The library's own glyphs are read from the theme, so that an app can replace
+them. Each is a property of a `SystemIcons`, in lower camel case, and
+`DatePickerDefaults.TodayIcon` is one of them, `today`.
 
-```kotlin
-// 0.4.5
-Table(rows, Modifier, true, null, rememberTableState(), 1, true) { /* columns */ }
+```diff
+- IconButton(icon = SystemIcons.Close, contentDescription = "Close", onClick = close)
++ IconButton(icon = Theme.icons.close, contentDescription = "Close", onClick = close)
+- DatePicker(…, todayIcon = DatePickerDefaults.TodayIcon)
++ DatePicker(…, todayIcon = Theme.icons.today)
+```
 
-// 0.5.0
-Table(rows, Modifier, true, null, rememberTableState(), 1, striped = true) { /* columns */ }
+Outside a composition, where `Theme` cannot be read (a list built at the top
+of a file), `SystemIcons.Default.close` is Tabler's.
+
+To use another icon set's glyphs throughout, give the theme a set:
+
+```diff
+- KontourTheme { App() }
++ KontourTheme(icons = SystemIcons(close = FontAwesome.Solid.Times)) { App() }
 ```
 
 ### Name the arguments after a new parameter
@@ -73,27 +84,19 @@ Each fails to compile rather than meaning something else. Name the argument.
 come last, and `KeyValueList`'s `compact` just before its content, so a call
 to either compiles as it is.
 
-### `SystemIcons.Close` is `Theme.icons.close`
+### `Table` has `narrowStickyColumns` after `stickyColumns`
 
-The library's own glyphs are read from the theme, so that an app can replace
-them. Each is a property of a `SystemIcons`, in lower camel case, and
-`DatePickerDefaults.TodayIcon` is one of them, `today`.
+Defaulted, so a call that names its arguments needs nothing. One that passed
+the arguments after `stickyColumns` by position names them: the seventh place
+is `narrowStickyColumns` now, and a `true` meant for `striped` still compiles,
+and narrows the pinned columns instead of striping the rows.
 
-```diff
-- IconButton(icon = SystemIcons.Close, contentDescription = "Close", onClick = close)
-+ IconButton(icon = Theme.icons.close, contentDescription = "Close", onClick = close)
-- DatePicker(…, todayIcon = DatePickerDefaults.TodayIcon)
-+ DatePicker(…, todayIcon = Theme.icons.today)
-```
+```kotlin
+// 0.4.5
+Table(rows, Modifier, true, null, rememberTableState(), 1, true) { /* columns */ }
 
-Outside a composition, where `Theme` cannot be read (a list built at the top
-of a file), `SystemIcons.Default.close` is Tabler's.
-
-To use another icon set's glyphs throughout, give the theme a set:
-
-```diff
-- KontourTheme { App() }
-+ KontourTheme(icons = SystemIcons(close = FontAwesome.Solid.Times)) { App() }
+// 0.5.0
+Table(rows, Modifier, true, null, rememberTableState(), 1, striped = true) { /* columns */ }
 ```
 
 ### Check
