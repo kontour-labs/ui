@@ -255,7 +255,15 @@ private const val OutsideRangeOpacityHighContrast = 0.8f
  * the whole of the places at its ends, as one set by its values is among bars
  * and categories; a drag's is drawn where the drag was.
  */
-internal class MarkedRange(val from: Double, val to: Double, val upFrom: Double?, val upTo: Double?, val whole: Boolean = false)
+internal class MarkedRange(val from: Double, val to: Double, val upFrom: Double?, val upTo: Double?, val whole: Boolean = false) {
+    /**
+     * Whether it has opened out: wider than a line and, for a box, taller.
+     * One that has not is a hold just taken, or a drag yet to move, and is
+     * drawn as a line where it starts, fades nothing, and reports nothing.
+     */
+    val opened: Boolean
+        get() = whole || (from != to && (upFrom == null || upTo == null || upFrom != upTo))
+}
 
 /** How strongly a selected place among bars is washed: enough to find, not enough to tint the bars it is behind. */
 private const val SelectionWashOpacity = 0.1f
@@ -416,10 +424,29 @@ internal fun DrawScope.drawChart(
             (max(a, b) + half).coerceAtMost(plot.right),
             bottom.coerceAtMost(plot.bottom),
         )
-        val shape = Path()
-        addShape(shape, rect, config.corners.all)
-        drawPath(shape, colours.selection, alpha = MarkedOpacity)
-        drawPath(shape, colours.selection, style = Stroke(config.hairline * 1.5f))
+        val edge = config.hairline * 1.5f
+        when {
+            rect.width > 0f && rect.height > 0f -> {
+                val shape = Path()
+                addShape(shape, rect, config.corners.all)
+                drawPath(shape, colours.selection, alpha = MarkedOpacity)
+                drawPath(shape, colours.selection, style = Stroke(edge))
+            }
+            // Off the plot, as one kept across a change of data can be:
+            // nothing of it is drawn.
+            marked.opened || rect.width < 0f || rect.height < 0f -> Unit
+            // A box at a point: the two edges it opens from, through it, the
+            // plot's height and its width.
+            rect.width == 0f && rect.height == 0f -> {
+                drawLine(colours.selection, Offset(rect.left, plot.top), Offset(rect.left, plot.bottom), edge)
+                drawLine(colours.selection, Offset(plot.left, rect.top), Offset(plot.right, rect.top), edge)
+            }
+            // No wider than a line, or no taller: its edges, met, as a line in
+            // their colour and width, the plot's height for a range across.
+            // It drew nothing, so a finger's hold that had started a range
+            // showed nothing of it until the finger moved.
+            else -> drawLine(colours.selection, rect.topLeft, rect.bottomRight, edge)
+        }
     }
 
     // A selected place among bars is washed behind them, the width of its

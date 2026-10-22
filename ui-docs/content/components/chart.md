@@ -439,6 +439,13 @@ or stretched by the keys, is of whole places along categories and among bars.
 It is drawn behind the marks, edged in the selection's colour, and a screen
 reader hears it after the selected place: "Selected Feb to Apr".
 
+A finger's hold is felt as it takes, with the library's long-press haptic, and
+the range is drawn at once as a line where the finger is, the plot's height,
+in its edge's colour; it opens into the band as the finger moves. A box starts
+as the two lines through the point, across and up. Until it opens, nothing is
+reported, nothing is said and nothing outside it fades: `isEmpty` is still
+true, and a finger lifted there lets go of it.
+
 While a range is marked, the marks outside it fade to 60%, so the ones inside
 stand out at full strength against the rest, and what is whole is what the
 range reports:

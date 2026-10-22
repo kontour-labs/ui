@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.highContrast
 import io.kontour.ui.foundation.ContentScope
+import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.rememberDetentTicker
 import io.kontour.ui.theme.Theme
 import kotlin.math.abs
@@ -105,7 +106,8 @@ import kotlin.math.roundToInt
  *   pointer or a key, it takes no focus, and a screen reader still reads it.
  * @param rangeSelection Where a range marked on the chart is kept: a stretch
  *   across, or a box, by its [mode][ChartRangeSelectionState.mode]. A pointer
- *   marks one by dragging, a finger by holding and then dragging, and Shift
+ *   marks one by dragging, a finger by holding and then dragging, the hold
+ *   felt as it takes and the range drawn as a line until it opens, and Shift
  *   and the arrows stretch one from the selected place, or the first; a tap or
  *   Escape lets go. Without a [selection], a plain drag across is the page's,
  *   and the arrows, Home and End are left to what is round the chart. `null`,
@@ -490,6 +492,7 @@ private fun <X : Any, Y : Any> ChartPlot(
     val selectedX = selection?.x
     val selectedPlace = selectedX?.let { nearestPlace(chart.places, encode(it)) }
     val ticker = rememberDetentTicker()
+    val holds = rememberDetentTicker(intent = FeedbackIntent.LongPress)
     val currentSelection by rememberUpdatedState(selection)
     val currentChart by rememberUpdatedState(chart)
     val currentDecode by rememberUpdatedState(decode)
@@ -555,8 +558,11 @@ private fun <X : Any, Y : Any> ChartPlot(
     // reduced motion, where a chart's whole look changing is not a movement.
     val focusing = remember { Animatable(0f) }
     val lastMarked = remember { LastMarked() }
-    SideEffect { if (marked != null) lastMarked.range = marked }
-    val focused = marked != null
+    // Not while it is a line, as a hold has just started it: the whole chart
+    // would fade but for a hairline. It fades as the range opens out.
+    val opened = marked?.takeIf { it.opened }
+    SideEffect { if (opened != null) lastMarked.range = opened }
+    val focused = opened != null
     LaunchedEffect(focused, motion.reduceMotion) {
         val target = if (focused) 1f else 0f
         if (motion.reduceMotion) focusing.snapTo(target) else focusing.animateTo(target, motion.tweenFast())
@@ -589,6 +595,25 @@ private fun <X : Any, Y : Any> ChartPlot(
                 val now = currentChart
                 val mapper = Mapper(current, now.x, now.y)
                 val across = listOf(mapper.xAt(a), mapper.xAt(b)).map { it.coerceIn(now.x.low, now.x.high) }.sorted()
+                val decodeY = currentDecodeUp
+                // A box wants a measure both ways; across categories it is a
+                // range across, as `ChartRangeMode.Box` says.
+                val up = if (range.mode == ChartRangeMode.Box && decodeY != null && now.x.kind != AxisKind.Category) {
+                    listOf(mapper.yAt(a), mapper.yAt(b)).map { it.coerceIn(now.y.low, now.y.high) }.sorted()
+                } else {
+                    null
+                }
+                // No wider than a line, or a box no taller, as one is at the
+                // moment a finger's hold starts it: drawn, so the reader sees
+                // where it starts, and reporting nothing until it opens. It
+                // was not drawn at all until the finger moved: *"there's no
+                // visual indicator for the selection region when it has 0
+                // width. just a line which then turns into the box as you
+                // start dragging would be nice"*.
+                if (across[0] == across[1] || (up != null && up[0] == up[1])) {
+                    range.mark(across[0], across[1], up?.get(0), up?.get(1), null, null, null, null)
+                    return
+                }
                 if (now.x.kind == AxisKind.Category) {
                     // One that takes in no category is drawn as the drag
                     // goes, so the reader sees what they are marking, and
@@ -601,21 +626,30 @@ private fun <X : Any, Y : Any> ChartPlot(
                 }
                 val start = currentDecode(across[0]) ?: return
                 val end = currentDecode(across[1]) ?: return
-                val decodeY = currentDecodeUp
-                // A box wants a measure both ways; across categories it is a
-                // range across, as `ChartRangeMode.Box` says.
-                if (range.mode == ChartRangeMode.Box && decodeY != null) {
-                    val up = listOf(mapper.yAt(a), mapper.yAt(b)).map { it.coerceIn(now.y.low, now.y.high) }.sorted()
+                if (up != null && decodeY != null) {
                     range.mark(across[0], across[1], up[0], up[1], start, end, decodeY(up[0]), decodeY(up[1]))
                 } else {
                     range.mark(across[0], across[1], null, null, start, end, null, null)
                 }
             }
             ChartBrush(
+                // Marked from the start, as a line where it went down, before
+                // it has moved: see [markBetween].
                 start = { at ->
                     markFrom = at
                     tip.resting = false
                     currentSelection?.clear()
+                    markBetween(at, at)
+                },
+                // A long press's report, as `:ui`'s own long presses make,
+                // played as a threshold crossed once a hold: from not held to
+                // held. The library's long-press helper is `:ui`'s alone, and
+                // a ticker is the way to the same intent from here without a
+                // call site of the chart's own.
+                held = {
+                    holds.reset()
+                    holds.at(0)
+                    holds.at(1)
                 },
                 drag = { at -> markBetween(markFrom, at) },
                 // Let go having taken in nothing, nothing is marked, and
@@ -742,7 +776,7 @@ private fun <X : Any, Y : Any> ChartPlot(
                         selectedPlace,
                         settled = transition.to,
                         marked = marked,
-                        focused = marked ?: lastMarked.range,
+                        focused = opened ?: lastMarked.range,
                         focusing = focusing.value,
                     )
                 }

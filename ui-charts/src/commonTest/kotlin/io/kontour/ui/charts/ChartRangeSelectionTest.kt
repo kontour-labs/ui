@@ -2,6 +2,7 @@ package io.kontour.ui.charts
 
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -28,6 +29,9 @@ import androidx.compose.ui.test.swipe
 import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.compose.ui.test.withKeyDown
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.interaction.FeedbackDispatcher
+import io.kontour.ui.interaction.FeedbackIntent
+import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.theme.KontourTheme
 import kotlin.test.Test
@@ -303,6 +307,135 @@ class ChartRangeSelectionTest {
         waitForIdle()
         assertTrue(!range.isEmpty, "a held drag should mark a range")
         assertTrue(range.xStart != range.xEnd, "across more than one place: ${range.xStart}..${range.xEnd}")
+    }
+
+    /**
+     * A finger's hold, taken and not yet moved, is felt once and draws the
+     * range at once as a line the plot's height where the finger is, which
+     * opens into the band as it moves. Until then it reports nothing, is said
+     * as nothing, and fades nothing: the whole chart faded but for a hairline.
+     * It drew nothing until the finger moved, and said nothing as the hold
+     * took: *"a bit of feedback would be nice to know the selection has
+     * started... just a line which then turns into the box as you start
+     * dragging would be nice"*.
+     */
+    @Test
+    fun aHoldIsFeltAndDrawnAsALineUntilItMoves() = runComposeUiTest {
+        val range = ChartRangeSelectionState<String, Number>(ChartRangeMode.Across)
+        val felt = mutableListOf<FeedbackIntent>()
+        setContent {
+            KontourTheme(reduceMotion = true) {
+                CompositionLocalProvider(LocalFeedback provides FeedbackDispatcher { felt += it }) {
+                    OverlayHost(Modifier.fillMaxSize()) {
+                        Chart(
+                            xAxis = ChartAxis.category<String>(),
+                            yAxis = ChartAxis.number(domain = 0.0..400.0),
+                            modifier = Modifier.size(360.dp, 240.dp).testTag("chart"),
+                            rangeSelection = range,
+                            colours = ChartDefaults.colours(series = listOf(Bars), grid = Color.Transparent, selection = Probe),
+                            showLegend = false,
+                            animateData = false,
+                        ) {
+                            bar(spending, x = { it.month }, y = { it.amount })
+                        }
+                    }
+                }
+            }
+        }
+        val chart = onNodeWithTag("chart")
+        val bounds = chart.fetchSemanticsNode().boundsInRoot
+        val feb = band("Feb")
+        val start = Offset(feb.first + (feb.second - feb.first) * 0.3f, bounds.height * 0.5f)
+        // June's bar, well clear of the range, low down where every bar is.
+        val jun = band("Jun")
+        fun june() = chart.captureToImage().toPixelMap()[((jun.first + jun.second) / 2).toInt(), (bounds.height * 0.8f).toInt()]
+        val unfaded = june()
+        chart.performTouchInput { down(start) }
+        mainClock.advanceTimeBy(1000)
+        waitForIdle()
+        assertEquals(listOf(FeedbackIntent.LongPress), felt, "the hold taking should be felt, once")
+        // Above the bars, which reach no higher than a little over half way.
+        val (left, right) = edgesAcross(0.2f)
+        assertTrue(abs(left - start.x) <= 2f && right - left <= 4f, "a line at ${start.x} should be drawn, not $left to $right")
+        assertTrue(range.isEmpty, "a line marks nothing yet: ${range.xStart}..${range.xEnd}")
+        val said = onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsProperties.StateDescription)).fetchSemanticsNodes()
+        assertTrue(said.isEmpty(), "and is said as nothing")
+        assertEquals(unfaded, june(), "and fades nothing")
+        val to = start.x + (bounds.width * 0.3f)
+        chart.performTouchInput {
+            for (step in 1..10) moveTo(Offset(start.x + (to - start.x) * step / 10f, start.y))
+        }
+        waitForIdle()
+        val (opened, closed) = edgesAcross(0.2f)
+        assertTrue(abs(opened - start.x) <= 2f && abs(closed - to) <= 2f, "moved, it opens from ${start.x} to $to, not $opened to $closed")
+        assertTrue(!range.isEmpty, "and marks a range")
+        assertTrue(
+            onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsProperties.StateDescription)).fetchSemanticsNodes().isNotEmpty(),
+            "which is said",
+        )
+        assertTrue(june() != unfaded, "and fades what is outside it")
+        chart.performTouchInput { up() }
+        waitForIdle()
+        assertEquals(listOf(FeedbackIntent.LongPress), felt, "felt once a hold, not again as it moved or lifted")
+    }
+
+    /** A hold let go without moving lets go of its line: nothing was marked. */
+    @Test
+    fun aHoldLiftedWithoutMovingMarksNothing() = runComposeUiTest {
+        val range = ChartRangeSelectionState<String, Number>(ChartRangeMode.Across)
+        bars(range)
+        val chart = onNodeWithTag("chart")
+        chart.performTouchInput { down(Offset(width * 0.3f, height * 0.5f)) }
+        mainClock.advanceTimeBy(1000)
+        chart.performTouchInput { up() }
+        waitForIdle()
+        assertTrue(range.isEmpty)
+        assertNull(range.acrossFrom, "and nothing is left drawn")
+    }
+
+    /**
+     * A box's hold draws the two lines through the point, across the plot and
+     * up it, the edges it opens from.
+     */
+    @Test
+    fun aBoxHoldIsDrawnAsTheLinesThroughItsPoint() = runComposeUiTest {
+        val range = ChartRangeSelectionState<Number, Number>(ChartRangeMode.Box)
+        setContent {
+            KontourTheme(reduceMotion = true) {
+                OverlayHost(Modifier.fillMaxSize()) {
+                    Chart(
+                        xAxis = ChartAxis.number(domain = 0.0..50.0),
+                        yAxis = ChartAxis.number(domain = 0.0..20.0),
+                        modifier = Modifier.size(360.dp, 240.dp).testTag("chart"),
+                        rangeSelection = range,
+                        colours = ChartDefaults.colours(series = listOf(Bars), grid = Color.Transparent, selection = Probe),
+                        showLegend = false,
+                        animateData = false,
+                    ) {
+                        point(listOf(Day(1.0, 1.0)), x = { it.temperature }, y = { it.use })
+                    }
+                }
+            }
+        }
+        val bounds = onNodeWithTag("chart").fetchSemanticsNode().boundsInRoot
+        val start = Offset(bounds.width * 0.5f, bounds.height * 0.5f)
+        onNodeWithTag("chart").performTouchInput { down(start) }
+        mainClock.advanceTimeBy(1000)
+        waitForIdle()
+        val (left, right) = edgesAcross(0.2f)
+        assertTrue(abs(left - start.x) <= 2f && right - left <= 4f, "a line up through ${start.x}, not $left to $right")
+        val (top, bottom) = edgesUp(0.8f)
+        assertTrue(abs(top - start.y) <= 2f && bottom - top <= 4f, "and one across through ${start.y}, not $top to $bottom")
+        assertTrue(range.isEmpty, "a point marks nothing yet")
+        val end = start + Offset(bounds.width * 0.2f, -bounds.height * 0.2f)
+        onNodeWithTag("chart").performTouchInput {
+            for (step in 1..10) moveTo(start + (end - start) * (step / 10f))
+            up()
+        }
+        waitForIdle()
+        val (boxLeft, boxRight) = edgesAcross(0.4f)
+        assertTrue(abs(boxLeft - start.x) <= 2f && abs(boxRight - end.x) <= 2f, "it opens into a box from ${start.x} to ${end.x}, not $boxLeft to $boxRight")
+        assertTrue(!range.isEmpty, "which is marked")
     }
 
     @Test

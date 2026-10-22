@@ -231,15 +231,34 @@ internal fun Modifier.chartSelectionInput(
         // scroll, so this is the one that can wander off the line. On a chart
         // that marks ranges it marks one: a plain drag across still moves the
         // selected place, which is what a finger does more often.
+        //
+        // The hold taking is felt, and the range is drawn at once as a line
+        // where the finger is: *"you have to hold down a bit on the chart
+        // before it lets you select. that is fine, but a bit of feedback would
+        // be nice to know the selection has started"*. A mouse's drag has no
+        // hold to report.
         .pointerInput(Unit) {
             detectDragGesturesAfterLongPress(
-                onDragStart = { at -> latestBrush?.start?.invoke(at) ?: latestTouched(at) },
+                onDragStart = { at ->
+                    val marking = latestBrush
+                    when {
+                        marking == null -> latestTouched(at)
+                        // A mouse held still is not marking yet: its range is
+                        // its own loop's, below, from the press, and has no
+                        // hold to report.
+                        mouse.at != null -> Unit
+                        else -> {
+                            marking.start(at)
+                            marking.held()
+                        }
+                    }
+                },
                 onDragEnd = { latestBrush?.end?.invoke() },
                 onDragCancel = { latestBrush?.end?.invoke() },
             ) { change, _ ->
                 change.consume()
                 val marking = latestBrush
-                if (marking != null) marking.drag(change.position) else latestTouched(change.position)
+                if (marking == null) latestTouched(change.position) else if (mouse.at == null) marking.drag(change.position)
             }
         }
         .pointerInput(Unit) {
@@ -426,9 +445,12 @@ private class MousePress {
  * How a chart marks a range: a drag that [start]s at a point and [drag]s to
  * another, its [end], a tap or Escape that [clear]s it, Shift and an arrow
  * that [stretch] it by a place either way, and whether anything is [marked].
+ * A finger's hold that starts one is reported by [held], once, as the hold
+ * takes.
  */
 internal class ChartBrush(
     val start: (Offset) -> Unit,
+    val held: () -> Unit,
     val drag: (Offset) -> Unit,
     val end: () -> Unit,
     val clear: () -> Unit,
