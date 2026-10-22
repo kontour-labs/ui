@@ -55,7 +55,7 @@ coach mark, an activity calendar's cursor.
 
 `SystemIcons` is `Theme.icons`, and a good many components,
 `ComponentDefaults`, `Strings`, `CalendarEvent` and `Tooltip` have new
-parameters — see **Breaking** and [Migrating](migrating.md#045-to-050). Side
+parameters — see **Breaking** and [Migrating](migrating.md#046-to-050). Side
 sheets take the panel's corner, and a modal bottom sheet is wider on a wide
 window — see **Changed**.
 
@@ -106,7 +106,7 @@ window — see **Changed**.
   `moveRight`, `newTab`, `closeTab` and `moreOptions`, at the end, so an app
   that builds its own with named arguments needs nothing; one that passes
   them by position, or overrides `Strings.from`'s keys, recompiles. See
-  [Migrating](migrating.md#045-to-050).
+  [Migrating](migrating.md#046-to-050).
 
 ### Changed
 

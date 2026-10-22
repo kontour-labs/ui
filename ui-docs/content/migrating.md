@@ -15,19 +15,21 @@ from the version the app is on.
 
 ---
 
-## 0.4.5 to 0.5.0
+## 0.4.6 to 0.5.0
 
-Most of this release is new: charts, in a module an app takes only if it wants
-them, document tabs, a list row you type into, and more. What an app on 0.4.5
-changes is short. The library's glyphs are the theme's, so code that named one
-of `SystemIcons`' changes. Thirteen components take the glyphs they draw, the
-stepped progress indicators take `stepProgress` and `weights`, and the modal
-sheets `recedes`, partway through their parameters, so an argument after one,
-passed by position, is named; each fails to compile rather than meaning
-something else. One does not: `Table`'s `narrowStickyColumns`, a Boolean after
-`stickyColumns`, where a positional `striped` lands. `Strings`,
-`ComponentDefaults` and `CalendarEvent` have new fields and parameters, each
-defaulted and last, and `Tooltip` one before its content.
+From 0.4.5, nothing changes in 0.4.6 (see [below](#045-to-046)), so this
+section is the whole of the way from either. Most of this release is new:
+charts, in a module an app takes only if it wants them, document tabs, a list
+row you type into, and more. What an app changes is short. The library's glyphs
+are the theme's, so code that named one of `SystemIcons`' changes. Thirteen
+components take the glyphs they draw, the stepped progress indicators take
+`stepProgress` and `weights`, and the modal sheets `recedes`, partway through
+their parameters, so an argument after one, passed by position, is named; each
+fails to compile rather than meaning something else. One does not: `Table`'s
+`narrowStickyColumns`, a Boolean after `stickyColumns`, where a positional
+`striped` lands. `Strings`, `ComponentDefaults` and `CalendarEvent` have new
+fields and parameters, each defaulted and last, and `Tooltip` one before its
+content.
 
 ### `SystemIcons.Close` is `Theme.icons.close`
 
@@ -121,6 +123,12 @@ Table(rows, Modifier, true, null, rememberTableState(), 1, striped = true) { /* 
   the control itself. Pass `null` to keep the old look.
 - **A side sheet's back is a chevron**, `Theme.icons.chevronBack`, as a top
   bar's and a sheet header's are. It was the one arrow in the library.
+- **A side sheet's corner is the panel's, 28dp**, where it was a sheet's 34.
+  Pass `shape` for the old one.
+- **A modal bottom sheet is wider on a wide window**, up to
+  `ComponentDefaults.modalSheetMaxWidth`, 560dp, where it stopped at a
+  `BottomSheet`'s 480. Give the theme's `componentDefaults` a
+  `modalSheetMaxWidth` equal to its `sheetMaxWidth` for the old width.
 - **A `Tooltip` given its content by position.** `style` comes before
   `content`, so a call that passed every argument by position, the content
   last inside the parentheses, no longer compiles; pass the content as the
@@ -137,6 +145,14 @@ Table(rows, Modifier, true, null, rememberTableState(), 1, striped = true) { /* 
   ```kotlin
   Tooltip(open, Modifier, OverlaySide.Top, OverlayAlignment.Centre, {}) { +"Recentre" }
   ```
+
+---
+
+## 0.4.5 to 0.4.6
+
+Nothing to change. Two crash fixes and nothing else: a list on
+`rememberScrollbarListState()` leaving while it measured its rows, and a
+`ListSection` in a lazy list. See the [changelog](changelog.md#046--21-october-2026).
 
 ---
 
