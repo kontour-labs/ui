@@ -377,7 +377,11 @@ window — see **Changed**.
   finger held still, Shift+F10 or the menu key, or a screen reader's "More
   options"; a right click does not choose the tab, and a tab held and moved is
   carried as before, closing its menu. `closeOnMiddleClick`, on by default,
-  lets an app keep the middle button for itself.
+  lets an app keep the middle button for itself. Riding its strip, a tab stays
+  on the line of the others, stretching a few dp towards a pull, and comes away
+  only 64dp past the strip's edge; carried back, it is drawn onto a strip's
+  line as it nears and taken in from the strip's height away, above, below or
+  past its ends.
 - **`KeyValueList(compact = true)`**, for a small container of its own: the
   rows take the style around them and the list is as wide as its rows.
 - **`FillPatternDefaults`**, the spacing and weight a pattern is drawn with and
@@ -412,6 +416,13 @@ window — see **Changed**.
 
 ### Fixed
 
+- **A thing carried between drop targets follows the pointer.** Off one
+  target and on its way to another, the carried copy was moved by a spring
+  that each move started again, so it stood where it came away until the
+  pointer stopped, as far as 680px behind it; it is drawn under the pointer on
+  the frame of each move now, and only its jump off a target, or onto one, is
+  eased. And it grows from where it is held as it lifts, so what is under the
+  pointer stays there, where it grew from its middle and slid out from under it.
 - **An [event calendar](components/event-calendar.md)'s events are hovered and
   pressed in their own shape.** The wash over an event was a capsule whatever
   the event was: on a block in the hours, cornered more squarely, the block's
