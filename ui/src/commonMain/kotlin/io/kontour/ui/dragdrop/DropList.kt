@@ -81,6 +81,9 @@ class DropListState<T : Any> internal constructor(
      * items carried along it comes away; `null`, the default, for an item that
      * follows the pointer anywhere from the start. A document tab rides its
      * strip until it is pulled clear, as a browser's does: see `DocumentTabs`.
+     * A free thing is taken in from as far outside the list as it is deep, or
+     * three quarters of this if that is less, and drawn onto its line as it
+     * comes: see `DragHost.boardable` and `DragHost.magnet`.
      */
     internal var tearOff: Float? = null
 

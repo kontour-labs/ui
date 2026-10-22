@@ -94,15 +94,22 @@ a scrolling strip needs.
 
 A tab rides its strip, as a browser's does: it stays on the strip, flat and
 as it looks there, following the pointer along it, and goes no further than
-the first tab's start or the last tab's end, so never over the "+".
+the first tab's start or the last tab's end, so never over the "+". It stays
+on the line of the other tabs however the hand moving it wobbles across the
+strip, a few dp past its edge included.
 
 ### Between strips
 
-With `movesBetweenStrips`, a tab can also leave its strip. Pulled down, it gives
-a little towards the finger, then comes away, lifting off the page with its
-bottom corners rounding, and follows the pointer anywhere. Carried into another
-strip of the same `DragType` that has it on too, it settles onto that strip,
-square again, and rides it as one of its own; dropped there, `onDrop` on that
+With `movesBetweenStrips`, a tab can also leave its strip, for a deliberate
+pull. Pulled down, it stays on the strip's line, stretching a few dp towards
+the finger as if on elastic, until the pointer is 64dp past the strip's edge;
+then it comes away, lifting off the page with its bottom corners rounding, and
+follows the pointer anywhere, drawn under it on every frame. Carried back
+towards a strip of the same `DragType` that has it on too — its own, or
+another — it is drawn onto that strip's line as it nears, and taken in from
+the strip's height away, above or below it or past its ends, a detent felt as
+it is. It settles onto that strip, square again, and rides it as one of its
+own; dropped there, `onDrop` on that
 strip's state is told where it came from, as a card moved between a board's
 lists is. Two panes of a split view each with its own strip take each other's
 tabs this way.

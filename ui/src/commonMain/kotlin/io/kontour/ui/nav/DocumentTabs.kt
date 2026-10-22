@@ -1124,8 +1124,17 @@ internal class StripMenu(val key: Any?, val item: Any?, val at: Rect)
 private val TabMinWidth = 72.dp
 private val TabMaxWidth = 240.dp
 
-/** How far a pointer may pull a tab from its strip before it comes away. */
-private val TearOff = 32.dp
+/**
+ * How far past its strip's edge a pointer pulls a tab before it comes away.
+ *
+ * Raised from 32dp, 2026-10-21 for 0.5.0, with the tab held on the strip's
+ * line until then: at 32dp, a hand moving a tab along the strip on a phone
+ * pulled it off on the way. A strip takes a carried tab in from its own
+ * height away, 48dp, and this is a third more, so a tab just taken in has
+ * 16dp still to go before it comes away again rather than boarding on one
+ * move and tearing on the next. See `CaptureShare` in `DragHost`.
+ */
+private val TearOff = 64.dp
 
 /** From this wide, every tab shows its ×; narrower, only the selected and the hovered. */
 private val CloseShownFrom = 112.dp

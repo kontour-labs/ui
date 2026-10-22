@@ -1,6 +1,7 @@
 package io.kontour.ui.dragdrop
 
 import androidx.compose.animation.core.VisibilityThreshold
+import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationSpec
@@ -17,12 +18,14 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.runtime.withFrameMillis
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
@@ -36,6 +39,7 @@ import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.layer.GraphicsLayer
 import androidx.compose.ui.graphics.layer.drawLayer
@@ -59,9 +63,12 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.focusable
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.input.Cursor
 import io.kontour.ui.input.LocalInputModality
@@ -75,7 +82,10 @@ import io.kontour.ui.interaction.rememberLongPressFeedback
 import io.kontour.ui.locale.LocaleFormats
 import io.kontour.ui.theme.Strings
 import io.kontour.ui.theme.Theme
+import kotlin.math.abs
+import kotlin.math.exp
 import kotlin.math.roundToInt
+import kotlin.math.sign
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -124,6 +134,12 @@ internal class DragHost {
     /** The words and numbers it says things in, from the theme. */
     var strings: Strings = Strings()
     var formats: LocaleFormats? = null
+
+    /** What its distances in dp are in pixels, from where the carried thing is drawn. */
+    var density: Density = Density(1f)
+
+    /** Whether a jump in where the thing is held is eased away: not under reduced motion. */
+    var eases: Boolean = true
 
     /** Targets as they attach, read where the moves offered to a screen reader are worked out. */
     val attached = mutableStateListOf<DropTarget>()
@@ -197,6 +213,8 @@ internal class DragHost {
         if (!bounds.inflate(reach).contains(at)) {
             current.riding = null
             current.scrollProbe = null
+            current.leftBehind = list
+            current.nudge = Offset.Zero
             onTear(true)
             return at
         }
@@ -219,20 +237,46 @@ internal class DragHost {
             list.layoutDirection == LayoutDirection.Rtl -> bounds.right - run.endInclusive to bounds.right - run.start
             else -> bounds.left + run.start to bounds.left + run.endInclusive
         }
-        // Across, it gives a little to a pointer pulling it off, where it can
-        // come off: held dead on the line, it sat still while the finger went
-        // the whole tear-off, and then leapt. Never out of the list, which is
-        // what it is over until it comes away.
-        val give = if (reach.isFinite()) RideGive else 0f
+        // **Across, it is held on the line**, and only drawn a little towards
+        // a pointer pulling it off: see [stretch]. From 2026-10-19 it gave half
+        // the pull, so as not to sit dead still and then leap, and a tab
+        // wobbled out of line with the others under a hand moving it along.
+        // Reported 2026-10-21 for 0.5.0: *"it also feels too easy to drag out
+        // of alignment with the rest of the tabs in the bar"*. Where it is
+        // held is what it is over, so it is over its list until it comes
+        // away; the leap as it does is eased away by the layer instead.
+        val outside = if (horizontal) at.y.beyond(bounds.top, bounds.bottom) else at.x.beyond(bounds.left, bounds.right)
+        val give = if (reach.isFinite()) stretch(outside) else 0f
         return if (horizontal) {
             val left = (at.x - current.grab.x).coerceIn(lo, maxOf(lo, hi - current.size.width))
-            val line = bounds.top + current.line
-            Offset(left + current.grab.x, (line + (at.y - line) * give).coerceIn(bounds.top, bounds.bottom - 1f))
+            current.nudge = Offset(0f, give)
+            Offset(left + current.grab.x, bounds.top + current.line)
         } else {
             val top = (at.y - current.grab.y).coerceIn(lo, maxOf(lo, hi - current.size.height))
-            val line = bounds.left + current.line
-            Offset((line + (at.x - line) * give).coerceIn(bounds.left, bounds.right - 1f), top + current.grab.y)
+            current.nudge = Offset(give, 0f)
+            Offset(bounds.left + current.line, top + current.grab.y)
         }
+    }
+
+    /** How far this is outside [start] to [end]: negative before, positive after, nothing between. */
+    private fun Float.beyond(start: Float, end: Float): Float = when {
+        this < start -> this - start
+        this > end -> this - end
+        else -> 0f
+    }
+
+    /**
+     * How far a thing riding a list is drawn off its line for a pointer
+     * [outside] the list by that much: not at all for the first [RideHold],
+     * then more and more slowly, never as far as [RideStretch]. A rubber band,
+     * so a pull is seen to be taken up and a wobble is not seen at all.
+     */
+    private fun stretch(outside: Float): Float {
+        val hold = with(density) { RideHold.toPx() }
+        val most = with(density) { RideStretch.toPx() }
+        val past = (abs(outside) - hold).coerceAtLeast(0f)
+        if (past == 0f || most <= 0f) return 0f
+        return sign(outside) * most * (1f - exp(-past * RideResistance / most))
     }
 
     /**
@@ -252,12 +296,92 @@ internal class DragHost {
         return from..end.coerceIn(from, length)
     }
 
-    /** The list a free thing at [at] boards: one that rides its things, would take this one, and is under it. */
-    private fun boardable(current: DragSession, at: Offset): DropListState<*>? = targets
+    /**
+     * How far outside a list, across it and past its ends, a free thing is
+     * taken in: the list's own depth, but never so far that a thing just
+     * taken in is close to tearing off again. See [CaptureShare].
+     */
+    private fun captureOf(list: DropListState<*>, bounds: Rect): Float {
+        val depth = if (list.orientation == Orientation.Horizontal) bounds.height else bounds.width
+        val reach = list.tearOff ?: return 0f
+        return minOf(depth, reach * CaptureShare)
+    }
+
+    /** A list a free thing could board, and how far outside it the pointer is: across it, and past its ends. */
+    private class Near(val list: DropListState<*>, val bounds: Rect, val across: Float, val along: Float)
+
+    /**
+     * The lists a free thing at [at] could board — that ride their things,
+     * would take this one, and are not behind a modal — nearest first, with
+     * how far outside each the pointer is.
+     */
+    private fun nearby(current: DragSession, at: Offset): List<Near> = targets
         .filter { it.enabled && it.type === current.type && it.layer >= blockedBelow && it.list?.tearOff != null }
-        .filter { it.accepts(current.payload) && it.boundsInRoot()?.contains(at) == true }
-        .maxByOrNull { it.layer }
-        ?.list
+        .filter { it.accepts(current.payload) }
+        .mapNotNull { target ->
+            val list = target.list ?: return@mapNotNull null
+            val bounds = target.boundsInRoot() ?: return@mapNotNull null
+            val horizontal = list.orientation == Orientation.Horizontal
+            val across = if (horizontal) at.y.beyond(bounds.top, bounds.bottom) else at.x.beyond(bounds.left, bounds.right)
+            val along = if (horizontal) at.x.beyond(bounds.left, bounds.right) else at.y.beyond(bounds.top, bounds.bottom)
+            Near(list, bounds, abs(across), abs(along))
+        }
+        .sortedWith(compareBy<Near> { maxOf(it.across, it.along) }.thenByDescending { it.list.target.layer })
+
+    /**
+     * The list a free thing at [at] boards: the nearest that would, under the
+     * pointer or within its capture.
+     *
+     * **Taken in from near it, not only from over it.** It boarded only once
+     * the pointer was over the strip itself, a band 48dp deep to aim a tab
+     * carried back at, and a hand that came a little short or went a little
+     * past carried it on by. Reported 2026-10-21 for 0.5.0: *"it should also
+     * snap into a bar a bit easier"*. Not from inside another target beside
+     * it, which is what the pointer is aiming at.
+     */
+    private fun boardable(current: DragSession, at: Offset): DropListState<*>? {
+        val near = nearby(current, at).firstOrNull() ?: return null
+        if (near.across == 0f && near.along == 0f) return near.list
+        val capture = captureOf(near.list, near.bounds)
+        if (near.across > capture || near.along > capture) return null
+        val elsewhere = targets.any { other ->
+            other.enabled && other.type === current.type && other.layer >= blockedBelow && other.list?.tearOff == null &&
+                other.boundsInRoot()?.let { it.contains(at) && !it.contains(near.bounds.center) } == true
+        }
+        return if (elsewhere) null else near.list
+    }
+
+    /**
+     * How far a free thing at [at] is drawn towards the line of a list it is
+     * coming up to: from nothing a list's depth outside its capture to the
+     * whole way at the capture's edge, on a smooth step, so it eases onto the
+     * line and is on it as it is taken in. Not towards the list it last came
+     * off until it has been clear of this, or it would hang back as it was
+     * pulled away.
+     */
+    private fun magnet(current: DragSession, at: Offset): Offset {
+        for (near in nearby(current, at)) {
+            val horizontal = near.list.orientation == Orientation.Horizontal
+            val depth = if (horizontal) near.bounds.height else near.bounds.width
+            val capture = captureOf(near.list, near.bounds)
+            val within = near.along <= capture && near.across <= capture + depth
+            if (near.list === current.leftBehind) {
+                if (within) continue
+                current.leftBehind = null
+            }
+            if (!within || depth <= 0f) return Offset.Zero
+            val t = ((capture + depth - near.across) / depth).coerceIn(0f, 1f)
+            val share = t * t * (3f - 2f * t)
+            // Where it is held across the list once on its line, as [board] puts it.
+            val line = current.grab.acrossOf(near.list.orientation).coerceIn(0f, (depth - 1f).coerceAtLeast(0f))
+            return if (horizontal) {
+                Offset(0f, (near.bounds.top + line - at.y) * share)
+            } else {
+                Offset((near.bounds.left + line - at.x) * share, 0f)
+            }
+        }
+        return Offset.Zero
+    }
 
     /** Whether something under the pointer would scroll if given frames to do it. */
     fun wantsToScroll(edge: Float): Boolean {
@@ -295,13 +419,24 @@ internal class DragHost {
     fun carry(pointerInRoot: Offset) {
         val current = session ?: return
         if (current.phase != DragPhase.Carrying) return
+        val was = current.drawn
+        val rode = current.riding
         if (current.riding == null && !current.keyboard) {
             boardable(current, pointerInRoot)?.let { list ->
                 board(current, list, current.grab.acrossOf(list.orientation))
+                current.leftBehind = null
                 onTear(false)
             }
         }
         current.pointer = ride(current, pointerInRoot)
+        if (current.riding == null && !current.keyboard) current.nudge = magnet(current, pointerInRoot)
+        // Coming off a line or boarding one moves where the thing is held by
+        // up to the tear-off at once. This frame draws it where it was, and the
+        // layer eases the difference away while it goes on following the pointer.
+        if (current.riding !== rode && eases) {
+            current.jolt = was - (current.topLeft + current.nudge + current.easing)
+            current.jolts++
+        }
         retarget()
     }
 
@@ -469,6 +604,34 @@ internal class DragSession(
 
     /** How far across [riding] the thing is held: from its top, or its start for a column. */
     var line: Float = 0f
+
+    /**
+     * The list it last came off, whose magnet does not draw it back until it
+     * has been carried clear of it: see `DragHost.magnet`.
+     */
+    var leftBehind: DropListState<*>? = null
+
+    /**
+     * How far from where it is held it is drawn, for the eye only: a little
+     * towards a pointer pulling it off the list it rides, or towards the line
+     * of one it is coming up to. What it is over is where it is held.
+     */
+    var nudge: Offset by mutableStateOf(Offset.Zero)
+
+    /**
+     * The jump in where it is held as it came off a line or boarded one, not
+     * yet handed to [easing], and how many there have been, which the layer
+     * waits on. Set by the move that made it, so the frame that draws the move
+     * draws the thing where it was.
+     */
+    var jolt: Offset by mutableStateOf(Offset.Zero)
+    var jolts: Int by mutableIntStateOf(0)
+
+    /** What is left of the jumps, eased to nothing by the layer. */
+    var easing: Offset by mutableStateOf(Offset.Zero)
+
+    /** Where its top left is drawn while a pointer carries it: under the pointer, and the rest. */
+    val drawn: Offset get() = topLeft + nudge + easing + jolt
 
     /**
      * How far off the page it is, 0 to 1: its shadow, the little it grows, and
@@ -912,6 +1075,8 @@ private fun warnNoHost() {
 internal fun DragLayer(host: DragHost) {
     host.strings = Theme.strings
     host.formats = Theme.formats
+    host.density = LocalDensity.current
+    host.eases = !Theme.motion.reduceMotion
     DragAnnouncer(host)
     val snaps = rememberDetentTicker(FeedbackIntent.Snap)
     val landing = rememberLandingFeedback()
@@ -993,28 +1158,31 @@ internal fun DragLayer(host: DragHost) {
 
     // Under the pointer while carried, with nothing between the two — or, carried
     // by a keyboard, over the place it would land, moving to each in turn.
+    //
+    // **Drawn where the session says, read as it is placed**, not chased by an
+    // animation. As it came off the line of a list it rode, or boarded one, it
+    // was flown to each new place on a spring, restarted by every move — and a
+    // spring restarted each frame is always on its first frame, which moves
+    // nothing. A tab pulled off its strip stood still where it came away, as
+    // far behind the pointer as the pointer had gone, until the pointer
+    // stopped. Reported 2026-10-21 for 0.5.0: *"dragging document tabs around
+    // outside of the bar is still janky as hell"*. Now the jump alone is eased
+    // away, on `easing`, and every move is drawn on the frame it arrives.
+    var flying by remember(session) { mutableStateOf(session.keyboard) }
     LaunchedEffect(session) {
         if (!session.keyboard) {
-            // Except as it comes off the line of a list it rode, or boards
-            // one: a jump of up to the tear-off at once, under the pointer or
-            // onto the line, which it closes on the flight's spring and then
-            // goes back to following exactly.
-            var rode = session.riding
-            var catching = false
             val snappy = motion.springSnappy
             val catchUp = spring(snappy.dampingRatio, snappy.stiffness, visibilityThreshold = Offset.VisibilityThreshold)
-            snapshotFlow { Triple(session.phase, session.topLeft, session.riding) }.collectLatest { (phase, at, riding) ->
-                if (phase != DragPhase.Carrying) return@collectLatest
-                if (riding !== rode) {
-                    rode = riding
-                    catching = !motion.reduceMotion
+            snapshotFlow { session.jolts }.collectLatest {
+                if (session.phase != DragPhase.Carrying) return@collectLatest
+                val from = Snapshot.withMutableSnapshot {
+                    val all = session.easing + session.jolt
+                    session.easing = all
+                    session.jolt = Offset.Zero
+                    all
                 }
-                if (catching) {
-                    position.animateTo(at, catchUp)
-                    catching = false
-                } else {
-                    position.snapTo(at)
-                }
+                if (from == Offset.Zero) return@collectLatest
+                animate(Offset.VectorConverter, from, Offset.Zero, animationSpec = catchUp) { value, _ -> session.easing = value }
             }
         } else {
             snapshotFlow { Triple(session.phase, session.target, session.index) }.collect { (phase, target, _) ->
@@ -1044,6 +1212,11 @@ internal fun DragLayer(host: DragHost) {
     val letGo = session.phase != DragPhase.Carrying
     LaunchedEffect(session, letGo) {
         if (!letGo) return@LaunchedEffect
+        // From where it was last drawn, which the pointer no longer moves.
+        if (!flying) {
+            position.snapTo(session.drawn)
+            flying = true
+        }
         var settling: Job? = null
         if (motion.reduceMotion) {
             // No flight: to its place at once, and down with the drop.
@@ -1089,13 +1262,25 @@ internal fun DragLayer(host: DragHost) {
     val grows = !motion.reduceMotion
     Box(
         Modifier
-            .offset { (position.value - host.originOf()).let { IntOffset(it.x.roundToInt(), it.y.roundToInt()) } }
+            .offset { ((if (flying) position.value else session.drawn) - host.originOf()).let { IntOffset(it.x.roundToInt(), it.y.roundToInt()) } }
             .size(with(density) { session.size.width.toDp() }, with(density) { session.size.height.toDp() })
             .graphicsLayer {
                 val up = lift.value.coerceIn(0f, 1f)
                 val grow = if (grows) 1f + (DragPreviewScale - 1f) * up else 1f
-                scaleX = grow * scale.value
-                scaleY = grow * scale.value
+                val shrink = scale.value
+                scaleX = grow * shrink
+                scaleY = grow * shrink
+                // It grows from where it is held, so what is under the pointer
+                // stays there as it lifts: grown from its middle, a tab held at
+                // its glyph slid out from under the pointer as it came away.
+                // And it shrinks into a target from its middle, as it did.
+                val w = size.width
+                val h = size.height
+                if (w > 0f && h > 0f) {
+                    transformOrigin = TransformOrigin(session.grab.x / w, session.grab.y / h)
+                    translationX = grow * (w / 2f - session.grab.x) * (1f - shrink)
+                    translationY = grow * (h / 2f - session.grab.y) * (1f - shrink)
+                }
                 alpha = when {
                     // Its source has gone with the drop: the item in its new place is drawn instead.
                     session.source.gone -> 0f
@@ -1155,11 +1340,26 @@ internal interface LiftedShape : Shape {
 }
 
 /**
- * How much of a pointer's pull across a list a thing riding it follows, before
- * it comes away: half, so it starts towards the finger at once and the jump
- * as it comes away is half what it was.
+ * How far outside the list it rides a pointer goes before the thing is drawn
+ * towards it at all: a fingertip's roll, or a hand drifting as it moves along.
  */
-private const val RideGive = 0.5f
+internal val RideHold: Dp = 8.dp
+
+/** How far a thing riding a list is drawn off its line at most, neared and never reached, however hard it is pulled. */
+internal val RideStretch: Dp = 6.dp
+
+/**
+ * How much of a pull the stretch takes up at first: about a third, and less
+ * and less as it nears [RideStretch].
+ */
+private const val RideResistance = 0.35f
+
+/**
+ * The most of a list's tear-off its capture can be: three quarters, so a
+ * thing just taken in has a quarter of the tear-off still to go before it
+ * comes away again, and does not board and tear on alternate moves.
+ */
+private const val CaptureShare = 0.75f
 
 /**
  * How long a dropped thing waits, in its place, for the lists to show the drop
