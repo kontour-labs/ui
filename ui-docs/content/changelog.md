@@ -416,6 +416,12 @@ window — see **Changed**.
 
 ### Fixed
 
+- **A [segmented control](components/segmented-control.md)'s thumb and its
+  shadow are there on the first frame the control is.** Scrolled into a lazy
+  list, the thumb was missing for five frames and then faded in with its
+  shadow cut square, the shadow whole about twelve frames late. A selection
+  marker whose item is selected when its bar, rail or control first appears is
+  drawn with it now, whole; one that turns up later still fades in.
 - **A thing carried between drop targets follows the pointer.** Off one
   target and on its way to another, the carried copy was moved by a spring
   that each move started again, so it stood where it came away until the
