@@ -25,7 +25,22 @@ The version an app is on is the `kontour` entry in its version catalog. See
 
 ## Unreleased
 
-On `main`, and in the next release. Nothing yet.
+On `main`, and in the next release.
+
+### Added
+
+- **A marquee you can drag.** `Modifier.marquee(draggable = true)` lets a
+  finger or a mouse pull the text sideways to read it at its own pace. Held, it
+  stops. Let go, it coasts, then carries on after the pause and finishes the
+  pass it was in. It is off by default, because it takes the sideways drag
+  within the label from a pager or a row's swipe actions around it. Under
+  reduced motion it still drags, and never sets off by itself.
+
+### Breaking
+
+- **`Modifier.marquee` has a new parameter**, `draggable`, defaulted and
+  last, so anything built against 0.5.0 recompiles; every call site still
+  compiles as it is.
 
 ---
 

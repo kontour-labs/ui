@@ -3188,7 +3188,7 @@ public final class io/kontour/ui/motion/MarqueeDefaults {
 }
 
 public final class io/kontour/ui/motion/MarqueeKt {
-	public static final fun marquee-rOjt-cU (Landroidx/compose/ui/Modifier;IJFFLandroidx/compose/runtime/Composer;II)Landroidx/compose/ui/Modifier;
+	public static final fun marquee-IrxUgcA (Landroidx/compose/ui/Modifier;IJFFZLandroidx/compose/runtime/Composer;II)Landroidx/compose/ui/Modifier;
 }
 
 public final class io/kontour/ui/motion/MotionAxis : java/lang/Enum {

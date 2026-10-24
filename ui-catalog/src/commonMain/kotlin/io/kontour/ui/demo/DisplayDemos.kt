@@ -847,14 +847,17 @@ internal val AnimatedCounterDemo = ComponentDemo(
     }
 }
 
-internal val MarqueeDemo = ComponentDemo(slug = "modifier-marquee") {
+private val marqueeDraggable = Knob.Flag("Draggable", initial = false)
+
+internal val MarqueeDemo = ComponentDemo(slug = "modifier-marquee", knobs = listOf(marqueeDraggable)) {
+    val draggable = this[marqueeDraggable]
     Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm)) {
         Box(Modifier.width(180.dp)) {
             Text(
                 text = "Elizabeth Quay Bus Station, Stand E",
                 maxLines = 1,
                 style = Theme.typography.bodyMedium,
-                modifier = Modifier.marquee(),
+                modifier = Modifier.marquee(draggable = draggable),
             )
         }
         Box(Modifier.width(180.dp)) {
@@ -864,7 +867,7 @@ internal val MarqueeDemo = ComponentDemo(slug = "modifier-marquee") {
                 text = "Perth",
                 maxLines = 1,
                 style = Theme.typography.bodyMedium,
-                modifier = Modifier.marquee(),
+                modifier = Modifier.marquee(draggable = draggable),
             )
         }
     }
