@@ -861,15 +861,19 @@ internal val AnimatedCounterDemo = ComponentDemo(
 
 private val marqueeDraggable = Knob.Flag("Draggable", initial = false)
 
-internal val MarqueeDemo = ComponentDemo(slug = "modifier-marquee", knobs = listOf(marqueeDraggable)) {
+/** A ticker that never stops, rather than the default three passes. */
+private val marqueeEndless = Knob.Flag("Endless", initial = false)
+
+internal val MarqueeDemo = ComponentDemo(slug = "modifier-marquee", knobs = listOf(marqueeDraggable, marqueeEndless)) {
     val draggable = this[marqueeDraggable]
+    val iterations = if (this[marqueeEndless]) Int.MAX_VALUE else 3
     Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm)) {
         Box(Modifier.width(180.dp)) {
             Text(
                 text = "Elizabeth Quay Bus Station, Stand E",
                 maxLines = 1,
                 style = Theme.typography.bodyMedium,
-                modifier = Modifier.marquee(draggable = draggable),
+                modifier = Modifier.marquee(iterations = iterations, draggable = draggable),
             )
         }
         Box(Modifier.width(180.dp)) {
@@ -879,7 +883,7 @@ internal val MarqueeDemo = ComponentDemo(slug = "modifier-marquee", knobs = list
                 text = "Perth",
                 maxLines = 1,
                 style = Theme.typography.bodyMedium,
-                modifier = Modifier.marquee(draggable = draggable),
+                modifier = Modifier.marquee(iterations = iterations, draggable = draggable),
             )
         }
     }

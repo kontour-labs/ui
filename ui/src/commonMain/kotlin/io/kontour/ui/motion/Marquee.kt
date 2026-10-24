@@ -23,6 +23,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.MotionDurationScale
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.translate
@@ -37,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import io.kontour.ui.theme.Theme
 import kotlin.math.abs
 import kotlin.math.roundToInt
+import kotlinx.coroutines.withContext
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -222,36 +224,41 @@ private fun Modifier.draggableMarquee(
     // foundation's does when its parameters change.
     val passesLeft: MutableIntState = remember(iterations, cycle) { mutableIntStateOf(iterations) }
 
+    // At a fixed pace, as foundation's marquee runs, whatever the system's
+    // animation scale: at a scale of 0 every pause and every pass would take
+    // a frame, and an endless marquee would flicker through passes forever.
     LaunchedEffect(strip, cycle, passesLeft, strip.held, runs, pause, pxPerSecond) {
-        if (cycle == 0 || strip.offset > cycle) {
-            strip.offset = 0f
-            strip.moved = false
-        }
-        if (cycle == 0 || strip.held) return@LaunchedEffect
-        val thrown = strip.thrown
-        strip.thrown = 0f
-        if (thrown != 0f) {
-            var last = 0f
-            AnimationState(initialValue = 0f, initialVelocity = thrown).animateDecay(decay) {
-                strip.moveBy(value - last)
-                last = value
+        withContext(FixedPace) {
+            if (cycle == 0 || strip.offset > cycle) {
+                strip.offset = 0f
+                strip.moved = false
             }
-        }
-        if (!runs) return@LaunchedEffect
-        if (strip.offset != 0f) {
-            // With passes left it finishes the one it is in. With none it goes
-            // home the shorter way, rather than reading the whole text again
-            // for the sake of a nudge.
-            val forward = passesLeft.intValue > 0 || strip.offset > cycle / 2f
-            strip.glide(to = if (forward) cycle.toFloat() else 0f, pxPerSecond, pause)
-            strip.offset = 0f
-            if (forward) passesLeft.intValue = (passesLeft.intValue - 1).coerceAtLeast(0)
-        }
-        strip.moved = false
-        while (passesLeft.intValue > 0) {
-            strip.glide(to = cycle.toFloat(), pxPerSecond, pause)
-            strip.offset = 0f
-            passesLeft.intValue--
+            if (cycle == 0 || strip.held) return@withContext
+            val thrown = strip.thrown
+            strip.thrown = 0f
+            if (thrown != 0f) {
+                var last = 0f
+                AnimationState(initialValue = 0f, initialVelocity = thrown).animateDecay(decay) {
+                    strip.moveBy(value - last)
+                    last = value
+                }
+            }
+            if (!runs) return@withContext
+            if (strip.offset != 0f) {
+                // With passes left it finishes the one it is in. With none it goes
+                // home the shorter way, rather than reading the whole text again
+                // for the sake of a nudge.
+                val forward = passesLeft.intValue > 0 || strip.offset > cycle / 2f
+                strip.glide(to = if (forward) cycle.toFloat() else 0f, pxPerSecond, pause)
+                strip.offset = 0f
+                if (forward) passesLeft.intValue = (passesLeft.intValue - 1).coerceAtLeast(0)
+            }
+            strip.moved = false
+            while (passesLeft.intValue > 0) {
+                strip.glide(to = cycle.toFloat(), pxPerSecond, pause)
+                strip.offset = 0f
+                passesLeft.intValue--
+            }
         }
     }
 
@@ -303,4 +310,9 @@ private fun Modifier.draggableMarquee(
                 if (placeable.width > width) placeable.place(0, 0) else placeable.placeRelative(0, 0)
             }
         }
+}
+
+/** The pace foundation's marquee runs at, whatever the system's animation scale. */
+private object FixedPace : MotionDurationScale {
+    override val scaleFactor: Float get() = 1f
 }

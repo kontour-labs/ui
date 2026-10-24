@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.motion.MarqueeDefaults
@@ -144,6 +145,44 @@ class MarqueeTest {
         }
     }
 
+    /**
+     * `Int.MAX_VALUE` is a ticker that never stops, in either kind of marquee:
+     * still going well past the default three passes, where a counted one has
+     * long since settled. The counted one is the check that the wait is long
+     * enough to tell them apart.
+     */
+    @Test
+    fun anEndlessMarqueeIsStillGoingWhereACountedOneHasSettled() {
+        for (draggable in listOf(false, true)) {
+            for (iterations in listOf(3, Int.MAX_VALUE)) {
+                scene(TooWide, reduceMotion = false, draggable = draggable, iterations = iterations, velocity = FastVelocity)
+                    .use { scene ->
+                        scene.advance(framesFor(PastThreePasses))
+                        val moving = scene.movesWithin(OnePass)
+                        val endless = iterations == Int.MAX_VALUE
+                        assertTrue(
+                            moving == endless,
+                            if (endless) {
+                                "an endless marquee (draggable = $draggable) stopped after its first passes"
+                            } else {
+                                "a three-pass marquee (draggable = $draggable) was still going, so this test " +
+                                    "waits too short a time to tell an endless one from it"
+                            },
+                        )
+                    }
+            }
+        }
+    }
+
+    /** Whether any frame over [millis] differs from the first. */
+    private fun Scene.movesWithin(millis: Int): Boolean {
+        val first = frame()
+        repeat(millis / SampleMillis) {
+            if (!frames(framesFor(SampleMillis)).sameAs(first)) return true
+        }
+        return false
+    }
+
     /** Whether the strip of pixels under the label changes between two samples. */
     private fun movesOverTime(text: String, reduceMotion: Boolean): Boolean {
         scene(text, reduceMotion, draggable = false).use { scene ->
@@ -157,7 +196,13 @@ class MarqueeTest {
     }
 
     /** The label in a box, with the marquee, a draggable one, or with `null` none at all. */
-    private fun scene(text: String, reduceMotion: Boolean, draggable: Boolean?): Scene = Scene(
+    private fun scene(
+        text: String,
+        reduceMotion: Boolean,
+        draggable: Boolean?,
+        iterations: Int = 3,
+        velocity: Dp = MarqueeDefaults.Velocity,
+    ): Scene = Scene(
         width = Width,
         height = Height,
         density = Density.toFloat(),
@@ -171,7 +216,11 @@ class MarqueeTest {
                 Text(
                     text = text,
                     maxLines = 1,
-                    modifier = if (draggable == null) Modifier else Modifier.marquee(draggable = draggable),
+                    modifier = if (draggable == null) {
+                        Modifier
+                    } else {
+                        Modifier.marquee(iterations = iterations, velocity = velocity, draggable = draggable)
+                    },
                 )
             }
         }
@@ -207,6 +256,20 @@ class MarqueeTest {
 
         /** Long enough that reading pace has moved the text a visible distance. */
         const val Travel = 400
+
+        /**
+         * Ten times reading pace, so a pass of [TooWide] is under a second of
+         * travel after its 1.6s pause, and three of them are about seven seconds.
+         */
+        val FastVelocity = 400.dp
+
+        /** Well past three passes at [FastVelocity]. */
+        const val PastThreePasses = 12_000
+
+        /** One whole pass at [FastVelocity], pause and travel, and some over. */
+        const val OnePass = 3_000
+
+        const val SampleMillis = 200
 
         /** Long enough for a let-go marquee to stop coasting. */
         const val Coast = 1000
