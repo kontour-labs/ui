@@ -94,6 +94,12 @@ to come.
   journey is, and in full colour over a faint leg, so it shows whatever colour
   the leg is — the rail's or its own.
 
+`progressMotion = TimelineMotion.Arrows` shows that leg with arrows instead of
+a band. The part already travelled is drawn in full, and arrows march along the
+rest of it, faint underneath, towards the next item, the way a route map shows
+which way a line runs. Under reduced motion they stand still, and still say
+which way the journey is going.
+
 Under reduced motion the halo holds still and there is no band. The leg the
 journey is on is coloured as far as it has got instead, which is where the
 fraction shows. An item's own
@@ -185,5 +191,6 @@ Connectors and rings default to `borderWidthStrong`, so they thicken with the
 tier unless an item sets its own `connectorWidth`.
 
 Under reduced motion the halo holds still and no band travels; the leg the
-journey is on is coloured as far as it has got instead. A `loading` item's
+journey is on is coloured as far as it has got instead. Arrows, if asked for,
+stand still where they are. A `loading` item's
 spinner keeps turning, with its breathing stilled.

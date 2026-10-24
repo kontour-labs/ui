@@ -105,6 +105,7 @@ import io.kontour.ui.components.display.TimelineNodeGroup
 import io.kontour.ui.components.display.TimelineLabelPlacement
 import io.kontour.ui.components.display.TimelineList
 import io.kontour.ui.components.display.TimelineListStyle
+import io.kontour.ui.components.display.TimelineMotion
 import io.kontour.ui.components.display.rememberCarouselState
 import io.kontour.ui.components.list.ListItem
 import io.kontour.ui.components.list.ListItemDefaults
@@ -421,6 +422,9 @@ private val timelineProgress = Knob.Choice(
     listOf("None", "At Perth Station", "Walking", "On the bus", "Arrived"),
 )
 
+/** How the leg being travelled moves: a band sweeping it, or arrows along it. */
+private val timelineMotion = Knob.Choice("Motion", TimelineMotion.entries.toList())
+
 /** A small icon in some of the nodes: how the stop is left, and the end of the trip. */
 private val timelineIcons = Knob.Flag("Icons", initial = false)
 
@@ -431,7 +435,7 @@ internal val TimelineDemo = ComponentDemo(
     slug = "timeline",
     knobs = listOf(
         timelineConnector, timelineLoading, timelineIcons, timelineGrouped, timelineAcross, timelineLabels, timelineEqualWidths,
-        timelineProgress,
+        timelineProgress, timelineMotion,
     ),
 ) {
     val walking = this[timelineLoading]
@@ -472,11 +476,12 @@ internal val TimelineDemo = ComponentDemo(
         HorizontalTimeline(
             Modifier.fillMaxWidth(),
             progress = progress,
+            progressMotion = this[timelineMotion],
             labelPlacement = this[timelineLabels],
             equalWidths = this[timelineEqualWidths],
         ) { stops() }
     } else {
-        Timeline(Modifier.fillMaxWidth(), progress = progress) { stops() }
+        Timeline(Modifier.fillMaxWidth(), progress = progress, progressMotion = this[timelineMotion]) { stops() }
     }
 }
 
@@ -506,7 +511,9 @@ private val timelineListGroups = Knob.Flag("Fold stops", initial = false)
 
 internal val TimelineListDemo = ComponentDemo(
     slug = "timeline-list",
-    knobs = listOf(timelineListStyle, timelineListProgress, timelineListLoading, timelineListIcons, timelineListGroups),
+    knobs = listOf(
+        timelineListStyle, timelineListProgress, timelineMotion, timelineListLoading, timelineListIcons, timelineListGroups,
+    ),
 ) {
     if (this[timelineListGroups]) {
         FoldedRoute(this[timelineListStyle])
@@ -520,6 +527,7 @@ internal val TimelineListDemo = ComponentDemo(
         Modifier.fillMaxWidth(),
         style = this[timelineListStyle],
         progress = this[timelineListProgress].stops,
+        progressMotion = this[timelineMotion],
         leadIn = ConnectorStyle.Dotted,
     ) {
         item(nodeColour = Color(0xFF1B5E20), icon = if (icons) Tabler.Outline.Train else null, onClick = { echo("Opened Perth Station") }) {
@@ -634,7 +642,10 @@ private val branchProgress = Knob.Choice("Progress", listOf("None", "Deployed", 
 
 internal val BranchTimelineDemo = ComponentDemo(
     slug = "branch-timeline",
-    knobs = listOf(branchHistory, branchFeatureLine, branchReleaseColour, branchTipLoading, branchRingMerges, branchIcons, branchProgress),
+    knobs = listOf(
+        branchHistory, branchFeatureLine, branchReleaseColour, branchTipLoading, branchRingMerges, branchIcons, branchProgress,
+        timelineMotion,
+    ),
 ) {
     val commits = when (this[branchHistory]) {
         "Linear" -> linearHistory
@@ -661,6 +672,7 @@ internal val BranchTimelineDemo = ComponentDemo(
             "Deploying the tip" -> BranchProgress(reached = deployed, towards = tip.sha)
             else -> null
         },
+        progressMotion = this[timelineMotion],
     ) { commit ->
         item(
             filled = if (ringMerges) filledByDefault else true,

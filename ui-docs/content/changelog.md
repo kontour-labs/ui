@@ -35,12 +35,26 @@ On `main`, and in the next release.
   pass it was in. It is off by default, because it takes the sideways drag
   within the label from a pager or a row's swipe actions around it. Under
   reduced motion it still drags, and never sets off by itself.
+- **Arrows along a timeline's leg.** `Timeline`, `HorizontalTimeline`,
+  `TimelineList` and `BranchTimeline` take `progressMotion`. Its
+  `TimelineMotion.Arrows` shows the leg a journey is on with arrows marching
+  towards the stop ahead instead of the band sweeping it, the part already
+  travelled drawn in full. Under reduced motion the arrows stand still, and
+  still say which way the journey is going.
 
 ### Breaking
 
 - **`Modifier.marquee` has a new parameter**, `draggable`, defaulted and
   last, so anything built against 0.5.0 recompiles; every call site still
   compiles as it is.
+- **`Timeline`, `HorizontalTimeline`, `TimelineList`, `timelineList`,
+  `BranchTimeline` and `branchTimeline` have a new parameter**,
+  `progressMotion`, defaulted, straight after `progress`, so anything built
+  against 0.5.0 recompiles. A call that names its arguments, as every one in
+  these docs does, needs nothing. One that passes the argument after
+  `progress` by position fails to compile rather than meaning something else,
+  and names it. See
+  [Migrating](migrating.md#name-the-argument-after-progress-on-a-timeline).
 
 ---
 

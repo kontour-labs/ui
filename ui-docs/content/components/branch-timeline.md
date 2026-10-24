@@ -97,8 +97,9 @@ not reached, and their lines, are muted.** Name `towards`, one of its children,
 and the line from one to the other turns faint while a band sweeps up it, for
 the deploy that is on its way. An explicit `nodeColour` or `connectorColour`
 keeps its colour whatever the progress, and the band shows on it too, since the
-line under the band is faint. Under reduced motion the pulse stands still and
-there is no band.
+line under the band is faint. `progressMotion = TimelineMotion.Arrows` sends
+arrows up that line instead of a band. Under reduced motion the pulse stands
+still and there is no band, and arrows stand where they are.
 
 ## In a `LazyColumn`
 

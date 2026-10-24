@@ -89,6 +89,26 @@ enum class ConnectorStyle {
     None,
 }
 
+/**
+ * How a timeline shows the leg a journey is on, while its `progress` is
+ * partway between two stops.
+ */
+enum class TimelineMotion {
+    /**
+     * A band sweeping the leg towards the stop ahead, again and again: a step
+     * bar's working segment, laid along the rail.
+     */
+    Band,
+
+    /**
+     * Arrows marching along the leg towards the stop ahead, as a route map
+     * shows which way a line runs. The part already travelled is drawn in
+     * full, and the arrows run along the rest. Under reduced motion they stand
+     * still, and still say which way the journey is going.
+     */
+    Arrows,
+}
+
 /** Where a [HorizontalTimeline]'s labels go against its rail. */
 enum class TimelineLabelPlacement {
     /** Under the rail, each starting at its node. */
@@ -194,6 +214,8 @@ object TimelineDefaults {
  *   pulses, and the leg it is on carries a band travelling towards the next.
  *   Null for a timeline that is not being travelled. Counted in the order the
  *   items are laid out, so an item wrapped in something else still counts.
+ * @param progressMotion How the leg the journey is on moves: a band
+ *   sweeping it, or arrows marching along it towards the next item.
  * @param colours The nodes', rail's and progress's colours, for items that do
  *   not name their own.
  */
@@ -201,12 +223,13 @@ object TimelineDefaults {
 fun Timeline(
     modifier: Modifier = Modifier,
     progress: Float? = null,
+    progressMotion: TimelineMotion = TimelineMotion.Band,
     colours: TimelineColours = TimelineDefaults.colours(),
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val registry = remember { TimelineRegistry() }
     CompositionLocalProvider(
-        LocalTimelineContext provides TimelineContext(Orientation.Vertical, progress, colours, registry),
+        LocalTimelineContext provides TimelineContext(Orientation.Vertical, progress, progressMotion, colours, registry),
     ) {
         Column(modifier.fillMaxWidth(), content = content)
     }
@@ -355,6 +378,7 @@ private fun TimelineStopItem(
     val context = LocalTimelineContext.current
     val colours = context?.colours ?: TimelineDefaults.colours()
     val progress = context?.progress
+    val arrows = context?.motion == TimelineMotion.Arrows
     val slot = remember { TimelineSlot() }
     val enhanced = highContrast()
     // Where the journey stands against this item. Read in composition only to
@@ -386,7 +410,9 @@ private fun TimelineStopItem(
                     style = connector,
                     colour = connectorColour.takeOrElse { colours.rail },
                     width = connectorWidth,
-                    travel = at?.let { LegTravel(0f, 1f, it.legPassed, it.legBand, colours.progress) },
+                    travel = at?.let {
+                        LegTravel(0f, 1f, it.legPassed, it.legBand, colours.progress, arrows = arrows)
+                    },
                 ),
             ),
         )
@@ -630,6 +656,7 @@ internal class TimelineRegistry {
 internal class TimelineContext(
     val axis: Orientation,
     val progress: Float?,
+    val motion: TimelineMotion,
     val colours: TimelineColours,
     val registry: TimelineRegistry,
 )
@@ -687,6 +714,8 @@ private class TimelinePartNode(var part: TimelinePart) : Modifier.Node(), Parent
  *
  * @param progress How far along the stages are, counted in items, as a
  *   [Timeline]'s is.
+ * @param progressMotion How the leg the journey is on moves: a band
+ *   sweeping it, or arrows marching along it towards the next item.
  * @param labelPlacement Each item's content under the rail, over it, or
  *   taking turns.
  * @param equalWidths Every item as wide as the widest — or, if they would not
@@ -702,6 +731,7 @@ private class TimelinePartNode(var part: TimelinePart) : Modifier.Node(), Parent
 fun HorizontalTimeline(
     modifier: Modifier = Modifier,
     progress: Float? = null,
+    progressMotion: TimelineMotion = TimelineMotion.Band,
     labelPlacement: TimelineLabelPlacement = TimelineLabelPlacement.Below,
     equalWidths: Boolean = false,
     colours: TimelineColours = TimelineDefaults.colours(),
@@ -711,7 +741,7 @@ fun HorizontalTimeline(
     val labelGap = Theme.spacing.xs
     val registry = remember { TimelineRegistry() }
     CompositionLocalProvider(
-        LocalTimelineContext provides TimelineContext(Orientation.Horizontal, progress, colours, registry),
+        LocalTimelineContext provides TimelineContext(Orientation.Horizontal, progress, progressMotion, colours, registry),
     ) {
         BoxWithConstraints(modifier.fillMaxWidth()) {
             val viewport = if (constraints.hasBoundedWidth) constraints.maxWidth else 0

@@ -91,6 +91,16 @@ class TimelineProgressTest {
         assertTrue(below.band && above.band)
     }
 
+    /** Both halves of a leg carry the arrows when they are asked for, and neither does by default. */
+    @Test
+    fun theHalvesOfALegBothKnowToDrawArrows() {
+        val rows = timelineRows(listOf(stop(), stop()), ConnectorStyle.None, ConnectorStyle.None)
+        fun travel(row: Int, motion: TimelineMotion) =
+            rows[row].rail(0.3f, Color.Black, Color.Gray, Color.Red, 2.dp, motion).legs.single().travel!!
+        assertTrue(travel(0, TimelineMotion.Arrows).arrows && travel(1, TimelineMotion.Arrows).arrows)
+        assertTrue(!travel(0, TimelineMotion.Band).arrows && !travel(1, TimelineMotion.Band).arrows)
+    }
+
     /** The passed colour, a stop's node colour and the halo, as a row resolves them. */
     @Test
     fun aRowResolvesItsNodeFromWhereTheJourneyIs() {

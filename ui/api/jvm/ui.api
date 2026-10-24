@@ -798,9 +798,9 @@ public final class io/kontour/ui/components/display/BranchTimelineDefaults {
 }
 
 public final class io/kontour/ui/components/display/BranchTimelineKt {
-	public static final fun BranchTimeline-Uqae_Wg (Ljava/util/List;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Landroidx/compose/ui/Modifier;ZLio/kontour/ui/components/display/BranchProgress;Lio/kontour/ui/components/display/BranchTimelineColours;FFFLkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;III)V
-	public static final fun branchTimeline-Pl817ng (Landroidx/compose/foundation/lazy/LazyListScope;Ljava/util/List;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;ZLio/kontour/ui/components/display/BranchProgress;Lio/kontour/ui/components/display/BranchTimelineColours;FFFLkotlin/jvm/functions/Function2;)V
-	public static synthetic fun branchTimeline-Pl817ng$default (Landroidx/compose/foundation/lazy/LazyListScope;Ljava/util/List;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;ZLio/kontour/ui/components/display/BranchProgress;Lio/kontour/ui/components/display/BranchTimelineColours;FFFLkotlin/jvm/functions/Function2;ILjava/lang/Object;)V
+	public static final fun BranchTimeline-jXF2sa8 (Ljava/util/List;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Landroidx/compose/ui/Modifier;ZLio/kontour/ui/components/display/BranchProgress;Lio/kontour/ui/components/display/TimelineMotion;Lio/kontour/ui/components/display/BranchTimelineColours;FFFLkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;III)V
+	public static final fun branchTimeline-lsOF108 (Landroidx/compose/foundation/lazy/LazyListScope;Ljava/util/List;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;ZLio/kontour/ui/components/display/BranchProgress;Lio/kontour/ui/components/display/TimelineMotion;Lio/kontour/ui/components/display/BranchTimelineColours;FFFLkotlin/jvm/functions/Function2;)V
+	public static synthetic fun branchTimeline-lsOF108$default (Landroidx/compose/foundation/lazy/LazyListScope;Ljava/util/List;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;ZLio/kontour/ui/components/display/BranchProgress;Lio/kontour/ui/components/display/TimelineMotion;Lio/kontour/ui/components/display/BranchTimelineColours;FFFLkotlin/jvm/functions/Function2;ILjava/lang/Object;)V
 }
 
 public final class io/kontour/ui/components/display/BranchTimelineScope : io/kontour/ui/components/display/TimelineRowScope {
@@ -1272,8 +1272,8 @@ public final class io/kontour/ui/components/display/TimelineDefaults {
 }
 
 public final class io/kontour/ui/components/display/TimelineKt {
-	public static final fun HorizontalTimeline (Landroidx/compose/ui/Modifier;Ljava/lang/Float;Lio/kontour/ui/components/display/TimelineLabelPlacement;ZLio/kontour/ui/components/display/TimelineColours;Landroidx/compose/foundation/ScrollState;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)V
-	public static final fun Timeline (Landroidx/compose/ui/Modifier;Ljava/lang/Float;Lio/kontour/ui/components/display/TimelineColours;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
+	public static final fun HorizontalTimeline (Landroidx/compose/ui/Modifier;Ljava/lang/Float;Lio/kontour/ui/components/display/TimelineMotion;Lio/kontour/ui/components/display/TimelineLabelPlacement;ZLio/kontour/ui/components/display/TimelineColours;Landroidx/compose/foundation/ScrollState;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)V
+	public static final fun Timeline (Landroidx/compose/ui/Modifier;Ljava/lang/Float;Lio/kontour/ui/components/display/TimelineMotion;Lio/kontour/ui/components/display/TimelineColours;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
 	public static final fun TimelineItem-FOGgDO8 (Landroidx/compose/ui/Modifier;Lio/kontour/ui/components/display/ConnectorStyle;JJZZLandroidx/compose/ui/graphics/vector/ImageVector;FFFLkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;III)V
 	public static final fun TimelineNodeGroup-f95F4RY (ILandroidx/compose/ui/Modifier;Lio/kontour/ui/components/display/ConnectorStyle;JJZFFFLkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)V
 }
@@ -1288,9 +1288,9 @@ public final class io/kontour/ui/components/display/TimelineLabelPlacement : jav
 }
 
 public final class io/kontour/ui/components/display/TimelineListKt {
-	public static final fun TimelineList-PlMIvNc (Landroidx/compose/ui/Modifier;ZLio/kontour/ui/components/display/TimelineListStyle;Ljava/lang/Float;Lio/kontour/ui/components/display/ConnectorStyle;Lio/kontour/ui/components/display/ConnectorStyle;Lio/kontour/ui/components/display/TimelineColours;JFFLkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;III)V
-	public static final fun timelineList-IMTdyVg (Landroidx/compose/foundation/lazy/LazyListScope;Ljava/util/List;Lkotlin/jvm/functions/Function1;ZLio/kontour/ui/components/display/TimelineListStyle;Ljava/lang/Float;Lio/kontour/ui/components/display/ConnectorStyle;Lio/kontour/ui/components/display/ConnectorStyle;Lio/kontour/ui/components/display/TimelineColours;JFFLkotlin/jvm/functions/Function2;)V
-	public static synthetic fun timelineList-IMTdyVg$default (Landroidx/compose/foundation/lazy/LazyListScope;Ljava/util/List;Lkotlin/jvm/functions/Function1;ZLio/kontour/ui/components/display/TimelineListStyle;Ljava/lang/Float;Lio/kontour/ui/components/display/ConnectorStyle;Lio/kontour/ui/components/display/ConnectorStyle;Lio/kontour/ui/components/display/TimelineColours;JFFLkotlin/jvm/functions/Function2;ILjava/lang/Object;)V
+	public static final fun TimelineList-kRaW5rs (Landroidx/compose/ui/Modifier;ZLio/kontour/ui/components/display/TimelineListStyle;Ljava/lang/Float;Lio/kontour/ui/components/display/TimelineMotion;Lio/kontour/ui/components/display/ConnectorStyle;Lio/kontour/ui/components/display/ConnectorStyle;Lio/kontour/ui/components/display/TimelineColours;JFFLkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;III)V
+	public static final fun timelineList-t2qRIFE (Landroidx/compose/foundation/lazy/LazyListScope;Ljava/util/List;Lkotlin/jvm/functions/Function1;ZLio/kontour/ui/components/display/TimelineListStyle;Ljava/lang/Float;Lio/kontour/ui/components/display/TimelineMotion;Lio/kontour/ui/components/display/ConnectorStyle;Lio/kontour/ui/components/display/ConnectorStyle;Lio/kontour/ui/components/display/TimelineColours;JFFLkotlin/jvm/functions/Function2;)V
+	public static synthetic fun timelineList-t2qRIFE$default (Landroidx/compose/foundation/lazy/LazyListScope;Ljava/util/List;Lkotlin/jvm/functions/Function1;ZLio/kontour/ui/components/display/TimelineListStyle;Ljava/lang/Float;Lio/kontour/ui/components/display/TimelineMotion;Lio/kontour/ui/components/display/ConnectorStyle;Lio/kontour/ui/components/display/ConnectorStyle;Lio/kontour/ui/components/display/TimelineColours;JFFLkotlin/jvm/functions/Function2;ILjava/lang/Object;)V
 }
 
 public final class io/kontour/ui/components/display/TimelineListScope : io/kontour/ui/components/display/TimelineRowScope {
@@ -1303,6 +1303,14 @@ public final class io/kontour/ui/components/display/TimelineListStyle : java/lan
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
 	public static fun valueOf (Ljava/lang/String;)Lio/kontour/ui/components/display/TimelineListStyle;
 	public static fun values ()[Lio/kontour/ui/components/display/TimelineListStyle;
+}
+
+public final class io/kontour/ui/components/display/TimelineMotion : java/lang/Enum {
+	public static final field Arrows Lio/kontour/ui/components/display/TimelineMotion;
+	public static final field Band Lio/kontour/ui/components/display/TimelineMotion;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/kontour/ui/components/display/TimelineMotion;
+	public static fun values ()[Lio/kontour/ui/components/display/TimelineMotion;
 }
 
 public abstract class io/kontour/ui/components/display/TimelineRowScope {

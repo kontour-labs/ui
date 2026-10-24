@@ -125,6 +125,8 @@ class BranchTimelineScope internal constructor(merge: Boolean) : TimelineRowScop
  * @param parents The commits each one comes from, first parent first.
  * @param enabled Whether the rows can be used.
  * @param progress How far the history has got, if it is being tracked through.
+ * @param progressMotion How the line to the commit progress is moving
+ *   towards moves: a band sweeping it, or arrows marching along it.
  * @param nodeSize The commits' diameter.
  * @param laneWidth The distance from one lane to the next. A commit with an
  *   `icon` has a node [TimelineDefaults.IconNodeSize] across, which fills a
@@ -141,6 +143,7 @@ fun <T> BranchTimeline(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     progress: BranchProgress? = null,
+    progressMotion: TimelineMotion = TimelineMotion.Band,
     colours: BranchTimelineColours = BranchTimelineDefaults.colours(),
     nodeSize: Dp = TimelineDefaults.NodeSize,
     laneWidth: Dp = BranchTimelineDefaults.LaneWidth,
@@ -152,7 +155,7 @@ fun <T> BranchTimeline(
     Column(modifier.fillMaxWidth()) {
         items.forEachIndexed { index, item ->
             androidx.compose.runtime.key(key(item)) {
-                BranchRow(shape, stops, index, enabled, colours, nodeSize, laneWidth, gutterWidth)
+                BranchRow(shape, stops, index, enabled, progressMotion, colours, nodeSize, laneWidth, gutterWidth)
             }
         }
     }
@@ -184,6 +187,7 @@ fun <T> LazyListScope.branchTimeline(
     parents: (item: T) -> List<Any>,
     enabled: Boolean = true,
     progress: BranchProgress? = null,
+    progressMotion: TimelineMotion = TimelineMotion.Band,
     colours: BranchTimelineColours? = null,
     nodeSize: Dp = TimelineDefaults.NodeSize,
     laneWidth: Dp = BranchTimelineDefaults.LaneWidth,
@@ -195,7 +199,7 @@ fun <T> LazyListScope.branchTimeline(
     items.forEachIndexed { index, item ->
         item(key = key(item), contentType = "branchTimelineRow") {
             BranchRow(
-                shape, stops, index, enabled, colours ?: BranchTimelineDefaults.colours(),
+                shape, stops, index, enabled, progressMotion, colours ?: BranchTimelineDefaults.colours(),
                 nodeSize, laneWidth, gutterWidth,
             )
         }
@@ -255,6 +259,7 @@ private fun BranchRow(
     stops: List<TimelineStop>,
     index: Int,
     enabled: Boolean,
+    motion: TimelineMotion,
     colours: BranchTimelineColours,
     nodeSize: Dp,
     laneWidth: Dp,
@@ -262,7 +267,7 @@ private fun BranchRow(
 ) {
     RailListRow(
         stop = stops[index],
-        rail = branchRail(shape, index, stops, colours, Theme.sizing.borderWidthStrong),
+        rail = branchRail(shape, index, stops, colours, Theme.sizing.borderWidthStrong, motion),
         listEnabled = enabled,
         lanes = shape.graph.width,
         laneWidth = laneWidth,
@@ -292,6 +297,7 @@ internal fun branchRail(
     stops: List<TimelineStop>,
     colours: BranchTimelineColours,
     defaultWidth: Dp,
+    motion: TimelineMotion = TimelineMotion.Band,
 ): RailRow {
     val row = shape.graph.rows[index]
     val reached = shape.reached
@@ -309,7 +315,14 @@ internal fun branchRail(
         val moving = shape.towardsRow >= 0 && shape.towardsRow in edge.owners && edge.parent == shape.reachedRow
         val travel = if (moving) {
             val (from, to) = at((edge.parent - shape.towardsRow).toFloat())
-            LegTravel(from, to, passed = 0f, band = true, colour = if (own.isSpecified) own else ink(edge.ink))
+            LegTravel(
+                from,
+                to,
+                passed = 0f,
+                band = true,
+                colour = if (own.isSpecified) own else ink(edge.ink),
+                arrows = motion == TimelineMotion.Arrows,
+            )
         } else {
             null
         }

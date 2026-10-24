@@ -15,6 +15,29 @@ from the version the app is on.
 
 ---
 
+## 0.5.0 to 0.5.1
+
+Not released yet: this is what `main` needs so far.
+
+### Name the argument after `progress` on a timeline
+
+`Timeline`, `HorizontalTimeline`, `TimelineList`, `timelineList`,
+`BranchTimeline` and `branchTimeline` take `progressMotion`, defaulted,
+straight after `progress`. A call that names its arguments needs nothing. One
+that passes the argument after `progress` by position names it:
+
+```diff
+- Timeline(Modifier, 1.5f, colours) { stops() }
++ Timeline(Modifier, 1.5f, colours = colours) { stops() }
+```
+
+It fails to compile rather than meaning something else.
+
+`Modifier.marquee` takes `draggable`, defaulted and last, so a call to it
+compiles as it is.
+
+---
+
 ## 0.4.6 to 0.5.0
 
 From 0.4.5, nothing changes in 0.4.6 (see [below](#045-to-046)), so this

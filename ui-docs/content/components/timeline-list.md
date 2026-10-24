@@ -113,6 +113,11 @@ colour. The nodes not reached yet take the rail's colour. A node given its own
   while it is working. It shows whatever colour the leg is, and crosses from
   one row to the next without a jump, in a `LazyColumn` too.
 
+`progressMotion = TimelineMotion.Arrows` shows that leg with arrows instead of
+a band: drawn in full as far as the journey has got, with arrows marching along
+the rest towards the next stop. Each row fits a whole number of arrows to its
+half of the leg, so they cross from one row to the next without a jump too.
+
 Under reduced motion the halo holds still and there is no band: the leg is
 coloured as far as the journey has got instead. The
 colours are a `TimelineColours`, the same as a `Timeline`'s, and
@@ -165,5 +170,5 @@ selected stop an accent outline round its tint.
 
 Under reduced motion the pulse off the current stop and the band running along
 the leg ahead both stop, and the rail is drawn still, filled as far as
-`progress` says. A `loading` stop's spinner keeps turning, with its breathing
-stilled.
+`progress` says. Arrows, if asked for, stand still where they are. A
+`loading` stop's spinner keeps turning, with its breathing stilled.

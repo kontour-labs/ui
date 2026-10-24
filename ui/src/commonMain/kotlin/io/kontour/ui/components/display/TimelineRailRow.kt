@@ -19,6 +19,9 @@ import androidx.compose.ui.graphics.ClipOp
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathMeasure
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Fill
@@ -37,6 +40,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.isSpecified
 import io.kontour.ui.a11y.contentColourFor
 import io.kontour.ui.a11y.highContrast
@@ -47,6 +51,8 @@ import io.kontour.ui.theme.Theme
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.roundToInt
+import kotlin.math.sqrt
 
 /*
  * The one rail every timeline draws.
@@ -75,6 +81,11 @@ internal class LegEnd(val lane: Int, val at: LegAt, val run: RunEnd)
  * it. The connector is travelled up to [passed]; while [band] is set and the
  * rail is moving, the leg is drawn faint instead and the band sweeps all of it.
  * Both are drawn in [colour].
+ *
+ * With [arrows], the leg [band] marks shows chevrons instead of a band: the
+ * part travelled is drawn in full, and the rest faint, with the chevrons
+ * marching along it towards the stop ahead. Still, they stand where they are,
+ * which says the way the journey is going without moving.
  */
 @Immutable
 internal class LegTravel(
@@ -83,6 +94,7 @@ internal class LegTravel(
     val passed: Float,
     val band: Boolean,
     val colour: Color,
+    val arrows: Boolean = false,
 )
 
 /** A leg of a row's rail: drawn from [start] to [end], in [style], [colour] and [width]. */
@@ -258,9 +270,11 @@ internal fun DrawScope.drawRail(
         }
         // The leg the journey is on, while its band runs, is drawn faint and
         // the band sweeps it at full strength — so the band shows whatever
-        // colour the leg is, its own or the rail's.
-        val sweeping = leg.travel?.band == true && !phase.isNaN()
-        draw(if (sweeping) leg.colour.copy(alpha = leg.colour.alpha * FaintAlpha) else leg.colour)
+        // colour the leg is, its own or the rail's. Its arrows, moving or
+        // still, are drawn over it faint the same way.
+        val arrows = leg.travel?.let { it.band && it.arrows } == true
+        val sweeping = !arrows && leg.travel?.band == true && !phase.isNaN()
+        draw(if (sweeping || arrows) leg.colour.copy(alpha = leg.colour.alpha * FaintAlpha) else leg.colour)
 
         val travel = leg.travel ?: continue
         // The same run again, clipped to the stretch of it in [lo, hi] of the
@@ -281,7 +295,11 @@ internal fun DrawScope.drawRail(
             val p1 = a0 + (a1 - a0) * s1 + if (s1 >= 1f) out else 0f
             space.clipAlong(this, min(p0, p1), max(p0, p1)) { draw(travel.colour) }
         }
-        if (sweeping) {
+        if (arrows) {
+            if (travel.passed > 0f) overlay(0f, travel.passed)
+            val curve = if (leg.start.lane != leg.end.lane) space.curve(a0, c0, a1, c1) else null
+            drawLegArrows(travel, space.point(a0, c0), space.point(a1, c1), curve, stroke, phase)
+        } else if (sweeping) {
             bandRange(phase)?.let { overlay(it.start, it.endInclusive) }
         } else if (travel.passed > 0f) {
             overlay(0f, travel.passed)
@@ -542,6 +560,74 @@ internal fun stackCentres(along: Float, radius: Float, stack: Int): FloatArray {
     val first = along - stackHalfLength(radius, stack) + radius
     return FloatArray(stack) { first + it * radius * 2f * GroupStep }
 }
+
+/**
+ * The chevrons along the piece of a leg from [p0] to [p1] — along [curve] when
+ * it bends to another lane — that [travel] says is being travelled, on the
+ * stretch of it the journey has still to cover.
+ *
+ * They are spaced to the piece's own length, a whole number of them, so the
+ * piece in the next row picks the pattern up at the seam where this one leaves
+ * it, whatever the two rows' heights. A chevron belongs to the piece its
+ * middle is in, and is drawn whole there. [phase] moves them on; NaN stands
+ * them still.
+ */
+private fun DrawScope.drawLegArrows(
+    travel: LegTravel,
+    p0: Offset,
+    p1: Offset,
+    curve: Path?,
+    stroke: Float,
+    phase: Float,
+) {
+    if (travel.to == travel.from) return
+    val lo = min(travel.from, travel.to)
+    val hi = max(travel.from, travel.to)
+    val measure = curve?.let { PathMeasure().apply { setPath(it, forceClosed = false) } }
+    val straight = p1 - p0
+    val length = measure?.length ?: sqrt(straight.x * straight.x + straight.y * straight.y)
+    if (length <= 0f) return
+    val count = max(1, (length / ArrowSpacing.toPx()).roundToInt())
+    val shift = if (phase.isNaN()) 0f else (phase * ArrowsPerLoop) % 1f
+    // The journey runs towards [hi], so towards [p1] when that is where [to] is.
+    val towards = if (travel.to > travel.from) 1f else -1f
+    val half = max(ArrowHalfWidth.toPx(), stroke * 2f)
+    val depth = half * ArrowDepth
+    val chevrons = Path()
+    for (k in 0 until count) {
+        val at = lo + (hi - lo) * (k + shift) / count
+        if (at < travel.passed) continue
+        val along = (at - travel.from) / (travel.to - travel.from) * length
+        val centre: Offset
+        val direction: Offset
+        if (measure != null) {
+            centre = measure.getPosition(along)
+            direction = measure.getTangent(along) * towards
+        } else {
+            centre = p0 + straight * (along / length)
+            direction = straight * (towards / length)
+        }
+        val across = Offset(-direction.y, direction.x) * half
+        val tip = centre + direction * (depth / 2f)
+        val back = centre - direction * (depth / 2f)
+        chevrons.moveTo(back.x + across.x, back.y + across.y)
+        chevrons.lineTo(tip.x, tip.y)
+        chevrons.lineTo(back.x - across.x, back.y - across.y)
+    }
+    drawPath(chevrons, travel.colour, style = Stroke(width = stroke, cap = StrokeCap.Round, join = StrokeJoin.Round))
+}
+
+/** How far apart a travelled leg's chevrons are, before they are spaced to fit it. */
+private val ArrowSpacing: Dp = 11.dp
+
+/** Half a chevron's width across the leg, at the least. Twice the leg's weight, if that is more. */
+private val ArrowHalfWidth: Dp = 4.dp
+
+/** A chevron's depth along the leg, against its half width. */
+private const val ArrowDepth: Float = 0.8f
+
+/** How many chevron spacings they move on in each loop of the rail's motion. */
+private const val ArrowsPerLoop: Int = 2
 
 /** How close to a stop `progress` has to be to count as at it. */
 private const val ProgressSlack: Float = 0.001f
