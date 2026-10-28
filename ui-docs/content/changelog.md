@@ -42,6 +42,16 @@ On `main`, and in the next release.
   travelled drawn in full. Under reduced motion the arrows stand still, and
   still say which way the journey is going.
 
+### Fixed
+
+- **A faded edge no longer shows what is under its surface.** A list's
+  `fadingEdges` in a sheet over a map could erase the sheet's surface as well as
+  its rows, and the map showed through the top of the sheet. The fade, a cut
+  title's, a `TopBar`'s collapsing second line, a `WheelSelect`'s next row and a
+  table's narrowed pinned columns each draw their erase in a layer of their own
+  opened in the same drawing, rather than relying on a layer switched on beside
+  it.
+
 ### Breaking
 
 - **`Modifier.marquee` has a new parameter**, `draggable`, defaulted and

@@ -17,12 +17,11 @@ import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.CompositingStrategy
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.foundation.drawContentErasing
 
 /** How opaque each edge's fade is, 0 to 1. */
 @Immutable
@@ -44,9 +43,9 @@ internal data class ScrollFade(val start: Float, val end: Float) {
  * otherwise reads as "that is everything".
  *
  * The fade **erases** the content rather than painting a gradient of the
- * background colour over it, using `BlendMode.DstOut` in an offscreen layer.
- * Painting the background instead is the common shortcut and it fails the moment
- * anything is behind the list: an image, a map, a coloured panel. The offscreen
+ * background colour over it, using `BlendMode.DstOut` in a layer of the list's
+ * own. Painting the background instead is the common shortcut and it fails the
+ * moment anything is behind the list: an image, a map, a coloured panel. The
  * layer is what keeps the erase from taking the background with it.
  *
  * Works with `ScrollState`, `LazyListState`, `LazyGridState` and
@@ -76,23 +75,6 @@ fun Modifier.fadingEdges(
     }
 
     return this
-        // Isolate the layer, or DstOut erases whatever is painted behind the
-        // list as well as the list itself.
-        //
-        // Only while there is a fade to draw. `Offscreen` is not a flag: it
-        // makes every draw of this node render into a buffer of its own and then
-        // composite that buffer back, and this was set unconditionally — so a
-        // list scrolled to the top, or one short enough never to scroll at all,
-        // paid a full offscreen round trip per frame for a blend that was not
-        // happening. Read inside the layer block, so a fade appearing changes the
-        // layer rather than recomposing the list.
-        .graphicsLayer {
-            compositingStrategy = if (fade.isVisible) {
-                CompositingStrategy.Offscreen
-            } else {
-                CompositingStrategy.Auto
-            }
-        }
         // The brushes are built in the cache and kept while the fade holds still,
         // which is most of a scroll: the list redraws on every frame it moves,
         // and a gradient built in the draw was two new shaders a frame for a
@@ -128,9 +110,28 @@ fun Modifier.fadingEdges(
                 null
             }
             onDrawWithContent {
-                drawContent()
-                if (beforeBrush != null) drawRect(brush = beforeBrush, blendMode = BlendMode.DstOut)
-                if (afterBrush != null) drawRect(brush = afterBrush, blendMode = BlendMode.DstOut)
+                // A layer of the list's own round the rows and the erase, or
+                // DstOut erases whatever is painted behind the list as well:
+                // the surface it is on, and through it whatever is under that.
+                //
+                // Only while there is a fade to draw. The layer is not a flag:
+                // every draw of the list renders into a buffer of its own and is
+                // composited back, and a list scrolled to the top, or one short
+                // enough never to scroll, would pay that every frame for a blend
+                // that is not happening.
+                //
+                // Opened here, in the draw that erases, rather than by switching
+                // a `graphicsLayer`'s compositing on while there is a fade. The
+                // two fell out of step, and a sheet over a map showed the map
+                // through its list's top edge. See `drawContentErasing`.
+                if (beforeBrush == null && afterBrush == null) {
+                    drawContent()
+                } else {
+                    drawContentErasing {
+                        if (beforeBrush != null) drawRect(brush = beforeBrush, blendMode = BlendMode.DstOut)
+                        if (afterBrush != null) drawRect(brush = afterBrush, blendMode = BlendMode.DstOut)
+                    }
+                }
             }
         }
 }

@@ -52,6 +52,7 @@ import io.kontour.ui.components.list.listItemSlots
 import io.kontour.ui.foundation.CentredBar
 import io.kontour.ui.foundation.CentredBarTitle
 import io.kontour.ui.foundation.ContentSlot
+import io.kontour.ui.foundation.drawContentErasing
 import io.kontour.ui.foundation.HorizontalDivider
 import io.kontour.ui.foundation.LocalContainerColour
 import io.kontour.ui.foundation.ProvideContentColour
@@ -77,8 +78,6 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
@@ -898,25 +897,22 @@ private fun LargeBar(
                             // and only while there is a line to take out. A
                             // buffer the whole time was an offscreen pass on
                             // every frame of every collapse, for a cut that most
-                            // titles, of one line, never make.
-                            .graphicsLayer {
-                                compositingStrategy = if (cut.y > 0f && secondLineGone(progress()) > 0f) {
-                                    CompositingStrategy.Offscreen
-                                } else {
-                                    CompositingStrategy.Auto
-                                }
-                            }
+                            // titles, of one line, never make. Opened in the draw
+                            // that takes the line out: see `drawContentErasing`.
                             .drawWithContent {
-                                drawContent()
                                 val gone = secondLineGone(progress())
                                 if (gone > 0f && cut.y > 0f && cut.y < size.height) {
-                                    drawRect(
-                                        color = Color.Black,
-                                        topLeft = Offset(0f, cut.y),
-                                        size = Size(size.width, size.height - cut.y),
-                                        alpha = gone,
-                                        blendMode = BlendMode.DstOut,
-                                    )
+                                    drawContentErasing {
+                                        drawRect(
+                                            color = Color.Black,
+                                            topLeft = Offset(0f, cut.y),
+                                            size = Size(size.width, size.height - cut.y),
+                                            alpha = gone,
+                                            blendMode = BlendMode.DstOut,
+                                        )
+                                    }
+                                } else {
+                                    drawContent()
                                 }
                             },
                     ) {
