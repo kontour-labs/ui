@@ -44,6 +44,12 @@ On `main`, and in the next release.
 
 ### Changed
 
+- **Lists in a sheet bounce past their end.** A scrollable inside a draggable
+  sheet was given no vertical overscroll, so the sheet answered a finger that
+  had run out of list. That is still so at the top, where pulling down moves the
+  sheet, but past the list's end, where nothing else can move, it bounces on iOS
+  and stretches on Android as any other list does. Nothing changes on desktop,
+  which has no overscroll.
 - **Tooltips and coach marks open where they fit whole.** A tooltip, a
   `Modifier.coachmark` and each step of a `CoachmarkTour` used to be bounded to
   the side asked for whenever that side had room for a line or two, and scroll

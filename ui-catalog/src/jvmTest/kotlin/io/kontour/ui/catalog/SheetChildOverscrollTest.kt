@@ -29,7 +29,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * A list inside a sheet does not rubber-band vertically. The sheet does.
+ * A list inside a sheet does not rubber-band at its top. The sheet does. Past
+ * its end the list does, as it would anywhere.
  *
  * Reported from an iPhone, as two symptoms of one cause: *"i feel like i have to
  * flick with more power on iOS"*, and *"sometimes when i start dragging the sheet
@@ -63,20 +64,29 @@ import kotlin.test.assertTrue
  *
  * [Band] models the one behaviour that matters and not the whole Cupertino curve:
  * an open band takes the finger first, and a declined delta opens one.
+ *
+ * ### The far end, since 0.5.1
+ *
+ * The rule was first the whole vertical axis, and lists in sheets stopped dead
+ * at their end on the phones: *"Lists in the sheets bounce past their end again
+ * (Kontour turns that off inside sheets). Pulling down at the top still moves
+ * the sheet."* Only the top is shared with the sheet, so only the top is taken
+ * from the platform.
  */
 class SheetChildOverscrollTest {
 
     /**
-     * The rule itself: the vertical axis never reaches the platform's effect.
+     * The rule itself: a pull down past the list's top never reaches the
+     * platform's effect.
      *
      * Asserted rather than inferred from a position, because it is what closes
      * *every* route into the defect at once — whichever gesture charges the
-     * band on a given platform, a band that is never offered a pixel cannot
-     * open, cannot withhold the next frame's delta, and has no velocity to keep
-     * at the release.
+     * band at the top on a given platform, a band that is never offered a pixel
+     * there cannot open, cannot withhold the next frame's delta, and has no
+     * velocity to keep at the release.
      */
     @Test
-    fun aScrollableInASheetIsOfferedNoVerticalOverscroll() {
+    fun aScrollableInASheetIsOfferedNoOverscrollAtItsTop() {
         val band = Band()
         var list = Rect.Zero
 
@@ -103,17 +113,18 @@ class SheetChildOverscrollTest {
     }
 
     /**
-     * And the consequence, with the band in the state the platform gets it into.
+     * And with a bounce at the list's end still open, a pull down moves the
+     * sheet once the finger has closed it.
      *
-     * Charged by hand rather than by a gesture. What charges it differs per
-     * platform — a list flicked to its end, a spring still unwinding, the
-     * leftover of a stretch the sheet only partly absorbed — and the fix is not
-     * about which: it is that a charged band can no longer be in the way. So the
-     * test puts the band where those gestures put it and asks the one question
-     * the report asks, which is whether the sheet moves.
+     * Charged by hand rather than by a gesture: as if the list had just
+     * bounced past its end and the band were on its way back. The finger
+     * closes it first, as one catching a bounce does on iOS, and that is the
+     * only part of the drag the sheet does not get. Before 0.5.1 the band was
+     * never offered the drag at all, and this charged it with more than the
+     * whole drag; a bounce is a few dozen pixels.
      */
     @Test
-    fun andASheetStillMovesWithAChargedBandInTheWay() {
+    fun andASheetStillMovesWithABounceOpenAtTheEnd() {
         val band = Band()
         var list = Rect.Zero
         var sheetTop = 0f
@@ -145,10 +156,42 @@ class SheetChildOverscrollTest {
         assertTrue(
             movedBy > Travel / 2f,
             "dragged ${Travel.toInt()}px down by its list, the sheet moved " +
-                "${movedBy.toInt()}px. A band the list's own overscroll had left " +
-                "open unwinds against the same finger, and the frames it spends " +
-                "doing that are frames the sheet is offered nothing at all",
+                "${movedBy.toInt()}px. A bounce of ${Charge.toInt()}px open at the " +
+                "list's end should cost the sheet that much of the drag and no more",
         )
+    }
+
+    /**
+     * Past the end of the list, the list bounces: pushed up in an expanded sheet,
+     * a list with nowhere further to go hands the platform's effect what it
+     * declined, and the sheet stays where it is.
+     */
+    @Test
+    fun aListInASheetBouncesPastItsEnd() {
+        val band = Band()
+        var list = Rect.Zero
+        var sheetTop = 0f
+        var movedBy = 0f
+
+        scene(band, rows = 3) { list = it }.use { scene ->
+            scene.frames(40)
+            assertTrue(list.height > 0f, "the list never reported a size")
+            sheetTop = list.top
+            val grab = list.alongY(0.6f)
+            scene.drag(from = grab, to = grab - Offset(0f, Travel), release = false)
+            movedBy = list.top - sheetTop
+            scene.release(grab - Offset(0f, Travel))
+            scene.frames(30)
+        }
+
+        assertTrue(
+            band.verticalOffers.any { it < 0f } && band.offset < 0f,
+            "pushed up past its end, a list in an expanded sheet was not offered " +
+                "the drag for its own bounce: offers ${band.verticalOffers}, band " +
+                "${band.offset}. Nothing else can move there, and a list that stops " +
+                "dead is not what lists do on the phones",
+        )
+        assertTrue(abs(movedBy) < 2f, "pushing a list up past its end moved its expanded sheet by ${movedBy}px")
     }
 
     /**
@@ -202,7 +245,7 @@ class SheetChildOverscrollTest {
         )
     }
 
-    private fun scene(band: Band, reportList: (Rect) -> Unit): Scene =
+    private fun scene(band: Band, rows: Int = 20, reportList: (Rect) -> Unit): Scene =
         Scene(width = 600, height = 900) {
             CompositionLocalProvider(LocalOverscrollFactory provides BandFactory(band)) {
                 Box(Modifier.fillMaxSize().background(Color.White)) {
@@ -217,7 +260,7 @@ class SheetChildOverscrollTest {
                                 .height(300.dp)
                                 .reportBounds(reportList)
                         ) {
-                            items(20) {
+                            items(rows) {
                                 Box(
                                     Modifier
                                         .fillMaxWidth()
@@ -304,7 +347,7 @@ class SheetChildOverscrollTest {
         const val Travel = 200f
         const val SlopPx = 40f
 
-        /** More than [Travel], so an unwinding band swallows the whole drag. */
-        const val Charge = 400f
+        /** A bounce left open at the list's end: a few dozen pixels, well under [Travel]. */
+        const val Charge = 60f
     }
 }
