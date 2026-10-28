@@ -25,6 +25,8 @@ import androidx.compose.ui.graphics.addOutline
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.layout.IntrinsicMeasurable
+import androidx.compose.ui.layout.IntrinsicMeasureScope
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.boundsInRoot
@@ -75,6 +77,17 @@ internal val ResolvedSide.opposite: ResolvedSide
         ResolvedSide.Left -> ResolvedSide.Right
         ResolvedSide.Right -> ResolvedSide.Left
     }
+
+/** The two sides across from this one: left and right of above, above and below beside. */
+internal val ResolvedSide.across: List<ResolvedSide>
+    get() = when (this) {
+        ResolvedSide.Above, ResolvedSide.Below -> listOf(ResolvedSide.Left, ResolvedSide.Right)
+        ResolvedSide.Left, ResolvedSide.Right -> listOf(ResolvedSide.Above, ResolvedSide.Below)
+    }
+
+/** Whether an overlay on this side opens up or down from its anchor. */
+internal val ResolvedSide.isVertical: Boolean
+    get() = this == ResolvedSide.Above || this == ResolvedSide.Below
 
 /**
  * What an anchored overlay keeps clear of each container edge, beyond its margin.
@@ -377,6 +390,66 @@ internal fun Constraints.withinSideRoom(room: Int, vertical: Boolean): Constrain
     }
 }
 
+/** A side an overlay fits on whole, and the room it has there. */
+internal class WholeSide(val side: ResolvedSide, val room: Int)
+
+/**
+ * The first side of [anchor] where the panel fits whole, without being bounded
+ * and scrolled: [preferred], its opposite, and then the two across from it,
+ * the roomier first. Null when it fits whole on none of them, and the caller
+ * bounds it to its side and lets it scroll, as a menu or a popover always does.
+ *
+ * For a tooltip and a coach mark. Raised 2026-10-28 for 0.5.1: *"make it so
+ * tooltips/coachmarks will never be scrollable, unless there is absolutely no
+ * space on any side of the item"*. A menu scrolls as a matter of course and is
+ * a list to be scrolled; a tooltip is a sentence to be read at a glance, and
+ * one bounded to the side asked for, scrolling its last line, when the whole
+ * of it would have fitted beside the control, is the worse of the two.
+ *
+ * Above or below, the panel is as wide as it likes, so it fits when its height
+ * at the width it has is within the room. Beside the anchor the room is a
+ * width: the panel narrows to it and its words wrap, so it fits when no word
+ * is wider than the room and the wrapped panel is no taller than the window.
+ * Neither side is taken with less than [floor], the room a side must have to
+ * be opened on at all.
+ *
+ * Read as intrinsics, before measuring, because which side it is decides what
+ * the panel is measured against. Content that cannot answer an intrinsic, a
+ * `SubcomposeLayout` among it, is placed as it was before this.
+ */
+internal fun IntrinsicMeasureScope.sideWhereWhole(
+    measurables: List<IntrinsicMeasurable>,
+    anchor: Rect,
+    container: IntSize,
+    preferred: ResolvedSide,
+    gap: Int,
+    margin: Int,
+    insets: AnchorInsets,
+    across: Constraints,
+    floor: Int,
+): WholeSide? {
+    fun roomOn(side: ResolvedSide) = roomBeside(anchor, container, side, gap, margin, insets)
+    val sides = listOf(preferred, preferred.opposite) + preferred.across.sortedByDescending(::roomOn)
+    for (side in sides) {
+        val room = roomOn(side)
+        if (room < floor) continue
+        val fits = try {
+            if (side.isVertical) {
+                measurables.all { it.maxIntrinsicHeight(across.maxWidth) <= room }
+            } else {
+                val width = minOf(room, across.maxWidth)
+                measurables.all {
+                    it.minIntrinsicWidth(across.maxHeight) <= width && it.maxIntrinsicHeight(width) <= across.maxHeight
+                }
+            }
+        } catch (_: IllegalStateException) {
+            return null
+        }
+        if (fits) return WholeSide(side, room)
+    }
+    return null
+}
+
 /** Numbers every anchored overlay shares. */
 internal object AnchoredOverlayDefaults {
     /**
@@ -568,6 +641,11 @@ internal fun AnchoredOverlayLayout(
      * `MenuMinimumRoom` for why a list wants more.
      */
     minimumPanel: Dp = AnchoredOverlayDefaults.MinimumPanel,
+    /**
+     * Whether to open on any side where the panel fits whole before bounding it
+     * to the side asked for. See [sideWhereWhole].
+     */
+    fitWhole: Boolean = false,
     content: @Composable () -> Unit,
 ) {
     val host = LocalOverlayHost.current
@@ -713,8 +791,15 @@ internal fun AnchoredOverlayLayout(
         // side it was on and the size it had there, and still follows its anchor,
         // which may be moving as the keyboard goes.
         val keptSide = if (leaving()) placedSide.side else null
+        val across = overlayConstraints(container, marginPx, minWidthPx, insets)
+        val whole = if (fitWhole && keptSide == null) {
+            sideWhereWhole(measurables, anchorInHost, container, preferred, effectiveGap, marginPx, insets, across, floor)
+        } else {
+            null
+        }
         val measuredAgainst = placedSide.constraints.takeIf { keptSide != null }
-            ?: overlayConstraints(container, marginPx, minWidthPx, insets).withinSideRoom(room, vertical)
+            ?: whole?.let { across.withinSideRoom(it.room, it.side.isVertical) }
+            ?: across.withinSideRoom(room, vertical)
         val placeables = measurables.map { it.measure(measuredAgainst) }
         val contentSize = IntSize(
             placeables.maxOfOrNull { it.width } ?: 0,
@@ -731,7 +816,7 @@ internal fun AnchoredOverlayLayout(
             margin = marginPx,
             isRtl = isRtl,
             insets = insets,
-            keepSide = keptSide,
+            keepSide = keptSide ?: whole?.side,
         )
         if (keptSide == null) {
             placedSide.side = placement.side

@@ -42,6 +42,16 @@ On `main`, and in the next release.
   travelled drawn in full. Under reduced motion the arrows stand still, and
   still say which way the journey is going.
 
+### Changed
+
+- **Tooltips and coach marks open where they fit whole.** A tooltip, a
+  `Modifier.coachmark` and each step of a `CoachmarkTour` used to be bounded to
+  the side asked for whenever that side had room for a line or two, and scroll
+  the rest, even when all of it would have fitted on the other side. They now
+  open on the side asked for if they fit there whole, then on the other side,
+  then beside the control, and scroll only when no side has room for all of
+  it. Menus and popovers, which are meant to scroll, are as they were.
+
 ### Fixed
 
 - **A faded edge no longer shows what is under its surface.** A list's

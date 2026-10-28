@@ -67,9 +67,13 @@ Box {
 }
 ```
 
-A card opens on the side it is asked for only where it fits whole, and on the
-other side where it does not, rather than squeezing its lines into the room
-that is left.
+**A tooltip opens where the whole of it fits.** `side` is where it goes when
+it fits there. When it does not, it opens on the other side, and then beside
+the control, the roomier side first, rather than squeezing its lines into the
+room that is left. It scrolls only when there is no side of the control with
+room for all of it, which at a phone's size and large type can still happen. A
+card asks more of a side before it opens there: the width of a card, so its
+rows do not break their names over two lines.
 
 ---
 

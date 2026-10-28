@@ -364,6 +364,8 @@ internal fun TooltipOverlay(
                         // the last of the room by a chart's end, its rows
                         // broke their names over two lines.
                         minimumPanel = if (style == TooltipStyle.Card) cardRoom else AnchoredOverlayDefaults.MinimumPanel,
+                        // Whole on any side before scrolled on the one asked for.
+                        fitWhole = true,
                         arrow = if (style == TooltipStyle.Card) null else ArrowSpec(colour = colours.surfaceInverse, panelShape = Theme.shapes.container),
                     ) {
                         TooltipBubble(latestContent, latestModifier, style)
@@ -590,6 +592,7 @@ private fun CoachMarkOverlay(
                         gap = Theme.spacing.xxs,
                         margin = MenuDefaults.ScreenMargin,
                         arrow = ArrowSpec(colour = colours.container, panelShape = Theme.shapes.container),
+                        fitWhole = true,
                     ) {
                         CoachMarkBubble(
                             title = title,

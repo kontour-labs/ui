@@ -77,6 +77,10 @@ a coach mark is by definition optional.
 The screen stays undimmed and usable: the user is being shown a thing *in* the
 screen, and the screen has to stay legible around it.
 
+A tip, and each step of a tour, opens where the whole of it fits, as a tooltip
+does: on its `side`, then the other side, then beside the control. It scrolls
+only when no side has room for all of it.
+
 ## `CoachmarkTour`
 
 A walk through several controls, which the user asked for — a "Show me around"
