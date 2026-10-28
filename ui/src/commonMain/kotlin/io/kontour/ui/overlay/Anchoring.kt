@@ -407,11 +407,16 @@ internal class WholeSide(val side: ResolvedSide, val room: Int)
  * of it would have fitted beside the control, is the worse of the two.
  *
  * Above or below, the panel is as wide as it likes, so it fits when its height
- * at the width it has is within the room. Beside the anchor the room is a
- * width: the panel narrows to it and its words wrap, so it fits when no word
- * is wider than the room and the wrapped panel is no taller than the window.
- * Neither side is taken with less than [floor], the room a side must have to
- * be opened on at all.
+ * at the width it has is within the room, however little room that is: the
+ * floor a side needs before a panel is bounded to it is no reason to refuse
+ * one that fits whole. The tooltip specimen, low in a short box, has a few dp
+ * under the floor above it and a one-line bubble well within them, and went
+ * beside its button, wrapped, while this read the floor there too.
+ *
+ * Beside the anchor the room is a width: the panel narrows to it and its words
+ * wrap, so it fits when no word is wider than the room and the wrapped panel
+ * is no taller than the window. Across, a side needs [floor] as well, so a
+ * panel is not wrapped down a sliver beside its anchor.
  *
  * Read as intrinsics, before measuring, because which side it is decides what
  * the panel is measured against. Content that cannot answer an intrinsic, a
@@ -432,7 +437,7 @@ internal fun IntrinsicMeasureScope.sideWhereWhole(
     val sides = listOf(preferred, preferred.opposite) + preferred.across.sortedByDescending(::roomOn)
     for (side in sides) {
         val room = roomOn(side)
-        if (room < floor) continue
+        if (room <= 0 || side in preferred.across && room < floor) continue
         val fits = try {
             if (side.isVertical) {
                 measurables.all { it.maxIntrinsicHeight(across.maxWidth) <= room }
