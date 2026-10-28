@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -163,8 +164,12 @@ class SheetChildOverscrollTest {
 
     /**
      * Past the end of the list, the list bounces: pushed up in an expanded sheet,
-     * a list with nowhere further to go hands the platform's effect what it
-     * declined, and the sheet stays where it is.
+     * a list already at its end hands the platform's effect what it declined,
+     * and the sheet stays where it is.
+     *
+     * A list that scrolls, at its end. One too short to scroll is offered no
+     * overscroll by foundation at all, in a sheet or out of one, as a list that
+     * fits does not bounce on iOS.
      */
     @Test
     fun aListInASheetBouncesPastItsEnd() {
@@ -173,7 +178,7 @@ class SheetChildOverscrollTest {
         var sheetTop = 0f
         var movedBy = 0f
 
-        scene(band, rows = 3) { list = it }.use { scene ->
+        scene(band, atTheEnd = true) { list = it }.use { scene ->
             scene.frames(40)
             assertTrue(list.height > 0f, "the list never reported a size")
             sheetTop = list.top
@@ -245,7 +250,7 @@ class SheetChildOverscrollTest {
         )
     }
 
-    private fun scene(band: Band, rows: Int = 20, reportList: (Rect) -> Unit): Scene =
+    private fun scene(band: Band, atTheEnd: Boolean = false, reportList: (Rect) -> Unit): Scene =
         Scene(width = 600, height = 900) {
             CompositionLocalProvider(LocalOverscrollFactory provides BandFactory(band)) {
                 Box(Modifier.fillMaxSize().background(Color.White)) {
@@ -258,9 +263,10 @@ class SheetChildOverscrollTest {
                             Modifier
                                 .fillMaxWidth()
                                 .height(300.dp)
-                                .reportBounds(reportList)
+                                .reportBounds(reportList),
+                            state = rememberLazyListState(initialFirstVisibleItemIndex = if (atTheEnd) 19 else 0),
                         ) {
-                            items(rows) {
+                            items(20) {
                                 Box(
                                     Modifier
                                         .fillMaxWidth()
