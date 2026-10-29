@@ -28,11 +28,10 @@ import androidx.compose.animation.core.exponentialDecay
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -57,7 +56,10 @@ import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.constrain
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.a11y.trackAtTier
@@ -348,12 +350,32 @@ internal fun KnobLayout(
     // the arc's gradient — once per drag event, for a brush that never changes.
     val drawnValue = rememberUpdatedState(value)
 
+    /**
+     * The face's side in pixels, written where the face is laid out and read by
+     * the gestures, the drawing and the editor's width.
+     *
+     * It was a `BoxWithConstraints`, whose `maxWidth` and `maxHeight` nothing
+     * but this number needed. That is a subcomposition, and its content took
+     * the value — the drag's callbacks and the readout both use it — so every
+     * frame of a turn composed it again, in the middle of measuring, for a
+     * number that changes only when the knob is given a different size.
+     * `KnobTurnCostTest` counts it.
+     */
+    val sidePx = remember { mutableFloatStateOf(0f) }
+    val thicknessPx = with(density) { thickness.toPx() }
+    val tickRoom = if (steps > 0) with(density) { (KnobTickGap + KnobTick).toPx() } else 0f
+    fun faceCentre(): Offset = Offset(sidePx.floatValue / 2f, sidePx.floatValue / 2f)
+    fun faceRadius(): Float = (sidePx.floatValue / 2f - tickRoom - thicknessPx / 2f).coerceAtLeast(1f)
+
     // The control's semantics, keys and focus on the node the caller's `modifier`
     // lands on, as `Slider` puts its semantics: one node that is the knob, which a
     // caller's tag and assistive technology both find. On an inner node, the node
     // they found did not say it was disabled, and the one that took focus had no
     // value to announce.
-    BoxWithConstraints(
+    //
+    // A plain `Box`, as `Slider`'s and `RangeSlider`'s are, with the face's
+    // side worked out where it is laid out: see `sidePx`.
+    Box(
         modifier = modifier
             .semantics {
                 if (!enabled) disabled()
@@ -401,19 +423,24 @@ internal fun KnobLayout(
             .focusable(enabled, interactions),
         contentAlignment = Alignment.Center,
     ) {
-        // Square, and no bigger than it is given.
-        val side = minOf(size, maxWidth, maxHeight)
-        val sizePx = with(density) { side.toPx() }
-        val thicknessPx = with(density) { thickness.toPx() }
-        val tickRoom = if (steps > 0) with(density) { (KnobTickGap + KnobTick).toPx() } else 0f
-        val radius = (sizePx / 2f - tickRoom - thicknessPx / 2f).coerceAtLeast(1f)
-        val centre = Offset(sizePx / 2f, sizePx / 2f)
-
         Box(
             modifier = Modifier
                 .minimumTouchTarget()
                 .focusRing(interactions, Theme.shapes.pill)
-                .size(side)
+                // Square, and no bigger than it is given: `Modifier.size` of
+                // the smaller of `size` and the room offered, which reaches
+                // here unchanged through the two modifiers above.
+                .layout { measurable, constraints ->
+                    val side = minOf(
+                        size,
+                        if (constraints.hasBoundedWidth) constraints.maxWidth.toDp() else Dp.Infinity,
+                        if (constraints.hasBoundedHeight) constraints.maxHeight.toDp() else Dp.Infinity,
+                    )
+                    sidePx.floatValue = side.toPx()
+                    val px = side.roundToPx()
+                    val placeable = measurable.measure(constraints.constrain(Constraints.fixed(px, px)))
+                    layout(placeable.width, placeable.height) { placeable.placeRelative(0, 0) }
+                }
                 .pointerCursor(Cursor.Grab, enabled = enabled)
                 .freeDragOwning(
                     enabled = enabled,
@@ -421,14 +448,14 @@ internal fun KnobLayout(
                     scope = scope,
                     claimsOn = DragClaim.Movement,
                     // The round face and track, not the square's corners.
-                    accepts = { at -> (at - centre).getDistance() <= radius + thicknessPx },
+                    accepts = { at -> (at - faceCentre()).getDistance() <= faceRadius() + thicknessPx },
                     onStart = { at ->
                         spin?.cancel()
                         raw = fractionOf(value)
                         reader.start(
                             at = at,
-                            centre = centre,
-                            radius = radius,
+                            centre = faceCentre(),
+                            radius = faceRadius(),
                             start = DialGeometry.startFor(sweep),
                             sweep = sweep,
                             fraction = raw,
@@ -479,16 +506,19 @@ internal fun KnobLayout(
                 .opensKeyboard(enabled = canEdit && !editing)
                 // A tap on the face, which the drag above leaves alone: it claims on
                 // movement, and a tap never moves far enough to be one.
-                .pointerInput(canEdit, radius) {
+                .pointerInput(canEdit) {
                     if (!canEdit) return@pointerInput
                     detectTapGestures { at ->
-                        if ((at - centre).getDistance() <= radius) {
+                        if ((at - faceCentre()).getDistance() <= faceRadius()) {
                             spin?.cancel()
                             editing = true
                         }
                     }
                 }
                 .drawWithCache {
+                    // Read here, so a new side is a new cache.
+                    val centre = faceCentre()
+                    val radius = faceRadius()
                     val geometry = DialGeometry(centre, radius, DialGeometry.startFor(sweep), sweep)
                     val face = (radius - thicknessPx / 2f - KnobFaceGap.toPx()).coerceAtLeast(1f)
                     val ring = faceRing.toPx()
@@ -525,7 +555,7 @@ internal fun KnobLayout(
             if (editing) {
                 KnobEditor(
                     initial = remember { editText() },
-                    width = with(density) { (radius * EditorWidth).toDp() },
+                    width = with(density) { (faceRadius() * EditorWidth).toDp() },
                     onCommit = ::commitEdit,
                     onCancel = {
                         editing = false
