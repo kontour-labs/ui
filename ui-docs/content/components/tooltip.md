@@ -32,11 +32,12 @@ tracked [input modality](../overlays.md#input-modality) so a tooltip never
 appears from a touch that was really a tap.
 
 **A press anywhere else puts it away.** Whatever opened a tooltip — a long
-press, a hover, focus — a press anywhere but on its control closes it, and the
-press is not taken: it goes on to do what it was aimed at, so a tap on the
-button beside the tooltip presses that button too. On touch, a tap on the
-control itself closes it as well, and presses the control; the long press that
-opened it does not. The component asks rather than closes, as a dialog does:
+press, a hover, focus — a press anywhere but on its control or on the tooltip
+closes it, and the press is not taken: it goes on to do what it was aimed at,
+so a tap on the button beside the tooltip presses that button too. A tap on
+the tooltip leaves it open, as a plain tooltip does on every platform. On
+touch, a tap on the control itself closes it as well, and presses the control;
+the long press that opened it does not. The component asks rather than closes, as a dialog does:
 a press elsewhere calls its `onDismissRequest`, and a tooltip whose caller
 passes none stays until the caller hides it.
 

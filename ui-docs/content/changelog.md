@@ -114,8 +114,9 @@ surface.
   then beside the control, and scroll only when no side has room for all of
   it. Menus and popovers, which are meant to scroll, are as they were.
 - **A tooltip goes at a press anywhere else.** However it opened, a press
-  anywhere but on its control puts a tooltip away, and the press goes on to do
-  what it was aimed at: a tap on the button beside it presses that button too.
+  anywhere but on its control or on the tooltip puts it away, and the press
+  goes on to do what it was aimed at: a tap on the button beside it presses
+  that button too. A tap on the tooltip leaves it open.
   A touch tooltip waited out its four seconds, or a tap on the control itself.
   A `Tooltip` the app shows is asked, through its `onDismissRequest`, as a
   dialog is.

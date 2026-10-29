@@ -39,7 +39,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 @Composable
 fun Modifier.onPressOutside(enabled: Boolean = true, onPress: () -> Unit): Modifier {
     val placed = remember { Placed() }
-    placed.watchOutside(enabled, PressWatchers, onPress)
+    placed.watchOutside(enabled, PressWatchers, null, onPress)
     return onGloballyPositioned { placed.coordinates = it }.reportsPresses()
 }
 
@@ -49,11 +49,39 @@ fun Modifier.onPressOutside(enabled: Boolean = true, onPress: () -> Unit): Modif
  * does. See [onPressOutside].
  */
 @Composable
-internal fun Modifier.onPressOutsideParent(enabled: Boolean = true, onPress: () -> Unit): Modifier {
+internal fun Modifier.onPressOutsideParent(
+    enabled: Boolean = true,
+    alsoInside: AlsoInside? = null,
+    onPress: () -> Unit,
+): Modifier {
     val placed = remember { Placed() }
-    placed.watchOutside(enabled, PressWatchers, onPress)
+    placed.watchOutside(enabled, PressWatchers, alsoInside, onPress)
     return onGloballyPositioned { placed.coordinates = it.parentLayoutCoordinates ?: it }.reportsPresses()
 }
+
+/**
+ * [onPressOutside], with a second place a press counts as on rather than
+ * elsewhere: [alsoInside], wherever it is laid out. A tooltip's control is the
+ * node, and its bubble, drawn in the overlay host far from it, is the second
+ * place, so a tap on the bubble leaves it open.
+ */
+@Composable
+internal fun Modifier.onPressOutside(enabled: Boolean, alsoInside: AlsoInside, onPress: () -> Unit): Modifier {
+    val placed = remember { Placed() }
+    placed.watchOutside(enabled, PressWatchers, alsoInside, onPress)
+    return onGloballyPositioned { placed.coordinates = it }.reportsPresses()
+}
+
+/**
+ * Somewhere else a press counts as on, for [onPressOutside]: where the node
+ * marked with [alsoInside] was last laid out. Not state, as [Placed] is not.
+ */
+internal class AlsoInside {
+    internal var coordinates: LayoutCoordinates? = null
+}
+
+/** Marks this node as [area]: a press on it is not elsewhere to what watches with [area]. */
+internal fun Modifier.alsoInside(area: AlsoInside): Modifier = onGloballyPositioned { area.coordinates = it }
 
 /**
  * [onScroll] when a scroll starts anywhere but on this node — a wheel turned,
@@ -75,7 +103,7 @@ internal fun Modifier.onPressOutsideParent(enabled: Boolean = true, onPress: () 
 @Composable
 internal fun Modifier.onScrollOutside(enabled: Boolean = true, onScroll: () -> Unit): Modifier {
     val placed = remember { Placed() }
-    placed.watchOutside(enabled, ScrollWatchers, onScroll)
+    placed.watchOutside(enabled, ScrollWatchers, null, onScroll)
     return onGloballyPositioned { placed.coordinates = it }.reportsScrolls()
 }
 
@@ -84,24 +112,29 @@ private class Placed {
     var coordinates: LayoutCoordinates? = null
 }
 
-/** Watches [watchers] while [enabled], and calls [onOutside] for whatever they report off this node. */
+/**
+ * Watches [watchers] while [enabled], and calls [onOutside] for whatever they
+ * report off this node, and off [also] where there is one.
+ */
 @Composable
-private fun Placed.watchOutside(enabled: Boolean, watchers: PointerWatchers, onOutside: () -> Unit) {
+private fun Placed.watchOutside(enabled: Boolean, watchers: PointerWatchers, also: AlsoInside?, onOutside: () -> Unit) {
     val latest by rememberUpdatedState(onOutside)
     DisposableEffect(enabled) {
         if (!enabled) return@DisposableEffect onDispose { }
         val key = Any()
         watchers.add(key) { screen ->
             val node = coordinates?.takeIf { it.isAttached } ?: return@add
-            val bounds = Rect(
-                node.localToScreen(Offset.Zero),
-                node.localToScreen(Offset(node.size.width.toFloat(), node.size.height.toFloat())),
-            )
-            if (!bounds.contains(screen)) latest()
+            if (node.onScreen().contains(screen)) return@add
+            if (also?.coordinates?.takeIf { it.isAttached }?.onScreen()?.contains(screen) == true) return@add
+            latest()
         }
         onDispose { watchers.remove(key) }
     }
 }
+
+/** Where a laid-out node is on the screen. */
+private fun LayoutCoordinates.onScreen(): Rect =
+    Rect(localToScreen(Offset.Zero), localToScreen(Offset(size.width.toFloat(), size.height.toFloat())))
 
 /**
  * Everything waiting for a pointer's news elsewhere, each told of every one —

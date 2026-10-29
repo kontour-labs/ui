@@ -57,6 +57,13 @@ class TooltipPressElsewhereTest {
         onNodeWithText(Tip).assertExists("a long press on an icon button did not open its tooltip")
         assertEquals(0, controlPressed, "letting go of the long press that opened the tooltip pressed the button too")
 
+        // A tap on the tooltip itself leaves it: *"if you tap the tooltip
+        // itself, it disappears … let's change that"*.
+        onNodeWithText(Tip).performTouchInput { click() }
+        frames(30)
+        onNodeWithText(Tip).assertExists("a tap on the tooltip itself put it away")
+        assertEquals(0, controlPressed + pressed, "a tap on the tooltip pressed something under it")
+
         onNodeWithTag(Other).performTouchInput { click() }
         frames(30)
         onNodeWithText(Tip).assertDoesNotExist()
@@ -116,6 +123,11 @@ class TooltipPressElsewhereTest {
         onNodeWithTag(Control).performTouchInput { click() }
         waitForIdle()
         assertEquals(0, asked, "a press on the tooltip's own control asked it to go")
+        assertTrue(visible)
+
+        onNodeWithText(Tip).performTouchInput { click() }
+        waitForIdle()
+        assertEquals(0, asked, "a press on the tooltip itself asked it to go")
         assertTrue(visible)
 
         onNodeWithTag(Other).performTouchInput { click() }

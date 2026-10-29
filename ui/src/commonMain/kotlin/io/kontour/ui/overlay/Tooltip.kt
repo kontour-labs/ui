@@ -60,6 +60,8 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import io.kontour.ui.input.onPressOutsideParent
 import io.kontour.ui.input.onPressOutside
+import io.kontour.ui.input.AlsoInside
+import io.kontour.ui.input.alsoInside
 import androidx.compose.ui.input.pointer.PointerEventPass
 
 /** The timing [Modifier.tooltip] takes by default. */
@@ -95,9 +97,10 @@ object TooltipDefaults {
  * | Keyboard | Focus arriving | Focus leaving |
  * | Touch / stylus | A long press | A timeout, or a tap |
  *
- * Whatever opened it, a press anywhere but on the control puts it away, and
- * goes on to do what it was aimed at: a tap on the button beside it presses the
- * button too. A tap on the control itself puts away a touch tooltip as well.
+ * Whatever opened it, a press anywhere but on the control or the tooltip puts it
+ * away, and goes on to do what it was aimed at: a tap on the button beside it
+ * presses the button too. A tap on the control itself puts away a touch tooltip
+ * as well; a tap on the tooltip leaves it, as a plain tooltip does everywhere.
  *
  * A hover-only tooltip is unreachable on a phone; a long-press-only tooltip
  * never fires for a mouse. Both are wired, and neither fires for the other's
@@ -159,6 +162,8 @@ fun Modifier.tooltip(
 
     var bounds by remember { mutableStateOf<Rect?>(null) }
     var showing by remember { mutableStateOf(false) }
+    // The bubble is not elsewhere: a tap on it leaves it open.
+    val bubble = remember { AlsoInside() }
 
     LaunchedEffect(hovered, focused, modality, enabled) {
         if (!enabled) {
@@ -189,6 +194,7 @@ fun Modifier.tooltip(
         side = side,
         alignment = alignment,
         onDismissRequest = { showing = false },
+        bubble = bubble,
     )
 
     return this
@@ -196,8 +202,10 @@ fun Modifier.tooltip(
         // A press anywhere else puts it away, and is not taken: it goes on to
         // what it was aimed at. A touch tooltip waited out its four seconds
         // or a tap on the control itself, and was in the way of whatever the
-        // reader turned to next. Asked for for 0.5.1.
-        .onPressOutside(enabled = showing) { showing = false }
+        // reader turned to next. Asked for for 0.5.1. Not a press on the
+        // bubble, which leaves it open, as a plain tooltip anywhere does:
+        // *"if you tap the tooltip itself, it disappears … let's change that"*.
+        .onPressOutside(enabled = showing, alsoInside = bubble) { showing = false }
         .hoverable(interactions, enabled = enabled)
         .pointerInput(enabled, modality) {
             if (!enabled || !modality.needsLargeTargets) return@pointerInput
@@ -258,7 +266,7 @@ fun Modifier.tooltip(
  * *app* decides: a tip shown once after a feature is used for the first time, or
  * a validation hint that appears while a field is wrong.
  *
- * A press anywhere but on the parent asks for it to go, through
+ * A press anywhere but on the parent or the tooltip asks for it to go, through
  * [onDismissRequest], as the four seconds of a touch tooltip do: the press
  * itself is not taken, and goes on to what it was aimed at.
  *
@@ -287,7 +295,9 @@ fun Tooltip(
     content: @Composable ContentScope.() -> Unit,
 ) {
     var bounds by remember { mutableStateOf<Rect?>(null) }
-    Box(Modifier.parentBounds { bounds = it }.onPressOutsideParent(enabled = visible, onPress = onDismissRequest))
+    // The bubble is not elsewhere: a tap on it leaves it open.
+    val bubble = remember { AlsoInside() }
+    Box(Modifier.parentBounds { bounds = it }.onPressOutsideParent(enabled = visible, alsoInside = bubble, onPress = onDismissRequest))
 
     TooltipOverlay(
         visible = visible,
@@ -298,6 +308,7 @@ fun Tooltip(
         alignment = alignment,
         onDismissRequest = onDismissRequest,
         style = style,
+        bubble = bubble,
     )
 }
 
@@ -338,6 +349,8 @@ internal fun TooltipOverlay(
      * again before the last letter has faded.
      */
     key: Any = remember { Any() },
+    /** Where the bubble is laid out, for a press on it to count as not elsewhere. */
+    bubble: AlsoInside? = null,
 ) {
     val host = LocalOverlayHost.current
     val colours = Theme.colours
@@ -407,7 +420,7 @@ internal fun TooltipOverlay(
                         fitWhole = true,
                         arrow = if (style == TooltipStyle.Card) null else ArrowSpec(colour = colours.surfaceInverse, panelShape = Theme.shapes.container),
                     ) {
-                        TooltipBubble(latestContent, latestModifier, style)
+                        TooltipBubble(latestContent, if (bubble != null) latestModifier.alsoInside(bubble) else latestModifier, style)
                     }
                 },
             )
