@@ -1078,6 +1078,7 @@ private class GroundGeometry {
 
     private var size: Size? = null
     private var density = Float.NaN
+    private var direction: LayoutDirection? = null
     private var shapes: List<CornerBasedShape>? = null
 
     /**
@@ -1093,10 +1094,15 @@ private class GroundGeometry {
         // shapes for as long as a sheet is up, so this is once a sheet, and the
         // next sheet's are a new list of the same shapes.
         val newShapes = shapes !== this.shapes && shapes != this.shapes
-        if (size != this.size || scope.density != density || newShapes) {
+        // And the layout direction, which the outline is made in: the host
+        // keeps these from one sheet to the next, and a page switched to right
+        // to left in between would otherwise be cut by the left-to-right
+        // corners of an asymmetric shape.
+        if (size != this.size || scope.density != density || scope.layoutDirection != direction || newShapes) {
             cut.fill(null)
             this.size = size
             density = scope.density
+            direction = scope.layoutDirection
         }
         this.shapes = shapes
         cut[step]?.let { return it }
