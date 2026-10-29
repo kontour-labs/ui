@@ -31,6 +31,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -673,6 +674,20 @@ private fun EntryHost(
             entry.passThrough?.let { inRoot -> { inRoot()?.translate(-state.originInRoot) } }
         }
         ScrimLayer(
+            // **A layer of its own, so a frame of the scrim is not a frame of
+            // the page.** The scrim reads its fraction in its draw, which is
+            // right, and it is redrawn on every frame the overlay moves. A node
+            // with no layer is recorded into its nearest ancestor's, and here
+            // that is the one the page is recorded into too, unless a backdrop
+            // has given the page a layer of its own: so every frame of a menu,
+            // a popover, a sheet that does not recede, or a dialog where the
+            // backdrop cannot blur — Android 10 and 11, or `backdropBlur =
+            // false` — recorded the whole page again under it. Counted at 12
+            // of a menu's 13 opening frames, and 20 of a sheet's; 1, the frame
+            // it mounts, with this. No alpha, clip or effect on it, so it is a
+            // recording rather than an offscreen, and the picture is the same.
+            // See `ScrimLayerPressureTest`.
+            modifier = Modifier.graphicsLayer(),
             // The same number the panel is drawn with, so the dimming and the
             // thing it dims are one movement — see `Scrim` — and, with
             // something dimming above it, its share of that: see [scrimShare].
