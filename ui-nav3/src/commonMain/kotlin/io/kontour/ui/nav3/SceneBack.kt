@@ -6,6 +6,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.structuralEqualityPolicy
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -168,12 +170,17 @@ internal fun Modifier.paneBackMotion(back: SceneBackState): Modifier {
     if (reduced) {
         return this.graphicsLayer { alpha = 1f - 0.5f * back.progress }
     }
+    // Whether the pane has moved at all, which is all the shadow asks of the
+    // gesture: it is drawn inside the layer that moves the pane, and moves with
+    // it. Read as the progress itself, every frame of a drag drew the whole
+    // pane over again to draw the same shadow: counted 2026-10-29 for 0.5.1,
+    // 24 times in 24 frames, and once now. `PaneBackMotionCostTest`.
+    val moved = remember(back) { derivedStateOf(structuralEqualityPolicy()) { back.progress != 0f } }
     return this
         .graphicsLayer { translationX = away() * back.progress * size.width }
         .drawWithContent {
             drawContent()
-            val p = back.progress
-            if (p == 0f) return@drawWithContent
+            if (!moved.value) return@drawWithContent
             // On the edge the pane is moving away from, over the ground it
             // uncovers.
             val width = 16.dp.toPx()
