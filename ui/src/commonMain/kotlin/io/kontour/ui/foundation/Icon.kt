@@ -7,8 +7,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ColorProducer
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
@@ -132,11 +135,17 @@ private fun IconBox(
     drawSize: DpSize,
 ) {
     val resolvedTint = if (tint == Color.Unspecified) Theme.colours.content else tint
+    // Tinted as it draws when it is tinted in a colour that is fading, as text
+    // is: see `ProvideContentColourInMotion`. A tint is a default parameter, so
+    // the one passed cannot be told from the one inherited, and an icon given
+    // the colour the fade is heading for is taken to be inheriting it.
+    val moving = inheritedColourInMotion()?.takeIf { it.towards == tint }
+    val drawn = if (moving == null) painter else remember(painter, moving) { TintedInMotion(painter, moving) }
     // Remembered: a tint filter is a native object, built afresh on every
     // composition of every icon — which, under an animated content colour, is
     // every frame of every icon in a button, tab or chip changing state.
-    val tintFilter = remember(tint, resolvedTint) {
-        if (tint == Color.Unspecified) null else ColorFilter.tint(resolvedTint)
+    val tintFilter = remember(tint, resolvedTint, moving) {
+        if (tint == Color.Unspecified || moving != null) null else ColorFilter.tint(resolvedTint)
     }
 
     val semantics = if (contentDescription != null) {
@@ -160,7 +169,7 @@ private fun IconBox(
         contentAlignment = Alignment.Center,
     ) {
         Image(
-            painter = painter,
+            painter = drawn,
             contentDescription = null,
             colorFilter = tintFilter,
             // FillBounds, not Fit: the box has already been sized to the glyph's
@@ -170,6 +179,38 @@ private fun IconBox(
             contentScale = ContentScale.FillBounds,
             modifier = Modifier.size(drawSize),
         )
+    }
+}
+
+/**
+ * [painter], tinted as it draws in the colour [tint] has reached by then.
+ *
+ * What `Image` would draw given `ColorFilter.tint` of that colour, drawn the
+ * same way: the painter is handed the size, alpha and filter `Image` would have
+ * handed it, and a filter is made again only when the colour has moved.
+ */
+private class TintedInMotion(private val painter: Painter, private val tint: ColorProducer) : Painter() {
+    private var alpha = 1f
+    private var filterColour = Color.Unspecified
+    private var filter: ColorFilter? = null
+
+    override val intrinsicSize: Size get() = painter.intrinsicSize
+
+    override fun applyAlpha(alpha: Float): Boolean {
+        this.alpha = alpha
+        return true
+    }
+
+    // `Image` is given no filter of its own here, so there is none to take.
+    override fun applyColorFilter(colorFilter: ColorFilter?): Boolean = true
+
+    override fun DrawScope.onDraw() {
+        val colour = tint()
+        if (colour != filterColour) {
+            filterColour = colour
+            filter = ColorFilter.tint(colour)
+        }
+        with(painter) { draw(size, alpha, filter) }
     }
 }
 

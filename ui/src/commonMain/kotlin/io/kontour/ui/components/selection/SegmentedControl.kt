@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.text.selection.DisableSelection
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
@@ -46,6 +47,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.style.TextOverflow
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.rememberTapFeedback
+import io.kontour.ui.foundation.LocalTextStyle
+import io.kontour.ui.foundation.ProvideContentColourInMotion
 import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.IndicatorSizing
 import io.kontour.ui.foundation.SelectionIndicatorBox
@@ -892,12 +895,14 @@ private fun SegmentedOption(
     val motion = Theme.motion
     val interactions = remember { MutableInteractionSource() }
 
-    val labelColour by animateColorAsState(
-        targetValue = when {
-            !enabled -> colours.contentDisabled
-            selected -> colours.content
-            else -> colours.contentMuted
-        },
+    val labelTarget = when {
+        !enabled -> colours.contentDisabled
+        selected -> colours.content
+        else -> colours.contentMuted
+    }
+    // Not read here: the label reads it as it draws. See `ProvideContentColourInMotion`.
+    val labelColour = animateColorAsState(
+        targetValue = labelTarget,
         animationSpec = motion.tweenFast(),
         label = "segmentLabel",
     )
@@ -934,14 +939,24 @@ private fun SegmentedOption(
             // gives: a word cut mid-stroke reads as a different word rather than
             // a shortened one, and "Keyboard" arriving as "Keyboar" is a label
             // that lies rather than one that is short.
+            //
+            // Its colour is inherited rather than passed, so that the text can
+            // read the fade as it draws, and the style it inherits is given
+            // without one: a colour passed here was the label's whatever the
+            // style round the control said, and one in the style would win
+            // over an inherited one.
+            val inherited = LocalTextStyle.current
+            val style = remember(inherited) { inherited.copy(color = Color.Unspecified) }
             DisableSelection {
-                Text(
-                    text = option,
-                    colour = labelColour,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(horizontal = SegmentedControlDefaults.LabelPadding),
-                )
+                ProvideContentColourInMotion(labelColour, towards = labelTarget) {
+                    Text(
+                        text = option,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(horizontal = SegmentedControlDefaults.LabelPadding),
+                        style = style,
+                    )
+                }
             }
         }
     }

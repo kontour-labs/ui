@@ -6,6 +6,7 @@ import androidx.compose.foundation.text.InlineTextContent
 import androidx.compose.foundation.text.selection.DisableSelection
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -89,6 +90,7 @@ fun Text(
     style: TextStyle = LocalTextStyle.current,
 ) {
     val redaction = textRedaction()
+    val moving = colourInMotion(colour, style)
 
     // A redacted string is still here, so it can measure like the real one —
     // and must not be handed over by a selection around it.
@@ -113,6 +115,7 @@ fun Text(
             softWrap = softWrap,
             maxLines = maxLines,
             minLines = minLines,
+            color = moving,
         )
     }
 }
@@ -154,9 +157,15 @@ fun Text(
     style: TextStyle = LocalTextStyle.current,
 ) {
     val redaction = textRedaction()
+    val icons = text.hasStringAnnotations(InlineIcons.Tag, 0, text.length)
+    val gradient = !redaction.redacted && text.hasStringAnnotations(SpanGradients.Tag, 0, text.length)
+    // Icons in the line and gradients across it take the text's colour as it is
+    // composed, so a string with either takes a fading colour that way too.
+    val inMotion = colourInMotion(colour, style)
+    val moving = if (icons || gradient) null else inMotion
     val resolved = resolveTextStyle(
         style = style,
-        colour = colour,
+        colour = if (inMotion != null && moving == null) inMotion() else colour,
         fontSize = fontSize,
         fontStyle = fontStyle,
         fontWeight = fontWeight,
@@ -172,7 +181,7 @@ fun Text(
     // every string — costs a scan of its annotations and nothing else. The
     // colour goes in as state, read by each icon as it draws: a map rebuilt
     // for a new colour would be new placeholders, and the text laid out again.
-    val content = if (text.hasStringAnnotations(InlineIcons.Tag, 0, text.length)) {
+    val content = if (icons) {
         val textColour = rememberUpdatedState(resolved.color)
         remember(text, inlineContent) {
             InlineIcons.contentFor(text, textColour).orEmpty() + inlineContent
@@ -192,7 +201,7 @@ fun Text(
 
     // Gradients laid across their own words — see `SpanGradients`. The same one
     // scan as the icons, and nothing more, for a string without one.
-    val gradients = if (!redaction.redacted && text.hasStringAnnotations(SpanGradients.Tag, 0, text.length)) {
+    val gradients = if (gradient) {
         remember(text) { SpanGradients.find(text) }
     } else {
         emptyList()
@@ -245,6 +254,7 @@ fun Text(
             maxLines = maxLines,
             minLines = minLines,
             inlineContent = content,
+            color = moving,
         )
     }
 }
@@ -320,6 +330,20 @@ private fun resolveTextStyle(
         }
     }
 }
+
+/**
+ * The colour this text is fading through, when it inherits one that is fading,
+ * for `BasicText` to read as it draws. See [ProvideContentColourInMotion].
+ *
+ * Only for text that takes the inherited colour, the last in the order on
+ * [Text]: a colour given here or in the style is the text's own, and holds.
+ * The style passed with it carries where the fade is going, which is what
+ * measures the text; this only says what it is drawn in on each frame.
+ */
+@Composable
+@ReadOnlyComposable
+private fun colourInMotion(colour: Color, style: TextStyle): ContentColourInMotion? =
+    if (colour.isSpecified || style.color.isSpecified) null else inheritedColourInMotion()
 
 private val Color.isSpecified: Boolean get() = this != Color.Unspecified
 

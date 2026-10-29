@@ -57,6 +57,8 @@ import io.kontour.ui.interaction.rememberToggleFeedback
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.LocalContentColour
+import io.kontour.ui.foundation.LocalContentColourInMotion
+import io.kontour.ui.foundation.ProvideContentColourInMotion
 import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.RowContentScope
 import io.kontour.ui.foundation.contentScope
@@ -259,12 +261,14 @@ fun FilterChip(
         animationSpec = motion.tweenFast(),
         label = "chipContainer",
     )
-    val contentColour by animateColorAsState(
-        targetValue = when {
-            !enabled -> colours.contentDisabled
-            selected -> colours.accent.onContainer
-            else -> colours.content
-        },
+    val contentTarget = when {
+        !enabled -> colours.contentDisabled
+        selected -> colours.accent.onContainer
+        else -> colours.content
+    }
+    // Not read here: the label reads it as it draws. See `ProvideContentColourInMotion`.
+    val contentColour = animateColorAsState(
+        targetValue = contentTarget,
         animationSpec = motion.tweenFast(),
         label = "chipContent",
     )
@@ -316,7 +320,7 @@ fun FilterChip(
         // it in one frame when the tick leaves composition. See `AnimatedSlot`.
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        CompositionLocalProvider(LocalContentColour provides contentColour) {
+        ProvideContentColourInMotion(contentColour, towards = contentTarget) {
             if (selectedIcon != null) {
                 AnimatedSlot(
                     visible = selected,
@@ -644,7 +648,10 @@ private fun ChipTag(
         horizontalArrangement = Arrangement.spacedBy(ChipTagGap),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        CompositionLocalProvider(LocalContentColour provides ink) {
+        // Its own ink, which stays put while the chip's label fades round it.
+        // Said outright, because a disabled chip's label fades to this same
+        // colour, and an ink that matched a fade's would be taken to be in it.
+        CompositionLocalProvider(LocalContentColour provides ink, LocalContentColourInMotion provides null) {
             ProvideTextStyle(Theme.typography.labelSmall) {
                 contentScope(iconSize = ChipTagIconSize, maxLines = 1, content = content)
             }

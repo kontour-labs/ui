@@ -61,7 +61,7 @@ import io.kontour.ui.foundation.HorizontalDivider
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.IndicatorEdge
 import io.kontour.ui.foundation.IndicatorSizing
-import io.kontour.ui.foundation.ProvideContentColour
+import io.kontour.ui.foundation.ProvideContentColourInMotion
 import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.RowContentScope
 import io.kontour.ui.foundation.SelectionIndicatorBox
@@ -389,14 +389,16 @@ fun TabBarScope.Tab(
     }
     val marked = drag.marks(key, selected)
 
-    val contentColour by animateColorAsState(
-        targetValue = when {
-            !enabled -> colours.contentDisabled
-            // On the indicator pill rather than over a bare bar, so the tone's
-            // own on-container colour rather than its solid one.
-            marked -> colours.accent.onContainer
-            else -> colours.contentMuted
-        },
+    val contentTarget = when {
+        !enabled -> colours.contentDisabled
+        // On the indicator pill rather than over a bare bar, so the tone's
+        // own on-container colour rather than its solid one.
+        marked -> colours.accent.onContainer
+        else -> colours.contentMuted
+    }
+    // Not read here: the label reads it as it draws. See `ProvideContentColourInMotion`.
+    val contentColour = animateColorAsState(
+        targetValue = contentTarget,
         animationSpec = motion.tweenFast(),
         label = "tabContent",
     )
@@ -487,7 +489,7 @@ fun TabBarScope.Tab(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             ProvideTextStyle(Theme.typography.labelLarge) {
-                ProvideContentColour(contentColour) {
+                ProvideContentColourInMotion(contentColour, towards = contentTarget) {
                     // Ellipsis rather than the scope's default clip: a fixed
                     // bar divides its width evenly, so a long label on a narrow
                     // screen is *expected* to run out of room, and "Departures"
