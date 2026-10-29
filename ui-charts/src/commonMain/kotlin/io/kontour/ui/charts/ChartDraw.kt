@@ -69,6 +69,9 @@ internal class DrawConfig(
 
     /** Where this frame's marked range holds its marks whole: see [MarkFocus]. */
     val focus = MarkFocus()
+
+    /** Where the data was last found to be, for the words to keep clear of: see [ObstacleCache]. */
+    val obstacles = ObstacleCache()
 }
 
 /**
@@ -511,7 +514,7 @@ internal fun DrawScope.drawChart(
     // move begins, and only rides its line up or down on the way.
     val needed = frame.regionLabels.any { it != null } || frame.ruleLabels.any { it != null }
     val settledMapper = if (settled === chart) m else Mapper(frame, settled.x, settled.y, settled.yEnd)
-    val data = if (needed) obstaclesOf(settled, settledMapper, config) else null
+    val data = if (needed) config.obstacles.of(settled, settledMapper, config.pointSize) else null
     fun regionSpots(rect: Rect, w: Float, h: Float): List<Offset> {
         val start = if (frame.rtl) rect.right - inset - w else rect.left + inset
         val end = if (frame.rtl) rect.left + inset else rect.right - inset - w
@@ -1219,14 +1222,48 @@ private fun DrawScope.drawLabels(frame: ChartFrame, m: Mapper, colours: ChartCol
  * line, an area's or a band's top and every few pixels between, each symbol,
  * and each bar's box.
  */
-private class Obstacles(private val points: List<Offset>, private val boxes: List<Rect>) {
+internal class Obstacles(private val points: List<Offset>, private val boxes: List<Rect>) {
     fun hit(rect: Rect): Boolean = points.any { rect.contains(it) } || boxes.any { it.overlaps(rect) }
 }
 
-private fun obstaclesOf(chart: ResolvedChart, chartMapper: Mapper, config: DrawConfig): Obstacles {
+/**
+ * The [Obstacles] last found, kept with the chart and the plot they were found
+ * on, so that a frame drawn over the same settled chart in the same plot does
+ * not find them all again.
+ *
+ * Raised 2026-10-29 for 0.5.1: a chart with a labelled rule or region found
+ * them on every frame it drew, a point every few pixels along each line, and
+ * a chart redraws on every frame of a range being dragged out and of a place
+ * being dragged along. They are found from the chart a move is heading to,
+ * which stays the same while a range is marked, so each of those frames found
+ * again what had not moved: a third of what a frame of a range dragged across
+ * two lines and a labelled rule made, 32 KB down to 21 KB.
+ */
+internal class ObstacleCache {
+    private var chart: ResolvedChart? = null
+    private var plot: Rect? = null
+    private var rtl = false
+    private var step = 0f
+    private var found: Obstacles? = null
+
+    /** Where [chart]'s data is through [mapper], a point every [step] along a line: the last found, if found the same way. */
+    fun of(chart: ResolvedChart, mapper: Mapper, step: Float): Obstacles {
+        val frame = mapper.frame
+        val last = found
+        if (last != null && chart === this.chart && frame.plot == plot && frame.rtl == rtl && step == this.step) return last
+        val now = obstaclesOf(chart, mapper, step)
+        found = now
+        this.chart = chart
+        plot = frame.plot
+        rtl = frame.rtl
+        this.step = step
+        return now
+    }
+}
+
+private fun obstaclesOf(chart: ResolvedChart, chartMapper: Mapper, step: Float): Obstacles {
     val points = ArrayList<Offset>()
     val boxes = ArrayList<Rect>()
-    val step = config.pointSize
     chart.layers.forEach { layer ->
         val m = chartMapper.up(layer.mark.onEnd)
         when (layer.mark.kind) {
