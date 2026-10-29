@@ -15,6 +15,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotSame
 import kotlin.test.assertSame
+import kotlin.test.assertTrue
 import kotlin.test.fail
 
 /**
@@ -114,5 +115,36 @@ class FrameCacheTest {
                 layoutDirection = LayoutDirection.Rtl, writeCells = true,
             ),
         )
+    }
+
+    /**
+     * New data whose labels say what the last data's did is laid out without
+     * laying out its labels again: each comes from the chart's measurer as it
+     * was. A chart has more words than a text measurer keeps by default, and
+     * measured in turn each pushed out the next one wanted, so every label of
+     * every new data set, a live chart's every reading, was a paragraph laid
+     * out anew.
+     */
+    @Test
+    fun labelsThatSayTheSameAreNotLaidOutAgainForNewData() {
+        var tools: Tools? = null
+        runComposeUiTest {
+            setContent {
+                KontourTheme {
+                    tools = Tools(rememberTextMeasurer(LabelCacheSize), LocalDensity.current, Theme.typography.labelSmall, Theme.typography.labelMedium)
+                }
+            }
+            waitForIdle()
+            val t = tools ?: fail("no text measurer")
+            fun ChartFrame.words() = xLabels.map { it.layout } + yLabels.map { it.layout } + listOfNotNull(xTitle, yTitle) + ruleLabels.filterNotNull()
+            val before = layOutFrame(chart(), 720f, 480f, t.measurer, t.label, t.title, 8f, t.density, LayoutDirection.Ltr).words()
+            // Fresh data with the same ticks, as a live chart's next reading often is.
+            val after = layOutFrame(chart(), 720f, 480f, t.measurer, t.label, t.title, 8f, t.density, LayoutDirection.Ltr).words()
+            assertTrue(before.size > 8, "the chart should have more words than a measurer keeps by default: ${before.size}")
+            assertEquals(before.map { it.layoutInput.text.text }, after.map { it.layoutInput.text.text })
+            before.zip(after).forEach { (was, now) ->
+                assertSame(was.multiParagraph, now.multiParagraph, "\"${now.layoutInput.text.text}\" was laid out again")
+            }
+        }
     }
 }
