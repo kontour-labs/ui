@@ -454,6 +454,7 @@ private fun <X : Any, Y : Any> ChartPlot(
     val layoutDirection = LocalLayoutDirection.current
     val motion = Theme.motion
     val measurer = rememberTextMeasurer()
+    val frames = remember { FrameCache() }
     val typography = Theme.typography
     val labelStyle = typography.labelSmall
     val titleStyle = typography.labelMedium
@@ -796,7 +797,7 @@ private fun <X : Any, Y : Any> ChartPlot(
         // Laid out for where the chart is going once its move has begun, and
         // until then for where it is: measured from the new chart before its
         // move started, a frame drew the old data in the new plot.
-        val laidOut = layOutFrame(
+        val laidOut = frames.layOut(
             chart = transition.to,
             width = width.toFloat(),
             height = height.toFloat(),
