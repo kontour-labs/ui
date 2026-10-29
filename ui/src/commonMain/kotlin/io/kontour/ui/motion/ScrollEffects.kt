@@ -5,6 +5,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -68,22 +70,9 @@ fun Modifier.revealOnScroll(
     val motion = Theme.motion
     if (motion.reduceMotion) return this
 
-    var revealed by remember { mutableStateOf(false) }
-    var visible by remember { mutableStateOf(false) }
-
-    LaunchedEffect(visible) {
-        if (visible && !revealed) {
-            if (delay > Duration.ZERO) delay(delay)
-            revealed = true
-        }
-    }
-
-    val progress by animateFloatAsState(
-        targetValue = if (revealed) 1f else 0f,
-        animationSpec = motion.springOrTween(motion.springGentle),
-        label = "reveal",
-    )
-    val density = androidx.compose.ui.platform.LocalDensity.current
+    val reveal = remember { Reveal() }
+    RevealProgress(reveal, delay)
+    val density = LocalDensity.current
     val distancePx = with(density) { distance.toPx() }
     // The largest shadow in the scale, so whatever this is put on keeps its own.
     val roomPx = with(density) { Theme.elevation.overlay.bleed.toPx() }
@@ -93,7 +82,7 @@ fun Modifier.revealOnScroll(
 
     return this
         .onGloballyPositioned { coordinates ->
-            if (revealed || !coordinates.isAttached) return@onGloballyPositioned
+            if (reveal.revealed || !coordinates.isAttached) return@onGloballyPositioned
             val root = coordinates.findRootCoordinates()
             val bounds = coordinates.boundsInRoot()
             val height = coordinates.size.height.toFloat()
@@ -102,13 +91,14 @@ fun Modifier.revealOnScroll(
             // How much of it is inside the window right now.
             val shown = (minOf(bounds.bottom, root.size.height.toFloat()) -
                 maxOf(bounds.top, 0f)).coerceAtLeast(0f)
-            if (shown / height >= threshold) visible = true
+            if (shown / height >= threshold) reveal.visible = true
         }
         // Moves only. An `alpha` here would composite into a buffer the size of
         // the element, and a card's shadow lies outside the card: for the whole
         // fade the shadow was cut off at the card's edge, then came back in one
         // frame as the fade ended. `overlayAppearance` has the full analysis.
         .graphicsLayer {
+            val progress = reveal.progress
             val remaining = 1f - progress
             when (variant) {
                 RevealVariant.FadeUp -> translationY = distancePx * remaining
@@ -125,7 +115,7 @@ fun Modifier.revealOnScroll(
         // the shadow fades with the card rather than vanishing under it. Only
         // while it is arriving: at rest nothing is composited at all.
         .drawWithContent {
-            val alpha = progress
+            val alpha = reveal.progress
             when {
                 alpha >= 1f -> drawContent()
                 alpha > 0f -> drawIntoCanvas { canvas ->
@@ -136,6 +126,60 @@ fun Modifier.revealOnScroll(
                 }
             }
         }
+}
+
+/**
+ * Where one [revealOnScroll] has got to: seen, revealed, and how far in.
+ *
+ * Held here rather than in the modifier's own locals so that [RevealProgress]
+ * can read the first two in a scope of its own.
+ */
+@Stable
+private class Reveal {
+    /** Whether enough of the element has been on screen. Written during layout. */
+    var visible by mutableStateOf(false)
+
+    /** Whether the reveal has begun: [visible], and its delay over. Never goes back. */
+    var revealed by mutableStateOf(false)
+
+    /** The reveal's animation, which [RevealProgress] keeps. */
+    var animation: State<Float>? = null
+
+    /** How far in it is, read as the element is laid out and drawn. */
+    val progress: Float get() = animation?.value ?: 0f
+}
+
+/**
+ * Runs a [Reveal]: starts it once the element is [Reveal.visible] and its
+ * delay is over, and animates it in.
+ *
+ * **A composable of its own, so that its reads are its own.** A modifier
+ * factory composes in its caller's scope, so whatever it reads there is read by
+ * the caller: this was the body of [revealOnScroll], and each element turning
+ * visible, then revealed, composed the whole page round it again — every other
+ * row's reveal with it. A page of forty, scrolled past twenty of them in
+ * sixty frames, composed 1,558 scopes; now 38, two small ones for each row and
+ * nothing for the page. Raised 2026-10-29 for 0.5.1.
+ *
+ * Moved, not changed: the same effect on the same key and the same animation,
+ * composed in the same pass the caller would have been, so a reveal starts on
+ * the frame it did and moves the same on every frame after.
+ * `RevealRecompositionTest`.
+ */
+@Composable
+private fun RevealProgress(reveal: Reveal, delay: Duration) {
+    val motion = Theme.motion
+    LaunchedEffect(reveal.visible) {
+        if (reveal.visible && !reveal.revealed) {
+            if (delay > Duration.ZERO) delay(delay)
+            reveal.revealed = true
+        }
+    }
+    reveal.animation = animateFloatAsState(
+        targetValue = if (reveal.revealed) 1f else 0f,
+        animationSpec = motion.springOrTween(motion.springGentle),
+        label = "reveal",
+    )
 }
 
 /**
