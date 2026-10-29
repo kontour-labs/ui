@@ -143,8 +143,7 @@ fun Sparkline(
                         Offset(if (rtl) size.width - x else x, y)
                     }
                 }
-                fun areaUnder(points: List<Offset?>): Path {
-                    val path = Path()
+                fun areaUnder(points: List<Offset?>, path: Path = Path()): Path {
                     var run = mutableListOf<Offset>()
                     fun finish() {
                         if (run.size > 1) {
@@ -161,6 +160,7 @@ fun Sparkline(
                 }
                 val line = linePath(points, ChartInterpolation.Monotone)
                 val area = if (showArea) areaUnder(points) else null
+                val lineStroke = Stroke(stroke, cap = StrokeCap.Round, join = StrokeJoin.Round)
                 // Where each new point sets off from: the old line's height at
                 // the same place along it.
                 val start = from.value?.let { old -> points.mapIndexed { i, point -> point?.let { it.copy(y = old.heightAt(i.toFloat() / last) ?: it.y) } } }
@@ -180,11 +180,14 @@ fun Sparkline(
                     val shown = size.width * reveal.value
                     val left = if (rtl) size.width - shown else 0f
                     clipRect(left = left, right = left + shown) {
-                        (if (moving && showArea) areaUnder(now) else area)?.let { drawPath(it, colour, alpha = AreaAlpha) }
+                        // While it moves, into the two paths it keeps for
+                        // that, emptied, rather than two new ones a frame.
+                        (if (moving && showArea) areaUnder(now, drawn.area.apply { rewind() }) else area)
+                            ?.let { drawPath(it, colour, alpha = AreaAlpha) }
                         drawPath(
-                            if (moving) linePath(now, ChartInterpolation.Monotone) else line,
+                            if (moving) linePath(now, ChartInterpolation.Monotone, into = drawn.line.apply { rewind() }) else line,
                             colour,
-                            style = Stroke(stroke, cap = StrokeCap.Round, join = StrokeJoin.Round),
+                            style = lineStroke,
                         )
                     }
                 }
@@ -192,9 +195,18 @@ fun Sparkline(
     )
 }
 
-/** The line as it was last drawn, for the next change of values to move from. Not state: only draw writes it. */
+/**
+ * The line as it was last drawn, for the next change of values to move from,
+ * and the paths it is drawn into while it moves. Not state: only draw writes it.
+ *
+ * Raised 2026-10-29 for 0.5.1: each frame of a move made a new path for the
+ * line and another for its area, native objects each, in every sparkline
+ * moving at once, a list of them taking a reading together.
+ */
 private class DrawnLine {
     var points: List<Offset?>? = null
+    val line = Path()
+    val area = Path()
 }
 
 /**
