@@ -2,7 +2,6 @@ package io.kontour.ui.components.selection
 
 import io.kontour.ui.platform.webRole
 import io.kontour.ui.platform.WebRole
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -33,6 +32,7 @@ import io.kontour.ui.input.focusRing
 import io.kontour.ui.theme.SquircleShape
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.invisible
+import io.kontour.ui.theme.animateComponentColour
 
 /** The box's drawn size. The touch target around it is much larger. */
 private val CheckboxSize = 20.dp
@@ -160,18 +160,18 @@ fun TriStateCheckbox(
     // The ground the tick is drawn on. Its *colour* animates for enabled and
     // disabled; how much of it there is comes from `filled`, so the box fills
     // and empties with the mark rather than a frame behind it.
-    val containerBase = animateColorAsState(
-        targetValue = if (shown) colours.primary else colours.contentDisabled,
-        animationSpec = motion.tweenFast(),
+    val containerBase = animateComponentColour(
+        target = if (shown) colours.primary else colours.contentDisabled,
+        spec = motion.tweenFast(),
         label = "checkboxContainer",
     )
-    val border = animateColorAsState(
-        targetValue = when {
+    val border = animateComponentColour(
+        target = when {
             !shown -> colours.contentDisabled
             selected -> colours.primary
             else -> colours.outlineStrong
         },
-        animationSpec = motion.tweenFast(),
+        spec = motion.tweenFast(),
         label = "checkboxBorder",
     )
     // The mark strokes on: 0 to 1 is the fraction of the tick path drawn, and

@@ -3,7 +3,6 @@ package io.kontour.ui.components.selection
 import io.kontour.ui.theme.clipProxy
 import io.kontour.ui.platform.webRole
 import io.kontour.ui.platform.WebRole
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -38,6 +37,7 @@ import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.theme.Theme
+import io.kontour.ui.theme.animateComponentColour
 
 /**
  * Picks a colour from a fixed set.
@@ -142,15 +142,15 @@ private fun Swatch(
         label = "swatchMark",
     )
 
-    val ringColour by animateColorAsState(
-        targetValue = when {
+    val ringColour by animateComponentColour(
+        target = when {
             !enabled -> scheme.contentDisabled
             selected -> scheme.content
             // A pale swatch on a pale ground needs an edge, or the user is
             // picking from a row of invisible circles.
             else -> scheme.outline
         },
-        animationSpec = motion.tweenFast(),
+        spec = motion.tweenFast(),
         label = "swatchRing",
     )
     val ringWidth = lerp(

@@ -4,7 +4,6 @@ import io.kontour.ui.theme.clipProxy
 import io.kontour.ui.locale.LocaleFormats
 import io.kontour.ui.locale.DateTimeConventions
 import io.kontour.ui.locale.DateStyle
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -86,6 +85,7 @@ import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.minus
 import kotlinx.datetime.plus
+import io.kontour.ui.theme.animateComponentColour
 
 /** How a day sits within a selected range. Drives the cell's shape and fill. */
 enum class RangePosition { None, Start, Middle, End, StartAndEnd }
@@ -698,9 +698,9 @@ private fun DayCell(
         // dark rather than fading up.
         else -> colours.accent.container.invisible()
     }
-    val animatedContainer by animateColorAsState(
-        targetValue = containerTarget,
-        animationSpec = motion.tweenFast(),
+    val animatedContainer by animateComponentColour(
+        target = containerTarget,
+        spec = motion.tweenFast(),
         label = "dayContainer",
     )
     // **Instant while a finger is out**, which is the other half of the report:
@@ -736,9 +736,9 @@ private fun DayCell(
         ownFill -> SurfaceDefaults.contentColour(containerColour)
         else -> colours.content
     }
-    val animatedLabel by animateColorAsState(
-        targetValue = labelTarget,
-        animationSpec = motion.tweenFast(),
+    val animatedLabel by animateComponentColour(
+        target = labelTarget,
+        spec = motion.tweenFast(),
         label = "dayLabel",
     )
     // Taken away with the fill it is drawn on. Easing the digit back to

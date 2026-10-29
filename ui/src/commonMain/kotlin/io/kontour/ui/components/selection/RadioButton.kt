@@ -2,7 +2,6 @@ package io.kontour.ui.components.selection
 
 import io.kontour.ui.platform.webRole
 import io.kontour.ui.platform.WebRole
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -32,6 +31,7 @@ import io.kontour.ui.components.list.ListItemScope
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.theme.Theme
+import io.kontour.ui.theme.animateComponentColour
 
 private val RadioSize = 20.dp
 
@@ -71,13 +71,13 @@ fun RadioButton(
 
     val stroke = selectionStroke(shown)
 
-    val ring by animateColorAsState(
-        targetValue = when {
+    val ring by animateComponentColour(
+        target = when {
             !shown -> colours.contentDisabled
             selected -> colours.primary
             else -> colours.outlineStrong
         },
-        animationSpec = motion.tweenFast(),
+        spec = motion.tweenFast(),
         label = "radioRing",
     )
     // The dot grows a third of the way under the finger, before the press is

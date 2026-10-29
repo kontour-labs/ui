@@ -11,7 +11,6 @@ import io.kontour.ui.nav.LocalHeroBacking
 import androidx.compose.ui.unit.Dp
 import io.kontour.ui.a11y.selectionEdge
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -55,6 +54,7 @@ import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.interaction.rememberToggleFeedback
 import io.kontour.ui.a11y.LocalNamedByContent
+import io.kontour.ui.theme.animateComponentColour
 
 /**
  * A button whose whole label is an icon.
@@ -401,14 +401,14 @@ private fun IconButtonSurface(
 ) {
     val motion = Theme.motion
 
-    val container by animateColorAsState(
-        targetValue = colours.container(enabled),
-        animationSpec = motion.tweenFast(),
+    val container by animateComponentColour(
+        target = colours.container(enabled),
+        spec = motion.tweenFast(),
         label = "iconButtonContainer",
     )
-    val contentColour by animateColorAsState(
-        targetValue = colours.content(enabled),
-        animationSpec = motion.tweenFast(),
+    val contentColour by animateComponentColour(
+        target = colours.content(enabled),
+        spec = motion.tweenFast(),
         label = "iconButtonContent",
     )
     val animatedRotation = animateFloatAsState(

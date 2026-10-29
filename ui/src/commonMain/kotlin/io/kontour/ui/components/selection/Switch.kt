@@ -5,7 +5,6 @@ import io.kontour.ui.platform.WebRole
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
@@ -53,6 +52,7 @@ import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.invisible
 import kotlin.math.abs
 import kotlinx.coroutines.launch
+import io.kontour.ui.theme.animateComponentColour
 
 private val TrackWidth = 48.dp
 private val TrackHeight = 28.dp
@@ -210,16 +210,16 @@ fun Switch(
      * What still animates here is the one axis the position cannot express:
      * enabled to disabled, where both ends move at once and the thumb does not.
      */
-    val trackOff by animateColorAsState(
+    val trackOff by animateComponentColour(
         // `inactive`, which is `outlineStrong` at the standard tier and 3:1 from
         // `primary` at the enhanced one, where `outlineStrong` was 1.85.
-        targetValue = if (shown) colours.inactive else colours.contentDisabled,
-        animationSpec = motion.tweenFast(),
+        target = if (shown) colours.inactive else colours.contentDisabled,
+        spec = motion.tweenFast(),
         label = "switchTrackOff",
     )
-    val trackOn by animateColorAsState(
-        targetValue = if (shown) colours.primary else colours.contentDisabled,
-        animationSpec = motion.tweenFast(),
+    val trackOn by animateComponentColour(
+        target = if (shown) colours.primary else colours.contentDisabled,
+        spec = motion.tweenFast(),
         label = "switchTrackOn",
     )
     // The thumb does not change colour, in either direction. A switch has one
@@ -231,9 +231,9 @@ fun Switch(
     // is near-black on the light grey and white on the dark one: a disabled
     // switch had the strongest head on the page — "a very strong colour", as
     // reported. A disabled control is never stronger than an enabled one.
-    val thumbColour by animateColorAsState(
-        targetValue = if (shown) colours.onPrimary else colours.surface,
-        animationSpec = motion.tweenFast(),
+    val thumbColour by animateComponentColour(
+        target = if (shown) colours.onPrimary else colours.surface,
+        spec = motion.tweenFast(),
         label = "switchThumb",
     )
 
