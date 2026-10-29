@@ -147,6 +147,10 @@ class TopBarCollapseCostTest {
             assertTrue(collapsing >= 20, "the collapse took only $collapsing frames, too few to tell")
             assertEquals(setOf(open), heights, "the bar's open height moved as it collapsed")
             assertEquals(composed, page.composed, "the screen round the bar composed again ${page.composed - composed} times as it collapsed")
+            assertTrue(
+                page.title.draws <= 4 && page.title.measures <= 4,
+                "a one-line title was ${page.title} over a $collapsing-frame collapse",
+            )
         } finally {
             page.scene.close()
         }

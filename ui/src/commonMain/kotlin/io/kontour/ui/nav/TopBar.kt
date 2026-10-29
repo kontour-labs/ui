@@ -905,9 +905,17 @@ private fun LargeBar(
                             // every frame of every collapse, for a cut that most
                             // titles, of one line, never make. Opened in the draw
                             // that takes the line out: see `drawContentErasing`.
+                            //
+                            // The collapse read only for a title with a second
+                            // line to take out. The title's layer moves and
+                            // scales it, and a read here, for a title of one
+                            // line, drew all of it over again on every frame of
+                            // every collapse for a cut it never makes: a hero's
+                            // title, 44 times in 40 frames, and twice now.
+                            // `TopBarCollapseCostTest`.
                             .drawWithContent {
-                                val gone = secondLineGone(progress())
-                                if (gone > 0f && cut.y > 0f && cut.y < size.height) {
+                                val gone = if (cut.y > 0f && cut.y < size.height) secondLineGone(progress()) else 0f
+                                if (gone > 0f) {
                                     drawContentErasing {
                                         drawRect(
                                             color = Color.Black,
