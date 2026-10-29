@@ -334,6 +334,13 @@ class OverlayHostState {
         if (fractions[key] === fraction) fractions.remove(key)
     }
 
+    /**
+     * How many times the receding page's corners have been cut: an increment
+     * where `backdropGround` cuts a step it has not kept, so the suite can ask
+     * whether a sheet coming and going cuts them again. See `GroundGeometry`.
+     */
+    internal var groundCuts: Int = 0
+
     /** How far in the entry [key] is, 0..1; 0 for one that has not published. */
     internal fun fractionOf(key: Any): Float = (fractions[key]?.invoke() ?: 0f).coerceIn(0f, 1f)
 

@@ -611,6 +611,10 @@ internal fun Modifier.backdropGround(
     receding: List<Any>,
     blurring: List<Any>,
 ): Modifier {
+    // Before the way out below, so it is the host's rather than one sheet's: the
+    // corners it has cut are as good for the next sheet as for this one. See
+    // [GroundGeometry].
+    val geometry = remember { GroundGeometry() }
     if (receding.isEmpty()) return this
 
     // `insetDp` rather than `inset`: there is a second `inset` further down in
@@ -619,7 +623,6 @@ internal fun Modifier.backdropGround(
     // kind of thing that reads fine and resolves wrong.
     val insetDp = resolvedInset()
     val clipShapes = backdropClipShapes(insetDp)
-    val geometry = remember { GroundGeometry() }
 
     // No blur, no halo, and therefore no ring: the content's edge is hard and
     // the band alone covers everything it has vacated.
@@ -664,19 +667,12 @@ internal fun Modifier.backdropGround(
         // every other container on screen was using.
         //
         // The step joins the size as a cache key now that the corner ramps. It
-        // is the reason the ramp is quantised at all: thirteen rebuilds across
-        // the whole animation is a cost this cache absorbs, and one per frame is
-        // the cost it was written to avoid.
-        val step = rampStep(f)
-        if (geometry.size != size || geometry.step != step) {
-            geometry.hole.reset()
-            geometry.hole.addOutline(
-                clipShapes[step].createOutline(size, layoutDirection, this)
-            )
-            geometry.cutCorners(clipShapes[step], size, this)
-            geometry.size = size
-            geometry.step = step
-        }
+        // is the reason the ramp is quantised at all: thirteen shapes across the
+        // whole animation is a cost this cache absorbs, and one per frame is the
+        // cost it was written to avoid. Each is cut once and kept, so a sheet
+        // going back down, or dragged across the steps, or the next sheet, cuts
+        // none: see [GroundGeometry].
+        val fillets = geometry.filletsAt(rampStep(f), clipShapes, this) { state.groundCuts++ }
 
         // A pixel tighter than the content, which is the third of the three
         // ways the page behind the host reached the screen.
@@ -761,7 +757,7 @@ internal fun Modifier.backdropGround(
             // got, and the blur's rather than the recede's. See its KDoc.
             val reach = 2f * haloPx * blurFraction(b)
             drawAround(
-                geometry,
+                fillets,
                 scaleX = (scaleX - reach / size.width).coerceAtLeast(0f),
                 scaleY = (scaleY - reach / size.height).coerceAtLeast(0f),
                 shift = shift,
@@ -787,7 +783,7 @@ internal fun Modifier.backdropGround(
         // header and [overlayBackdrop] — and a corner cannot be rounded from
         // underneath.
         drawContent()
-        drawAround(geometry, bandScaleX, bandScaleY, shift, Color.Black)
+        drawAround(fillets, bandScaleX, bandScaleY, shift, Color.Black)
     }
 }
 
@@ -806,7 +802,7 @@ internal fun Modifier.backdropGround(
  * filled the frame: *"it tends to drop quite a few frames and lag"*.
  *
  * Now the four straight sides are rectangles, the cheapest thing there is to
- * draw, and the four corners are [GroundGeometry.fillets]: each the corner's box
+ * draw, and the four corners are [fillets], from [GroundGeometry]: each the corner's box
  * less the outline, cut once per size and per step of the corner's ramp and drawn
  * under this frame's scale rather than rebuilt for it. A path drawn under a
  * changing transform is the same path, which a renderer can keep; a path
@@ -818,7 +814,7 @@ internal fun Modifier.backdropGround(
  * leaves no edge between them at all.
  */
 private fun DrawScope.drawAround(
-    geometry: GroundGeometry,
+    fillets: List<Path>,
     scaleX: Float,
     scaleY: Float,
     shift: Float,
@@ -841,7 +837,7 @@ private fun DrawScope.drawAround(
         translate(top = -shift)
         scale(scaleX, scaleY, pivot = Offset(width / 2f, height / 2f))
     }) {
-        for (fillet in geometry.fillets) drawPath(fillet, colour)
+        for (fillet in fillets) drawPath(fillet, colour)
     }
 }
 
@@ -1049,51 +1045,82 @@ private const val BlurSigmaScale = 0.57735f
 private const val LeastReducedSigma = 4f
 
 /**
- * The ground's scratch geometry, kept across frames.
+ * The ground's corners, cut once for each step of the ramp and kept.
  *
- * Held across frames rather than built inside one, for a modifier that runs
- * on every frame of every sheet animation. [hole] is the expensive one — a
- * squircle is four corners of trigonometry and twelve cubics — and it and the
- * [fillets] cut from it are rebuilt only when the host resizes or the corner's
- * ramp takes a step. Nothing here changes on a frame that only moves the page.
+ * Held across frames rather than built inside one, for a modifier that runs on
+ * every frame of every sheet animation. Cutting a step's corners is the
+ * expensive part — the content's outline, a squircle of four corners of
+ * trigonometry and twelve cubics, and then four path differences taken from it
+ * — and nothing here changes on a frame that only moves the page.
+ *
+ * ### Every step kept, not the last one
+ *
+ * This held one step's corners, the one the last frame drew, and cut again
+ * whenever the ramp took a step: thirteen cuts as a sheet came up, thirteen more
+ * as it went down, and one for every step a drag crossed, each about 90µs of path
+ * operations on a desktop and several times that on a phone, on frames that are
+ * already the busiest a sheet has. And all of it again for the next sheet, since
+ * this was remembered past the point where a host with nothing receding leaves.
+ * Kept for every step, and by the host rather than the sheet, the first sheet
+ * cuts thirteen and nothing after it cuts any: counted by
+ * [OverlayHostState.groundCuts] in `BackdropGroundCutsTest`.
+ *
+ * The same paths whichever way round, so the picture is too. Cut again only
+ * when what they are cut from changes: the host's size, its density, or the
+ * shapes, which carry the theme's corner, the device's and the layout direction.
  */
 private class GroundGeometry {
-    /** The content's outline at full size. Rebuilt only when the host resizes. */
-    val hole = Path()
+    /** Scratch: the content's outline at full size, for the step being cut. */
+    private val hole = Path()
+
+    /** What [filletsAt] has cut, by step. */
+    private val cut = arrayOfNulls<List<Path>>(RampSteps + 1)
+
+    private var size: Size? = null
+    private var density = Float.NaN
+    private var shapes: List<CornerBasedShape>? = null
 
     /**
-     * What lies outside [hole] in each of its corners, at full size: the
-     * corner's box less the outline, the box reaching [FilletOverlap] past the
-     * host's edges. Cut with [hole], and drawn under each frame's scale by
-     * `drawAround` rather than rebuilt for it.
+     * What lies outside the content's outline in each of its corners, at full
+     * size, for [step] of [shapes]: the corner's box less the outline, the box
+     * reaching [FilletOverlap] past the host's edges. Drawn under each frame's
+     * scale by `drawAround` rather than rebuilt for it. [onCut] hears of each one
+     * that was not already kept.
      */
-    var fillets: List<Path> = emptyList()
-        private set
-
-    /** Cuts [fillets] from [hole], which has just been built from [shape] at [size]. */
-    fun cutCorners(shape: CornerBasedShape, size: Size, density: Density) {
+    fun filletsAt(step: Int, shapes: List<CornerBasedShape>, scope: DrawScope, onCut: () -> Unit): List<Path> {
+        val size = scope.size
+        // Compared whole only when it is a new list: the host remembers its
+        // shapes for as long as a sheet is up, so this is once a sheet, and the
+        // next sheet's are a new list of the same shapes.
+        val newShapes = shapes !== this.shapes && shapes != this.shapes
+        if (size != this.size || scope.density != density || newShapes) {
+            cut.fill(null)
+            this.size = size
+            density = scope.density
+        }
+        this.shapes = shapes
+        cut[step]?.let { return it }
+        val shape = shapes[step]
+        hole.reset()
+        hole.addOutline(shape.createOutline(size, scope.layoutDirection, scope))
         val radius = maxOf(
-            maxOf(shape.topStart.toPx(size, density), shape.topEnd.toPx(size, density)),
-            maxOf(shape.bottomEnd.toPx(size, density), shape.bottomStart.toPx(size, density)),
+            maxOf(shape.topStart.toPx(size, scope), shape.topEnd.toPx(size, scope)),
+            maxOf(shape.bottomEnd.toPx(size, scope), shape.bottomStart.toPx(size, scope)),
         )
         // A smoothed corner leaves the straight edge before its radius does:
         // at most twice the radius along each side, at full smoothing.
         val reach = (radius * 2f + FilletOverlap).coerceAtMost(minOf(size.width, size.height) / 2f)
         val out = FilletOverlap
-        fillets = listOf(
+        onCut()
+        return listOf(
             Rect(-out, -out, reach, reach),
             Rect(size.width - reach, -out, size.width + out, reach),
             Rect(size.width - reach, size.height - reach, size.width + out, size.height + out),
             Rect(-out, size.height - reach, reach, size.height + out),
         ).map { box ->
             Path.combine(PathOperation.Difference, Path().apply { addRect(box) }, hole)
-        }
+        }.also { cut[step] = it }
     }
-
-    var size: Size? = null
-
-    /** Which of the ramp's thirteen shapes [hole] was built from. */
-    var step: Int = -1
 }
 
 /**
