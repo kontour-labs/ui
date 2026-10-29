@@ -13,6 +13,7 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.ImageComposeScene
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.PhaseCounts
 import io.kontour.ui.countPhases
@@ -107,6 +108,45 @@ class TopBarCollapseCostTest {
             assertTrue(page.list.firstVisibleItemIndex > before, "the list never scrolled on")
             assertEquals(0, page.title.draws, "a collapsed bar's title was drawn ${page.title.draws} times in $Frames frames of the list scrolling under it")
             assertEquals(0, page.bar.measures, "a collapsed bar was laid out ${page.bar.measures} times in $Frames frames of the list scrolling under it")
+        } finally {
+            page.scene.close()
+        }
+    }
+
+    /**
+     * A title of one line is laid out and drawn once for its collapse, not every
+     * frame or every few, and the bar's open height stays what it is.
+     *
+     * Its layer moves and scales it, and nothing drawn inside it changes: the
+     * collapse is read in its drawing only to take out a second line, which a
+     * title of one line does not have. Read regardless, every frame of every
+     * collapse drew the title over again.
+     *
+     * And the open height, worked back from the height the bar is part-way, came
+     * out a pixel taller wherever the collapse's share of it was exactly half a
+     * pixel: every fourth frame here. The list's padding moved with it, and the
+     * screen that read it composed again, the bar and both its titles with it.
+     */
+    @Test
+    fun aOneLineTitleIsNotLaidOutOrDrawnOnEveryFrameOfItsCollapse() {
+        val page = Page()
+        try {
+            repeat(4) { page.frame() }
+            val open = page.collapse.openHeight
+            val composed = page.composed
+            page.title.reset()
+            val heights = mutableSetOf<Dp>()
+            var collapsing = 0
+            while (page.collapse.progress < 1f && collapsing < 200) {
+                page.scroll(by = 4f, frames = 1)
+                heights += page.collapse.openHeight
+                collapsing++
+            }
+
+            assertEquals(1f, page.collapse.progress, "the bar never finished collapsing")
+            assertTrue(collapsing >= 20, "the collapse took only $collapsing frames, too few to tell")
+            assertEquals(setOf(open), heights, "the bar's open height moved as it collapsed")
+            assertEquals(composed, page.composed, "the screen round the bar composed again ${page.composed - composed} times as it collapsed")
         } finally {
             page.scene.close()
         }

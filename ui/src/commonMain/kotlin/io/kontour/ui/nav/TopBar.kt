@@ -390,6 +390,7 @@ fun TopBar(
                 TopBarStyle.Large, TopBarStyle.Hero -> LargeBar(
                     progress = { collapseState?.progress ?: collapseProgress },
                     onMeasured = { shrink, travel -> collapseState?.measured(shrink, travel) },
+                    onSized = { short -> collapseState?.shortOfOpen = short },
                     // The first line is left out when it would be empty, so the
                     // large title takes the space the back button would have
                     // had: a bar with nothing to put on that line was drawing
@@ -563,6 +564,7 @@ private fun HeroBar(
                             LargeBar(
                                 progress = progress,
                                 onMeasured = { shrink, travel -> collapseState?.measured(shrink, travel) },
+                                onSized = { short -> collapseState?.shortOfOpen = short },
                                 hasControls = onBack != null || navigation != null || actions != null,
                                 leading = { BarNavigation(onBack, backLabel, backIcon, navigation) },
                                 actions = actions,
@@ -838,6 +840,8 @@ private const val HeroFadeTo = 0.9f
 private fun LargeBar(
     progress: () -> Float,
     onMeasured: (shrink: Float, travel: Float) -> Unit,
+    /** How many pixels short of open it is laid out, at [progress]. */
+    onSized: (short: Int) -> Unit,
     hasControls: Boolean,
     leading: @Composable () -> Unit,
     actions: (@Composable RowScope.() -> Unit)?,
@@ -1022,6 +1026,7 @@ private fun LargeBar(
         }
         val p = progress().coerceIn(0f, 1f)
         val height = (expanded + (collapsed - expanded) * p).roundToInt()
+        onSized(expanded - height)
 
         layout(width, height) {
             // The first line: a row, and the whole collapsed bar by the end.
@@ -1472,12 +1477,28 @@ class TopBarCollapseState internal constructor(initialProgress: Float) {
     var openHeight: Dp by mutableStateOf(Dp.Unspecified)
         internal set
 
+    /**
+     * How many whole pixels short of open the bar was as it last measured: what
+     * [laidOut] adds back to the height it is told. Not state, as [shrink].
+     */
+    internal var shortOfOpen: Int = 0
+
     /** The bar laid out [height] pixels tall at its present [progress]. */
     internal fun laidOut(height: Int, density: Density) {
         // In whole pixels: worked back from a height rounded to a pixel at each
         // step of a collapse, it came out a fraction different every frame,
         // and every fraction moved the padding of the list under it.
-        val open = with(density) { (height + shrink * progress.coerceIn(0f, 1f)).roundToInt().toDp() }
+        //
+        // And added back as the whole pixels the bar was short by, rather than
+        // as the collapse's share of `shrink`, rounded again. Rounded twice, a
+        // height whose share came to exactly half a pixel came out a pixel
+        // taller, so the open height went back and forth by a pixel every few
+        // frames of a collapse: the padding of the list under it with it, and
+        // whatever read it — the screen round the list, as a rule — composed
+        // again each time. Counted 2026-10-29 for 0.5.1: the screen composed
+        // 14 times in a 28-frame collapse, and laid the bar's titles out again
+        // each time; now not at all. `TopBarCollapseCostTest`.
+        val open = with(density) { (height + shortOfOpen).toDp() }
         if (openHeight == Dp.Unspecified || with(density) { (open - openHeight).toPx() }.let { kotlin.math.abs(it) >= 1f }) openHeight = open
     }
 
