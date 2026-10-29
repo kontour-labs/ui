@@ -3,7 +3,6 @@ package io.kontour.ui.components.selection
 import io.kontour.ui.theme.clipProxy
 import io.kontour.ui.platform.webRole
 import io.kontour.ui.platform.WebRole
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -70,6 +69,7 @@ import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.inset
 import kotlin.math.abs
 import kotlinx.coroutines.launch
+import io.kontour.ui.theme.animateComponentColour
 
 /** What a [SegmentedControl] takes by default. */
 object SegmentedControlDefaults {
@@ -901,9 +901,9 @@ private fun SegmentedOption(
         else -> colours.contentMuted
     }
     // Not read here: the label reads it as it draws. See `ProvideContentColourInMotion`.
-    val labelColour = animateColorAsState(
-        targetValue = labelTarget,
-        animationSpec = motion.tweenFast(),
+    val labelColour = animateComponentColour(
+        target = labelTarget,
+        spec = motion.tweenFast(),
         label = "segmentLabel",
     )
 

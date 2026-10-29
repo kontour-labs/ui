@@ -7,7 +7,6 @@ import io.kontour.ui.a11y.optionalBorder
 import io.kontour.ui.a11y.selectionEdge
 import io.kontour.ui.components.list.Scrollbar
 import androidx.compose.foundation.ScrollState
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
@@ -79,6 +78,7 @@ import io.kontour.ui.interaction.rememberDetentTicker
 import io.kontour.ui.motion.ScrollDefaults
 import io.kontour.ui.theme.inset
 import io.kontour.ui.theme.Theme
+import io.kontour.ui.theme.animateComponentColour
 
 /** What a [TabBar] takes by default. */
 object TabBarDefaults {
@@ -397,9 +397,9 @@ fun TabBarScope.Tab(
         else -> colours.contentMuted
     }
     // Not read here: the label reads it as it draws. See `ProvideContentColourInMotion`.
-    val contentColour = animateColorAsState(
-        targetValue = contentTarget,
-        animationSpec = motion.tweenFast(),
+    val contentColour = animateComponentColour(
+        target = contentTarget,
+        spec = motion.tweenFast(),
         label = "tabContent",
     )
 
