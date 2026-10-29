@@ -91,16 +91,18 @@ class LongSelectTest {
 
     /**
      * The rows [composed] as a list of [Countries] opened: a screenful, not
-     * the list, and each of them at most twice. Twice, because an overlay's
-     * content is composed once more, without skipping, the frame after it
-     * opens, so a change its caller made as it opened is not lost: see
-     * `Recaught` in `OverlayHost`. A third would be a row composed for nothing.
+     * the list, and each of them once. It was twice until 2026-10-29, when an
+     * overlay's content was composed once more, without skipping, the frame
+     * after it opened, so that a change its caller made as it opened was not
+     * lost; it is composed where it is first measured now, which keeps the
+     * change without the second pass: see `ComposedOnMeasure` in `OverlayHost`.
+     * A second is a row composed for nothing.
      */
     private fun assertComposedOnlyWhatIsShown(composed: List<String>, what: String) {
         val rows = composed.toSet()
         assertTrue(rows.size in 1..LeastShown, "opening $what of ${Countries.size} options composed ${rows.size} rows")
         val most = composed.groupingBy { it }.eachCount().maxBy { it.value }
-        assertTrue(most.value <= 2, "opening $what composed ${most.key} ${most.value} times")
+        assertTrue(most.value <= 1, "opening $what composed ${most.key} ${most.value} times")
     }
 
     /**
