@@ -67,6 +67,20 @@ On `main`, and in the next release.
     frame, keeps its dashes, shapes and where its data lies, and recomposes
     only the places whose selection changed. A moving `Sparkline` keeps its
     paths.
+  - A list's `fadingEdges` draws only its two fade strips into layers, and the
+    list between them straight on: a frame of a full-height list scrolling
+    took 78ms in the software renderer and takes 15ms.
+  - A tab's, a filter chip's and a segment's label fades its colour as it
+    draws rather than by composing every frame, a segmented control's thumb
+    travels without composing, and content arriving through `revealOnScroll`
+    no longer composes the page around it.
+- **A theme switch moves every control with it.** A button, a switch, a
+  field, a tab, a chip and the rest each faded their colours over 150ms of
+  their own after the theme changed, so with a theme that cuts — the default,
+  and always under reduced motion — they faded behind a page that had already
+  changed, and with `animateThemeChanges` they lagged the theme's own fade.
+  They now change with the theme, on its frames. A control's own change,
+  pressed or disabled or selected, fades as before.
 - **Lists in a sheet bounce past their end.** A scrollable inside a draggable
   sheet was given no vertical overscroll, so the sheet answered a finger that
   had run out of list. That is still so at the top, where pulling down moves the
