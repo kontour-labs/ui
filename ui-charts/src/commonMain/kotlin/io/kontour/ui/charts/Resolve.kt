@@ -143,7 +143,14 @@ internal class ResolvedAxis(
      */
     val labelAfter: ((Double, Double?) -> String)? = null,
 ) {
-    val span: Double get() = (high - low).takeIf { it > 0 } ?: 1.0
+    /**
+     * How far it runs, or 1 for an axis at a point. Worked out once rather
+     * than on every read, and without `takeIf`, whose answer is a boxed
+     * `Double`: every value mapped onto the plot reads it, and on Android,
+     * which does not take the box away as the JVM's compiler can, each read
+     * was an object made, for every point of every series, every frame.
+     */
+    val span: Double = if (high - low > 0) high - low else 1.0
 
     fun spanning(low: Double, high: Double): ResolvedAxis = ResolvedAxis(
         kind, low, high, ticks, tickLabels, title, showGridlines, showLabels, position, write, centred,
