@@ -37,8 +37,11 @@ import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
  * something to erase: the layer is an offscreen pass, and every frame without
  * one should draw the content plainly.
  */
-internal inline fun ContentDrawScope.drawContentErasing(erase: DrawScope.() -> Unit) {
-    drawIntoCanvas { it.saveLayer(Rect(Offset.Zero, size), Paint()) }
+internal inline fun ContentDrawScope.drawContentErasing(
+    area: Rect = Rect(Offset.Zero, size),
+    erase: DrawScope.() -> Unit,
+) {
+    drawIntoCanvas { it.saveLayer(area, Paint()) }
     try {
         drawContent()
         erase()
