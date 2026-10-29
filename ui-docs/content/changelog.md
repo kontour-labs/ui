@@ -44,6 +44,29 @@ On `main`, and in the next release.
 
 ### Changed
 
+- **Less work on a slow phone, and nothing looks or moves differently.** Each
+  of these was measured before and after, has a test that counts it, and leaves
+  every screenshot as it was:
+  - A control makes its press animations on its first press rather than when
+    it appears, and a `Text` that is not redacted keeps no redaction state: a
+    pressable control costs a quarter less to bring on screen, and a theme
+    switch over a hundred of them a third less.
+  - A text or search field recomposes nothing on a keystroke once it has text.
+    A `Rating`'s fill and a `Knob` being turned no longer recompose every
+    frame, and a row with `SwipeActions` is composed once as it scrolls in,
+    not twice.
+  - A collapsed `TopBar` following a list does no work as the page scrolls on,
+    a one-line large title is not redrawn on each frame of a collapse, and a
+    page sliding under `pageEffects`, or a pane dragged back in `:ui-nav3`, is
+    moved rather than redrawn. Tab bars, nav bars and segmented controls stop
+    asking for frames once their marker is still.
+  - A menu, a popover, a sheet that does not recede or a dialog that cannot
+    blur no longer redraws the page behind it on every frame it opens and
+    closes, and a receding page's corners are worked out once and kept.
+  - A `Chart` dragged or hovered no longer measures its labels again each
+    frame, keeps its dashes, shapes and where its data lies, and recomposes
+    only the places whose selection changed. A moving `Sparkline` keeps its
+    paths.
 - **Lists in a sheet bounce past their end.** A scrollable inside a draggable
   sheet was given no vertical overscroll, so the sheet answered a finger that
   had run out of list. That is still so at the top, where pulling down moves the
@@ -60,6 +83,9 @@ On `main`, and in the next release.
 
 ### Fixed
 
+- **A list under a following `TopBar` no longer shifts by a pixel as the bar
+  collapses.** The bar's open height, which the list's top padding is, could
+  come out a pixel taller on some frames of a collapse and back again.
 - **A faded edge no longer shows what is under its surface.** A list's
   `fadingEdges` in a sheet over a map could erase the sheet's surface as well as
   its rows, and the map showed through the top of the sheet. The fade, a cut
