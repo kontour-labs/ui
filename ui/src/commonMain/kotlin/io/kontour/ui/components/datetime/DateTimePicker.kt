@@ -115,6 +115,9 @@ object DateTimePickerDefaults {
  * @param onValueChange Every change: a day tapped, or each row a wheel passes,
  *   as the time picker's own does.
  * @param minuteStep Coarsens the minute wheel; see [TimePicker].
+ * @param infinite Whether the hour and minute wheels go round, as a clock's
+ *   numbers do; see [TimePicker]. On by default. The day stays as it is when
+ *   the hours wrap: it is the calendar's to change.
  * @param now The date and time now, for the **Now** button under the wheels,
  *   beside the calendar or in the popover: pressed, the wheels scroll to the
  *   time — rounded to [minuteStep] — and the day becomes today, the calendar
@@ -145,6 +148,7 @@ fun DateTimePicker(
     todayIcon: ImageVector? = Theme.icons.today,
     chooserIcon: ImageVector? = null,
     minuteStep: Int = 1,
+    infinite: Boolean = true,
     now: (() -> LocalDateTime)? = DateTimePickerDefaults::currentDateTime,
     navigation: CalendarNavigationState = rememberCalendarNavigationState(value.date),
     formats: LocaleFormats = Theme.formats,
@@ -196,6 +200,7 @@ fun DateTimePicker(
             modifier = timeModifier,
             enabled = enabled,
             minuteStep = minuteStep,
+            infinite = infinite,
             now = now?.let { read -> { read().also { pressedAt[0] = it.date }.time } },
             formats = formats,
             onValueChangeFinished = onValueChangeFinished,
@@ -242,6 +247,7 @@ fun DateTimePicker(
             modifier = Silent,
             enabled = enabled,
             minuteStep = minuteStep,
+            infinite = infinite,
             now = if (now != null) Midnight else null,
             formats = formats,
             onValueChangeFinished = null,
