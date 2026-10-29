@@ -5,18 +5,13 @@ import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Composition
 import androidx.compose.runtime.ExperimentalComposeRuntimeApi
-import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.RecomposeScope
-import androidx.compose.runtime.State
 import androidx.compose.runtime.currentComposer
-import androidx.compose.runtime.snapshots.Snapshot
-import androidx.compose.runtime.tooling.CompositionObserver
-import androidx.compose.runtime.tooling.ObservableComposition
 import androidx.compose.runtime.tooling.setObserver
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.components.ScopeCount
 import io.kontour.ui.theme.KontourTheme
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -103,49 +98,6 @@ class FieldKeystrokeRecompositionTest {
 
     private fun androidx.compose.ui.test.ComposeUiTest.type(state: TextFieldState, text: String) =
         runOnUiThread { state.edit { append(text) } }
-
-    /**
-     * Every scope the composition enters, less those it enters only to find
-     * that the derived states which invalidated it still hold what they held.
-     * Those do no work: a derived state that comes out the same changes nothing
-     * for its reader, which is the whole of the fix this counts.
-     */
-    private class ScopeCount : CompositionObserver {
-        var entered = 0
-
-        /** What each scope last read of each derived state it read. */
-        private val derivedRead = HashMap<RecomposeScope, HashMap<State<*>, Any?>>()
-
-        /** What has invalidated each scope since it last ran: derived states, or null for anything else. */
-        private val invalidatedBy = HashMap<RecomposeScope, MutableList<State<*>?>>()
-
-        override fun onBeginComposition(composition: ObservableComposition) = Unit
-        override fun onScopeEnter(scope: RecomposeScope) {
-            val by = invalidatedBy.remove(scope)
-            val read = derivedRead[scope]
-            val unchanged = by != null && by.isNotEmpty() && read != null && by.all { state ->
-                state != null && state in read && current(state) == read[state]
-            }
-            if (!unchanged) entered++
-        }
-        override fun onReadInScope(scope: RecomposeScope, value: Any) {
-            if (isDerived(value)) derivedRead.getOrPut(scope) { HashMap() }[value as State<*>] = current(value)
-        }
-        override fun onScopeExit(scope: RecomposeScope) = Unit
-        override fun onEndComposition(composition: ObservableComposition) = Unit
-        override fun onScopeInvalidated(scope: RecomposeScope, value: Any?) {
-            invalidatedBy.getOrPut(scope) { mutableListOf() } += if (isDerived(value)) value as State<*> else null
-        }
-        override fun onScopeDisposed(scope: RecomposeScope) {
-            derivedRead.remove(scope)
-            invalidatedBy.remove(scope)
-        }
-
-        /** A derived state is the `State` a composition reads that is not a `MutableState`. */
-        private fun isDerived(value: Any?): Boolean = value is State<*> && value !is MutableState<*>
-
-        private fun current(state: State<*>): Any? = Snapshot.withoutReadObservation { state.value }
-    }
 
     private companion object {
         const val Keystrokes = 10
