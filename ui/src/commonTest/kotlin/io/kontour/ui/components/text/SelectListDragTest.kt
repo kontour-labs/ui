@@ -34,6 +34,10 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performMouseInput
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.up
+import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.moveBy
+import androidx.compose.ui.test.down
 import androidx.compose.ui.test.swipe
 import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.compose.ui.unit.Velocity
@@ -100,6 +104,36 @@ class SelectListDragTest {
     fun aDragPastTheEndOfAColumnIsTheListsOverscroll() = runComposeUiTest {
         show(Middling, Kind.Select)
         dragPastTheEnd(Middling.last())
+    }
+
+    /**
+     * A list pulled past its end by a finger that is then held still, and
+     * lifted, lets its stretch go.
+     *
+     * Reported from an Android phone and an iPhone for 0.5.1: pulled up past
+     * the end of a menu's list, the finger stopped above the menu and lifted
+     * once it was perfectly still, the list stayed stretched on Android and
+     * floating on iOS. The list's drag flung it only at a speed above nothing,
+     * and the fling is what tells the overscroll the finger has gone.
+     */
+    @Test
+    fun aStretchHeldStillAndLetGoIsReleased() = runComposeUiTest {
+        show(Long, Kind.Select)
+        row("Stop 3").performTouchInput {
+            down(center)
+            // Past the end of the list, and on up out of the menu.
+            repeat(40) { moveBy(Offset(0f, -60f)) }
+        }
+        waitForIdle()
+        assertTrue(overscroll.stretch < 0f, "the drag never stretched the list past its end (${overscroll.stretch}px)")
+        // Perfectly still, then lifted: a release at no speed.
+        onRoot().performTouchInput {
+            advanceEventTime(300)
+            up()
+        }
+        waitForIdle()
+        assertEquals(0f, overscroll.stretch, "the list stayed stretched after the finger lifted")
+        assertTrue(overscroll.flings > 0, "the list's overscroll was never told the finger had lifted")
     }
 
     /** A flick goes on after the finger lifts: the list keeps its fling. */
@@ -211,23 +245,31 @@ class SelectListDragTest {
         onAllNodes(hasText(label) and SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.RadioButton))
             .fetchSemanticsNodes().any { it.boundsInRoot.height > 0f }
 
-    /** What the list's overscroll was offered, and took: all of it, as a stretch does. */
+    /**
+     * What the list's overscroll was offered, and took: all of it, as a stretch
+     * does. And the stretch, held until a fling lets it go, as a platform's is.
+     */
     private class OverscrollRecord {
         var offered = 0f
+        var stretch = 0f
+        var flings = 0
     }
 
     private class RecordingOverscroll(private val record: OverscrollRecord) : OverscrollEffect {
-        override val isInProgress: Boolean get() = false
+        override val isInProgress: Boolean get() = record.stretch != 0f
         override val node: DelegatableNode = object : Modifier.Node() {}
 
         override fun applyToScroll(delta: Offset, source: NestedScrollSource, performScroll: (Offset) -> Offset): Offset {
             val used = performScroll(delta)
             record.offered += (delta - used).y
+            record.stretch += (delta - used).y
             return delta
         }
 
         override suspend fun applyToFling(velocity: Velocity, performFling: suspend (Velocity) -> Velocity) {
             performFling(velocity)
+            record.flings++
+            record.stretch = 0f
         }
     }
 
