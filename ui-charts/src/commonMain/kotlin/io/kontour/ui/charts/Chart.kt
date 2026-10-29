@@ -724,6 +724,13 @@ private fun <X : Any, Y : Any> ChartPlot(
     Layout(
         content = {
             places.forEachIndexed { index, place ->
+                // Whether it is the one selected, worked out here rather
+                // than in its semantics, so that its node is composed again
+                // only when that changes. Read in its semantics, the selected
+                // place was in every node's, and each place selected composed
+                // them all again: thirty nodes a step for a finger dragged
+                // along a month of days.
+                val chosen = place.places.any { it == selectedPlace }
                 Box(
                     Modifier.semantics {
                         contentDescription = place.text
@@ -731,7 +738,7 @@ private fun <X : Any, Y : Any> ChartPlot(
                         // What is chosen is said whether or not it can be
                         // chosen again: drawn chosen on a disabled chart, it
                         // was said as nothing.
-                        if (selection != null) selected = place.places.any { it == selectedPlace }
+                        if (selection != null) selected = chosen
                         if (interactive && selection != null) {
                             onClick {
                                 select(place.places.first())
