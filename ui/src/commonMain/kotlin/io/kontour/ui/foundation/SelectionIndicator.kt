@@ -394,7 +394,14 @@ fun SelectionIndicatorBox(
             // travel less than it had.
             repeat(HandoverFrames) { withFrameNanos { } }
         }
-        engaged.animateTo(if (reaching && !motion.reduceMotion) 1f else 0f, motion.springOrTween(motion.springSnappy))
+        val lean = if (reaching && !motion.reduceMotion) 1f else 0f
+        // Not where it is already, at rest: under reduced motion the spring is
+        // a tween, and a tween from 0 to 0 asked for eleven frames whenever a
+        // group was composed, to draw nothing. Moving, it springs on from where
+        // it is, as before.
+        if (engaged.value != lean || engaged.velocity != 0f) {
+            engaged.animateTo(lean, motion.springOrTween(motion.springSnappy))
+        }
     }
     // The last reach, kept once it is let go so the marker relaxes out of
     // where it was leaning rather than losing the number mid-spring.
@@ -405,7 +412,8 @@ fun SelectionIndicatorBox(
         if (target == null || target.width <= 0f || target.height <= 0f) {
             // The selected item stopped reporting — a drawer group collapsed over
             // it, say. Fade out where it stands rather than flying to the origin.
-            alpha.animateTo(0f, motion.tweenFast())
+            // From visible only, for the same reason as the fade in below.
+            if (alpha.value != 0f) alpha.animateTo(0f, motion.tweenFast())
             return@LaunchedEffect
         }
 
@@ -517,7 +525,14 @@ fun SelectionIndicatorBox(
         // key nor stopped being in flight.
         settledKey = state.targetKey
         headingTo = null
-        alpha.animateTo(1f, motion.tweenFast())
+        // Only from short of opaque. A marker that arrived with its group, or
+        // travelled without fading, is opaque already, and a tween from 1 to 1
+        // still asks for a frame on each of its steps: every group asked for
+        // ten frames on its first appearance, and again at the end of every
+        // travel, to draw nothing new. Counted 2026-10-29 for 0.5.1: a tab
+        // bar was still asking 13 frames after it first composed.
+        // `SelectionIndicatorIdleTest`.
+        if (alpha.value != 1f) alpha.animateTo(1f, motion.tweenFast())
     }
 
     /**
