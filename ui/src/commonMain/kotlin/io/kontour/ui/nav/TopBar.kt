@@ -68,6 +68,8 @@ import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.structuralEqualityPolicy
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -1215,11 +1217,27 @@ class TopBarCollapseState internal constructor(initialProgress: Float) {
     /** 0 fully open, 1 collapsed to a single line. */
     val progress: Float
         get() {
-            val scrolled = follows
-            if (scrolled != null) return collapseProgress(scrolled() + pushed(), followedTravel)
+            if (follows != null) return collapseProgress(followedScroll.value + pushed(), followedTravel)
             if (push <= 0f || travel <= 0f) return own
             return (own + pushed() / travel).coerceIn(0f, 1f)
         }
+
+    /**
+     * How far the followed content has scrolled, no further than the collapse
+     * goes: past [followedTravel] the bar is collapsed however much further the
+     * content goes, and the progress is 1 either way.
+     *
+     * Derived, so what reads [progress] is told of a change only when there is
+     * one. The scroll itself changes on every frame the content moves, and the
+     * bar's layout and its title's drawing read it: once the bar had collapsed,
+     * every frame of the rest of the page's scroll laid the bar out again and
+     * redrew its title, for a progress that stayed at 1. Counted 2026-10-29 for
+     * 0.5.1, forty frames of a list going on under a collapsed following bar
+     * redrew the title forty times; now none. `TopBarCollapseCostTest`.
+     */
+    private val followedScroll = derivedStateOf(structuralEqualityPolicy()) {
+        minOf(follows?.invoke() ?: 0f, followedTravel)
+    }
 
     /**
      * How far a finger has pushed past the content's end, in the finger's own
