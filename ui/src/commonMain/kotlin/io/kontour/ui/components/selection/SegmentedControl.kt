@@ -293,9 +293,8 @@ fun SegmentedControl(
     // it and quietly broke the promise in `Sizing`'s KDoc that a row of mixed
     // controls lines up. Invisible on desktop, where the minimum is 24dp.
     val height = maxOf(Theme.sizing.controlHeightMedium, Theme.sizing.minTouchTarget)
-    // The one reader of the indicator's travelling rect — the thumb leans from
-    // it — so the one group that asks for it to be published.
-    val indicator = remember { SelectionIndicatorState().apply { publishesDrawn = true } }
+    // The one reader of the indicator's travelling rect: the thumb leans from it.
+    val indicator = remember { SelectionIndicatorState() }
 
     var trackLength by remember { mutableFloatStateOf(0f) }
     val currentSelected by rememberUpdatedState(selectedIndex)

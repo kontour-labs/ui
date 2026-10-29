@@ -39,8 +39,9 @@ import kotlin.test.assertTrue
  * )
  * ```
  *
- * `base` is `indicator.drawn.center.x`, published from a `SideEffect` during
- * composition; `trackWidth` arrives from `onSizeChanged` during layout. The
+ * `base` is `indicator.drawn.center.x`, then published from a `SideEffect`
+ * during composition (now worked out as the thumb is drawn, from the same
+ * values); `trackWidth` arrives from `onSizeChanged` during layout. The
  * reading was that a re-measure makes the two disagree, one bound crosses zero,
  * and `coerceIn` returns that bound instead of the `0f` a resting thumb should
  * get — a thumb translated while standing still. `fingerX` is `NaN` until the

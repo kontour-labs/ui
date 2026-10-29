@@ -10,12 +10,12 @@ import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
@@ -228,18 +228,22 @@ class SelectionIndicatorState internal constructor() {
      * The thumb jumps backwards past the segment it just left and then chases
      * the finger from there.
      *
-     * Written from a `SideEffect`, so it lands before the frame is drawn and
-     * nothing reads a value it wrote itself during composition.
+     * **Worked out as it is read**, by [drawnNow], from the marker's own
+     * animation — and read only where the thumb is drawn and where its drag is
+     * hit-tested, so a travel redraws the thumb and composes nothing.
      *
-     * Only kept up to date where [publishesDrawn] asks for it. Publishing it
-     * means reading the travelling rect in composition, which recomposes the
-     * whole group on every frame of every slide — a cost a tab bar or a nav
-     * rail was paying for a number nothing in it reads.
+     * It was a state, written from a `SideEffect`, and writing it meant reading
+     * the travelling rect in composition: the whole group composed again on
+     * every frame of every slide, every segment with it — 736 scopes for two
+     * changes of a segmented control's selection, about eight a frame. Raised
+     * 2026-10-29 for 0.5.1. The same choice of rect, from the same values, so
+     * the thumb leans from the same place on every frame;
+     * `IndicatorTravelRecompositionTest`.
      */
-    internal var drawn: Rect by mutableStateOf(Rect.Zero)
+    internal val drawn: Rect get() = drawnNow()
 
-    /** Whether [drawn] is published. Set once, by the one control that reads it. */
-    internal var publishesDrawn: Boolean = false
+    /** What [drawn] asks: set by the [SelectionIndicatorBox] this state belongs to. */
+    internal var drawnNow: () -> Rect = { Rect.Zero }
 
     /**
      * Where the marker is reaching toward before it moves, in [anchor]'s space,
@@ -568,16 +572,17 @@ fun SelectionIndicatorBox(
      */
     val visible = measured
 
-    // See `SelectionIndicatorState.drawn`. Not assigned inline: writing a state
-    // during composition that another composable in the same frame reads is how
-    // a recomposition loop starts.
-    if (state.publishesDrawn) {
-        val rect = when {
-            bounds.isRunning -> bounds.value
-            state.targetKey == settledKey -> resolved ?: bounds.value
-            else -> bounds.value
+    // See `SelectionIndicatorState.drawn`: chosen when it is read, from the
+    // rect composition last resolved, rather than here.
+    val lastResolved = rememberUpdatedState(resolved)
+    state.drawnNow = remember(state) {
+        {
+            when {
+                bounds.isRunning -> bounds.value
+                state.targetKey == settledKey -> lastResolved.value ?: bounds.value
+                else -> bounds.value
+            }
         }
-        SideEffect { state.drawn = rect }
     }
 
     CompositionLocalProvider(LocalSelectionIndicator provides state) {
