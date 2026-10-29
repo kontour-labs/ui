@@ -30,6 +30,7 @@ import androidx.compose.foundation.text.selection.LocalTextSelectionColors
 import androidx.compose.foundation.text.selection.TextSelectionColors
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -303,6 +304,14 @@ internal fun TextFieldImpl(
         )
     }
 
+    // Whether there is any text, which is all the placeholder asks of it. Read
+    // as `state.text.isEmpty()` in the slot below, every keystroke was a change
+    // to something that slot had read, and it composed again — `BasicTextField`
+    // and its keyboard options, its modifiers and the placeholder's branch —
+    // for an answer that changes on the first character and the last. Counted
+    // in `FieldKeystrokeRecompositionTest`: four scopes a keystroke, now none.
+    val empty by remember(state) { derivedStateOf { state.text.isEmpty() } }
+
     FieldScaffold(
         modifier = modifier,
         enabled = enabled,
@@ -467,7 +476,7 @@ internal fun TextFieldImpl(
                 )
             }
 
-            if (placeholder != null && state.text.isEmpty()) {
+            if (placeholder != null && empty) {
                 Text(
                     text = placeholder,
                     // Said once, as the field's name, when it is that: read
