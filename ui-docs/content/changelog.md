@@ -100,6 +100,12 @@ On `main`, and in the next release.
   open on the side asked for if they fit there whole, then on the other side,
   then beside the control, and scroll only when no side has room for all of
   it. Menus and popovers, which are meant to scroll, are as they were.
+- **A tooltip goes at a press anywhere else.** However it opened, a press
+  anywhere but on its control puts a tooltip away, and the press goes on to do
+  what it was aimed at: a tap on the button beside it presses that button too.
+  A touch tooltip waited out its four seconds, or a tap on the control itself.
+  A `Tooltip` the app shows is asked, through its `onDismissRequest`, as a
+  dialog is.
 - **A time picker's wheels go round.** `TimePicker` and `DateTimePicker` take
   `infinite`, true by default: past :59 comes :00 and past 23 comes 0, so 23:30
   to half past midnight is one row on rather than twenty-three back. On a
@@ -110,6 +116,17 @@ On `main`, and in the next release.
 
 ### Fixed
 
+- **A tooltip on a button opens from a long press.** `Modifier.tooltip` on an
+  `IconButton`, a `Button` or any control with a press of its own never opened
+  by touch: the control kept the press, and the long press was looked for after
+  it. It is watched ahead of the control now, as Compose's own `TooltipBox`
+  does, and the lift that ends it is the tooltip's, so letting go does not press
+  the button too. A tap on the control while its tooltip shows puts it away and
+  presses the control.
+- **A menu's list let go from still springs back.** Pulled past its end and
+  held still before the finger lifted, a `Menu`'s, a `Select`'s or a
+  `Combobox`'s list stayed stretched on Android and floating on iOS: the lift
+  went unsaid to the overscroll when it came at no speed at all.
 - **A list under a following `TopBar` no longer shifts by a pixel as the bar
   collapses.** The bar's open height, which the list's top padding is, could
   come out a pixel taller on some frames of a collapse and back again.

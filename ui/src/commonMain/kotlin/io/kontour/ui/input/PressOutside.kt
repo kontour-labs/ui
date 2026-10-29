@@ -44,6 +44,18 @@ fun Modifier.onPressOutside(enabled: Boolean = true, onPress: () -> Unit): Modif
 }
 
 /**
+ * [onPress] when a press goes down anywhere but on this node's parent: for a
+ * zero-size probe that stands for its parent, as a [io.kontour.ui.overlay.Tooltip]'s
+ * does. See [onPressOutside].
+ */
+@Composable
+internal fun Modifier.onPressOutsideParent(enabled: Boolean = true, onPress: () -> Unit): Modifier {
+    val placed = remember { Placed() }
+    placed.watchOutside(enabled, PressWatchers, onPress)
+    return onGloballyPositioned { placed.coordinates = it.parentLayoutCoordinates ?: it }.reportsPresses()
+}
+
+/**
  * [onScroll] when a scroll starts anywhere but on this node — a wheel turned,
  * a trackpad's fingers pushed, sideways or down — as [onPressOutside] is told
  * of a press: what closes a swipe row left showing its actions when a carousel,

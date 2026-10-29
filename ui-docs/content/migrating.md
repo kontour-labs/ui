@@ -67,6 +67,12 @@ It fails to compile rather than meaning something else.
   than fading on their own for 150ms after it. A screenshot taken a few frames
   after a theme switch shows them in the new theme's colours. Their own
   changes, pressed or disabled or selected, fade as before.
+- **Tooltips go at a press elsewhere**, and the press still lands where it was
+  aimed. A `Tooltip` the app shows is asked through `onDismissRequest`; one
+  whose caller passes none stays until the app hides it, as before, so pass one
+  to have it go. And a `Modifier.tooltip` on a button opens from a long press,
+  which it never did by touch: a test that long-pressed a button expecting
+  nothing but its own press now sees a tooltip, and no press.
 - **Tooltips and coach marks open where they fit whole**, on the other side of
   the control, or beside it, before they scroll. A screenshot of a tooltip
   asked for on a side too small for it shows it on another side.

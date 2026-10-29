@@ -391,8 +391,8 @@ internal val TooltipDemo = ComponentDemo(slug = "tooltip", knobs = listOf(toolti
                     onClick = { open = !open },
                 )
                 // The bubble's slots: an icon beside the words, sized and inked
-                // as the bubble's own.
-                Tooltip(visible = open, style = style) {
+                // as the bubble's own. A press anywhere else asks it to go.
+                Tooltip(visible = open, onDismissRequest = { open = false }, style = style) {
                     +Tabler.Outline.Star
                     +"Saved trips show on Home"
                 }
