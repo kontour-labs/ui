@@ -74,6 +74,12 @@ On `main`, and in the next release.
     draws rather than by composing every frame, a segmented control's thumb
     travels without composing, and content arriving through `revealOnScroll`
     no longer composes the page around it.
+  - A dialog, a sheet or any other overlay is composed once as it opens, not
+    a second time two frames later. It is composed where it is first
+    measured, after its caller has had its say in the frame, so content that
+    changes as it opens still shows the change. One thing follows: an
+    `OverlayHost` measured for its intrinsic size is the size of its page,
+    whatever is open over it, where an open dialog used to count.
 - **A theme switch moves every control with it.** A button, a switch, a
   field, a tab, a chip and the rest each faded their colours over 150ms of
   their own after the theme changed, so with a theme that cuts — the default,

@@ -35,7 +35,9 @@ import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
  * Draws the content and then [erase] into a layer of their own, so the erase
  * takes out the content and nothing under it. Only call it when there is
  * something to erase: the layer is an offscreen pass, and every frame without
- * one should draw the content plainly.
+ * one should draw the content plainly. [area] is the part of the node the layer
+ * covers: all of it by default, or only the strip an erase is confined to, as
+ * `fadingEdges` confines each fade.
  */
 internal inline fun ContentDrawScope.drawContentErasing(
     area: Rect = Rect(Offset.Zero, size),

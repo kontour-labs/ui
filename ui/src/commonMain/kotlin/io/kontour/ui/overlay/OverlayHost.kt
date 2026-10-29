@@ -76,6 +76,12 @@ import io.kontour.ui.dragdrop.DragLayer
 import io.kontour.ui.dragdrop.handleKey
 import io.kontour.ui.dragdrop.LocalDragHost
 import io.kontour.ui.dragdrop.LocalOverlayLayer
+import androidx.compose.ui.node.ModifierNodeElement
+import androidx.compose.ui.node.LayoutModifierNode
+import androidx.compose.ui.layout.MeasureScope
+import androidx.compose.ui.layout.Measurable
+import androidx.compose.ui.layout.IntrinsicMeasureScope
+import androidx.compose.ui.layout.IntrinsicMeasurable
 
 /**
  * Where an overlay sits in the stack.
@@ -787,6 +793,19 @@ private fun EntryHost(
  * start corner with no minimum handed down, so the picture is the same.
  * [backOwner]'s provider is inside, so that content does not move between
  * compositions if it comes or goes.
+ *
+ * ### Intrinsic measurements stop here
+ *
+ * A `SubcomposeLayout` cannot answer an intrinsic measurement — its content is
+ * not composed until it is measured — and throws if asked. So
+ * [OverlayContentIntrinsics] answers in front of it, with nothing: an open
+ * overlay adds nothing to the host's intrinsic size, and the page under it
+ * answers for the host as it always has. That is the right answer as well as
+ * a safe one, since an overlay floats over the page rather than sizing it; the
+ * `Box` before this did add an open dialog's own size to the host's, which no
+ * layout could have meant to read. Measurements inside the content — an
+ * anchored panel reading its own intrinsics to choose a side — are made within
+ * the subcomposition, and are as they were. `OverlayHostIntrinsicsTest`.
  */
 @Composable
 private fun ComposedOnMeasure(content: @Composable () -> Unit, backOwner: NavigationEventDispatcherOwner?) {
@@ -819,7 +838,31 @@ private fun ComposedOnMeasure(content: @Composable () -> Unit, backOwner: Naviga
             layout(width, height) { for (placeable in placeables) placeable.placeRelative(0, 0) }
         }
     }
-    SubcomposeLayout(measurePolicy = measurePolicy)
+    SubcomposeLayout(modifier = OverlayContentIntrinsics, measurePolicy = measurePolicy)
+}
+
+/**
+ * Answers an intrinsic measurement of an overlay's content with nothing, in
+ * front of the subcomposition that could not answer it. See [ComposedOnMeasure].
+ * Measuring and placing pass straight through.
+ */
+private object OverlayContentIntrinsics : ModifierNodeElement<OverlayContentIntrinsicsNode>() {
+    override fun create() = OverlayContentIntrinsicsNode()
+    override fun update(node: OverlayContentIntrinsicsNode) = Unit
+    override fun equals(other: Any?): Boolean = other === this
+    override fun hashCode(): Int = "OverlayContentIntrinsics".hashCode()
+}
+
+private class OverlayContentIntrinsicsNode : Modifier.Node(), LayoutModifierNode {
+    override fun MeasureScope.measure(measurable: Measurable, constraints: Constraints): MeasureResult {
+        val placeable = measurable.measure(constraints)
+        return layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+    }
+
+    override fun IntrinsicMeasureScope.minIntrinsicWidth(measurable: IntrinsicMeasurable, height: Int): Int = 0
+    override fun IntrinsicMeasureScope.maxIntrinsicWidth(measurable: IntrinsicMeasurable, height: Int): Int = 0
+    override fun IntrinsicMeasureScope.minIntrinsicHeight(measurable: IntrinsicMeasurable, width: Int): Int = 0
+    override fun IntrinsicMeasureScope.maxIntrinsicHeight(measurable: IntrinsicMeasurable, width: Int): Int = 0
 }
 
 /**
@@ -973,7 +1016,9 @@ val LocalOverlayHost = staticCompositionLocalOf<OverlayHostState> {
  * ```
  *
  * **Overlays are clipped to this composable's bounds**, so it belongs at the
- * root. Why the stack renders in-composition rather than in platform windows,
+ * root. **An open overlay adds nothing to its intrinsic size**: measured
+ * intrinsically, the host is as big as [content] alone, whatever is open over
+ * it. Why the stack renders in-composition rather than in platform windows,
  * and how focus and reading order are handled, are in
  * `ui-docs/content/overlays.md`.
  */
