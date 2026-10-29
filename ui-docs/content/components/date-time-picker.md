@@ -22,8 +22,14 @@ DateTimePicker(
 
 The calendar's parameters — `today`, `isDateSelectable`, `decorationFor`, the icons,
 `navigation` and `firstDayOfWeek` — mean what they mean on the `DatePicker`, and
-`minuteStep` what it means on the `TimePicker`. The clock, 12-hour or 24, comes
-from [`LocaleFormats`](locale-formats.md) as the time picker's does.
+`minuteStep` and `infinite` what they mean on the `TimePicker`. The clock,
+12-hour or 24, comes from [`LocaleFormats`](locale-formats.md) as the time
+picker's does.
+
+The hour and minute wheels go round, as the time picker's do, unless
+`infinite = false`. The day stays as it is when the hours pass midnight: it is
+the calendar's to change, and a wheel that moved it would page the calendar
+under the reader's other hand.
 
 **Now** is under the wheels, as on the time picker, wherever the wheels are —
 beside the calendar or in the popover described below: the wheels scroll to the

@@ -19,6 +19,12 @@ from the version the app is on.
 
 Not released yet: this is what `main` needs so far.
 
+Most of this release is less work on a slow phone, which an app has nothing to
+do for. What it changes is two new parameters partway through others, a
+timeline's `progressMotion` and a time picker's `infinite`, each of which a
+positional argument after it names; and some things that look or behave
+differently and still compile, under **Check**.
+
 ### Name the argument after `progress` on a timeline
 
 `Timeline`, `HorizontalTimeline`, `TimelineList`, `timelineList`,
@@ -35,6 +41,42 @@ It fails to compile rather than meaning something else.
 
 `Modifier.marquee` takes `draggable`, defaulted and last, so a call to it
 compiles as it is.
+
+### Name the argument after `minuteStep` on a time picker
+
+`TimePicker` and `DateTimePicker` take `infinite`, defaulted, straight after
+`minuteStep`. A call that names its arguments needs nothing. One that passes
+`now` after `minuteStep` by position names it:
+
+```diff
+- TimePicker(departAt, { departAt = it }, Modifier, true, 5, { clock.time() })
++ TimePicker(departAt, { departAt = it }, Modifier, true, 5, now = { clock.time() })
+```
+
+It fails to compile rather than meaning something else.
+
+### Check
+
+- **A time picker's wheels go round.** The hour and minute wheels of a
+  `TimePicker` and a `DateTimePicker` wrap, as a clock does, and on a 12-hour
+  clock the day period turns with the hour. Pass `infinite = false` for wheels
+  that stop at their ends. A test that turned a wheel past its end to check
+  that it stopped there now sees it go round.
+- **A theme switch takes the controls with it.** A button, a switch, a field, a
+  tab, a chip and the rest change their colours on the theme's frames rather
+  than fading on their own for 150ms after it. A screenshot taken a few frames
+  after a theme switch shows them in the new theme's colours. Their own
+  changes, pressed or disabled or selected, fade as before.
+- **Tooltips and coach marks open where they fit whole**, on the other side of
+  the control, or beside it, before they scroll. A screenshot of a tooltip
+  asked for on a side too small for it shows it on another side.
+- **Lists in a sheet bounce past their end**, on iOS, and stretch on Android,
+  where they stopped dead. At the top, pulling down still moves the sheet.
+- **An `OverlayHost` measured for its intrinsic size** is as big as its page,
+  whatever is open over it. An open dialog used to add its own size; a layout
+  that read it, which no layout should, sees the page alone.
+- **An overlay's content is composed once as it opens**, not a second time two
+  frames later. A test that counted its compositions sees half as many.
 
 ---
 

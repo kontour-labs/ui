@@ -29,6 +29,13 @@ there rather than jumping, so the reader sees where the time went, and
 `TimePickerDefaults.currentTime()` by default; pass `null` for no button on a
 picker whose time has nothing to do with the present.
 
+**The wheels go round, as a clock does.** Past :59 comes :00 and past 23 comes
+0, with no end to reach: 23:30 to half past midnight is one row on, not
+twenty-three back. On a 12-hour clock the day period turns with the hour, so
+11 PM turned on is 12 AM rather than noon, as an iOS picker's does. Only the
+wheel goes round: the minutes passing :00 leave the hour as it is.
+`infinite = false` gives each wheel its ends back, as they were before 0.5.1.
+
 ---
 
 ## Accessibility
@@ -40,9 +47,10 @@ Each wheel reports its centred value as its state, so moving it says the new
 value rather than only that something scrolled.
 
 Each wheel is a stop for the keyboard, hour then minute then AM or PM, and turns
-from it as a [`WheelPicker`](wheel-picker.md) does: Up and Down a row, Page Up
-and Page Down a face, Home and End the ends, and typing to a row — "45" on the
-minute wheel. A screen reader can turn each one too, as an adjustable control.
+from it as a [`WheelPicker`](wheel-picker.md) does: Up and Down a row, round
+the end of the clock as a finger takes it, Page Up and Page Down a face, Home
+and End the first and last rows, and typing to a row — "45" on the minute
+wheel. A screen reader can turn each one too, as an adjustable control.
 
 `minuteStep` is worth setting. At the default of 1 the minute wheel has sixty
 stops, which is sixty announcements to cross by swipe.

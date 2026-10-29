@@ -1,5 +1,11 @@
 package io.kontour.ui.samples
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.unit.dp
+import io.kontour.ui.components.list.fadingEdges
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.verticalScroll
@@ -228,5 +234,28 @@ fun PatternFadeOnScroll() {
             },
         )
         Departures()
+    }
+}
+
+@Composable
+fun PatternStateColour(live: Boolean) {
+    // The state is what animates, not the colour. The two ends are the theme's
+    // on this frame, so a theme switch moves them at once and only a change of
+    // `live` fades; mixed in the draw, so the fade composes nothing.
+    val lit by animateFloatAsState(if (live) 1f else 0f, Theme.motion.tweenFast())
+    val off = Theme.colours.surfaceRaised
+    val on = Theme.colours.accent.container
+    Box(Modifier.size(12.dp).drawBehind { drawCircle(lerp(off, on, lit)) })
+}
+
+@Composable
+fun PatternFadedList() {
+    val list = rememberLazyListState()
+    // The list's own fade: a layer on each 24dp edge, and the rows between
+    // them drawn straight on, as on a list with no fade at all.
+    LazyColumn(Modifier.fillMaxSize().fadingEdges(list), state = list) {
+        items(stops, key = { it.name }) { stop ->
+            ListItem(onClick = { openStop(stop.name) }) { +stop.name }
+        }
     }
 }

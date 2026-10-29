@@ -100,6 +100,13 @@ On `main`, and in the next release.
   open on the side asked for if they fit there whole, then on the other side,
   then beside the control, and scroll only when no side has room for all of
   it. Menus and popovers, which are meant to scroll, are as they were.
+- **A time picker's wheels go round.** `TimePicker` and `DateTimePicker` take
+  `infinite`, true by default: past :59 comes :00 and past 23 comes 0, so 23:30
+  to half past midnight is one row on rather than twenty-three back. On a
+  12-hour clock the day period turns with the hour, so 11 PM turned on is
+  12 AM, not noon. Only the wheel goes round: the minutes passing :00 leave the
+  hour, and the hours passing midnight leave a date-time picker's day.
+  `infinite = false` keeps the ends.
 
 ### Fixed
 
@@ -127,6 +134,11 @@ On `main`, and in the next release.
   `progress` by position fails to compile rather than meaning something else,
   and names it. See
   [Migrating](migrating.md#name-the-argument-after-progress-on-a-timeline).
+- **`TimePicker` and `DateTimePicker` have a new parameter**, `infinite`,
+  defaulted, straight after `minuteStep`, so anything built against 0.5.0
+  recompiles. A call that passes `now` after `minuteStep` by position names
+  it; it fails to compile rather than meaning something else. See
+  [Migrating](migrating.md#name-the-argument-after-minutestep-on-a-time-picker).
 
 ---
 
