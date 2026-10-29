@@ -17,8 +17,6 @@ from the version the app is on.
 
 ## 0.5.0 to 0.5.1
 
-Not released yet: this is what `main` needs so far.
-
 Most of this release is less work on a slow phone, which an app has nothing to
 do for. What it changes is two new parameters partway through others, a
 timeline's `progressMotion` and a time picker's `infinite`, each of which a

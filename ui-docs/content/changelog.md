@@ -25,7 +25,20 @@ The version an app is on is the `kontour` entry in its version catalog. See
 
 ## Unreleased
 
-On `main`, and in the next release.
+On `main`, and in the next release. Nothing yet.
+
+---
+
+## 0.5.1 — 29 October 2026
+
+Less work on a slower phone, with nothing looking or moving differently, and
+what testing on phones asked for: a marquee you can drag, arrows along a
+timeline's leg, a time picker whose wheels go round, and tooltips that go at a
+press anywhere else and open on a button by touch, which they never did.
+Tooltips and coach marks open where they fit whole, a list in a sheet bounces
+past its end, a theme switch takes the controls with it, a menu's list let go
+from still springs back, and a faded edge no longer shows what is under its
+surface.
 
 ### Added
 
