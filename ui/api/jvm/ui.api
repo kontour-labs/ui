@@ -607,7 +607,7 @@ public final class io/kontour/ui/components/datetime/DateTimePickerDefaults {
 
 public final class io/kontour/ui/components/datetime/DateTimePickerKt {
 	public static final fun DateTimeField (Lkotlinx/datetime/LocalDateTime;Lkotlin/jvm/functions/Function0;Landroidx/compose/ui/Modifier;ZLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Lio/kontour/ui/locale/LocaleFormats;Landroidx/compose/foundation/interaction/MutableInteractionSource;Landroidx/compose/runtime/Composer;II)V
-	public static final fun DateTimePicker (Lkotlinx/datetime/LocalDateTime;Lkotlin/jvm/functions/Function1;Landroidx/compose/ui/Modifier;ZLkotlinx/datetime/LocalDate;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;ZLandroidx/compose/ui/graphics/vector/ImageVector;Landroidx/compose/ui/graphics/vector/ImageVector;Landroidx/compose/ui/graphics/vector/ImageVector;Landroidx/compose/ui/graphics/vector/ImageVector;ILkotlin/jvm/functions/Function0;Lio/kontour/ui/components/datetime/CalendarNavigationState;Lio/kontour/ui/locale/LocaleFormats;Lkotlinx/datetime/DayOfWeek;Lkotlin/jvm/functions/Function0;Landroidx/compose/runtime/Composer;III)V
+	public static final fun DateTimePicker (Lkotlinx/datetime/LocalDateTime;Lkotlin/jvm/functions/Function1;Landroidx/compose/ui/Modifier;ZLkotlinx/datetime/LocalDate;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;ZLandroidx/compose/ui/graphics/vector/ImageVector;Landroidx/compose/ui/graphics/vector/ImageVector;Landroidx/compose/ui/graphics/vector/ImageVector;Landroidx/compose/ui/graphics/vector/ImageVector;IZLkotlin/jvm/functions/Function0;Lio/kontour/ui/components/datetime/CalendarNavigationState;Lio/kontour/ui/locale/LocaleFormats;Lkotlinx/datetime/DayOfWeek;Lkotlin/jvm/functions/Function0;Landroidx/compose/runtime/Composer;III)V
 }
 
 public final class io/kontour/ui/components/datetime/DayDecoration {
@@ -654,7 +654,7 @@ public final class io/kontour/ui/components/datetime/TimePickerDefaults {
 
 public final class io/kontour/ui/components/datetime/TimePickerKt {
 	public static final fun TimeField (Lkotlinx/datetime/LocalTime;Lkotlin/jvm/functions/Function0;Landroidx/compose/ui/Modifier;ZLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Lio/kontour/ui/locale/LocaleFormats;Landroidx/compose/foundation/interaction/MutableInteractionSource;Landroidx/compose/runtime/Composer;II)V
-	public static final fun TimePicker (Lkotlinx/datetime/LocalTime;Lkotlin/jvm/functions/Function1;Landroidx/compose/ui/Modifier;ZILkotlin/jvm/functions/Function0;Lio/kontour/ui/locale/LocaleFormats;Lkotlin/jvm/functions/Function0;Landroidx/compose/runtime/Composer;II)V
+	public static final fun TimePicker (Lkotlinx/datetime/LocalTime;Lkotlin/jvm/functions/Function1;Landroidx/compose/ui/Modifier;ZIZLkotlin/jvm/functions/Function0;Lio/kontour/ui/locale/LocaleFormats;Lkotlin/jvm/functions/Function0;Landroidx/compose/runtime/Composer;II)V
 }
 
 public final class io/kontour/ui/components/datetime/WheelPickerDefaults {
