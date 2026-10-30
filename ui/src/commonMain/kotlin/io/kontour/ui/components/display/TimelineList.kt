@@ -251,7 +251,8 @@ class TimelineListScope internal constructor() : TimelineRowScope(filledByDefaul
  *   for a list that is not being travelled. Each leg is split between two rows,
  *   halfway, which is the middle of the leg when the rows are the same height.
  * @param progressMotion How the leg the journey is on moves: a band
- *   sweeping it, or arrows marching along it towards the next stop.
+ *   sweeping it, one arrow travelling it towards the next stop, or a run of
+ *   them moving on together. See [TimelineMotion].
  * @param leadIn A leg arriving at the first stop from above.
  * @param leadOut A leg leaving the last stop downwards.
  * @param colours The nodes', rail's and progress's colours, for stops that do
@@ -410,7 +411,8 @@ internal fun TimelineRow.rail(
                 passed = it.legPassed,
                 band = it.legBand,
                 colour = progressColour,
-                arrows = motion == TimelineMotion.Arrows,
+                arrows = motion != TimelineMotion.Band,
+                stream = motion == TimelineMotion.Arrows,
             )
         },
     )

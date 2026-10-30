@@ -20,7 +20,9 @@ import kotlin.test.assertTrue
 /**
  * `TimelineMotion.Arrows`: chevrons along the leg the journey is on, marching
  * towards the next stop, standing still under reduced motion, and spaced evenly
- * across the seam where one row hands the leg to the next.
+ * across the seam where one row hands the leg to the next. And
+ * `TimelineMotion.Arrow`, one at a time: both travel the whole leg, and grow
+ * in and fade out at its stops rather than appearing and vanishing there.
  *
  * A chevron is wider than the rail, so its arms are the only red a little off
  * the rail's line. That is the column these tests read: anything red there is
@@ -88,6 +90,76 @@ class TimelineArrowsTest {
             assertTrue(
                 gaps.all { abs(it - typical) <= typical / 3 },
                 "the arrows' spacing jumps along the leg, $gaps, where one row hands it to the next",
+            )
+        }
+    }
+
+    /**
+     * One arrow at a time, over the whole leg: halfway along it, the arrow is
+     * seen near the stop behind as well as near the one ahead. Asked for as
+     * *"they should travel the entire leg, not just half of it"*: they ran only
+     * along the part still to cover.
+     */
+    @Test
+    fun oneArrowTravelsTheWholeLeg() {
+        trip(TimelineMotion.Arrow, reduceMotion = false, progress = Halfway) { scene, leg ->
+            val seen = (0 until LoopFrames).map { runs(arms(scene.frame(), leg)) }
+            assertTrue(seen.all { it.size <= 1 }, "more than one arrow at a time: ${seen.filter { it.size > 1 }}")
+            val at = seen.flatten().map { (it.first + it.last) / 2 - leg.first }
+            val span = leg.last - leg.first
+            assertTrue(at.isNotEmpty(), "no arrow was drawn along the leg")
+            assertTrue(at.min() < span * 0.3, "the arrow never came near the stop behind: nearest ${at.min()} of $span px")
+            assertTrue(at.max() > span * 0.7, "the arrow never came near the stop ahead: furthest ${at.max()} of $span px")
+        }
+    }
+
+    /** The run of them, halfway along, covers the half already travelled too. */
+    @Test
+    fun theRunOfArrowsCoversTheLegTravelledToo() {
+        trip(TimelineMotion.Arrows, reduceMotion = false, progress = Halfway) { scene, leg ->
+            val span = leg.last - leg.first
+            val behind = (0 until LoopFrames).flatMap { arms(scene.frame(), leg) }.filter { it - leg.first < span * 0.4 }
+            assertTrue(behind.isNotEmpty(), "halfway along the leg, no arrow ran along the half already travelled")
+        }
+    }
+
+    /**
+     * An arrow grows in at the stop behind and fades out at the one ahead: its
+     * weight, the red beside the rail, never jumps from one frame to the next,
+     * and is slight where it is nearest either stop. Asked for as *"so it
+     * doesn't appear, then disappear"*.
+     */
+    @Test
+    fun anArrowGrowsInAndFadesOutAtTheStops() {
+        trip(TimelineMotion.Arrow, reduceMotion = false, progress = Halfway) { scene, leg ->
+            val weights = ArrayList<Float>()
+            val places = ArrayList<Float>()
+            repeat(LoopFrames * 2) {
+                val image = scene.frame()
+                var weight = 0f
+                var moment = 0f
+                for (y in leg) for (dx in BesideRail) for (x in listOf(RailX - dx, RailX + dx)) {
+                    val p = image.getRGB(x, y)
+                    val red = ((p shr 16 and 0xFF) - (p shr 8 and 0xFF)).coerceAtLeast(0).toFloat()
+                    weight += red
+                    moment += red * (y - leg.first)
+                }
+                weights += weight
+                places += if (weight > 0f) moment / weight else Float.NaN
+            }
+            val most = weights.max()
+            assertTrue(most > 0f, "no arrow was drawn along the leg")
+            val jumps = weights.zipWithNext { a, b -> abs(b - a) }
+            assertTrue(
+                jumps.max() < most * 0.5f,
+                "an arrow's weight jumped by ${jumps.max()} of its most, $most, between two frames: it appeared or vanished",
+            )
+            val span = (leg.last - leg.first).toFloat()
+            val atStops = weights.indices.filter { !places[it].isNaN() && (places[it] < span * 0.06f || places[it] > span * 0.94f) }
+            assertTrue(atStops.isNotEmpty(), "the arrow was never seen near a stop")
+            assertTrue(
+                atStops.all { weights[it] < most * 0.6f },
+                "an arrow near a stop was drawn at ${atStops.maxOf { weights[it] } / most} of its full weight",
             )
         }
     }
@@ -166,6 +238,12 @@ class TimelineArrowsTest {
 
         /** Just past the first stop, so nearly all of the leg is still ahead. */
         const val Ahead = 0.02f
+
+        /** Halfway along the leg. */
+        const val Halfway = 0.5f
+
+        /** Columns either side of the rail, past its 2dp, where only an arrow's arms are. */
+        val BesideRail = 4..12
 
         /** One loop of the rail's motion at 16ms a frame, and a little over. */
         const val LoopFrames = 96

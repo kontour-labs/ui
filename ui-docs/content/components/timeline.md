@@ -94,11 +94,15 @@ to come.
   journey is, and in full colour over a faint leg, so it shows whatever colour
   the leg is — the rail's or its own.
 
-`progressMotion = TimelineMotion.Arrows` shows that leg with arrows instead of
-a band. The part already travelled is drawn in full, and arrows march along the
-rest of it, faint underneath, towards the next item, the way a route map shows
-which way a line runs. Under reduced motion they stand still, and still say
-which way the journey is going.
+`progressMotion` shows that leg with arrows instead of a band, the way a route
+map shows which way a line runs. `TimelineMotion.Arrow` sends one at a time
+along the whole leg towards the next item; `TimelineMotion.Arrows` moves a run
+of them along it together, like an escalator. Either way the leg is faint
+underneath, as under the band, and each arrow grows in as it leaves the stop
+behind and fades out as it reaches the next, so none appears or vanishes at a
+stop. Under reduced motion they stand still on the part of the leg still to
+cover, the part travelled drawn in full, and still say which way the journey
+is going.
 
 Under reduced motion the halo holds still and there is no band. The leg the
 journey is on is coloured as far as it has got instead, which is where the

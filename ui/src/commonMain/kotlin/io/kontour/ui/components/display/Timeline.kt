@@ -101,10 +101,20 @@ enum class TimelineMotion {
     Band,
 
     /**
-     * Arrows marching along the leg towards the stop ahead, as a route map
-     * shows which way a line runs. The part already travelled is drawn in
-     * full, and the arrows run along the rest. Under reduced motion they stand
-     * still, and still say which way the journey is going.
+     * One arrow at a time, travelling the whole leg towards the stop ahead:
+     * it grows in as it leaves the stop behind and fades out as it reaches the
+     * next, then sets off again. Under reduced motion it stands halfway along
+     * the part of the leg still to cover, the part travelled drawn in full,
+     * and still says which way the journey is going.
+     */
+    Arrow,
+
+    /**
+     * Arrows the length of the leg, moving on together towards the stop ahead,
+     * like an escalator, as a route map shows which way a line runs. Each grows
+     * in at the stop behind and fades out at the next. Under reduced motion
+     * they stand still along the part of the leg still to cover, the part
+     * travelled drawn in full.
      */
     Arrows,
 }
@@ -215,7 +225,8 @@ object TimelineDefaults {
  *   Null for a timeline that is not being travelled. Counted in the order the
  *   items are laid out, so an item wrapped in something else still counts.
  * @param progressMotion How the leg the journey is on moves: a band
- *   sweeping it, or arrows marching along it towards the next item.
+ *   sweeping it, one arrow travelling it towards the next item, or a run of
+ *   them moving on together. See [TimelineMotion].
  * @param colours The nodes', rail's and progress's colours, for items that do
  *   not name their own.
  */
@@ -378,7 +389,8 @@ private fun TimelineStopItem(
     val context = LocalTimelineContext.current
     val colours = context?.colours ?: TimelineDefaults.colours()
     val progress = context?.progress
-    val arrows = context?.motion == TimelineMotion.Arrows
+    val arrows = context?.motion.let { it != null && it != TimelineMotion.Band }
+    val stream = context?.motion == TimelineMotion.Arrows
     val slot = remember { TimelineSlot() }
     val enhanced = highContrast()
     // Where the journey stands against this item. Read in composition only to
@@ -411,7 +423,7 @@ private fun TimelineStopItem(
                     colour = connectorColour.takeOrElse { colours.rail },
                     width = connectorWidth,
                     travel = at?.let {
-                        LegTravel(0f, 1f, it.legPassed, it.legBand, colours.progress, arrows = arrows)
+                        LegTravel(0f, 1f, it.legPassed, it.legBand, colours.progress, arrows = arrows, stream = stream)
                     },
                 ),
             ),
@@ -715,7 +727,8 @@ private class TimelinePartNode(var part: TimelinePart) : Modifier.Node(), Parent
  * @param progress How far along the stages are, counted in items, as a
  *   [Timeline]'s is.
  * @param progressMotion How the leg the journey is on moves: a band
- *   sweeping it, or arrows marching along it towards the next item.
+ *   sweeping it, one arrow travelling it towards the next item, or a run of
+ *   them moving on together. See [TimelineMotion].
  * @param labelPlacement Each item's content under the rail, over it, or
  *   taking turns.
  * @param equalWidths Every item as wide as the widest — or, if they would not

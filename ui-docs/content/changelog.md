@@ -49,11 +49,13 @@ surface.
   within the label from a pager or a row's swipe actions around it. Under
   reduced motion it still drags, and never sets off by itself.
 - **Arrows along a timeline's leg.** `Timeline`, `HorizontalTimeline`,
-  `TimelineList` and `BranchTimeline` take `progressMotion`. Its
-  `TimelineMotion.Arrows` shows the leg a journey is on with arrows marching
-  towards the stop ahead instead of the band sweeping it, the part already
-  travelled drawn in full. Under reduced motion the arrows stand still, and
-  still say which way the journey is going.
+  `TimelineList` and `BranchTimeline` take `progressMotion`, which shows the
+  leg a journey is on with arrows towards the stop ahead instead of the band
+  sweeping it: `TimelineMotion.Arrow`, one at a time along the whole leg, or
+  `TimelineMotion.Arrows`, a run of them moving on together like an escalator.
+  Each grows in at the stop behind and fades out at the next. Under reduced
+  motion the arrows stand still on the part still to cover, and still say
+  which way the journey is going.
 
 ### Changed
 

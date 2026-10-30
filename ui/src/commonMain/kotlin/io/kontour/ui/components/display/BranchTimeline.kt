@@ -126,7 +126,8 @@ class BranchTimelineScope internal constructor(merge: Boolean) : TimelineRowScop
  * @param enabled Whether the rows can be used.
  * @param progress How far the history has got, if it is being tracked through.
  * @param progressMotion How the line to the commit progress is moving
- *   towards moves: a band sweeping it, or arrows marching along it.
+ *   towards moves: a band sweeping it, one arrow travelling it, or a run of
+ *   them moving on together. See [TimelineMotion].
  * @param nodeSize The commits' diameter.
  * @param laneWidth The distance from one lane to the next. A commit with an
  *   `icon` has a node [TimelineDefaults.IconNodeSize] across, which fills a
@@ -321,7 +322,8 @@ internal fun branchRail(
                 passed = 0f,
                 band = true,
                 colour = if (own.isSpecified) own else ink(edge.ink),
-                arrows = motion == TimelineMotion.Arrows,
+                arrows = motion != TimelineMotion.Band,
+                stream = motion == TimelineMotion.Arrows,
             )
         } else {
             null

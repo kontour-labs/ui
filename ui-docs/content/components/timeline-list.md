@@ -113,10 +113,12 @@ colour. The nodes not reached yet take the rail's colour. A node given its own
   while it is working. It shows whatever colour the leg is, and crosses from
   one row to the next without a jump, in a `LazyColumn` too.
 
-`progressMotion = TimelineMotion.Arrows` shows that leg with arrows instead of
-a band: drawn in full as far as the journey has got, with arrows marching along
-the rest towards the next stop. Each row fits a whole number of arrows to its
-half of the leg, so they cross from one row to the next without a jump too.
+`progressMotion` shows that leg with arrows instead of a band:
+`TimelineMotion.Arrow` sends one at a time along the whole leg towards the next
+stop, and `TimelineMotion.Arrows` moves a run of them along it together, like
+an escalator, each growing in at the stop behind and fading out at the next.
+Each row fits a whole number of arrows to its half of the leg, so they cross
+from one row to the next without a jump too.
 
 Under reduced motion the halo holds still and there is no band: the leg is
 coloured as far as the journey has got instead. The
