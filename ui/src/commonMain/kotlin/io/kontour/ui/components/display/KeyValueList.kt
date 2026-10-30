@@ -1,12 +1,19 @@
 package io.kontour.ui.components.display
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.ui.layout.SubcomposeLayout
+import androidx.compose.runtime.remember
+import androidx.compose.ui.layout.IntrinsicMeasurable
+import androidx.compose.ui.layout.IntrinsicMeasureScope
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.LayoutIdParentData
+import androidx.compose.ui.layout.Measurable
+import androidx.compose.ui.layout.MeasurePolicy
+import androidx.compose.ui.layout.MeasureResult
+import androidx.compose.ui.layout.MeasureScope
+import androidx.compose.ui.layout.layoutId
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.constrainHeight
 import androidx.compose.foundation.layout.LayoutScopeMarker
@@ -16,7 +23,6 @@ import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -137,19 +143,95 @@ internal fun KeyValueRows(scope: KeyValueScope, modifier: Modifier, labelWidth: 
         if (compact) cell() else ProvideTextStyle(body, cell)
     }
 
-    SubcomposeLayout(if (compact) modifier else modifier.fillMaxWidth()) { constraints ->
+    val stackGap = spacing.xxs
+    val rowPadding = if (compact) spacing.xxs / 2 else spacing.xs
+    val columns = remember { KeyValueColumns() }
+    val rowPolicy = remember(columns) { KeyValueRowPolicy(columns) }
+
+    /*
+     * **Plain layouts, nothing composed while measuring.** This was a
+     * `SubcomposeLayout`, composing every label twice a measure — once to find
+     * the widest, once to lay the rows out — and the rows themselves inside the
+     * measure. Nothing here needs that: the label column is the widest label's
+     * width, which a layout can ask its own children for, and the rows are then
+     * laid out with it. Composed while measuring, the rows broke a list read
+     * early: a `ListSection` asks its body for `ListRowTop` and `ListRowBottom`
+     * as it measures, which places the body there and then, and a body that
+     * creates its nodes during measure is not ready to be placed. Reported
+     * against 0.4.5, a `KeyValueList` in a `ListSection`; fixed for 0.5.1.
+     *
+     * Each row is still a node of its own, so a screen reader still hears it as
+     * one: "Platform, 2". The list asks a row for its label's width and its
+     * value's width through the row's intrinsics — see [KeyValueRowPolicy] —
+     * once each a measure, and tells it the column before measuring it.
+     */
+    Layout(
+        modifier = if (compact) modifier else modifier.fillMaxWidth(),
+        content = {
+            rows.forEachIndexed { index, row ->
+                if (showDividers && index > 0) HorizontalDivider()
+                Layout(
+                    modifier = Modifier
+                        .layoutId(KeyValueRowId)
+                        .semantics(mergeDescendants = true) {
+                            row.spoken?.let { contentDescription = it.say(labelledValue) }
+                        }
+                        .padding(vertical = rowPadding),
+                    content = {
+                        label(row, Modifier)
+                        value(row, Modifier)
+                    },
+                    measurePolicy = rowPolicy,
+                )
+            }
+        },
+        measurePolicy = remember(columns, labelWidth, minValue, gap, stackGap, compact) {
+            KeyValueListPolicy(columns, labelWidth, minValue, gap, stackGap, compact)
+        },
+    )
+}
+
+/**
+ * What the list decided this measure, for its rows: the label column's width,
+ * whether the pairs stack, and the gaps. Written by [KeyValueListPolicy] before
+ * it measures a row, read by [KeyValueRowPolicy] as the row measures. Not
+ * state: it changes only inside one measure pass, which is what reads it.
+ */
+private class KeyValueColumns {
+    var column = 0
+    var stacked = false
+    var gap = 0
+    var stackGap = 0
+}
+
+/** A row, as against a divider between two. */
+private object KeyValueRowId
+
+/** Whether this is a row, as against a divider: by its id, which a measurable and an intrinsic one both carry. */
+private val IntrinsicMeasurable.isRow: Boolean
+    get() = (parentData as? LayoutIdParentData)?.layoutId == KeyValueRowId
+
+/** The list: the column for every row, then the rows and dividers top to bottom. */
+private class KeyValueListPolicy(
+    private val columns: KeyValueColumns,
+    private val labelWidth: Dp,
+    private val minValue: Dp,
+    private val gap: Dp,
+    private val stackGap: Dp,
+    private val compact: Boolean,
+) : MeasurePolicy {
+    override fun MeasureScope.measure(measurables: List<Measurable>, constraints: Constraints): MeasureResult {
         val floor = labelWidth.roundToPx()
         val gapPx = gap.roundToPx()
+        val minValuePx = minValue.roundToPx()
+        val rows = measurables.filter { it.isRow }
+        // Each asked once a measure, and only if it is needed.
+        val widestLabel by lazy(LazyThreadSafetyMode.NONE) { rows.maxOfOrNull { it.minIntrinsicWidth(Constraints.Infinity) } ?: 0 }
+        val widestValue by lazy(LazyThreadSafetyMode.NONE) { rows.maxOfOrNull { it.maxIntrinsicWidth(Constraints.Infinity) } ?: 0 }
         // As wide as its widest label and widest value side by side: what a
         // compact list takes, and a list in a row that scrolls, or anything
         // else with no width to give; laid out at an unbounded width, it threw.
-        fun natural(): Int {
-            val labels = subcompose("natural labels") { rows.forEach { row -> label(row, Measured) } }
-                .maxOfOrNull { it.maxIntrinsicWidth(Constraints.Infinity) } ?: 0
-            val values = subcompose("natural values") { rows.forEach { row -> value(row, Measured) } }
-                .maxOfOrNull { it.maxIntrinsicWidth(Constraints.Infinity) } ?: 0
-            return maxOf(labels, floor) + gapPx + maxOf(values, minValue.roundToPx())
-        }
+        fun natural() = maxOf(widestLabel, floor) + gapPx + maxOf(widestValue, minValuePx)
         val available = when {
             !constraints.hasBoundedWidth -> natural()
             compact -> minOf(constraints.maxWidth, natural())
@@ -170,7 +252,7 @@ internal fun KeyValueRows(scope: KeyValueScope, modifier: Modifier, labelWidth: 
          * stacks instead. That is what a key and a value do on a narrow screen,
          * and it is the only arrangement where both are readable.
          */
-        val stacked = available < floor + gapPx + minValue.roundToPx()
+        val stacked = available < floor + gapPx + minValuePx
         /*
          * **One label column for every row**: as wide as the widest label, from
          * `labelWidth` up to what leaves a value its room. It was a floor each
@@ -179,64 +261,90 @@ internal fun KeyValueRows(scope: KeyValueScope, modifier: Modifier, labelWidth: 
          * held only while every label fitted, as the demo's did. Measured here,
          * so nobody has to set `labelWidth` for their longest label to get them.
          */
-        val column = if (stacked) {
-            0
-        } else {
-            val widest = maxOf(floor, available - gapPx - minValue.roundToPx())
-            val natural = subcompose("labels") { rows.forEach { row -> label(row, Measured) } }
-                .maxOfOrNull { it.maxIntrinsicWidth(Constraints.Infinity) } ?: 0
-            natural.coerceIn(floor, widest)
-        }
-        val columnDp = column.toDp()
-        val list = subcompose("rows") {
-            Column(Modifier.fillMaxWidth()) {
-                rows.forEachIndexed { index, row ->
-                    if (showDividers && index > 0) HorizontalDivider()
-
-                    val rowModifier = Modifier
-                        .fillMaxWidth()
-                        .semantics(mergeDescendants = true) {
-                            row.spoken?.let { contentDescription = it.say(labelledValue) }
-                        }
-                        .padding(vertical = if (compact) spacing.xxs / 2 else spacing.xs)
-
-                    if (stacked) {
-                        Column(
-                            modifier = rowModifier,
-                            verticalArrangement = Arrangement.spacedBy(Theme.spacing.xxs),
-                        ) {
-                            label(row, Modifier.fillMaxWidth())
-                            value(row, Modifier.fillMaxWidth())
-                        }
-                    } else {
-                        Row(
-                            modifier = rowModifier,
-                            horizontalArrangement = Arrangement.spacedBy(gap),
-                            verticalAlignment = Alignment.Top,
-                        ) {
-                            label(row, Modifier.width(columnDp))
-                            value(row, Modifier.weight(1f))
-                        }
-                    }
-                }
-            }
-        }.map { it.measure(constraints.copy(minWidth = 0, maxWidth = available, minHeight = 0)) }
-        val height = list.sumOf { it.height }
-        layout(available, constraints.constrainHeight(height)) {
+        columns.stacked = stacked
+        columns.gap = gapPx
+        columns.stackGap = stackGap.roundToPx()
+        columns.column = if (stacked) 0 else widestLabel.coerceIn(floor, maxOf(floor, available - gapPx - minValuePx))
+        val placeables = measurables.map { it.measure(Constraints(minWidth = 0, maxWidth = available)) }
+        val height = placeables.sumOf { it.height }
+        return layout(available, constraints.constrainHeight(height)) {
             var y = 0
-            list.forEach {
+            placeables.forEach {
                 it.placeRelative(0, y)
                 y += it.height
             }
         }
     }
+
+    // What a parent asking how wide the list would be gets: its natural width,
+    // which a `SubcomposeLayout` could not answer at all.
+    override fun IntrinsicMeasureScope.maxIntrinsicWidth(measurables: List<IntrinsicMeasurable>, height: Int): Int =
+        natural(measurables)
+
+    override fun IntrinsicMeasureScope.minIntrinsicWidth(measurables: List<IntrinsicMeasurable>, height: Int): Int =
+        natural(measurables)
+
+    private fun IntrinsicMeasureScope.natural(measurables: List<IntrinsicMeasurable>): Int {
+        val rows = measurables.filter { it.isRow }
+        val labels = rows.maxOfOrNull { it.minIntrinsicWidth(Constraints.Infinity) } ?: 0
+        val values = rows.maxOfOrNull { it.maxIntrinsicWidth(Constraints.Infinity) } ?: 0
+        return maxOf(labels, labelWidth.roundToPx()) + gap.roundToPx() + maxOf(values, minValue.roundToPx())
+    }
 }
 
 /**
- * A copy composed only to be measured, never placed: nothing a screen reader
- * should find, or it reads every label twice.
+ * One row: its label at the column's width and its value in the rest, top
+ * aligned, or the label above the value when the list stacks — both at the
+ * width the list gives it.
+ *
+ * **Its intrinsic widths are its parts', for the list.** Its min intrinsic
+ * width is its label's widest, and its max its value's: the two things the list
+ * needs to find its column and its natural width, from a node it can ask. A row
+ * is never laid out by anything but [KeyValueListPolicy], so nothing else reads
+ * them. Its intrinsic heights are its own, at the column the list last chose.
  */
-private val Measured = Modifier.clearAndSetSemantics { }
+private class KeyValueRowPolicy(private val columns: KeyValueColumns) : MeasurePolicy {
+    override fun MeasureScope.measure(measurables: List<Measurable>, constraints: Constraints): MeasureResult {
+        val (label, value) = measurables
+        val width = constraints.maxWidth
+        if (columns.stacked) {
+            val above = label.measure(Constraints(maxWidth = width))
+            val below = value.measure(Constraints(maxWidth = width))
+            val height = above.height + columns.stackGap + below.height
+            return layout(width, constraints.constrainHeight(height)) {
+                above.placeRelative(0, 0)
+                below.placeRelative(0, above.height + columns.stackGap)
+            }
+        }
+        val column = columns.column.coerceAtMost(width)
+        val rest = (width - column - columns.gap).coerceAtLeast(0)
+        val start = label.measure(Constraints.fixedWidth(column).copy(minHeight = 0, maxHeight = Constraints.Infinity))
+        val end = value.measure(Constraints.fixedWidth(rest).copy(minHeight = 0, maxHeight = Constraints.Infinity))
+        return layout(width, constraints.constrainHeight(maxOf(start.height, end.height))) {
+            start.placeRelative(0, 0)
+            end.placeRelative(column + columns.gap, 0)
+        }
+    }
+
+    override fun IntrinsicMeasureScope.minIntrinsicWidth(measurables: List<IntrinsicMeasurable>, height: Int): Int =
+        measurables[0].maxIntrinsicWidth(height)
+
+    override fun IntrinsicMeasureScope.maxIntrinsicWidth(measurables: List<IntrinsicMeasurable>, height: Int): Int =
+        measurables[1].maxIntrinsicWidth(height)
+
+    override fun IntrinsicMeasureScope.minIntrinsicHeight(measurables: List<IntrinsicMeasurable>, width: Int): Int =
+        heightAt(measurables, width) { w -> minIntrinsicHeight(w) }
+
+    override fun IntrinsicMeasureScope.maxIntrinsicHeight(measurables: List<IntrinsicMeasurable>, width: Int): Int =
+        heightAt(measurables, width) { w -> maxIntrinsicHeight(w) }
+
+    private inline fun heightAt(measurables: List<IntrinsicMeasurable>, width: Int, of: IntrinsicMeasurable.(Int) -> Int): Int {
+        val (label, value) = measurables
+        if (columns.stacked) return label.of(width) + columns.stackGap + value.of(width)
+        val column = columns.column.coerceAtMost(width)
+        return maxOf(label.of(column), value.of((width - column - columns.gap).coerceAtLeast(0)))
+    }
+}
 
 /** One collected row. */
 internal class KeyValueRow(

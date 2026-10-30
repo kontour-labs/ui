@@ -154,6 +154,13 @@ surface.
   held still before the finger lifted, a `Menu`'s, a `Select`'s or a
   `Combobox`'s list stayed stretched on Android and floating on iOS: the lift
   went unsaid to the overscroll when it came at no speed at all.
+- **A `KeyValueList` in a `ListSection` lays out.** The list composed its rows
+  while measuring them, in a `SubcomposeLayout`, and a section reads its body's
+  row edges as it measures, which places the body early, before it was ready.
+  It is plain layouts now: the label column is the widest label, asked of the
+  rows, and nothing is composed while measuring. It no longer composes every
+  label twice a measure, and a list asked for its intrinsic width answers
+  rather than throwing.
 - **A list under a following `TopBar` no longer shifts by a pixel as the bar
   collapses.** The bar's open height, which the list's top padding is, could
   come out a pixel taller on some frames of a collapse and back again.
