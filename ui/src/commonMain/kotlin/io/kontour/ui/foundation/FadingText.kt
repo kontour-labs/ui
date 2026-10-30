@@ -12,8 +12,6 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.CompositingStrategy
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.LayoutDirection
@@ -46,20 +44,25 @@ internal fun FadingText(text: AnnotatedString, style: TextStyle, modifier: Modif
         softWrap = false,
         onTextLayout = { cut = it.hasVisualOverflow },
         modifier = modifier
-            .graphicsLayer { compositingStrategy = if (cut && fade > 0.dp) CompositingStrategy.Offscreen else CompositingStrategy.Auto }
+            // The fade erases the text's own pixels, in a layer of its own
+            // opened only while there is a cut to fade. See `drawContentErasing`.
             .drawWithContent {
-                drawContent()
-                if (!cut || fade <= 0.dp) return@drawWithContent
+                if (!cut || fade <= 0.dp) {
+                    drawContent()
+                    return@drawWithContent
+                }
                 val width = minOf(fade.toPx(), size.width / 3f)
                 val rtl = layoutDirection == LayoutDirection.Rtl
                 val from = if (rtl) width else size.width - width
                 val to = if (rtl) 0f else size.width
-                drawRect(
-                    Brush.horizontalGradient(listOf(Color.Transparent, Color.Black), startX = from, endX = to),
-                    topLeft = Offset(if (rtl) 0f else from, 0f),
-                    size = Size(width, size.height),
-                    blendMode = BlendMode.DstOut,
-                )
+                drawContentErasing {
+                    drawRect(
+                        Brush.horizontalGradient(listOf(Color.Transparent, Color.Black), startX = from, endX = to),
+                        topLeft = Offset(if (rtl) 0f else from, 0f),
+                        size = Size(width, size.height),
+                        blendMode = BlendMode.DstOut,
+                    )
+                }
             },
     )
 }

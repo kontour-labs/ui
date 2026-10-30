@@ -211,7 +211,8 @@ fun TooltipBasics() {
     var open by remember { mutableStateOf(false) }
     Box {
         Button(onClick = { open = !open }, variant = ButtonVariant.Secondary) { +"Recentre" }
-        Tooltip(visible = open) { +"Bring the map back to you" }
+        // A press anywhere else asks it to go.
+    Tooltip(visible = open, onDismissRequest = { open = false }) { +"Bring the map back to you" }
     }
 }
 

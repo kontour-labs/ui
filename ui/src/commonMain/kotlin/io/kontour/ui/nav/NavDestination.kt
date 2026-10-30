@@ -3,7 +3,6 @@ package io.kontour.ui.nav
 import io.kontour.ui.platform.webRole
 import io.kontour.ui.platform.WebRole
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -53,6 +52,7 @@ import io.kontour.ui.theme.Theme
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
+import io.kontour.ui.theme.animateComponentColour
 
 /** How a destination arranges its icon and its label. */
 internal enum class NavLayout {
@@ -160,20 +160,20 @@ internal fun NavDestination(
     val ownMarker = if (grouped) {
         Color.Transparent
     } else {
-        val animated by animateColorAsState(
-            targetValue = if (marked) colours.indicator else Color.Transparent,
-            animationSpec = motion.tweenFast(),
+        val animated by animateComponentColour(
+            target = if (marked) colours.indicator else Color.Transparent,
+            spec = motion.tweenFast(),
             label = "navItemContainer",
         )
         animated
     }
-    val content by animateColorAsState(
-        targetValue = when {
+    val content by animateComponentColour(
+        target = when {
             !enabled -> colours.contentDisabled
             marked -> colours.selectedContent
             else -> colours.content
         },
-        animationSpec = motion.tweenFast(),
+        spec = motion.tweenFast(),
         label = "navItemContent",
     )
 

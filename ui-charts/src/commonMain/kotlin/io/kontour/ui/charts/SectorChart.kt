@@ -400,13 +400,16 @@ fun SectorChart(
             Layout(
                 content = {
                     parts.forEachIndexed { index, _ ->
+                        // Out here, so only the parts whose choice changes
+                        // are composed again: see [Chart]'s places.
+                        val isChosen = index == chosen
                         Box(
                             Modifier.semantics {
                                 this.contentDescription = shares[index]
                                 collectionItemInfo = CollectionItemInfo(rowIndex = index, rowSpan = 1, columnIndex = 0, columnSpan = 1)
                                 // Said chosen whether or not it can be chosen
                                 // again, as a [Chart]'s place is.
-                                if (selection != null) selected = index == chosen
+                                if (selection != null) selected = isChosen
                                 if (interactive) {
                                     onClick {
                                         choose(index)

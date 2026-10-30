@@ -18,16 +18,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
@@ -427,7 +428,14 @@ private fun Mark(
     emptyColour: Color,
     springOnFill: Boolean = false,
 ) {
-    val scale by animateFloatAsState(
+    // This and the fill below are held as states and read where they are
+    // drawn, as `Slider`'s are. Read here through `by`, every frame of either
+    // spring composed the mark again — the box, both icons and the modifiers
+    // round them — to move a clip and a scale. Setting a score animates every
+    // mark between the old one and the new, so that was each of them, every
+    // frame, until the bounciest spring settled: 117 scopes for one score in
+    // `RatingFillRecompositionTest`, against 27 now.
+    val markScale = animateFloatAsState(
         targetValue = if (springOnFill && fill > 0f) 1f else 0.92f,
         animationSpec = Theme.motion.springOrTween(Theme.motion.springBouncy),
         label = "ratingMark",
@@ -441,19 +449,20 @@ private fun Mark(
     //
     // Starts at its target, so a read-only rating renders settled on its first
     // frame and no golden waits for a spring.
-    val shownFill by animateFloatAsState(
+    val shownFill = animateFloatAsState(
         targetValue = fill,
         animationSpec = Theme.motion.springOrTween(Theme.motion.springSnappy),
         label = "ratingFill",
     )
+    // Whether there is any fill to draw, which is all composition needs of it.
+    val filled by remember(shownFill) { derivedStateOf { shownFill.value > 0f } }
 
     Box(Modifier.size(size), contentAlignment = Alignment.Center) {
         Icon(empty, contentDescription = null, tint = emptyColour, modifier = Modifier.size(size))
-        if (shownFill > 0f) {
+        if (filled) {
             Box(
                 Modifier
                     .size(size)
-                    .scale(if (springOnFill) scale else 1f)
                     // Clipped in the *draw* phase, not the layout phase.
                     //
                     // Narrowing the layout instead — which is what this did —
@@ -463,16 +472,23 @@ private fun Mark(
                     // and then placed in the middle of the cell, floating free
                     // of the empty star underneath it. Clipping the drawing
                     // leaves the glyph exactly where it was laid out.
+                    //
+                    // Scaled here too, about the middle, where `Modifier.scale`
+                    // scaled it: the same transform round the same clip, read
+                    // in the draw pass so the spring repaints the mark rather
+                    // than composing it.
                     .drawWithContent {
                         // From the start of the line: a half star in Arabic is
                         // lit on its right.
-                        val lit = this.size.width * shownFill
+                        val lit = this.size.width * shownFill.value
                         val rtl = layoutDirection == LayoutDirection.Rtl
-                        clipRect(
-                            left = if (rtl) this.size.width - lit else 0f,
-                            right = if (rtl) this.size.width else lit,
-                        ) {
-                            this@drawWithContent.drawContent()
+                        scale(if (springOnFill) markScale.value else 1f) {
+                            clipRect(
+                                left = if (rtl) this.size.width - lit else 0f,
+                                right = if (rtl) this.size.width else lit,
+                            ) {
+                                this@drawWithContent.drawContent()
+                            }
                         }
                     },
             ) {

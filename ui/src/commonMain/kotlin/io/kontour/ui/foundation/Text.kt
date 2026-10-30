@@ -3,10 +3,11 @@ package io.kontour.ui.foundation
 import io.kontour.ui.theme.clipProxy
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.InlineTextContent
+import androidx.compose.foundation.text.selection.DisableSelection
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
@@ -88,11 +89,12 @@ fun Text(
     onTextLayout: ((TextLayoutResult) -> Unit)? = null,
     style: TextStyle = LocalTextStyle.current,
 ) {
-    val redaction = rememberTextRedaction()
+    val redaction = textRedaction()
+    val moving = colourInMotion(colour, style)
 
     // A redacted string is still here, so it can measure like the real one —
     // and must not be handed over by a selection around it.
-    ExcludeFromSelection(redaction.redacted) {
+    ExcludedWhenRedacted(redaction.redacted) {
         BasicText(
             text = text,
             modifier = modifier.then(redaction.modifier),
@@ -113,6 +115,7 @@ fun Text(
             softWrap = softWrap,
             maxLines = maxLines,
             minLines = minLines,
+            color = moving,
         )
     }
 }
@@ -153,10 +156,16 @@ fun Text(
     onTextLayout: ((TextLayoutResult) -> Unit)? = null,
     style: TextStyle = LocalTextStyle.current,
 ) {
-    val redaction = rememberTextRedaction()
+    val redaction = textRedaction()
+    val icons = text.hasStringAnnotations(InlineIcons.Tag, 0, text.length)
+    val gradient = !redaction.redacted && text.hasStringAnnotations(SpanGradients.Tag, 0, text.length)
+    // Icons in the line and gradients across it take the text's colour as it is
+    // composed, so a string with either takes a fading colour that way too.
+    val inMotion = colourInMotion(colour, style)
+    val moving = if (icons || gradient) null else inMotion
     val resolved = resolveTextStyle(
         style = style,
-        colour = colour,
+        colour = if (inMotion != null && moving == null) inMotion() else colour,
         fontSize = fontSize,
         fontStyle = fontStyle,
         fontWeight = fontWeight,
@@ -172,7 +181,7 @@ fun Text(
     // every string — costs a scan of its annotations and nothing else. The
     // colour goes in as state, read by each icon as it draws: a map rebuilt
     // for a new colour would be new placeholders, and the text laid out again.
-    val content = if (text.hasStringAnnotations(InlineIcons.Tag, 0, text.length)) {
+    val content = if (icons) {
         val textColour = rememberUpdatedState(resolved.color)
         remember(text, inlineContent) {
             InlineIcons.contentFor(text, textColour).orEmpty() + inlineContent
@@ -192,7 +201,7 @@ fun Text(
 
     // Gradients laid across their own words — see `SpanGradients`. The same one
     // scan as the icons, and nothing more, for a string without one.
-    val gradients = if (!redaction.redacted && text.hasStringAnnotations(SpanGradients.Tag, 0, text.length)) {
+    val gradients = if (gradient) {
         remember(text) { SpanGradients.find(text) }
     } else {
         emptyList()
@@ -234,7 +243,7 @@ fun Text(
         }
     }
 
-    ExcludeFromSelection(redaction.redacted) {
+    ExcludedWhenRedacted(redaction.redacted) {
         BasicText(
             text = shown,
             modifier = modifier.then(redaction.modifier).then(painted).then(grounded),
@@ -245,6 +254,7 @@ fun Text(
             maxLines = maxLines,
             minLines = minLines,
             inlineContent = content,
+            color = moving,
         )
     }
 }
@@ -321,7 +331,37 @@ private fun resolveTextStyle(
     }
 }
 
+/**
+ * The colour this text is fading through, when it inherits one that is fading,
+ * for `BasicText` to read as it draws. See [ProvideContentColourInMotion].
+ *
+ * Only for text that takes the inherited colour, the last in the order on
+ * [Text]: a colour given here or in the style is the text's own, and holds.
+ * The style passed with it carries where the fade is going, which is what
+ * measures the text; this only says what it is drawn in on each frame.
+ */
+@Composable
+@ReadOnlyComposable
+private fun colourInMotion(colour: Color, style: TextStyle): ContentColourInMotion? =
+    if (colour.isSpecified || style.color.isSpecified) null else inheritedColourInMotion()
+
 private val Color.isSpecified: Boolean get() = this != Color.Unspecified
+
+/**
+ * [ExcludeFromSelection], inlined for `Text`: the same branch, without a lambda
+ * and a scope of its own for the text inside it.
+ *
+ * Raised 2026-10-29 for 0.5.1. Every `Text` went through the shared one, and its
+ * content was a lambda capturing a dozen values, made again whenever any of them
+ * changed — the redaction wrapper among them, which was new every composition —
+ * and then invoked as a composable of its own, all to say "not excluded" for text
+ * that almost never is. Inline, the plain branch is the `BasicText` call and
+ * nothing else; a redacted text still gets its `DisableSelection`, as before.
+ */
+@Composable
+private inline fun ExcludedWhenRedacted(redacted: Boolean, crossinline content: @Composable () -> Unit) {
+    if (redacted) DisableSelection { content() } else content()
+}
 
 /**
  * One bar per line of text, in place of the glyphs.
@@ -352,9 +392,21 @@ private val Color.isSpecified: Boolean get() = this != Color.Unspecified
  * than the text it replaces and a paragraph's bars touch each other.
  */
 @Composable
-private fun rememberTextRedaction(): TextRedaction {
-    val redacted = LocalRedacted.current
+private fun textRedaction(): TextRedaction =
+    if (LocalRedacted.current) rememberTextRedaction() else TextRedaction.None
 
+/**
+ * [textRedaction] for a text that is redacted, and only for one.
+ *
+ * Raised 2026-10-29 for 0.5.1: this ran for every `Text`, redacted or not — a
+ * state, a remembered shape, a remembered callback and a wrapper apiece, built
+ * on every composition of every label on screen to say "not redacted". Held only
+ * while redacted, it is let go when the redaction ends, which is what emptying
+ * the bars by hand used to do: the next redaction starts from nothing drawn,
+ * rather than from the bars of whatever string was there before.
+ */
+@Composable
+private fun rememberTextRedaction(): TextRedaction {
     // The **line boxes**, not the `TextLayoutResult` they came from.
     //
     // This is the whole of why the first version hung. `onTextLayout` runs on
@@ -402,64 +454,57 @@ private fun rememberTextRedaction(): TextRedaction {
     }
 
     val density = LocalDensity.current
-    val onLayout: (TextLayoutResult) -> Unit = remember(density, redacted) {
+    val onLayout: (TextLayoutResult) -> Unit = remember(density) {
         { result ->
-            if (!redacted) {
-                if (bars.value.isNotEmpty()) bars.value = emptyList()
-            } else {
-                val inset = with(density) { BarInset.toPx() }
-                val next = buildList {
-                    for (line in 0 until result.lineCount) {
-                        val top = result.getLineTop(line) + inset
-                        val bottom = result.getLineBottom(line) - inset
-                        if (bottom <= top) continue
-                        add(
-                            Rect(
-                                left = result.getLineLeft(line),
-                                top = top,
-                                right = result.getLineRight(line),
-                                bottom = bottom,
-                            )
+            val inset = with(density) { BarInset.toPx() }
+            val next = buildList {
+                for (line in 0 until result.lineCount) {
+                    val top = result.getLineTop(line) + inset
+                    val bottom = result.getLineBottom(line) - inset
+                    if (bottom <= top) continue
+                    add(
+                        Rect(
+                            left = result.getLineLeft(line),
+                            top = top,
+                            right = result.getLineRight(line),
+                            bottom = bottom,
                         )
-                    }
+                    )
                 }
-                if (next != bars.value) bars.value = next
             }
+            if (next != bars.value) bars.value = next
         }
     }
 
-    val fill = when {
-        !redacted -> Modifier
-        shape != null -> Modifier.clip(shape.clipProxy()).then(redactedFill()).drawWithContent { }
+    val fill = if (shape != null) {
+        Modifier.clip(shape.clipProxy()).then(redactedFill()).drawWithContent { }
+    } else {
         // First pass: the layout has not been reported yet, so there is nothing
         // to draw bars from. Draw nothing at all rather than the glyphs — a
         // frame of readable text in the middle of a loading screen is the one
         // outcome worse than a frame of blank space.
-        else -> Modifier.drawWithContent { }
-    }
-
-    // Out of redaction there is no layout callback to empty the bars (see
-    // [TextRedaction.layoutCallback]), so they are emptied here — for the next
-    // time the text is redacted, which must start from nothing drawn rather than
-    // from the bars of whatever string was there before.
-    if (!redacted && boxes.isNotEmpty()) {
-        SideEffect { bars.value = emptyList() }
+        Modifier.drawWithContent { }
     }
 
     return TextRedaction(
-        modifier = if (redacted) Modifier.clearAndSetSemantics { }.then(fill) else fill,
-        redacted = redacted,
+        modifier = Modifier.clearAndSetSemantics { }.then(fill),
+        redacted = true,
         onLayout = onLayout,
     )
 }
 
-/** What [rememberTextRedaction] hands back: a modifier, and a layout to feed it. */
+/** What [textRedaction] hands back: a modifier, and a layout to feed it. */
 @Immutable
 private class TextRedaction(
     val modifier: Modifier,
     val redacted: Boolean,
     val onLayout: (TextLayoutResult) -> Unit,
 ) {
+    companion object {
+        /** A text that is not redacted: nothing added, and nothing to listen for. */
+        val None = TextRedaction(Modifier, redacted = false, onLayout = {})
+    }
+
     /**
      * The callback to hand `BasicText`: the same instance from one composition
      * to the next wherever it can be.
@@ -471,16 +516,15 @@ private class TextRedaction(
      * string for nothing. [onLayout] is remembered; this passes it through as it
      * is.
      *
-     * Plain text with nobody listening gets no callback at all, which is what
-     * lets `BasicText` take its string fast path. The only thing the callback
-     * did there was empty the bars once redaction ended — and [rememberTextRedaction]
-     * does that itself now.
+     * Text that is not redacted gets the caller's callback as it is, and none
+     * at all when nobody is listening, which is what lets `BasicText` take its
+     * string fast path.
      */
     @Composable
     fun layoutCallback(caller: ((TextLayoutResult) -> Unit)?): ((TextLayoutResult) -> Unit)? {
         val own = onLayout
         return when {
-            caller == null && !redacted -> null
+            !redacted -> caller
             caller == null -> own
             else -> remember(own, caller) { { result -> own(result); caller(result) } }
         }

@@ -17,12 +17,15 @@ import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.CompositingStrategy
-import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.drawscope.ContentDrawScope
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.foundation.drawContentErasing
 
 /** How opaque each edge's fade is, 0 to 1. */
 @Immutable
@@ -44,9 +47,9 @@ internal data class ScrollFade(val start: Float, val end: Float) {
  * otherwise reads as "that is everything".
  *
  * The fade **erases** the content rather than painting a gradient of the
- * background colour over it, using `BlendMode.DstOut` in an offscreen layer.
- * Painting the background instead is the common shortcut and it fails the moment
- * anything is behind the list: an image, a map, a coloured panel. The offscreen
+ * background colour over it, using `BlendMode.DstOut` in a layer of the list's
+ * own. Painting the background instead is the common shortcut and it fails the
+ * moment anything is behind the list: an image, a map, a coloured panel. The
  * layer is what keeps the erase from taking the background with it.
  *
  * Works with `ScrollState`, `LazyListState`, `LazyGridState` and
@@ -76,23 +79,6 @@ fun Modifier.fadingEdges(
     }
 
     return this
-        // Isolate the layer, or DstOut erases whatever is painted behind the
-        // list as well as the list itself.
-        //
-        // Only while there is a fade to draw. `Offscreen` is not a flag: it
-        // makes every draw of this node render into a buffer of its own and then
-        // composite that buffer back, and this was set unconditionally — so a
-        // list scrolled to the top, or one short enough never to scroll at all,
-        // paid a full offscreen round trip per frame for a blend that was not
-        // happening. Read inside the layer block, so a fade appearing changes the
-        // layer rather than recomposing the list.
-        .graphicsLayer {
-            compositingStrategy = if (fade.isVisible) {
-                CompositingStrategy.Offscreen
-            } else {
-                CompositingStrategy.Auto
-            }
-        }
         // The brushes are built in the cache and kept while the fade holds still,
         // which is most of a scroll: the list redraws on every frame it moves,
         // and a gradient built in the draw was two new shaders a frame for a
@@ -128,12 +114,90 @@ fun Modifier.fadingEdges(
                 null
             }
             onDrawWithContent {
-                drawContent()
-                if (beforeBrush != null) drawRect(brush = beforeBrush, blendMode = BlendMode.DstOut)
-                if (afterBrush != null) drawRect(brush = afterBrush, blendMode = BlendMode.DstOut)
+                // A layer of the list's own round the rows and the erase, or
+                // DstOut erases whatever is painted behind the list as well:
+                // the surface it is on, and through it whatever is under that.
+                //
+                // Only while there is a fade to draw. The layer is not a flag:
+                // every draw of the list renders into a buffer of its own and is
+                // composited back, and a list scrolled to the top, or one short
+                // enough never to scroll, would pay that every frame for a blend
+                // that is not happening.
+                //
+                // Opened here, in the draw that erases, rather than by switching
+                // a `graphicsLayer`'s compositing on while there is a fade. The
+                // two fell out of step, and a sheet over a map showed the map
+                // through its list's top edge. See `drawContentErasing`.
+                //
+                // **And only over the fades.** See [drawFadedAtEdges].
+                if (beforeBrush == null && afterBrush == null) {
+                    drawContent()
+                } else {
+                    drawFadedAtEdges(
+                        vertical = orientation == Orientation.Vertical,
+                        strip = stop * extent,
+                        before = beforeBrush,
+                        after = afterBrush,
+                    )
+                }
             }
         }
 }
+
+/**
+ * The list with its edges erased by [before] and [after], each [strip] deep,
+ * with a layer of its own under each fade and none anywhere else.
+ *
+ * Raised 2026-10-29 for 0.5.1. The layer the erase needs was the whole list:
+ * every frame of a scroll mid-list, which is every frame a fade shows, drew
+ * every row into a buffer the size of the list and composited it back. A phone's
+ * GPU pays that in fill, and the software renderer here took a frame from about
+ * 4ms to about 50ms. The erase only ever touches the two strips the fades are
+ * in, so only they are drawn into layers, 24dp deep each, and the middle of the
+ * list straight onto the canvas as if there were no fade.
+ *
+ * **Where the two meet.** Desktop, iOS and the web clip with antialiased edges,
+ * so a strip and the middle sharing an edge at a fractional pixel — a list in a
+ * sheet as it slides, say — would each cover part of that pixel, and a faint
+ * line of whatever is behind would show through between them. So each strip
+ * reaches [StripOverlap] past its edge, under the middle: the fade has finished
+ * erasing there, so the strip only adds cover, and no pixel is short of it. What
+ * differs is a glyph's antialiased edge in that one row, drawn twice over, a
+ * fraction of a shade darker. Measured before this went in; see
+ * `FadingEdgesStripTest`.
+ */
+private fun ContentDrawScope.drawFadedAtEdges(vertical: Boolean, strip: Float, before: Brush?, after: Brush?) {
+    val extent = if (vertical) size.height else size.width
+    // The list's own ends, and its sides, are left to whatever already clips
+    // it — a scroller clips its content — and not clipped here again: at a
+    // fractional position a second antialiased edge on the list's own takes
+    // its edge pixels' cover twice, and the ground shows through them. So the
+    // pieces reach well past the list everywhere but where they meet.
+    val near = -extent
+    val far = extent * 2f
+    val from = if (before != null) strip else near
+    val to = if (after != null) extent - strip else far
+    if (to > from) {
+        val middle = span(vertical, from, to)
+        clipRect(middle.left, middle.top, middle.right, middle.bottom) { this@drawFadedAtEdges.drawContent() }
+    }
+    if (before != null) erasedStrip(span(vertical, near, minOf(extent, strip + StripOverlap)), before)
+    if (after != null) erasedStrip(span(vertical, maxOf(0f, extent - strip - StripOverlap), far), after)
+}
+
+/** The content in [area], in a layer of [area]'s own, with [fade] erased from it. */
+private fun ContentDrawScope.erasedStrip(area: Rect, fade: Brush) {
+    clipRect(area.left, area.top, area.right, area.bottom) {
+        this@erasedStrip.drawContentErasing(area) { drawRect(brush = fade, blendMode = BlendMode.DstOut) }
+    }
+}
+
+/** [from]..[to] along the scroll, and well past the list either side across it. See [drawFadedAtEdges]. */
+private fun DrawScope.span(vertical: Boolean, from: Float, to: Float): Rect =
+    if (vertical) Rect(-size.width, from, size.width * 2f, to) else Rect(from, -size.height, to, size.height * 2f)
+
+/** How far a fade's layer reaches under the unfaded middle of the list. See [drawFadedAtEdges]. */
+private const val StripOverlap = 1f
 
 private fun edgeBrush(
     orientation: Orientation,

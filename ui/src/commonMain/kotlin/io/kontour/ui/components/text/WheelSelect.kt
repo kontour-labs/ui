@@ -35,7 +35,6 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.Layout
@@ -57,6 +56,7 @@ import io.kontour.ui.components.datetime.WheelDrive
 import io.kontour.ui.components.datetime.WheelDrum
 import io.kontour.ui.components.datetime.WheelPickerDefaults
 import io.kontour.ui.foundation.Icon
+import io.kontour.ui.foundation.drawContentErasing
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.DragClaim
@@ -465,34 +465,32 @@ private fun WheelPanel(
                         // than as a row cut off. Not at high contrast, where
                         // nothing fades.
                         //
-                        // Offscreen only while there is that sliver to fade.
-                        // The layer is a buffer the whole drum renders into
-                        // and is composited back from, every frame it scrolls,
-                        // and opened about its field or at high contrast
-                        // nothing fades. The same mistake `fadingEdges` made.
-                        .graphicsLayer {
-                            val opening = geometry.opening
-                            compositingStrategy = if (solid || opening == null || opening == Opening.About) {
-                                CompositingStrategy.Auto
-                            } else {
-                                CompositingStrategy.Offscreen
-                            }
-                        }
+                        // A layer of its own only while there is that sliver to
+                        // fade. The layer is a buffer the whole drum renders
+                        // into and is composited back from, every frame it
+                        // scrolls, and opened about its field or at high
+                        // contrast nothing fades. The same mistake `fadingEdges`
+                        // made. Opened in the draw that fades: see
+                        // `drawContentErasing`.
                         .drawWithContent {
-                            drawContent()
                             val opening = geometry.opening
-                            if (solid || opening == null || opening == Opening.About) return@drawWithContent
+                            if (solid || opening == null || opening == Opening.About) {
+                                drawContent()
+                                return@drawWithContent
+                            }
                             val fade = rowPx * PeekShare
                             val below = opening == Opening.Below
-                            drawRect(
-                                brush = Brush.verticalGradient(
-                                    0f to Color.Black,
-                                    1f to Color.Transparent,
-                                    startY = if (below) 0f else size.height,
-                                    endY = if (below) fade else size.height - fade,
-                                ),
-                                blendMode = BlendMode.DstOut,
-                            )
+                            drawContentErasing {
+                                drawRect(
+                                    brush = Brush.verticalGradient(
+                                        0f to Color.Black,
+                                        1f to Color.Transparent,
+                                        startY = if (below) 0f else size.height,
+                                        endY = if (below) fade else size.height - fade,
+                                    ),
+                                    blendMode = BlendMode.DstOut,
+                                )
+                            }
                         }
                         .layout { measurable, constraints ->
                             val drum = measurable.measure(constraints.copy(minHeight = 0, maxHeight = Constraints.Infinity))

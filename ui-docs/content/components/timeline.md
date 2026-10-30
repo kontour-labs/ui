@@ -94,6 +94,26 @@ to come.
   journey is, and in full colour over a faint leg, so it shows whatever colour
   the leg is — the rail's or its own.
 
+`progressMotion` shows that leg with arrows instead of a band, the way a route
+map shows which way a line runs. `TimelineMotion.Arrow` sends one at a time
+along the whole leg towards the next item; `TimelineMotion.Arrows` moves a run
+of them along it together, like an escalator. Either way the leg is faint
+underneath, as under the band, and each arrow grows in as it leaves the stop
+behind and fades out as it reaches the next, so none appears or vanishes at a
+stop. Under reduced motion they stand still on the part of the leg still to
+cover, the part travelled drawn in full, and still say which way the journey
+is going.
+
+**A journey back.** `progressReversed = true` runs the journey from the last
+item towards the first, a return trip on the same stops. `progress` is still
+counted from the first item: at `1.5f` reversed, the third item onwards is
+reached, the leg between the second and third is travelled from the third's
+end, and the band or arrows run back up it. Turned round while the arrows
+move, they stop where they are, turn in place on the same bouncy spring a
+chevron turns on everywhere else in the library, and set off the other way.
+Every row of it is worked out from the frame clock as the rail draws, so a leg
+split between two rows turns as one, and nothing composes while it moves.
+
 Under reduced motion the halo holds still and there is no band. The leg the
 journey is on is coloured as far as it has got instead, which is where the
 fraction shows. An item's own
@@ -185,5 +205,6 @@ Connectors and rings default to `borderWidthStrong`, so they thicken with the
 tier unless an item sets its own `connectorWidth`.
 
 Under reduced motion the halo holds still and no band travels; the leg the
-journey is on is coloured as far as it has got instead. A `loading` item's
+journey is on is coloured as far as it has got instead. Arrows, if asked for,
+stand still where they are. A `loading` item's
 spinner keeps turning, with its breathing stilled.

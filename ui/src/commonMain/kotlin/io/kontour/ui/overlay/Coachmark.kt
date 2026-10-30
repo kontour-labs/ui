@@ -1017,6 +1017,7 @@ private fun TourMark(step: TourStep, tour: CoachmarkTour, scene: TourScene, morp
             margin = MenuDefaults.ScreenMargin,
             arrow = ArrowSpec(colour = colours.container, panelShape = Theme.shapes.container),
             modifier = faded,
+            fitWhole = true,
         ) {
             CoachmarkBubble(step = step, index = index, tour = tour, colours = colours, modifier = placed)
         }

@@ -9,6 +9,8 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.snapshotFlow
@@ -91,6 +93,12 @@ fun SearchField(
     }
 
     val currentOnSearch by rememberUpdatedState(onSearch)
+    // Read by the clear button's `AnimatedVisibility`, which only needs to know
+    // whether there is text. As `state.text.isNotEmpty()` it read the text
+    // itself, so every keystroke composed the button's slot again — the
+    // visibility, its transition and the button inside it — to be told the
+    // same thing. See the same note in `TextFieldImpl`.
+    val hasText by remember(state) { derivedStateOf { state.text.isNotEmpty() } }
 
     TextFieldImpl(
         state = state,
@@ -122,7 +130,7 @@ fun SearchField(
         trailing = if (clearIcon != null) {
             {
                 AnimatedVisibility(
-                    visible = state.text.isNotEmpty(),
+                    visible = hasText,
                     enter = fadeIn(Theme.motion.tweenFast()) +
                         scaleIn(
                             Theme.motion.springOrTween(Theme.motion.springBouncy),

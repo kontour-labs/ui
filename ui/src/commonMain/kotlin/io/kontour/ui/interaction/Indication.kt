@@ -1,6 +1,7 @@
 package io.kontour.ui.interaction
 
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.AnimationVector1D
 import androidx.compose.foundation.IndicationNodeFactory
 import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.interaction.HoverInteraction
@@ -123,8 +124,17 @@ private class KontourIndicationNode(
 
     // Replaced rather than snapped in [reset], which runs outside a coroutine.
     // The draw reads whichever is current, so the swap is what it draws next.
-    private var overlayAlpha = Animatable(0f)
-    private var scale = Animatable(1f)
+    //
+    // **Null until the first interaction, and null again after a reset.**
+    // Raised 2026-10-29 for 0.5.1. Most controls on a screen are never
+    // pressed, and every one of them made both of these on construction and
+    // both again in `onAttach`: four `Animatable`s, each with its states, its
+    // vectors and its mutex, for a control at rest. A hundred plain
+    // `pressable` boxes composing into a frame cost 11,873 bytes each with
+    // them and 8,769 without, and a theme change, which replaces every node on
+    // screen, 846KB against 543. Null draws what a fresh pair at 0 and 1 drew.
+    private var overlayAlpha: Animatable<Float, AnimationVector1D>? = null
+    private var scale: Animatable<Float, AnimationVector1D>? = null
 
     /** The wash currently being drawn. Press wins over drag, drag over hover. */
     private var overlayColour: Color = Color.Transparent
@@ -228,8 +238,8 @@ private class KontourIndicationNode(
         drags.clear()
         pressedAt = null
         overlayColour = Color.Transparent
-        overlayAlpha = Animatable(0f)
-        scale = Animatable(1f)
+        overlayAlpha = null
+        scale = null
     }
 
     /** Moves the drawing to what [presses], [drags] and [hovers] now say. */
@@ -300,8 +310,16 @@ private class KontourIndicationNode(
         // finished and this is a no-op; a *press* arriving mid-hold joins
         // nothing and so still takes over at once.
         val previous = settle
-        val alpha = overlayAlpha
-        val shrink = scale
+        // Made here, by the first thing that animates them. The draw has been
+        // reading neither, so their frames would not reach it: asked to draw
+        // again, it reads these, and from then on it hears every one.
+        val made = overlayAlpha == null
+        val alpha = overlayAlpha ?: Animatable(0f).also { overlayAlpha = it }
+        val shrink = scale ?: Animatable(1f).also { scale = it }
+        if (made) {
+            indicationAnimationsMade++
+            invalidateDraw()
+        }
         settle = coroutineScope.launch {
             if (releasing) {
                 previous?.join()
@@ -338,8 +356,8 @@ private class KontourIndicationNode(
     }
 
     override fun ContentDrawScope.draw() {
-        val currentScale = scale.value
-        val alpha = overlayAlpha.value
+        val currentScale = scale?.value ?: 1f
+        val alpha = overlayAlpha?.value ?: 0f
 
         // Both inside the same scale, so a pressed control and the wash on top
         // of it are the same shape. Drawn unscaled, the wash painted the
@@ -367,6 +385,15 @@ private class KontourIndicationNode(
         }
     }
 }
+
+/**
+ * How many times an indication node has made the animations a press needs.
+ *
+ * An increment and a field, as `SheetState.anchorRebuilds` is, so the test suite
+ * can ask whether a control nobody touched made any: they are made by the first
+ * interaction a node answers, and not before.
+ */
+internal var indicationAnimationsMade: Int = 0
 
 /** What a press looks like, when a control does not say otherwise. */
 object IndicationDefaults {

@@ -43,7 +43,7 @@ import kotlin.test.assertTrue
  * |---|---|---|
  * | nothing shown | 0 draws | 0 |
  * | entry, no scrim, no backdrop | 1 draw | 0 |
- * | dimmed scrim, **no backdrop** | 1 draw | **11** |
+ * | dimmed scrim, **no backdrop** | 1 draw | **11**, and 0 since |
  * | dimmed scrim, `BackdropStyle.Scale` | 1 draw | 0 |
  *
  * One re-record on the mount frame is structural and the same in every arm,
@@ -59,6 +59,13 @@ import kotlin.test.assertTrue
  * overlay the library itself builds is isolated — but `scrim = Dimmed` with
  * `backdrop = None` is a legal pair a caller can write, and it is the pair that
  * costs a redraw of the entire screen sixty times a second while a scrim fades.
+ *
+ * **And it was not only a caller's.** Changed 2026-10-29 for 0.5.1: a menu, a
+ * popover and a sheet that does not recede have a scrim and no backdrop, and so
+ * does a dialog wherever the backdrop cannot blur — Android 10 and 11, or a
+ * theme without `backdropBlur`. So the scrim has a layer of its own now, and its
+ * fade re-records itself rather than the application: the third row reads 0,
+ * and `ScrimLayerPressureTest` holds it for each of those overlays.
  */
 @OptIn(ExperimentalTestApi::class)
 class BackdropMountPressureTest {
@@ -103,19 +110,23 @@ class BackdropMountPressureTest {
     }
 
     /**
-     * A receding backdrop **isolates** the application; without one it redraws
-     * for every frame a scrim fades.
+     * A receding backdrop **isolates** the application, and so does the scrim
+     * without one.
      *
      * The opposite of what this file was written to check, which is why it is
-     * here. `overlayBackdrop`'s `graphicsLayer` is the only thing standing
+     * here. `overlayBackdrop`'s `graphicsLayer` was the only thing standing
      * between a scrim's fade and the whole screen behind it: with one, the
-     * application is rasterised once and composited; without one it is part of
-     * the host's recording and is re-recorded on every frame of the fade.
+     * application is rasterised once and composited; without one it was part
+     * of the host's recording and was re-recorded on every frame of the fade —
+     * 11 of these 20. The scrim is recorded in a layer of its own now, so the
+     * fade re-records only the scrim, and both arms read nothing.
      *
-     * Every dimmed overlay the library builds asks for `Scale` or `Blur`, so
-     * this is not a defect in a component — it is the cost of a pair a caller
-     * can write, pinned so that nobody makes `BackdropStyle.None` the default
-     * for a dimmed entry on the grounds that a layer sounds expensive.
+     * Pinned both ways, so that nobody makes `BackdropStyle.None` the default
+     * for a dimmed entry on the grounds that a layer sounds expensive, and
+     * nobody takes the scrim's layer away on the same grounds. The arm with no
+     * backdrop also checks that the scrim was still fading while it counted:
+     * nothing redrawn behind a scrim that had stopped animating would say
+     * nothing at all.
      */
     @Test
     fun aRecedingBackdropIsWhatKeepsTheApplicationFromRedrawingBehindAScrim() {
@@ -132,13 +143,17 @@ class BackdropMountPressureTest {
                 "sheet, every frame.",
         )
         assertTrue(
-            exposed.travellingDraws > isolated.travellingDraws,
+            exposed.fadingFrames > 1,
+            "the scrim was part of the way in on ${exposed.fadingFrames} of the $TravellingFrames frames " +
+                "counted, so it was not fading while this counted, and the count below says nothing",
+        )
+        assertEquals(
+            0, exposed.travellingDraws,
             "a dimmed overlay with no backdrop redrew the application " +
-                "${exposed.travellingDraws} times against " +
-                "${isolated.travellingDraws} with one. If these ever match, " +
-                "either the scrim has stopped animating or the layer has stopped " +
-                "isolating, and the second would be a regression this file exists " +
-                "to catch.",
+                "${exposed.travellingDraws} times over $TravellingFrames frames of its scrim fading in. " +
+                "The scrim has a layer of its own so that its fade re-records the scrim and nothing " +
+                "else; this is that layer gone, and the whole screen recorded again under every frame " +
+                "of every menu, popover and dialog that cannot blur.",
         )
     }
 
@@ -170,7 +185,7 @@ class BackdropMountPressureTest {
     }
 
     /** What one arm reports. */
-    private class Pressure(val mountDraws: Int, val travellingDraws: Int)
+    private class Pressure(val mountDraws: Int, val travellingDraws: Int, val fadingFrames: Int = 0)
 
     private fun idle(): Pressure = mount(BackdropStyle.None, ScrimStyle.None, false, show = false)
 
@@ -190,6 +205,8 @@ class BackdropMountPressureTest {
         val app = PhaseCounts()
         var mountDraws = 0
         var travellingDraws = 0
+        var fadingFrames = 0
+        val key = Any()
 
         runComposeUiTest {
             lateinit var host: OverlayHostState
@@ -230,7 +247,7 @@ class BackdropMountPressureTest {
             if (show) {
                 host.show(
                     OverlayEntry(
-                        key = Any(),
+                        key = key,
                         layer = OverlayLayer.Sheet,
                         scrim = scrim,
                         backdrop = backdrop,
@@ -247,12 +264,15 @@ class BackdropMountPressureTest {
             // the scrim's fade and the backdrop's scale. The layer, where there
             // is one, exists throughout; only its transform changes.
             app.reset()
-            repeat(TravellingFrames) { mainClock.advanceTimeByFrame() }
+            repeat(TravellingFrames) {
+                mainClock.advanceTimeByFrame()
+                if (host.fractionOf(key).let { it > 0f && it < 1f }) fadingFrames++
+            }
             waitForIdle()
             travellingDraws = app.draws
         }
 
-        return Pressure(mountDraws, travellingDraws)
+        return Pressure(mountDraws, travellingDraws, fadingFrames)
     }
 
     private companion object {

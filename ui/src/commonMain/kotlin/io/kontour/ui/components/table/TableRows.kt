@@ -34,12 +34,10 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.withTransform
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.IntrinsicMeasurable
 import androidx.compose.ui.layout.IntrinsicMeasureScope
@@ -76,6 +74,7 @@ import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.ProvideContentColour
 import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.Text
+import io.kontour.ui.foundation.drawContentErasing
 import io.kontour.ui.foundation.snappedLineCentre
 import io.kontour.ui.foundation.snappedLineWidth
 import io.kontour.ui.input.insetFocusRing
@@ -590,7 +589,8 @@ private class StartOf(private val width: Int) : Shape {
  * Fades each narrowed pinned cell out over its last few dp, where it is cut, as
  * a cut title fades: whatever is in the cell, its text and its icons alike.
  * Only while they are narrowed, when the group is drawn on a layer of its own
- * for the fade to cut into; never at rest.
+ * for the fade to cut into, opened in the draw that cuts (see
+ * `drawContentErasing`); never at rest.
  *
  * One ramp a pixel wide, made once for the node and stretched over each cut,
  * rather than a gradient made for each pinned column on every frame: the cuts
@@ -598,9 +598,7 @@ private class StartOf(private val width: Int) : Shape {
  * changed.
  */
 private fun Modifier.fadedWhereCut(columns: TableColumnsLayout, narrowing: State<Float>): Modifier {
-    return graphicsLayer {
-        compositingStrategy = if (narrowing.value > 0f) CompositingStrategy.Offscreen else CompositingStrategy.Auto
-    }.drawWithCache {
+    return drawWithCache {
         val ltr = layoutDirection == LayoutDirection.Ltr
         val ramp = Brush.horizontalGradient(
             colors = if (ltr) listOf(Color.Black, Color.Transparent) else listOf(Color.Transparent, Color.Black),
@@ -610,22 +608,26 @@ private fun Modifier.fadedWhereCut(columns: TableColumnsLayout, narrowing: State
         val reach = CutFade.toPx()
         val height = size.height
         onDrawWithContent {
-            drawContent()
             val fraction = narrowing.value
-            if (fraction <= 0f) return@onDrawWithContent
-            for (index in 0 until columns.pinned) {
-                val shown = columns.shownWidth(index, fraction)
-                if (shown >= columns.widths[index]) continue
-                val end = (columns.shownStart(index, fraction) + shown).toFloat()
-                val from = end - minOf(reach, shown.toFloat())
-                val left = if (ltr) from else size.width - end
-                val right = if (ltr) end else size.width - from
-                if (right <= left) continue
-                withTransform({
-                    translate(left = left)
-                    scale(scaleX = right - left, scaleY = 1f, pivot = Offset.Zero)
-                }) {
-                    drawRect(brush = ramp, size = Size(1f, height), blendMode = BlendMode.DstIn)
+            if (fraction <= 0f) {
+                drawContent()
+                return@onDrawWithContent
+            }
+            drawContentErasing {
+                for (index in 0 until columns.pinned) {
+                    val shown = columns.shownWidth(index, fraction)
+                    if (shown >= columns.widths[index]) continue
+                    val end = (columns.shownStart(index, fraction) + shown).toFloat()
+                    val from = end - minOf(reach, shown.toFloat())
+                    val left = if (ltr) from else size.width - end
+                    val right = if (ltr) end else size.width - from
+                    if (right <= left) continue
+                    withTransform({
+                        translate(left = left)
+                        scale(scaleX = right - left, scaleY = 1f, pivot = Offset.Zero)
+                    }) {
+                        drawRect(brush = ramp, size = Size(1f, height), blendMode = BlendMode.DstIn)
+                    }
                 }
             }
         }

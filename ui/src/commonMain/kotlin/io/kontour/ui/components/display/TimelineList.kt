@@ -250,6 +250,15 @@ class TimelineListScope internal constructor() : TimelineRowScope(filledByDefaul
  *   and the leg it is on carries a band travelling towards the next stop. Null
  *   for a list that is not being travelled. Each leg is split between two rows,
  *   halfway, which is the middle of the leg when the rows are the same height.
+ * @param progressMotion How the leg the journey is on moves: a band
+ *   sweeping it, one arrow travelling it towards the next stop, or a run of
+ *   them moving on together. See [TimelineMotion].
+ * @param progressReversed Whether the journey runs back up the list, from its
+ *   last stop towards its first: a return trip on the same stops. [progress] is
+ *   still counted from the first stop; the stops reached are the ones at and
+ *   after it, and the band and the arrows run back towards the first. Changed
+ *   while the arrows move, they turn in place, with a bounce, and go the other
+ *   way.
  * @param leadIn A leg arriving at the first stop from above.
  * @param leadOut A leg leaving the last stop downwards.
  * @param colours The nodes', rail's and progress's colours, for stops that do
@@ -265,6 +274,8 @@ fun TimelineList(
     enabled: Boolean = true,
     style: TimelineListStyle = TimelineListStyle.Plain,
     progress: Float? = null,
+    progressMotion: TimelineMotion = TimelineMotion.Band,
+    progressReversed: Boolean = false,
     leadIn: ConnectorStyle = ConnectorStyle.None,
     leadOut: ConnectorStyle = ConnectorStyle.None,
     colours: TimelineColours = TimelineDefaults.colours(),
@@ -275,7 +286,9 @@ fun TimelineList(
 ) {
     val rows = timelineRows(TimelineListScope().apply(content).stops, leadIn, leadOut)
     Column(modifier.fillMaxWidth()) {
-        rows.forEach { TimelineListRow(it, enabled, style, progress, colours, containerColour, nodeSize, gutterWidth) }
+        rows.forEach {
+            TimelineListRow(it, enabled, style, progress, progressMotion, progressReversed, colours, containerColour, nodeSize, gutterWidth)
+        }
     }
 }
 
@@ -310,6 +323,8 @@ fun <T> LazyListScope.timelineList(
     enabled: Boolean = true,
     style: TimelineListStyle = TimelineListStyle.Plain,
     progress: Float? = null,
+    progressMotion: TimelineMotion = TimelineMotion.Band,
+    progressReversed: Boolean = false,
     leadIn: ConnectorStyle = ConnectorStyle.None,
     leadOut: ConnectorStyle = ConnectorStyle.None,
     colours: TimelineColours? = null,
@@ -329,10 +344,12 @@ fun <T> LazyListScope.timelineList(
             val resolved = colours ?: TimelineDefaults.colours()
             val ground = containerColour.takeOrElse { Theme.colours.surfaceSunken }
             if (mine.size == 1) {
-                TimelineListRow(mine[0], enabled, style, progress, resolved, ground, nodeSize, gutterWidth)
+                TimelineListRow(mine[0], enabled, style, progress, progressMotion, progressReversed, resolved, ground, nodeSize, gutterWidth)
             } else {
                 Column {
-                    mine.forEach { TimelineListRow(it, enabled, style, progress, resolved, ground, nodeSize, gutterWidth) }
+                    mine.forEach {
+                        TimelineListRow(it, enabled, style, progress, progressMotion, progressReversed, resolved, ground, nodeSize, gutterWidth)
+                    }
                 }
             }
         }
@@ -386,16 +403,27 @@ internal fun TimelineRow.rail(
     rail: Color,
     progressColour: Color,
     defaultWidth: Dp,
+    motion: TimelineMotion = TimelineMotion.Band,
+    reversed: Boolean = false,
 ): RailRow {
-    val here = stopProgress(progress, index)
+    val here = stopProgress(progress, index, reversed)
     fun RailSegment.leg(towards: LegAt, leg: Int, from: Float) = RailLeg(
         start = LegEnd(0, LegAt.Node, RunEnd.Mark),
         end = LegEnd(0, towards, RunEnd.Seam),
         style = style,
         colour = colour.takeOrElse { rail },
         width = width.takeOrElse { defaultWidth },
-        travel = stopProgress(progress, leg)?.let {
-            LegTravel(from = from, to = 0.5f, passed = it.legPassed, band = it.legBand, colour = progressColour)
+        travel = stopProgress(progress, leg, reversed)?.let {
+            LegTravel(
+                from = from,
+                to = 0.5f,
+                passed = it.legPassed,
+                band = it.legBand,
+                colour = progressColour,
+                arrows = motion != TimelineMotion.Band,
+                stream = motion == TimelineMotion.Arrows,
+                reversed = reversed,
+            )
         },
     )
     return RailRow(
@@ -423,6 +451,8 @@ private fun TimelineListRow(
     listEnabled: Boolean,
     style: TimelineListStyle,
     progress: Float?,
+    motion: TimelineMotion,
+    reversed: Boolean,
     colours: TimelineColours,
     containerColour: Color,
     nodeSize: Dp,
@@ -432,7 +462,7 @@ private fun TimelineListRow(
     val defaultWidth = Theme.sizing.borderWidthStrong
     RailListRow(
         stop = row.stop,
-        rail = row.rail(progress, colours.node, colours.rail, colours.progress, defaultWidth),
+        rail = row.rail(progress, colours.node, colours.rail, colours.progress, defaultWidth, motion, reversed),
         listEnabled = listEnabled,
         lanes = 1,
         laneWidth = gutterWidth,

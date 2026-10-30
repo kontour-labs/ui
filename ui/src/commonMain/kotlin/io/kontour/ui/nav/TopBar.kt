@@ -52,6 +52,7 @@ import io.kontour.ui.components.list.listItemSlots
 import io.kontour.ui.foundation.CentredBar
 import io.kontour.ui.foundation.CentredBarTitle
 import io.kontour.ui.foundation.ContentSlot
+import io.kontour.ui.foundation.drawContentErasing
 import io.kontour.ui.foundation.HorizontalDivider
 import io.kontour.ui.foundation.LocalContainerColour
 import io.kontour.ui.foundation.ProvideContentColour
@@ -67,6 +68,8 @@ import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.structuralEqualityPolicy
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -77,8 +80,6 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
@@ -389,6 +390,7 @@ fun TopBar(
                 TopBarStyle.Large, TopBarStyle.Hero -> LargeBar(
                     progress = { collapseState?.progress ?: collapseProgress },
                     onMeasured = { shrink, travel -> collapseState?.measured(shrink, travel) },
+                    onSized = { short -> collapseState?.shortOfOpen = short },
                     // The first line is left out when it would be empty, so the
                     // large title takes the space the back button would have
                     // had: a bar with nothing to put on that line was drawing
@@ -562,6 +564,7 @@ private fun HeroBar(
                             LargeBar(
                                 progress = progress,
                                 onMeasured = { shrink, travel -> collapseState?.measured(shrink, travel) },
+                                onSized = { short -> collapseState?.shortOfOpen = short },
                                 hasControls = onBack != null || navigation != null || actions != null,
                                 leading = { BarNavigation(onBack, backLabel, backIcon, navigation) },
                                 actions = actions,
@@ -837,6 +840,8 @@ private const val HeroFadeTo = 0.9f
 private fun LargeBar(
     progress: () -> Float,
     onMeasured: (shrink: Float, travel: Float) -> Unit,
+    /** How many pixels short of open it is laid out, at [progress]. */
+    onSized: (short: Int) -> Unit,
     hasControls: Boolean,
     leading: @Composable () -> Unit,
     actions: (@Composable RowScope.() -> Unit)?,
@@ -898,25 +903,30 @@ private fun LargeBar(
                             // and only while there is a line to take out. A
                             // buffer the whole time was an offscreen pass on
                             // every frame of every collapse, for a cut that most
-                            // titles, of one line, never make.
-                            .graphicsLayer {
-                                compositingStrategy = if (cut.y > 0f && secondLineGone(progress()) > 0f) {
-                                    CompositingStrategy.Offscreen
-                                } else {
-                                    CompositingStrategy.Auto
-                                }
-                            }
+                            // titles, of one line, never make. Opened in the draw
+                            // that takes the line out: see `drawContentErasing`.
+                            //
+                            // The collapse read only for a title with a second
+                            // line to take out. The title's layer moves and
+                            // scales it, and a read here, for a title of one
+                            // line, drew all of it over again on every frame of
+                            // every collapse for a cut it never makes: a hero's
+                            // title, 44 times in 40 frames, and twice now.
+                            // `TopBarCollapseCostTest`.
                             .drawWithContent {
-                                drawContent()
-                                val gone = secondLineGone(progress())
-                                if (gone > 0f && cut.y > 0f && cut.y < size.height) {
-                                    drawRect(
-                                        color = Color.Black,
-                                        topLeft = Offset(0f, cut.y),
-                                        size = Size(size.width, size.height - cut.y),
-                                        alpha = gone,
-                                        blendMode = BlendMode.DstOut,
-                                    )
+                                val gone = if (cut.y > 0f && cut.y < size.height) secondLineGone(progress()) else 0f
+                                if (gone > 0f) {
+                                    drawContentErasing {
+                                        drawRect(
+                                            color = Color.Black,
+                                            topLeft = Offset(0f, cut.y),
+                                            size = Size(size.width, size.height - cut.y),
+                                            alpha = gone,
+                                            blendMode = BlendMode.DstOut,
+                                        )
+                                    }
+                                } else {
+                                    drawContent()
                                 }
                             },
                     ) {
@@ -1024,6 +1034,7 @@ private fun LargeBar(
         }
         val p = progress().coerceIn(0f, 1f)
         val height = (expanded + (collapsed - expanded) * p).roundToInt()
+        onSized(expanded - height)
 
         layout(width, height) {
             // The first line: a row, and the whole collapsed bar by the end.
@@ -1219,11 +1230,27 @@ class TopBarCollapseState internal constructor(initialProgress: Float) {
     /** 0 fully open, 1 collapsed to a single line. */
     val progress: Float
         get() {
-            val scrolled = follows
-            if (scrolled != null) return collapseProgress(scrolled() + pushed(), followedTravel)
+            if (follows != null) return collapseProgress(followedScroll.value + pushed(), followedTravel)
             if (push <= 0f || travel <= 0f) return own
             return (own + pushed() / travel).coerceIn(0f, 1f)
         }
+
+    /**
+     * How far the followed content has scrolled, no further than the collapse
+     * goes: past [followedTravel] the bar is collapsed however much further the
+     * content goes, and the progress is 1 either way.
+     *
+     * Derived, so what reads [progress] is told of a change only when there is
+     * one. The scroll itself changes on every frame the content moves, and the
+     * bar's layout and its title's drawing read it: once the bar had collapsed,
+     * every frame of the rest of the page's scroll laid the bar out again and
+     * redrew its title, for a progress that stayed at 1. Counted 2026-10-29 for
+     * 0.5.1, forty frames of a list going on under a collapsed following bar
+     * redrew the title forty times; now none. `TopBarCollapseCostTest`.
+     */
+    private val followedScroll = derivedStateOf(structuralEqualityPolicy()) {
+        minOf(follows?.invoke() ?: 0f, followedTravel)
+    }
 
     /**
      * How far a finger has pushed past the content's end, in the finger's own
@@ -1458,12 +1485,28 @@ class TopBarCollapseState internal constructor(initialProgress: Float) {
     var openHeight: Dp by mutableStateOf(Dp.Unspecified)
         internal set
 
+    /**
+     * How many whole pixels short of open the bar was as it last measured: what
+     * [laidOut] adds back to the height it is told. Not state, as [shrink].
+     */
+    internal var shortOfOpen: Int = 0
+
     /** The bar laid out [height] pixels tall at its present [progress]. */
     internal fun laidOut(height: Int, density: Density) {
         // In whole pixels: worked back from a height rounded to a pixel at each
         // step of a collapse, it came out a fraction different every frame,
         // and every fraction moved the padding of the list under it.
-        val open = with(density) { (height + shrink * progress.coerceIn(0f, 1f)).roundToInt().toDp() }
+        //
+        // And added back as the whole pixels the bar was short by, rather than
+        // as the collapse's share of `shrink`, rounded again. Rounded twice, a
+        // height whose share came to exactly half a pixel came out a pixel
+        // taller, so the open height went back and forth by a pixel every few
+        // frames of a collapse: the padding of the list under it with it, and
+        // whatever read it — the screen round the list, as a rule — composed
+        // again each time. Counted 2026-10-29 for 0.5.1: the screen composed
+        // 14 times in a 28-frame collapse, and laid the bar's titles out again
+        // each time; now not at all. `TopBarCollapseCostTest`.
+        val open = with(density) { (height + shortOfOpen).toDp() }
         if (openHeight == Dp.Unspecified || with(density) { (open - openHeight).toPx() }.let { kotlin.math.abs(it) >= 1f }) openHeight = open
     }
 

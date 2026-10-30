@@ -27,10 +27,32 @@ without the modifier at all.
 stops — right for a live status line, wrong for a list, where a dozen rows all
 scrolling at once is a screen nobody can read.
 
+## Dragging it
+
+<!--sample:MarqueeDraggable-->
+```kotlin
+Text(
+    text = stop.name,
+    maxLines = 1,
+    modifier = Modifier.marquee(draggable = true),
+)
+```
+
+With `draggable = true`, a finger or a mouse can pull the text sideways and
+read it at its own pace, instead of waiting for the next pass. Holding it stops
+it. Let go and it coasts, then, after the pause, carries on from where it was
+left and finishes the pass it was in. With no passes left it goes back the
+shorter way to its start, so it never settles part-way through the text.
+
+It is off by default because, when the text is too wide, it takes the sideways
+drag within the label from anything around it that also swipes sideways, such
+as a pager or a row's swipe actions. Text that fits takes nothing.
+
 It wraps foundation's `basicMarquee` rather than replacing it. That already
 measures, already stops when the content fits, already handles right-to-left.
 What it does not have is this library's pace or any knowledge of `reduceMotion`,
-and those are the two things worth owning.
+and those are the two things worth owning. A draggable marquee is the exception: pulling the text needs the
+offset, which `basicMarquee` keeps to itself, so that one scrolls on its own.
 
 ---
 
@@ -42,6 +64,10 @@ and this one stops, because it is the only animation here that never ends.
 Perpetual motion at the edge of vision is the specific thing the preference
 exists to stop, and there is no gentler version of "forever". The text truncates
 instead, which is what it would have done without the modifier.
+
+A draggable marquee still drags under reduced motion, because motion the user
+makes is not motion done to them, and it never sets off by itself. Until it is
+first pulled, the text is truncated just the same.
 
 Scrolling changes nothing about what is announced: the full text is in the node
 either way, so a screen reader gets all of it without waiting.

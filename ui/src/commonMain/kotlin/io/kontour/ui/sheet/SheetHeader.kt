@@ -1,6 +1,5 @@
 package io.kontour.ui.sheet
 
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -59,6 +58,7 @@ import io.kontour.ui.input.Cursor
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.theme.Theme
 import kotlinx.coroutines.launch
+import io.kontour.ui.theme.animateComponentColour
 
 /**
  * The grab bar at the top of a sheet.
@@ -99,9 +99,9 @@ fun DragHandle(
         animationSpec = motion.springOrTween(motion.springBouncy),
         label = "dragHandleWidth",
     )
-    val colour by animateColorAsState(
-        targetValue = if (engaged) Theme.colours.contentMuted else Theme.colours.outlineStrong,
-        animationSpec = motion.tweenFast(),
+    val colour by animateComponentColour(
+        target = if (engaged) Theme.colours.contentMuted else Theme.colours.outlineStrong,
+        spec = motion.tweenFast(),
         label = "dragHandleColor",
     )
 

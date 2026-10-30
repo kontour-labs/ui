@@ -17,6 +17,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.PathOperation
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.StrokeCap
@@ -69,6 +70,35 @@ internal class DrawConfig(
 
     /** Where this frame's marked range holds its marks whole: see [MarkFocus]. */
     val focus = MarkFocus()
+
+    /** Where the data was last found to be, for the words to keep clear of: see [ObstacleCache]. */
+    val obstacles = ObstacleCache()
+
+    /**
+     * Each line pattern's dashes, at a line's width and at a rule's, made
+     * once for the chart. Raised 2026-10-29 for 0.5.1: each was made again
+     * for every rule and every dashed line on every frame drawn, and a path
+     * effect is a native object, on Android and in Skia alike, each with its
+     * own cleaner to register and run.
+     */
+    private val lineDashes = HashMap<LinePattern, PathEffect?>()
+    private val ruleDashes = HashMap<LinePattern, PathEffect?>()
+
+    /** [pattern]'s dashes for a line [lineWidth] wide; `null` for a solid one. */
+    fun lineEffect(pattern: LinePattern): PathEffect? = lineDashes.getOrPut(pattern) { pattern.effect(lineWidth) }
+
+    /** [pattern]'s dashes for a rule, twice the [hairline] to a dash; `null` for a solid one. */
+    fun ruleEffect(pattern: LinePattern): PathEffect? = ruleDashes.getOrPut(pattern) { pattern.effect(hairline * 2) }
+
+    /**
+     * A path for one shape drawn on its own, a region, the marked range, the
+     * selected place's wash, a rule label's backing or pin, emptied for each:
+     * each of them was a path of its own, made every frame.
+     */
+    private val single = Path()
+
+    /** [single], emptied. */
+    fun singleShape(): Path = single.apply { rewind() }
 }
 
 /**
@@ -368,7 +398,7 @@ internal fun DrawScope.drawChart(
         val rect = regionRect(region, m.up(region.onEnd), chart)
         if (rect.width <= 0f || rect.height <= 0f) return@forEach
         val colour = region.style?.colour?.takeIf { it != Color.Unspecified } ?: colours.selection
-        val path = Path()
+        val path = config.singleShape()
         addShape(path, rect, config.corners.all)
         drawPath(path, colour, alpha = RegionOpacity)
         // At the high tier its edge is drawn too, so it is a shape and not
@@ -383,7 +413,7 @@ internal fun DrawScope.drawChart(
     val pins = mutableListOf<Triple<Rect, RulePin, Color>>()
     chart.rules.forEachIndexed { index, rule ->
         val colour = rule.style?.colour?.takeIf { it != Color.Unspecified } ?: colours.axis
-        val effect = (rule.style?.line ?: LinePattern.Dashed).effect(config.hairline * 2)
+        val effect = config.ruleEffect(rule.style?.line ?: LinePattern.Dashed)
         val stroke = config.hairline * 1.5f
         rule.y?.let { value ->
             val y = m.up(rule.onEnd).py(value)
@@ -427,7 +457,7 @@ internal fun DrawScope.drawChart(
         val edge = config.hairline * 1.5f
         when {
             rect.width > 0f && rect.height > 0f -> {
-                val shape = Path()
+                val shape = config.singleShape()
                 addShape(shape, rect, config.corners.all)
                 drawPath(shape, colours.selection, alpha = MarkedOpacity)
                 drawPath(shape, colours.selection, style = Stroke(edge))
@@ -455,7 +485,7 @@ internal fun DrawScope.drawChart(
     if (selected != null && chart.selectsBands) {
         val band = cellBand(chart.placeAxis, chart.step, m.unitX)
         val x = m.px(selected)
-        val wash = Path()
+        val wash = config.singleShape()
         addShape(wash, Rect(x - band / 2, plot.top, x + band / 2, plot.bottom), config.corners.all)
         // In the labels' ink, which stands off the ground by as much in a
         // dark theme as in a light one: the axis's grey all but vanished on
@@ -511,7 +541,7 @@ internal fun DrawScope.drawChart(
     // move begins, and only rides its line up or down on the way.
     val needed = frame.regionLabels.any { it != null } || frame.ruleLabels.any { it != null }
     val settledMapper = if (settled === chart) m else Mapper(frame, settled.x, settled.y, settled.yEnd)
-    val data = if (needed) obstaclesOf(settled, settledMapper, config) else null
+    val data = if (needed) config.obstacles.of(settled, settledMapper, config.pointSize) else null
     fun regionSpots(rect: Rect, w: Float, h: Float): List<Offset> {
         val start = if (frame.rtl) rect.right - inset - w else rect.left + inset
         val end = if (frame.rtl) rect.left + inset else rect.right - inset - w
@@ -549,13 +579,13 @@ internal fun DrawScope.drawChart(
             ?: 0
         val at = spotsAt(y)[choice]
         // On the page's ground, so it is read over whatever it could not miss.
-        val backing = Path()
+        val backing = config.singleShape()
         addShape(backing, Rect(at.x - inset / 2, at.y, at.x + w + inset / 2, at.y + h), config.corners.all)
         drawPath(backing, colours.ground, alpha = 0.85f)
         drawText(label, colours.label, at)
     }
     pins.forEach { (rect, pin, colour) ->
-        val capsule = Path()
+        val capsule = config.singleShape()
         addShape(capsule, rect, config.pinShape)
         drawPath(capsule, colours.ground)
         // Edged in its rule's colour, so a pin is told by the line it heads.
@@ -572,7 +602,7 @@ internal fun DrawScope.drawChart(
             // middle of them crossed out the values written in them.
             val band = cellBand(chart.placeAxis, chart.step, m.unitX)
             val x = m.px(selected)
-            val ring = Path()
+            val ring = config.singleShape()
             addShape(ring, Rect(x - band / 2, plot.top, x + band / 2, plot.bottom), config.corners.all)
             drawPath(ring, colours.ground, style = Stroke(stroke * 3))
             drawPath(ring, colours.selection, style = Stroke(stroke * 2))
@@ -646,12 +676,14 @@ private fun DrawScope.drawLineMark(layer: Layer, look: SeriesLook, m: Mapper, co
         val y = layer.up[i]
         if (y.isNaN()) null else Offset(m.px(layer.across[i]), m.py(y))
     }
-    val path = linePath(decimate(points, m.frame.plot.width), layer.mark.interpolation)
+    // Into one of the chart's own paths, emptied, rather than a new one a
+    // line every frame.
+    val path = linePath(decimate(points, m.frame.plot.width), layer.mark.interpolation, into = config.marks.empty(2))
     val stroke = Stroke(
         width = config.lineWidth,
         cap = StrokeCap.Round,
         join = StrokeJoin.Round,
-        pathEffect = look.line.effect(config.lineWidth),
+        pathEffect = config.lineEffect(look.line),
     )
     // Cut at a marked range's edges, the same path both times, so its dashes
     // run on across the cut.
@@ -694,7 +726,7 @@ private fun DrawScope.drawArea(
     val stroke = if (band) {
         null
     } else {
-        Stroke(width = config.lineWidth, cap = StrokeCap.Round, join = StrokeJoin.Round, pathEffect = look.line.effect(config.lineWidth))
+        Stroke(width = config.lineWidth, cap = StrokeCap.Round, join = StrokeJoin.Round, pathEffect = config.lineEffect(look.line))
     }
     splitAt(focus, alpha) { part ->
         fill(fillPath, look, config, part, opacity = opacity)
@@ -1219,14 +1251,48 @@ private fun DrawScope.drawLabels(frame: ChartFrame, m: Mapper, colours: ChartCol
  * line, an area's or a band's top and every few pixels between, each symbol,
  * and each bar's box.
  */
-private class Obstacles(private val points: List<Offset>, private val boxes: List<Rect>) {
+internal class Obstacles(private val points: List<Offset>, private val boxes: List<Rect>) {
     fun hit(rect: Rect): Boolean = points.any { rect.contains(it) } || boxes.any { it.overlaps(rect) }
 }
 
-private fun obstaclesOf(chart: ResolvedChart, chartMapper: Mapper, config: DrawConfig): Obstacles {
+/**
+ * The [Obstacles] last found, kept with the chart and the plot they were found
+ * on, so that a frame drawn over the same settled chart in the same plot does
+ * not find them all again.
+ *
+ * Raised 2026-10-29 for 0.5.1: a chart with a labelled rule or region found
+ * them on every frame it drew, a point every few pixels along each line, and
+ * a chart redraws on every frame of a range being dragged out and of a place
+ * being dragged along. They are found from the chart a move is heading to,
+ * which stays the same while a range is marked, so each of those frames found
+ * again what had not moved: a third of what a frame of a range dragged across
+ * two lines and a labelled rule made, 32 KB down to 21 KB.
+ */
+internal class ObstacleCache {
+    private var chart: ResolvedChart? = null
+    private var plot: Rect? = null
+    private var rtl = false
+    private var step = 0f
+    private var found: Obstacles? = null
+
+    /** Where [chart]'s data is through [mapper], a point every [step] along a line: the last found, if found the same way. */
+    fun of(chart: ResolvedChart, mapper: Mapper, step: Float): Obstacles {
+        val frame = mapper.frame
+        val last = found
+        if (last != null && chart === this.chart && frame.plot == plot && frame.rtl == rtl && step == this.step) return last
+        val now = obstaclesOf(chart, mapper, step)
+        found = now
+        this.chart = chart
+        plot = frame.plot
+        rtl = frame.rtl
+        this.step = step
+        return now
+    }
+}
+
+private fun obstaclesOf(chart: ResolvedChart, chartMapper: Mapper, step: Float): Obstacles {
     val points = ArrayList<Offset>()
     val boxes = ArrayList<Rect>()
-    val step = config.pointSize
     chart.layers.forEach { layer ->
         val m = chartMapper.up(layer.mark.onEnd)
         when (layer.mark.kind) {

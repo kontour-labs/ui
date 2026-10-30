@@ -21,7 +21,8 @@ IconButton(
 var open by remember { mutableStateOf(false) }
 Box {
     Button(onClick = { open = !open }, variant = ButtonVariant.Secondary) { +"Recentre" }
-    Tooltip(visible = open) { +"Bring the map back to you" }
+    // A press anywhere else asks it to go.
+Tooltip(visible = open, onDismissRequest = { open = false }) { +"Bring the map back to you" }
 }
 ```
 
@@ -29,6 +30,16 @@ Most callers want [`Modifier.tooltip`](#modifiertooltip) rather than the
 component — it attaches to the control, tracks hover and focus, and honours the
 tracked [input modality](../overlays.md#input-modality) so a tooltip never
 appears from a touch that was really a tap.
+
+**A press anywhere else puts it away.** Whatever opened a tooltip — a long
+press, a hover, focus — a press anywhere but on its control or on the tooltip
+closes it, and the press is not taken: it goes on to do what it was aimed at,
+so a tap on the button beside the tooltip presses that button too. A tap on
+the tooltip leaves it open, as a plain tooltip does on every platform. On
+touch, a tap on the control itself closes it as well, and presses the control;
+the long press that opened it does not. The component asks rather than closes, as a dialog does:
+a press elsewhere calls its `onDismissRequest`, and a tooltip whose caller
+passes none stays until the caller hides it.
 
 ## `Modifier.tooltip`
 
@@ -67,9 +78,13 @@ Box {
 }
 ```
 
-A card opens on the side it is asked for only where it fits whole, and on the
-other side where it does not, rather than squeezing its lines into the room
-that is left.
+**A tooltip opens where the whole of it fits.** `side` is where it goes when
+it fits there. When it does not, it opens on the other side, and then beside
+the control, the roomier side first, rather than squeezing its lines into the
+room that is left. It scrolls only when there is no side of the control with
+room for all of it, which at a phone's size and large type can still happen. A
+card asks more of a side before it opens there: the width of a card, so its
+rows do not break their names over two lines.
 
 ---
 

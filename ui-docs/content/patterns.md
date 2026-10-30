@@ -367,6 +367,77 @@ The library's own components take their moving values this way — a top bar's
 collapse, a sheet's offset, a pull's distance — so this is about your code
 around them.
 
+### A colour that follows state: animate the state, mix the theme's colours
+
+A colour animated towards one of the theme's lags a theme switch. The theme's
+new colour is a new target, so the colour sets off after it over its own
+150ms, behind a page that has already changed, and recomposes on each frame of
+the way:
+
+```kotlin
+// Not this: a theme switch changes the target, and the dot fades on its own
+// after the page around it has changed.
+val fill by animateColorAsState(if (live) Theme.colours.accent.container else Theme.colours.surfaceRaised)
+```
+
+Animate the state instead, from 0 to 1, and mix the theme's two colours by it
+where it is drawn:
+
+<!--sample:PatternStateColour-->
+```kotlin
+// The state is what animates, not the colour. The two ends are the theme's
+// on this frame, so a theme switch moves them at once and only a change of
+// `live` fades; mixed in the draw, so the fade composes nothing.
+val lit by animateFloatAsState(if (live) 1f else 0f, Theme.motion.tweenFast())
+val off = Theme.colours.surfaceRaised
+val on = Theme.colours.accent.container
+Box(Modifier.size(12.dp).drawBehind { drawCircle(lerp(off, on, lit)) })
+```
+
+A theme switch moves both ends at once, with the theme, on its frames; a change
+of `live` fades as before. The library's own controls do this from 0.5.1: a
+button, a switch, a tab or a chip changes with the theme, and fades only for a
+change of its own.
+
+### An offscreen layer costs its whole area, every frame
+
+`graphicsLayer` with an alpha below 1, a `compositingStrategy` of `Offscreen`, or
+a blend mode that erases each draws the content into a buffer of its own first,
+then onto the screen. Round a full-height list that is a second full-screen pass
+on every frame it scrolls, which a slow phone feels:
+
+```kotlin
+// Not this: the whole list drawn offscreen on every frame, to fade 24dp at
+// each end.
+LazyColumn(
+    Modifier
+        .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+        .drawWithContent {
+            drawContent()
+            drawRect(Brush.verticalGradient(0f to Color.Transparent, 0.05f to Color.Black), blendMode = BlendMode.DstIn)
+        },
+    state = list,
+) { … }
+```
+
+<!--sample:PatternFadedList-->
+```kotlin
+val list = rememberLazyListState()
+// The list's own fade: a layer on each 24dp edge, and the rows between
+// them drawn straight on, as on a list with no fade at all.
+LazyColumn(Modifier.fillMaxSize().fadingEdges(list), state = list) {
+    items(stops, key = { it.name }) { stop ->
+        ListItem(onClick = { openStop(stop.name) }) { +stop.name }
+    }
+}
+```
+
+`Modifier.fadingEdges` puts a layer on each fade strip, only while there is
+something past that edge, and draws the rows between them straight on: a
+scrolling frame of a full-height list took 78ms in the software renderer with
+the whole list in a layer, and takes 15ms. Keep any layer of your own to what
+needs it in the same way, and on only while it does.
+
 ### A gesture's pointer block holds no coroutine of its own
 
 Kotlin/Native compiles a gesture's `awaitPointerEventScope` block differently

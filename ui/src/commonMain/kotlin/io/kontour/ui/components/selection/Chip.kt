@@ -8,7 +8,6 @@ import io.kontour.ui.a11y.optionalBorder
 import io.kontour.ui.a11y.contrastEdge
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -57,6 +56,8 @@ import io.kontour.ui.interaction.rememberToggleFeedback
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.LocalContentColour
+import io.kontour.ui.foundation.LocalContentColourInMotion
+import io.kontour.ui.foundation.ProvideContentColourInMotion
 import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.RowContentScope
 import io.kontour.ui.foundation.contentScope
@@ -71,6 +72,7 @@ import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.togetherWith
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.invisible
+import io.kontour.ui.theme.animateComponentColour
 
 private val ChipHeight = 34.dp
 
@@ -250,31 +252,33 @@ fun FilterChip(
     // tint alone is 1.25:1 from the page.
     val selectedBorder = selectionEdge()?.let { colours.accent.solid } ?: colours.outlineStrong.invisible()
 
-    val container by animateColorAsState(
-        targetValue = when {
+    val container by animateComponentColour(
+        target = when {
             !enabled -> colours.accent.container.invisible()
             selected -> colours.accent.container
             else -> colours.accent.container.invisible()
         },
-        animationSpec = motion.tweenFast(),
+        spec = motion.tweenFast(),
         label = "chipContainer",
     )
-    val contentColour by animateColorAsState(
-        targetValue = when {
-            !enabled -> colours.contentDisabled
-            selected -> colours.accent.onContainer
-            else -> colours.content
-        },
-        animationSpec = motion.tweenFast(),
+    val contentTarget = when {
+        !enabled -> colours.contentDisabled
+        selected -> colours.accent.onContainer
+        else -> colours.content
+    }
+    // Not read here: the label reads it as it draws. See `ProvideContentColourInMotion`.
+    val contentColour = animateComponentColour(
+        target = contentTarget,
+        spec = motion.tweenFast(),
         label = "chipContent",
     )
-    val borderColour by animateColorAsState(
-        targetValue = when {
+    val borderColour by animateComponentColour(
+        target = when {
             !enabled -> colours.outline
             selected -> selectedBorder
             else -> colours.outlineStrong
         },
-        animationSpec = motion.tweenFast(),
+        spec = motion.tweenFast(),
         label = "chipBorder",
     )
 
@@ -316,7 +320,7 @@ fun FilterChip(
         // it in one frame when the tick leaves composition. See `AnimatedSlot`.
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        CompositionLocalProvider(LocalContentColour provides contentColour) {
+        ProvideContentColourInMotion(contentColour, towards = contentTarget) {
             if (selectedIcon != null) {
                 AnimatedSlot(
                     visible = selected,
@@ -644,7 +648,10 @@ private fun ChipTag(
         horizontalArrangement = Arrangement.spacedBy(ChipTagGap),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        CompositionLocalProvider(LocalContentColour provides ink) {
+        // Its own ink, which stays put while the chip's label fades round it.
+        // Said outright, because a disabled chip's label fades to this same
+        // colour, and an ink that matched a fade's would be taken to be in it.
+        CompositionLocalProvider(LocalContentColour provides ink, LocalContentColourInMotion provides null) {
             ProvideTextStyle(Theme.typography.labelSmall) {
                 contentScope(iconSize = ChipTagIconSize, maxLines = 1, content = content)
             }

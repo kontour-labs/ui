@@ -4,7 +4,8 @@ import kotlin.math.min
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.layout.layout
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
@@ -57,6 +58,11 @@ import io.kontour.ui.theme.Tone
 import kotlinx.coroutines.delay
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
+import io.kontour.ui.input.onPressOutsideParent
+import io.kontour.ui.input.onPressOutside
+import io.kontour.ui.input.AlsoInside
+import io.kontour.ui.input.alsoInside
+import androidx.compose.ui.input.pointer.PointerEventPass
 
 /** The timing [Modifier.tooltip] takes by default. */
 object TooltipDefaults {
@@ -89,7 +95,12 @@ object TooltipDefaults {
  * |---|---|---|
  * | Mouse | Hovering for [TooltipDefaults.HoverDelay] | Moving away |
  * | Keyboard | Focus arriving | Focus leaving |
- * | Touch / stylus | A long press | A timeout |
+ * | Touch / stylus | A long press | A timeout, or a tap |
+ *
+ * Whatever opened it, a press anywhere but on the control or the tooltip puts it
+ * away, and goes on to do what it was aimed at: a tap on the button beside it
+ * presses the button too. A tap on the control itself puts away a touch tooltip
+ * as well; a tap on the tooltip leaves it, as a plain tooltip does everywhere.
  *
  * A hover-only tooltip is unreachable on a phone; a long-press-only tooltip
  * never fires for a mouse. Both are wired, and neither fires for the other's
@@ -151,6 +162,8 @@ fun Modifier.tooltip(
 
     var bounds by remember { mutableStateOf<Rect?>(null) }
     var showing by remember { mutableStateOf(false) }
+    // The bubble is not elsewhere: a tap on it leaves it open.
+    val bubble = remember { AlsoInside() }
 
     LaunchedEffect(hovered, focused, modality, enabled) {
         if (!enabled) {
@@ -181,31 +194,61 @@ fun Modifier.tooltip(
         side = side,
         alignment = alignment,
         onDismissRequest = { showing = false },
+        bubble = bubble,
     )
 
     return this
         .anchorBounds { bounds = it }
+        // A press anywhere else puts it away, and is not taken: it goes on to
+        // what it was aimed at. A touch tooltip waited out its four seconds
+        // or a tap on the control itself, and was in the way of whatever the
+        // reader turned to next. Asked for for 0.5.1. Not a press on the
+        // bubble, which leaves it open, as a plain tooltip anywhere does:
+        // *"if you tap the tooltip itself, it disappears … let's change that"*.
+        .onPressOutside(enabled = showing, alsoInside = bubble) { showing = false }
         .hoverable(interactions, enabled = enabled)
         .pointerInput(enabled, modality) {
             if (!enabled || !modality.needsLargeTargets) return@pointerInput
-            detectTapGestures(
-                onLongPress = {
-                    longPressed()
-                    showing = true
-                },
-            )
-        }
-        .then(
-            if (showing && modality.needsLargeTargets) {
-                Modifier.pointerInput(Unit) {
-                    // A touch tooltip times out on its own; this just lets a tap
-                    // anywhere on the control dismiss it early.
-                    detectTapGestures { showing = false }
+            awaitEachGesture {
+                // **Ahead of the control, and taking nothing from it.** A
+                // tooltip is nearly always on a button, and a button's press
+                // stops there, so a long press looked for after it never came:
+                // a tooltip on an `IconButton` or a `Button` could not be
+                // opened by touch at all. Found for 0.5.1, photographing the
+                // tap that puts one away. Watched in the initial pass, before
+                // the control has it, as Compose's own `TooltipBox` does.
+                if (showing) {
+                    // A touch tooltip times out on its own; a press on the
+                    // control puts it away early, and still presses it.
+                    awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                    showing = false
+                    return@awaitEachGesture
                 }
-            } else {
-                Modifier
+                val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                val slop = viewConfiguration.touchSlop
+                // Lifted, moved off or gone before the long press: null only
+                // for a finger held still that long.
+                val ended = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
+                    while (true) {
+                        val change = awaitPointerEvent(PointerEventPass.Initial).changes.firstOrNull { it.id == down.id }
+                        if (change == null || !change.pressed || (change.position - down.position).getDistance() > slop) break
+                    }
+                    true
+                }
+                if (ended != null) return@awaitEachGesture
+                longPressed()
+                showing = true
+                // The lift that ends the long press is the tooltip's: let go,
+                // it is not also a tap on the button under it.
+                while (true) {
+                    val change = awaitPointerEvent(PointerEventPass.Initial).changes.firstOrNull { it.id == down.id } ?: break
+                    if (!change.pressed) {
+                        change.consume()
+                        break
+                    }
+                }
             }
-        )
+        }
 }
 
 /**
@@ -214,7 +257,7 @@ fun Modifier.tooltip(
  * ```
  * Box {
  *     IconButton(icon = Tabler.Outline.Route, contentDescription = "Show route", onClick = ::show)
- *     Tooltip(visible = firstRun) { +"Tap to see the whole route" }
+ *     Tooltip(visible = firstRun, onDismissRequest = { firstRun = false }) { +"Tap to see the whole route" }
  * }
  * ```
  *
@@ -222,6 +265,10 @@ fun Modifier.tooltip(
  * three triggers and their timings. This overload is for the cases where the
  * *app* decides: a tip shown once after a feature is used for the first time, or
  * a validation hint that appears while a field is wrong.
+ *
+ * A press anywhere but on the parent or the tooltip asks for it to go, through
+ * [onDismissRequest], as the four seconds of a touch tooltip do: the press
+ * itself is not taken, and goes on to what it was aimed at.
  *
  * For teaching a feature the user has not found at all, use
  * [Modifier.coachmark] instead — it goes through the [OverlayQueue] and so
@@ -248,7 +295,9 @@ fun Tooltip(
     content: @Composable ContentScope.() -> Unit,
 ) {
     var bounds by remember { mutableStateOf<Rect?>(null) }
-    Box(Modifier.parentBounds { bounds = it })
+    // The bubble is not elsewhere: a tap on it leaves it open.
+    val bubble = remember { AlsoInside() }
+    Box(Modifier.parentBounds { bounds = it }.onPressOutsideParent(enabled = visible, alsoInside = bubble, onPress = onDismissRequest))
 
     TooltipOverlay(
         visible = visible,
@@ -259,6 +308,7 @@ fun Tooltip(
         alignment = alignment,
         onDismissRequest = onDismissRequest,
         style = style,
+        bubble = bubble,
     )
 }
 
@@ -299,6 +349,8 @@ internal fun TooltipOverlay(
      * again before the last letter has faded.
      */
     key: Any = remember { Any() },
+    /** Where the bubble is laid out, for a press on it to count as not elsewhere. */
+    bubble: AlsoInside? = null,
 ) {
     val host = LocalOverlayHost.current
     val colours = Theme.colours
@@ -364,9 +416,11 @@ internal fun TooltipOverlay(
                         // the last of the room by a chart's end, its rows
                         // broke their names over two lines.
                         minimumPanel = if (style == TooltipStyle.Card) cardRoom else AnchoredOverlayDefaults.MinimumPanel,
+                        // Whole on any side before scrolled on the one asked for.
+                        fitWhole = true,
                         arrow = if (style == TooltipStyle.Card) null else ArrowSpec(colour = colours.surfaceInverse, panelShape = Theme.shapes.container),
                     ) {
-                        TooltipBubble(latestContent, latestModifier, style)
+                        TooltipBubble(latestContent, if (bubble != null) latestModifier.alsoInside(bubble) else latestModifier, style)
                     }
                 },
             )
@@ -590,6 +644,7 @@ private fun CoachMarkOverlay(
                         gap = Theme.spacing.xxs,
                         margin = MenuDefaults.ScreenMargin,
                         arrow = ArrowSpec(colour = colours.container, panelShape = Theme.shapes.container),
+                        fitWhole = true,
                     ) {
                         CoachMarkBubble(
                             title = title,

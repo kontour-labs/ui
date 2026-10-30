@@ -3,7 +3,6 @@ package io.kontour.ui.components.selection
 import io.kontour.ui.theme.clipProxy
 import io.kontour.ui.platform.webRole
 import io.kontour.ui.platform.WebRole
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -22,6 +21,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.text.selection.DisableSelection
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
@@ -46,6 +46,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.style.TextOverflow
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.rememberTapFeedback
+import io.kontour.ui.foundation.LocalTextStyle
+import io.kontour.ui.foundation.ProvideContentColourInMotion
 import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.IndicatorSizing
 import io.kontour.ui.foundation.SelectionIndicatorBox
@@ -67,6 +69,7 @@ import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.inset
 import kotlin.math.abs
 import kotlinx.coroutines.launch
+import io.kontour.ui.theme.animateComponentColour
 
 /** What a [SegmentedControl] takes by default. */
 object SegmentedControlDefaults {
@@ -293,9 +296,8 @@ fun SegmentedControl(
     // it and quietly broke the promise in `Sizing`'s KDoc that a row of mixed
     // controls lines up. Invisible on desktop, where the minimum is 24dp.
     val height = maxOf(Theme.sizing.controlHeightMedium, Theme.sizing.minTouchTarget)
-    // The one reader of the indicator's travelling rect — the thumb leans from
-    // it — so the one group that asks for it to be published.
-    val indicator = remember { SelectionIndicatorState().apply { publishesDrawn = true } }
+    // The one reader of the indicator's travelling rect: the thumb leans from it.
+    val indicator = remember { SelectionIndicatorState() }
 
     var trackLength by remember { mutableFloatStateOf(0f) }
     val currentSelected by rememberUpdatedState(selectedIndex)
@@ -893,13 +895,15 @@ private fun SegmentedOption(
     val motion = Theme.motion
     val interactions = remember { MutableInteractionSource() }
 
-    val labelColour by animateColorAsState(
-        targetValue = when {
-            !enabled -> colours.contentDisabled
-            selected -> colours.content
-            else -> colours.contentMuted
-        },
-        animationSpec = motion.tweenFast(),
+    val labelTarget = when {
+        !enabled -> colours.contentDisabled
+        selected -> colours.content
+        else -> colours.contentMuted
+    }
+    // Not read here: the label reads it as it draws. See `ProvideContentColourInMotion`.
+    val labelColour = animateComponentColour(
+        target = labelTarget,
+        spec = motion.tweenFast(),
         label = "segmentLabel",
     )
 
@@ -935,14 +939,24 @@ private fun SegmentedOption(
             // gives: a word cut mid-stroke reads as a different word rather than
             // a shortened one, and "Keyboard" arriving as "Keyboar" is a label
             // that lies rather than one that is short.
+            //
+            // Its colour is inherited rather than passed, so that the text can
+            // read the fade as it draws, and the style it inherits is given
+            // without one: a colour passed here was the label's whatever the
+            // style round the control said, and one in the style would win
+            // over an inherited one.
+            val inherited = LocalTextStyle.current
+            val style = remember(inherited) { inherited.copy(color = Color.Unspecified) }
             DisableSelection {
-                Text(
-                    text = option,
-                    colour = labelColour,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(horizontal = SegmentedControlDefaults.LabelPadding),
-                )
+                ProvideContentColourInMotion(labelColour, towards = labelTarget) {
+                    Text(
+                        text = option,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(horizontal = SegmentedControlDefaults.LabelPadding),
+                        style = style,
+                    )
+                }
             }
         }
     }

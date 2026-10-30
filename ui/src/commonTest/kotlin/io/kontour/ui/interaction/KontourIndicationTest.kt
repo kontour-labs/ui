@@ -7,6 +7,7 @@ import androidx.compose.foundation.interaction.Interaction
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -142,6 +143,58 @@ class KontourIndicationTest {
     }
 
     /**
+     * A control nobody touches makes no animation, through a change of theme as
+     * well as at rest, and the first press still draws.
+     *
+     * Every node made a scale and a wash animation on construction and both again
+     * when it attached: four `Animatable`s per control, three thousand bytes of a
+     * plain pressable's twelve thousand, for controls that are mostly never
+     * pressed. A theme change replaces every node on screen, so it paid them all
+     * again. They are made by the first interaction now, and the press below is
+     * what says the draw still hears about animations made after it last drew.
+     */
+    @Test
+    fun aControlNobodyTouchesMakesNoAnimation() = runComposeUiTest {
+        val target = MutableInteractionSource()
+        // Sources of their own: a clickable given none makes its indication
+        // only when first pressed, and these are meant to have one at rest.
+        val others = List(Others) { MutableInteractionSource() }
+        var dark by mutableStateOf(false)
+        setContent {
+            KontourTheme(darkTheme = dark, reduceMotion = true) {
+                Column {
+                    Target(target)
+                    for (source in others) {
+                        Box(Modifier.size(40.dp).clickable(interactionSource = source, indication = kontourIndication(), onClick = {}))
+                    }
+                }
+            }
+        }
+        waitForIdle()
+        val before = indicationAnimationsMade
+
+        dark = true
+        waitForIdle()
+        dark = false
+        waitForIdle()
+        assertEquals(
+            0,
+            indicationAnimationsMade - before,
+            "${Others + 1} controls nobody pressed made animations across two changes of theme",
+        )
+
+        val resting = centre()
+        emit(target, PressInteraction.Press(Offset(20f, 20f)))
+        assertEquals(1, indicationAnimationsMade - before, "one press made no animation, or more than one")
+        assertNotEquals(
+            resting,
+            centre(),
+            "the first press on a control drew nothing. Its animations were made after its " +
+                "last draw, and the draw was not told to read them.",
+        )
+    }
+
+    /**
      * Changing input does not recompose every control.
      *
      * The modality was read in composition to build the factory, so moving the
@@ -176,6 +229,9 @@ class KontourIndicationTest {
         )
     }
 }
+
+/** Controls beside the one pressed, so "none made" is a claim about more than one. */
+private const val Others = 19
 
 /** A counter the compiler can skip past: see `WindowSizeRecompositionTest`. */
 @Stable

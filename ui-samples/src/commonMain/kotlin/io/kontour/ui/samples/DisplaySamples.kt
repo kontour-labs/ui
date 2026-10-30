@@ -352,6 +352,15 @@ fun MarqueeBasics(stop: Stop) {
 }
 
 @Composable
+fun MarqueeDraggable(stop: Stop) {
+    Text(
+        text = stop.name,
+        maxLines = 1,
+        modifier = Modifier.marquee(draggable = true),
+    )
+}
+
+@Composable
 fun PageTransitionBasics() {
     var route by remember { mutableStateOf<Route>(Route.List) }
 

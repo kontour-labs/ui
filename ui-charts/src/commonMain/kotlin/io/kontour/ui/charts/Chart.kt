@@ -453,7 +453,8 @@ private fun <X : Any, Y : Any> ChartPlot(
     val density = LocalDensity.current
     val layoutDirection = LocalLayoutDirection.current
     val motion = Theme.motion
-    val measurer = rememberTextMeasurer()
+    val measurer = rememberTextMeasurer(cacheSize = LabelCacheSize)
+    val frames = remember { FrameCache() }
     val typography = Theme.typography
     val labelStyle = typography.labelSmall
     val titleStyle = typography.labelMedium
@@ -723,6 +724,13 @@ private fun <X : Any, Y : Any> ChartPlot(
     Layout(
         content = {
             places.forEachIndexed { index, place ->
+                // Whether it is the one selected, worked out here rather
+                // than in its semantics, so that its node is composed again
+                // only when that changes. Read in its semantics, the selected
+                // place was in every node's, and each place selected composed
+                // them all again: thirty nodes a step for a finger dragged
+                // along a month of days.
+                val chosen = place.places.any { it == selectedPlace }
                 Box(
                     Modifier.semantics {
                         contentDescription = place.text
@@ -730,7 +738,7 @@ private fun <X : Any, Y : Any> ChartPlot(
                         // What is chosen is said whether or not it can be
                         // chosen again: drawn chosen on a disabled chart, it
                         // was said as nothing.
-                        if (selection != null) selected = place.places.any { it == selectedPlace }
+                        if (selection != null) selected = chosen
                         if (interactive && selection != null) {
                             onClick {
                                 select(place.places.first())
@@ -796,7 +804,7 @@ private fun <X : Any, Y : Any> ChartPlot(
         // Laid out for where the chart is going once its move has begun, and
         // until then for where it is: measured from the new chart before its
         // move started, a frame drew the old data in the new plot.
-        val laidOut = layOutFrame(
+        val laidOut = frames.layOut(
             chart = transition.to,
             width = width.toFloat(),
             height = height.toFloat(),
@@ -940,6 +948,17 @@ private fun placeExtent(all: DoubleArray, group: DoubleArray): Pair<Double, Doub
     val after = half(last, last + 1).takeUnless { it.isNaN() } ?: half(last - 1, last).takeUnless { it.isNaN() } ?: 0.5
     return group.first() - before to group.last() + after
 }
+
+/**
+ * How many measured words a chart's text measurer keeps: every tick label,
+ * title and rule label of a busy chart, with room for those of the data
+ * before. Raised 2026-10-29 for 0.5.1 from the measurer's own eight: a chart
+ * of thirty days and a labelled rule has seventeen, so each time it was laid
+ * out again, for new data or a live chart's next reading, each label pushed
+ * out the one it would need next, and every one was laid out as a paragraph
+ * anew, though most said what they said before.
+ */
+internal const val LabelCacheSize = 64
 
 /** A chart's width when nothing gives it one: a phone's, so it is not a sliver in a row. */
 private val DefaultWidth = 320.dp

@@ -3,7 +3,6 @@ package io.kontour.ui.components.action
 import io.kontour.ui.theme.clipProxy
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -52,6 +51,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.a11y.LocalNamedByContent
 import androidx.compose.ui.semantics.contentDescription
+import io.kontour.ui.theme.animateComponentColour
 
 /**
  * A button.
@@ -106,14 +106,14 @@ fun Button(
     val interactive = enabled && !loading
     val motion = Theme.motion
 
-    val container by animateColorAsState(
-        targetValue = colours.container(enabled),
-        animationSpec = motion.tweenFast(),
+    val container by animateComponentColour(
+        target = colours.container(enabled),
+        spec = motion.tweenFast(),
         label = "buttonContainer",
     )
-    val contentColour by animateColorAsState(
-        targetValue = colours.content(enabled),
-        animationSpec = motion.tweenFast(),
+    val contentColour by animateComponentColour(
+        target = colours.content(enabled),
+        spec = motion.tweenFast(),
         label = "buttonContent",
     )
     val borderColour = colours.border(enabled)

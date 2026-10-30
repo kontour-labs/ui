@@ -15,6 +15,76 @@ from the version the app is on.
 
 ---
 
+## 0.5.0 to 0.5.1
+
+Most of this release is less work on a slow phone, which an app has nothing to
+do for. What it changes is new parameters partway through others — a
+timeline's `progressMotion` and `progressReversed`, and a time picker's
+`infinite` — each of which a positional argument after it names, and some
+things that look or behave differently and still compile, under **Check**.
+
+### Name the argument after `progress` on a timeline
+
+`Timeline`, `HorizontalTimeline`, `TimelineList`, `timelineList`,
+`BranchTimeline` and `branchTimeline` take `progressMotion`, defaulted,
+straight after `progress`, and all but the branch timelines `progressReversed`
+after that. A call that names its arguments needs nothing. One that passes the
+argument after `progress` by position names it:
+
+```diff
+- Timeline(Modifier, 1.5f, colours) { stops() }
++ Timeline(Modifier, 1.5f, colours = colours) { stops() }
+```
+
+It fails to compile rather than meaning something else.
+
+`Modifier.marquee` takes `draggable`, defaulted and last, so a call to it
+compiles as it is.
+
+### Name the argument after `minuteStep` on a time picker
+
+`TimePicker` and `DateTimePicker` take `infinite`, defaulted, straight after
+`minuteStep`. A call that names its arguments needs nothing. One that passes
+`now` after `minuteStep` by position names it:
+
+```diff
+- TimePicker(departAt, { departAt = it }, Modifier, true, 5, { clock.time() })
++ TimePicker(departAt, { departAt = it }, Modifier, true, 5, now = { clock.time() })
+```
+
+It fails to compile rather than meaning something else.
+
+### Check
+
+- **A time picker's wheels go round.** The hour and minute wheels of a
+  `TimePicker` and a `DateTimePicker` wrap, as a clock does, and on a 12-hour
+  clock the day period turns with the hour. Pass `infinite = false` for wheels
+  that stop at their ends. A test that turned a wheel past its end to check
+  that it stopped there now sees it go round.
+- **A theme switch takes the controls with it.** A button, a switch, a field, a
+  tab, a chip and the rest change their colours on the theme's frames rather
+  than fading on their own for 150ms after it. A screenshot taken a few frames
+  after a theme switch shows them in the new theme's colours. Their own
+  changes, pressed or disabled or selected, fade as before.
+- **Tooltips go at a press elsewhere**, and the press still lands where it was
+  aimed; a press on the tooltip itself leaves it. A `Tooltip` the app shows is asked through `onDismissRequest`; one
+  whose caller passes none stays until the app hides it, as before, so pass one
+  to have it go. And a `Modifier.tooltip` on a button opens from a long press,
+  which it never did by touch: a test that long-pressed a button expecting
+  nothing but its own press now sees a tooltip, and no press.
+- **Tooltips and coach marks open where they fit whole**, on the other side of
+  the control, or beside it, before they scroll. A screenshot of a tooltip
+  asked for on a side too small for it shows it on another side.
+- **Lists in a sheet bounce past their end**, on iOS, and stretch on Android,
+  where they stopped dead. At the top, pulling down still moves the sheet.
+- **An `OverlayHost` measured for its intrinsic size** is as big as its page,
+  whatever is open over it. An open dialog used to add its own size; a layout
+  that read it, which no layout should, sees the page alone.
+- **An overlay's content is composed once as it opens**, not a second time two
+  frames later. A test that counted its compositions sees half as many.
+
+---
+
 ## 0.4.6 to 0.5.0
 
 From 0.4.5, nothing changes in 0.4.6 (see [below](#045-to-046)), so this

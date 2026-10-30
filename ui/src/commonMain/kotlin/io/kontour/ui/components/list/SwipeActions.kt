@@ -35,6 +35,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.FloatState
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
@@ -485,7 +486,8 @@ fun SwipeActions(
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val revealShare = Theme.componentDefaults.swipePositionalThreshold
 
-    var width by remember { mutableFloatStateOf(0f) }
+    val measuredWidth = remember { mutableFloatStateOf(0f) }
+    var width by measuredWidth
     val actionWidthPx = with(density) { actionWidth.toPx() }
     val gapPx = with(density) { SwipeActionsDefaults.Gap.toPx() }
     val flickVelocityPx = with(density) { SwipeFlickVelocity.toPx() }
@@ -514,20 +516,7 @@ fun SwipeActions(
     val fullStart = start.firstOrNull()?.takeIf { start.any { a -> a.fullSwipe } }
     val fullEnd = end.firstOrNull()?.takeIf { end.any { a -> a.fullSwipe } }
 
-    LaunchedEffect(width, start.size, end.size, fullStart, fullEnd) {
-        if (width <= 0f) return@LaunchedEffect
-        state.anchoredState.updateAnchors(
-            DraggableAnchors {
-                SwipeValue.Resting at 0f
-                if (start.isNotEmpty()) SwipeValue.Start at startTravel
-                if (end.isNotEmpty()) SwipeValue.End at endTravel
-                // Off the far edge, so the row can be carried all the way there.
-                if (fullStart != null) SwipeValue.StartCommitted at width
-                if (fullEnd != null) SwipeValue.EndCommitted at -width
-            }
-        )
-        state.deliverPending()
-    }
+    SwipeAnchors(state, measuredWidth, start, end, startTravel, endTravel, fullStart, fullEnd)
 
     // Read by the settle collector, which outlives a composition: the actions it
     // runs, and whether each confirms, are this composition's, not the first's.
@@ -1287,6 +1276,47 @@ fun SwipeActions(
             // `ListItem` draws one anywhere else, was cut away whole.
             CompositionLocalProvider(LocalRingInside provides true) { content() }
         }
+    }
+}
+
+/**
+ * Gives a [SwipeActions] row its anchors once it has a [width], and again
+ * whenever the width or the actions change, then sends it wherever it was asked
+ * to go before it had any.
+ *
+ * **A composable of its own, so the width is read here and nowhere else.** The
+ * width arrives from the row's first measure, and this was an effect in the
+ * row's own body keyed on it, which is a read of it there: every row composed
+ * again on the frame after it appeared, its whole body and modifier chain, to
+ * restart one effect. In a list, that is every row scrolled into view. Here the
+ * new width recomposes this and restarts the effect as it always did. Raised
+ * 2026-10-29 for 0.5.1: 6 scopes a row, on top of its 59, down to 1.
+ */
+@Composable
+private fun SwipeAnchors(
+    state: SwipeActionsState,
+    width: FloatState,
+    start: List<SwipeAction>,
+    end: List<SwipeAction>,
+    startTravel: Float,
+    endTravel: Float,
+    fullStart: SwipeAction?,
+    fullEnd: SwipeAction?,
+) {
+    val measured = width.floatValue
+    LaunchedEffect(measured, start.size, end.size, fullStart, fullEnd) {
+        if (measured <= 0f) return@LaunchedEffect
+        state.anchoredState.updateAnchors(
+            DraggableAnchors {
+                SwipeValue.Resting at 0f
+                if (start.isNotEmpty()) SwipeValue.Start at startTravel
+                if (end.isNotEmpty()) SwipeValue.End at endTravel
+                // Off the far edge, so the row can be carried all the way there.
+                if (fullStart != null) SwipeValue.StartCommitted at measured
+                if (fullEnd != null) SwipeValue.EndCommitted at -measured
+            }
+        )
+        state.deliverPending()
     }
 }
 

@@ -57,6 +57,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import kotlin.math.abs
 
 /**
  * Picks a time of day.
@@ -79,6 +80,13 @@ import androidx.compose.runtime.rememberUpdatedState
  *   in the disabled content colour and answers nothing.
  * @param minuteStep Coarsens the minute wheel. A planner rarely wants
  *   minute-level precision, and 5 turns 60 rows into 12.
+ * @param infinite Whether the hour and minute wheels go round, as a clock's
+ *   numbers do: past :59 comes :00, and past 23 comes 0, with no end to reach.
+ *   On by default. On a 12-hour clock the day period turns with the hour, so
+ *   11 PM turned on is 12 AM, not noon, as an iOS picker's does. Only the
+ *   wheel wraps: the minutes going past :00 leave the hour as it is, and a
+ *   [DateTimePicker]'s day as it is. Off, each wheel stops at its ends, as it
+ *   did before 0.5.1.
  * @param now The time now, for the **Now** button under the wheels: pressed,
  *   the wheels scroll to it — rounded to the nearest [minuteStep] — rather than
  *   jumping, so the reader sees where the time went. The system clock's by
@@ -97,10 +105,11 @@ fun TimePicker(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     minuteStep: Int = 1,
+    infinite: Boolean = true,
     now: (() -> LocalTime)? = TimePickerDefaults::currentTime,
     formats: LocaleFormats = Theme.formats,
     onValueChangeFinished: (() -> Unit)? = null,
-) = TimeWheels(value, onValueChange, modifier, enabled, minuteStep, now, formats, onValueChangeFinished, onNow = null)
+) = TimeWheels(value, onValueChange, modifier, enabled, minuteStep, infinite, now, formats, onValueChangeFinished, onNow = null)
 
 /** What a [TimePicker] takes by default. */
 object TimePickerDefaults {
@@ -123,6 +132,33 @@ internal fun nearestStep(time: LocalTime, step: Int): Pair<LocalTime, Boolean> {
 }
 
 /**
+ * Whether turning an hour wheel of [hours] the short way from row [from] to row
+ * [to] passes the day period's change an odd number of times: from 11 to 12 on
+ * a 12-hour clock, or 11 to 0 on Japan's, either way.
+ *
+ * Counted along the path rather than read from the two ends, because a flick
+ * can carry the wheel several rows in a frame, and the wheel reports only
+ * where it is.
+ */
+internal fun passesPeriodChange(hours: List<Int>, from: Int, to: Int): Boolean {
+    val size = hours.size
+    if (from !in hours.indices || to !in hours.indices || from == to) return false
+    val forward = (to - from).mod(size)
+    val turn = if (forward * 2 > size) forward - size else forward
+    val step = if (turn > 0) 1 else -1
+    var row = from
+    var changes = 0
+    repeat(abs(turn)) {
+        val next = (row + step).mod(size)
+        val a = hours[row] % 12
+        val b = hours[next] % 12
+        if ((a == 11 && b == 0) || (a == 0 && b == 11)) changes++
+        row = next
+    }
+    return changes % 2 == 1
+}
+
+/**
  * [TimePicker], and [onNow] for a [DateTimePicker], told when Now is pressed
  * whether the time it turns to is tomorrow's, so the date can go with it. It
  * answers whether the date went: where tomorrow could not be taken, Now is the
@@ -139,6 +175,7 @@ internal fun TimeWheels(
     modifier: Modifier,
     enabled: Boolean,
     minuteStep: Int,
+    infinite: Boolean,
     now: (() -> LocalTime)?,
     formats: LocaleFormats,
     onValueChangeFinished: (() -> Unit)?,
@@ -238,11 +275,21 @@ internal fun TimeWheels(
                 WheelDrum(
                     items = hours,
                     selectedIndex = hourIndex,
-                    onSelectedIndexChange = { emit(hourValue = hours[it]) },
+                    onSelectedIndexChange = { index ->
+                        val pm = working.value.hour >= 12
+                        // Round the end of the clock, the day period turns
+                        // with it: 11 PM on is 12 AM. Not while Now is turning
+                        // the wheels, whose day period turns on its own.
+                        val turning = turns[0]?.done?.isCompleted == false
+                        val flips = infinite && cycle.usesDayPeriod && !turning &&
+                            passesPeriodChange(hours, hours.indexOf(displayHourOf(working.value.hour)), index)
+                        emit(hourValue = hours[index], pm = pm != flips)
+                    },
                     itemLabel = hourLabel,
                     modifier = Modifier.width(clockWheelWidth),
                     enabled = enabled,
                     contentDescription = strings.hour,
+                    infinite = infinite,
                     onSettled = onValueChangeFinished,
                     turn = turns[0],
                 )
@@ -257,6 +304,7 @@ internal fun TimeWheels(
                     modifier = Modifier.width(clockWheelWidth),
                     enabled = enabled,
                     contentDescription = strings.minute,
+                    infinite = infinite,
                     onSettled = onValueChangeFinished,
                     turn = turns[1],
                 )

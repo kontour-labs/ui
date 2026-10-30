@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.motion.MarqueeDefaults
@@ -68,29 +70,159 @@ class MarqueeTest {
         )
     }
 
+    /**
+     * A held marquee is the finger's: it moves with it, and stands still while
+     * the finger does, instead of carrying on its pass underneath.
+     */
+    @Test
+    fun aDraggableMarqueeFollowsTheFingerAndHoldsStillUnderIt() {
+        scene(TooWide, reduceMotion = false, draggable = true).use { scene ->
+            // Two frames: the first measures the text, and only the second knows
+            // there is anything to drag. No finger lands sooner than that.
+            val before = scene.frames(2)
+            // Well inside the initial pause, so any movement is the finger's.
+            scene.drag(from = Grab, to = Grab - Pull, steps = 10, release = false)
+            val pulled = scene.frames(2)
+            assertTrue(!before.sameAs(pulled), "a pulled marquee did not move with the finger")
+            val held = scene.frames(framesFor(MarqueeDefaults.Pause.inWholeMilliseconds.toInt() + Travel))
+            assertTrue(
+                pulled.sameAs(held),
+                "a marquee held still under a finger carried on scrolling underneath it",
+            )
+            scene.release(Grab - Pull)
+            val letGo = scene.frames(framesFor(Coast))
+            val later = scene.frames(framesFor(MarqueeDefaults.Pause.inWholeMilliseconds.toInt() + Travel))
+            assertTrue(
+                !letGo.sameAs(later),
+                "a marquee let go never set off again — it is stuck part-way through its text",
+            )
+        }
+    }
+
+    /** It is off unless asked for: the same drag on a plain marquee moves nothing. */
+    @Test
+    fun aMarqueeIsNotDraggableUnlessAskedTo() {
+        scene(TooWide, reduceMotion = false, draggable = false).use { scene ->
+            val before = scene.frames(2)
+            scene.drag(from = Grab, to = Grab - Pull, steps = 10, release = false)
+            assertTrue(
+                before.sameAs(scene.frames(2)),
+                "a marquee that was not made draggable moved under a finger",
+            )
+        }
+    }
+
+    /** Text that fits has nothing to pull, and a drag over it leaves it where it is. */
+    @Test
+    fun textThatFitsDoesNotDrag() {
+        scene(Fits, reduceMotion = false, draggable = true).use { scene ->
+            val before = scene.frames(2)
+            scene.drag(from = Grab, to = Grab - Pull, steps = 10, release = false)
+            assertTrue(before.sameAs(scene.frames(2)), "a label that fits its box moved under a finger")
+        }
+    }
+
+    /**
+     * Under reduced motion it is truncated, as it would be without the modifier,
+     * until it is pulled. Pulled, it moves with the finger, because motion the
+     * user makes is not motion done to them. Let go, it never sets off by itself.
+     */
+    @Test
+    fun underReducedMotionItDragsButNeverSetsOffByItself() {
+        val plain = scene(TooWide, reduceMotion = true, draggable = null).use { it.frames(2) }
+        scene(TooWide, reduceMotion = true, draggable = true).use { scene ->
+            val before = scene.frames(2)
+            assertTrue(
+                plain.sameAs(before),
+                "under reduced motion, a draggable marquee at rest does not look like the " +
+                    "plain truncated text",
+            )
+            scene.drag(from = Grab, to = Grab - Pull, steps = 10)
+            val letGo = scene.frames(framesFor(Coast))
+            assertTrue(!before.sameAs(letGo), "under reduced motion, a pulled marquee did not move")
+            val later = scene.frames(framesFor(MarqueeDefaults.Pause.inWholeMilliseconds.toInt() + Travel))
+            assertTrue(letGo.sameAs(later), "under reduced motion, a marquee let go set off by itself")
+        }
+    }
+
+    /**
+     * `Int.MAX_VALUE` is a ticker that never stops, in either kind of marquee:
+     * still going well past the default three passes, where a counted one has
+     * long since settled. The counted one is the check that the wait is long
+     * enough to tell them apart.
+     */
+    @Test
+    fun anEndlessMarqueeIsStillGoingWhereACountedOneHasSettled() {
+        for (draggable in listOf(false, true)) {
+            for (iterations in listOf(3, Int.MAX_VALUE)) {
+                scene(TooWide, reduceMotion = false, draggable = draggable, iterations = iterations, velocity = FastVelocity)
+                    .use { scene ->
+                        scene.advance(framesFor(PastThreePasses))
+                        val moving = scene.movesWithin(OnePass)
+                        val endless = iterations == Int.MAX_VALUE
+                        assertTrue(
+                            moving == endless,
+                            if (endless) {
+                                "an endless marquee (draggable = $draggable) stopped after its first passes"
+                            } else {
+                                "a three-pass marquee (draggable = $draggable) was still going, so this test " +
+                                    "waits too short a time to tell an endless one from it"
+                            },
+                        )
+                    }
+            }
+        }
+    }
+
+    /** Whether any frame over [millis] differs from the first. */
+    private fun Scene.movesWithin(millis: Int): Boolean {
+        val first = frame()
+        repeat(millis / SampleMillis) {
+            if (!frames(framesFor(SampleMillis)).sameAs(first)) return true
+        }
+        return false
+    }
+
     /** Whether the strip of pixels under the label changes between two samples. */
     private fun movesOverTime(text: String, reduceMotion: Boolean): Boolean {
-        Scene(
-            width = Width,
-            height = Height,
-            density = Density.toFloat(),
-            reduceMotion = reduceMotion,
-        ) {
-            Box(
-                Modifier.fillMaxSize().background(Theme.colours.background).padding(16.dp),
-                Alignment.CenterStart,
-            ) {
-                Box(Modifier.width(BoxWidth.dp)) {
-                    Text(text = text, maxLines = 1, modifier = Modifier.marquee())
-                }
-            }
-        }.use { scene ->
+        scene(text, reduceMotion, draggable = false).use { scene ->
             // Past the initial pause, so the first sample is taken while it is
             // already under way — sampling from rest would report "still" for a
             // marquee that simply had not set off yet.
             val settled = scene.frames(framesFor(MarqueeDefaults.Pause.inWholeMilliseconds.toInt() + Settle))
             val later = scene.frames(framesFor(Travel))
             return !settled.sameAs(later)
+        }
+    }
+
+    /** The label in a box, with the marquee, a draggable one, or with `null` none at all. */
+    private fun scene(
+        text: String,
+        reduceMotion: Boolean,
+        draggable: Boolean?,
+        iterations: Int = 3,
+        velocity: Dp = MarqueeDefaults.Velocity,
+    ): Scene = Scene(
+        width = Width,
+        height = Height,
+        density = Density.toFloat(),
+        reduceMotion = reduceMotion,
+    ) {
+        Box(
+            Modifier.fillMaxSize().background(Theme.colours.background).padding(16.dp),
+            Alignment.CenterStart,
+        ) {
+            Box(Modifier.width(BoxWidth.dp)) {
+                Text(
+                    text = text,
+                    maxLines = 1,
+                    modifier = if (draggable == null) {
+                        Modifier
+                    } else {
+                        Modifier.marquee(iterations = iterations, velocity = velocity, draggable = draggable)
+                    },
+                )
+            }
         }
     }
 
@@ -124,5 +256,28 @@ class MarqueeTest {
 
         /** Long enough that reading pace has moved the text a visible distance. */
         const val Travel = 400
+
+        /**
+         * Ten times reading pace, so a pass of [TooWide] is under a second of
+         * travel after its 1.6s pause, and three of them are about seven seconds.
+         */
+        val FastVelocity = 400.dp
+
+        /** Well past three passes at [FastVelocity]. */
+        const val PastThreePasses = 12_000
+
+        /** One whole pass at [FastVelocity], pause and travel, and some over. */
+        const val OnePass = 3_000
+
+        const val SampleMillis = 200
+
+        /** Long enough for a let-go marquee to stop coasting. */
+        const val Coast = 1000
+
+        /** On the label, in pixels: 16dp in, plus half of [BoxWidth]. */
+        val Grab = Offset((16 + BoxWidth / 2f) * Density, Height / 2f)
+
+        /** Far enough past the touch slop to move the text a visible distance. */
+        val Pull = Offset(40f * Density, 0f)
     }
 }

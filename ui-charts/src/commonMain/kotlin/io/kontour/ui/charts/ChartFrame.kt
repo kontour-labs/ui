@@ -307,6 +307,84 @@ internal fun layOutFrame(
 }
 
 /**
+ * The frame a chart last laid out, kept with what it was laid out from, so
+ * that a measure which changes none of that takes the same frame again rather
+ * than measuring every label anew.
+ *
+ * Raised 2026-10-29 for 0.5.1: the plot is measured again whenever the place
+ * selected changes, since its tooltip's probe is placed there, and each time
+ * it laid the frame out from the start. A finger dragged along a line of
+ * thirty days, or a mouse moved over it, measured every tick label, title and
+ * rule label at each place it crossed, well past what the text measurer keeps,
+ * so each one was laid out as a paragraph again: 26 frames laid out in a
+ * 40-frame drag, now one.
+ *
+ * Fonts still arriving are the one thing outside these inputs that changes
+ * what a label measures, so a frame measured in a font that has since loaded
+ * is laid out again, as the text measurer's own cache does.
+ */
+internal class FrameCache {
+    private var frame: ChartFrame? = null
+    private var chart: ResolvedChart? = null
+    private var width = 0f
+    private var height = 0f
+    private var measurer: TextMeasurer? = null
+    private var labelStyle: TextStyle? = null
+    private var titleStyle: TextStyle? = null
+    private var gap = 0f
+    private var density = 0f
+    private var fontScale = 0f
+    private var layoutDirection: LayoutDirection? = null
+    private var writeCells = false
+
+    /** [layOutFrame] for these, or the frame it gave last time for the same. */
+    fun layOut(
+        chart: ResolvedChart,
+        width: Float,
+        height: Float,
+        measurer: TextMeasurer,
+        labelStyle: TextStyle,
+        titleStyle: TextStyle,
+        gap: Float,
+        density: Density,
+        layoutDirection: LayoutDirection,
+        writeCells: Boolean,
+    ): ChartFrame {
+        val last = frame
+        if (
+            last != null && chart === this.chart && width == this.width && height == this.height &&
+            measurer === this.measurer && labelStyle == this.labelStyle && titleStyle == this.titleStyle &&
+            gap == this.gap && density.density == this.density && density.fontScale == this.fontScale &&
+            layoutDirection == this.layoutDirection && writeCells == this.writeCells && !last.fontsStale()
+        ) {
+            return last
+        }
+        val laidOut = layOutFrame(chart, width, height, measurer, labelStyle, titleStyle, gap, density, layoutDirection, writeCells)
+        frame = laidOut
+        this.chart = chart
+        this.width = width
+        this.height = height
+        this.measurer = measurer
+        this.labelStyle = labelStyle
+        this.titleStyle = titleStyle
+        this.gap = gap
+        this.density = density.density
+        this.fontScale = density.fontScale
+        this.layoutDirection = layoutDirection
+        this.writeCells = writeCells
+        return laidOut
+    }
+}
+
+/** Whether any of this frame's words were measured in a font that has loaded since. */
+private fun ChartFrame.fontsStale(): Boolean {
+    fun TextLayoutResult?.stale() = this != null && multiParagraph.intrinsics.hasStaleResolvedFonts
+    return xLabels.any { it.layout.stale() } || yLabels.any { it.layout.stale() } || yEndLabels.any { it.layout.stale() } ||
+        xTitle.stale() || yTitle.stale() || yEndTitle.stale() || ruleLabels.any { it.stale() } ||
+        rulePins.any { it?.layout.stale() } || regionLabels.any { it.stale() } || cellLabels.any { it.stale() }
+}
+
+/**
  * Each of a heat map's cells' values, measured as its scale writes them; empty
  * for a chart with no cells. Measured from the chart it will settle on, as its
  * labels are, so the words do not change as the shades move.

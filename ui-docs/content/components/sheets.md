@@ -232,12 +232,17 @@ the screen, so its thumb shows how much of the list is on screen. When a list
 at half height has scrolled to its end, the thumb stops short of the bottom of
 the track, because the last rows are still below the screen.
 
-**Inside a draggable sheet, the sheet owns the vertical rubber band.** A list and
-the sheet it is in share one axis, and only one of them can answer a finger that
-has run out of list — so a scrollable in a sheet is given no vertical overscroll
-of its own, and the pixels it declines reach the sheet. Sideways is untouched: a
-sheet has no opinion about horizontal scroll, so a carousel in one keeps whatever
-bounce the platform gives it.
+**Inside a draggable sheet, the sheet owns the rubber band at the top of a
+list, and the list owns the one at its end.** A list and the sheet it is in
+share one axis. Pulled down past its top, a list has run out and the sheet moves,
+so a scrollable in a sheet is given no overscroll there, and the pixels it
+declines reach the sheet. Pushed up past its end, there is nothing else for the
+finger to move, so the list bounces or stretches there as the platform's lists
+do anywhere. A finger that catches that bounce on its way back closes it first,
+and the sheet moves with the rest of the drag. Sideways is untouched: a sheet
+has no opinion about horizontal scroll, so a carousel in one keeps whatever
+bounce the platform gives it. On desktop, which has no overscroll, nothing
+bounces at either end.
 
 **A swipe across a carousel in a sheet is the carousel's, as far as about sixty
 degrees from across.** The sheet waits for a finger to go 1.75 times the

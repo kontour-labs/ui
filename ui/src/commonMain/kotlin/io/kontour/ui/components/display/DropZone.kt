@@ -1,6 +1,5 @@
 package io.kontour.ui.components.display
 
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -25,6 +24,7 @@ import io.kontour.ui.dragdrop.DropTargetState
 import io.kontour.ui.dragdrop.dropTarget
 import io.kontour.ui.foundation.ProvideContentColour
 import io.kontour.ui.theme.Theme
+import io.kontour.ui.theme.animateComponentColour
 
 /**
  * A place to put things down: a bin, an upload area, the end of a column.
@@ -85,8 +85,8 @@ fun DropZone(
     // The ground fades from the accent's own with no alpha rather than from
     // transparent black, which goes grey on its way.
     val clear = colours.accent.container.copy(alpha = 0f)
-    val edge by animateColorAsState(
-        targetValue = when {
+    val edge by animateComponentColour(
+        target = when {
             !enabled -> colours.outlineSubtle
             status == DropStatus.Refused -> colours.danger.solid
             status != DropStatus.Idle -> colours.accent.solid
@@ -95,16 +95,16 @@ fun DropZone(
             // as a field beside it.
             else -> colours.outlineStrong
         },
-        animationSpec = motion.tweenFast(),
+        spec = motion.tweenFast(),
         label = "dropZoneEdge",
     )
-    val ground by animateColorAsState(
-        targetValue = when (status) {
+    val ground by animateComponentColour(
+        target = when (status) {
             DropStatus.Over -> colours.accent.container
             DropStatus.Refused -> colours.danger.container
             else -> clear
         },
-        animationSpec = motion.tweenFast(),
+        spec = motion.tweenFast(),
         label = "dropZoneGround",
     )
     val width by animateDpAsState(

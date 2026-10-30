@@ -13,7 +13,8 @@ import androidx.compose.ui.unit.Velocity
 
 /**
  * The overscroll a scrollable gets while it is **inside a draggable sheet**:
- * whatever the platform gives it sideways, and nothing at all up and down.
+ * whatever the platform gives it sideways and past its far end, and nothing at
+ * its near end, where the sheet answers instead.
  *
  * A list in a sheet shares one axis with the sheet, and only one of them can
  * answer a finger that has run out of list. [SheetState.nestedScrollConnection]
@@ -55,9 +56,33 @@ import androidx.compose.ui.unit.Velocity
  *
  * Sideways is untouched. A sheet has no opinion about horizontal scroll, so a
  * carousel in one keeps the platform's bounce: [inner] is handed every delta and
- * velocity with no vertical component and nothing else. A diagonal drag counts as
- * vertical, which costs a `LazyRow` its bounce on the frames a finger is sliding
- * off the axis and is not worth a second rule to recover.
+ * velocity with no vertical component.
+ *
+ * ### The far end is the list's
+ *
+ * The rule above was first written for the whole vertical axis, and a list in a
+ * sheet stopped dead at its end on iOS and Android, where every other list
+ * bounces or stretches. Raised 2026-10-28 for 0.5.1, from an app that had put
+ * the bounce back itself: *"Lists in the sheets bounce past their end again
+ * (Kontour turns that off inside sheets). Pulling down at the top still moves
+ * the sheet."* Only the near end is shared with the sheet. A finger pushing up
+ * past a list's end has nothing else to move — the sheet has expanded on the
+ * way, and stretches only downward — so the platform's effect has it, as it
+ * would anywhere:
+ *
+ * - **Up**, a delta or a fling toward the list's end, goes through [inner], which
+ *   bounces or stretches past the end.
+ * - **Down**, toward the list's start, goes straight past it while it has no
+ *   band open, so it can never open one at the top, and the sheet is offered
+ *   every pixel the list declines.
+ * - **Down with a band open** at the end goes through [inner], which closes the
+ *   band against the finger before handing the rest on, as a finger catching a
+ *   bounce does on iOS. A bounce is a few dozen pixels and closes in a moment,
+ *   so the sheet is offered the rest of the drag.
+ *
+ * A diagonal drag counts as vertical, which costs a `LazyRow` its sideways
+ * bounce on the frames a finger is sliding off the axis and is not worth a
+ * second rule to recover.
  *
  * @param inner The platform's own effect, or `null` where the platform has none.
  */
@@ -81,11 +106,11 @@ internal class SheetChildOverscroll(
         source: NestedScrollSource,
         performScroll: (Offset) -> Offset,
     ): Offset {
-        // Straight through, consuming nothing. What the scroll and the sheet
-        // between them decline stays declined, and the sheet's own overscroll —
-        // which is the one the sheet's nested-scroll connection feeds — is the
-        // only thing that can absorb it.
-        if (inner == null || delta.y != 0f) return performScroll(delta)
+        // Toward the list's start, with no band to close: straight through,
+        // consuming nothing. What the scroll and the sheet between them decline
+        // stays declined, and the sheet's own overscroll — the one its
+        // nested-scroll connection feeds — is the only thing that can absorb it.
+        if (inner == null || towardTheStart(delta.y)) return performScroll(delta)
         return inner.applyToScroll(delta, source, performScroll)
     }
 
@@ -93,12 +118,19 @@ internal class SheetChildOverscroll(
         velocity: Velocity,
         performFling: suspend (Velocity) -> Velocity,
     ) {
-        if (inner == null || velocity.y != 0f) {
+        if (inner == null || towardTheStart(velocity.y)) {
             performFling(velocity)
             return
         }
         inner.applyToFling(velocity, performFling)
     }
+
+    /**
+     * Whether a vertical [y] is the sheet's to answer: downward, toward the
+     * list's start, with no band of the platform's open to close first. See
+     * **The far end is the list's**.
+     */
+    private fun towardTheStart(y: Float): Boolean = y > 0f && inner?.isInProgress != true
 }
 
 /**

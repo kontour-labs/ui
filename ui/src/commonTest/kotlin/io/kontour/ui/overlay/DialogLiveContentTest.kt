@@ -31,7 +31,8 @@ import kotlin.test.assertEquals
  * own clock, so it can land before the dialog's entry is published, between
  * that and the entry's first frame, or after; each is tried here, frame by
  * frame, from the places a screen puts a dialog: straight in the host, in a
- * `Scaffold`'s body, which is a subcomposition, and in a lazy list's item.
+ * `Scaffold`'s body, which is a subcomposition, in a lazy list's item, and in
+ * a popover, an overlay above the dialog that the host composes after it.
  *
  * The content closes over a plain value rather than reading a state, the way
  * a screen does with `val state by viewModel.state.collectAsState()` and then
@@ -41,7 +42,7 @@ import kotlin.test.assertEquals
 @OptIn(ExperimentalTestApi::class)
 class DialogLiveContentTest {
 
-    private enum class Place { Host, Scaffold, LazyItem }
+    private enum class Place { Host, Scaffold, LazyItem, Popover }
 
     @Test
     fun aDialogInTheHostShowsContentThatChangesWhileItOpens() = everyFrame(Place.Host)
@@ -51,6 +52,45 @@ class DialogLiveContentTest {
 
     @Test
     fun aDialogInALazyItemShowsContentThatChangesWhileItOpens() = everyFrame(Place.LazyItem)
+
+    @Test
+    fun aDialogInAPopoverShowsContentThatChangesWhileItOpens() = everyFrame(Place.Popover)
+
+    /**
+     * The content that changes is not the dialog's own but a slot handed through
+     * it, the way a screen wraps a dialog: `ConfirmDialog(message = { … })`. The
+     * wrapper's lambda does not change, only the one invoked inside it, so
+     * whatever keeps the dialog live has to reach the caller's lambdas wherever
+     * in the content they are, not only the one the dialog was given.
+     */
+    @Test
+    fun aDialogShowsASlotThatChangesWhileItOpens() {
+        for (frames in 0..4) {
+            runComposeUiTest {
+                var visible by mutableStateOf(false)
+                var compared by mutableStateOf(false)
+                setContent {
+                    KontourTheme(reduceMotion = true) {
+                        OverlayHost(Modifier.fillMaxSize()) {
+                            Scaffold {
+                                Box {
+                                    val now = compared
+                                    ConfirmDialog(visible, message = { Text(if (now) Ready else Comparing) })
+                                }
+                            }
+                        }
+                    }
+                }
+                openThenCompare(frames, open = { visible = true }, compare = { compared = true })
+                assertEquals(
+                    0,
+                    onAllNodesWithText(Comparing).fetchSemanticsNodes().size,
+                    "a slot, the comparison $frames frames after opening: the dialog kept the message it opened with",
+                )
+                onNodeWithText(Ready).assertExists("a slot, the comparison $frames frames after opening")
+            }
+        }
+    }
 
     /**
      * The other way a screen writes it: the loading dialog and the loaded one
@@ -109,7 +149,13 @@ class DialogLiveContentTest {
             Place.Host -> content()
             Place.Scaffold -> Scaffold { Box { content() } }
             Place.LazyItem -> LazyColumn(Modifier.fillMaxSize()) { item { content() } }
+            Place.Popover -> Box { Popover(visible = true, onDismissRequest = {}) { content() } }
         }
+    }
+
+    @Composable
+    private fun ConfirmDialog(visible: Boolean, message: @Composable () -> Unit) {
+        Dialog(visible = visible, onDismissRequest = {}) { message() }
     }
 
     @Composable

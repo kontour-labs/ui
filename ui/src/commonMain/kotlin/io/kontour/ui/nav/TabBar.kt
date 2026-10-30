@@ -7,7 +7,6 @@ import io.kontour.ui.a11y.optionalBorder
 import io.kontour.ui.a11y.selectionEdge
 import io.kontour.ui.components.list.Scrollbar
 import androidx.compose.foundation.ScrollState
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
@@ -61,7 +60,7 @@ import io.kontour.ui.foundation.HorizontalDivider
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.IndicatorEdge
 import io.kontour.ui.foundation.IndicatorSizing
-import io.kontour.ui.foundation.ProvideContentColour
+import io.kontour.ui.foundation.ProvideContentColourInMotion
 import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.RowContentScope
 import io.kontour.ui.foundation.SelectionIndicatorBox
@@ -79,6 +78,7 @@ import io.kontour.ui.interaction.rememberDetentTicker
 import io.kontour.ui.motion.ScrollDefaults
 import io.kontour.ui.theme.inset
 import io.kontour.ui.theme.Theme
+import io.kontour.ui.theme.animateComponentColour
 
 /** What a [TabBar] takes by default. */
 object TabBarDefaults {
@@ -389,15 +389,17 @@ fun TabBarScope.Tab(
     }
     val marked = drag.marks(key, selected)
 
-    val contentColour by animateColorAsState(
-        targetValue = when {
-            !enabled -> colours.contentDisabled
-            // On the indicator pill rather than over a bare bar, so the tone's
-            // own on-container colour rather than its solid one.
-            marked -> colours.accent.onContainer
-            else -> colours.contentMuted
-        },
-        animationSpec = motion.tweenFast(),
+    val contentTarget = when {
+        !enabled -> colours.contentDisabled
+        // On the indicator pill rather than over a bare bar, so the tone's
+        // own on-container colour rather than its solid one.
+        marked -> colours.accent.onContainer
+        else -> colours.contentMuted
+    }
+    // Not read here: the label reads it as it draws. See `ProvideContentColourInMotion`.
+    val contentColour = animateComponentColour(
+        target = contentTarget,
+        spec = motion.tweenFast(),
         label = "tabContent",
     )
 
@@ -487,7 +489,7 @@ fun TabBarScope.Tab(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             ProvideTextStyle(Theme.typography.labelLarge) {
-                ProvideContentColour(contentColour) {
+                ProvideContentColourInMotion(contentColour, towards = contentTarget) {
                     // Ellipsis rather than the scope's default clip: a fixed
                     // bar divides its width evenly, so a long label on a narrow
                     // screen is *expected* to run out of room, and "Departures"

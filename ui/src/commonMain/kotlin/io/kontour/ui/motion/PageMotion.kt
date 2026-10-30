@@ -28,6 +28,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -234,6 +235,14 @@ fun Modifier.pageEffects(
     } else {
         Color.Black.copy(alpha = MaxDim)
     }
+    // The page in a layer of its own, under the dim and the shadow, so a frame
+    // of them draws the page as a layer already recorded rather than recording
+    // all of it again. The dim reads the transition, so the block below runs
+    // on every frame of a push or a pop, and without the layer every one of
+    // them drew the whole page over: counted 2026-10-29 for 0.5.1, a line of
+    // text on a page pushed under swipe back was drawn 45 times in 24 frames,
+    // against twice with no effects at all. `PageEffectsCostTest`. A layer
+    // that only records draws exactly what was drawn without it.
     return this.drawWithContent {
         drawContent()
         if (away == 0f) return@drawWithContent
@@ -265,7 +274,7 @@ fun Modifier.pageEffects(
             // there. On the window it runs the page's full height, as UIKit's.
             fade = if (inOverlay) minOf(ShadowEndFade.toPx(), size.height / 4f) else 0f,
         )
-    }
+    }.graphicsLayer()
 }
 
 /**

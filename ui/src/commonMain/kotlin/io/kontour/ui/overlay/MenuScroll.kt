@@ -153,8 +153,12 @@ private class ListDrag(
             state.scroll(MutatePriority.UserInput) {
                 for (pixels in moves) dragBy(pixels)
             }
-            val velocity = thrown.await()
-            if (velocity != 0f) flingBy(velocity)
+            // Even at no speed at all: the fling is what tells the overscroll
+            // the finger has gone, and a list pulled past its end by a finger
+            // held still before it lifted stayed stretched on Android and
+            // floating on iOS. Reported from phones for 0.5.1. A scroller's
+            // own drag flings on every lift for the same reason.
+            flingBy(thrown.await())
         }
     }
 
@@ -197,7 +201,11 @@ private class ListDrag(
             Velocity(0f, offered.y + left)
         }
         val effect = overscroll
-        if (effect == null) throwWith(Velocity(0f, velocity)) else effect.applyToFling(Velocity(0f, velocity), throwWith)
+        if (effect != null) {
+            effect.applyToFling(Velocity(0f, velocity), throwWith)
+        } else if (velocity != 0f) {
+            throwWith(Velocity(0f, velocity))
+        }
     }
 }
 

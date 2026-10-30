@@ -21,16 +21,17 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.staticCompositionLocalOf
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -38,6 +39,9 @@ import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.MeasureResult
+import androidx.compose.ui.layout.SubcomposeLayout
+import androidx.compose.ui.layout.SubcomposeMeasureScope
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalFocusManager
@@ -47,9 +51,11 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.traversalIndex
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.navigationevent.NavigationEvent
 import androidx.navigationevent.NavigationEventDispatcher
+import androidx.navigationevent.NavigationEventDispatcherOwner
 import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
 import io.kontour.ui.platform.WarnIfWindowPansForKeyboard
 import io.kontour.ui.components.text.TextContextMenuHost
@@ -70,6 +76,12 @@ import io.kontour.ui.dragdrop.DragLayer
 import io.kontour.ui.dragdrop.handleKey
 import io.kontour.ui.dragdrop.LocalDragHost
 import io.kontour.ui.dragdrop.LocalOverlayLayer
+import androidx.compose.ui.node.ModifierNodeElement
+import androidx.compose.ui.node.LayoutModifierNode
+import androidx.compose.ui.layout.MeasureScope
+import androidx.compose.ui.layout.Measurable
+import androidx.compose.ui.layout.IntrinsicMeasureScope
+import androidx.compose.ui.layout.IntrinsicMeasurable
 
 /**
  * Where an overlay sits in the stack.
@@ -332,6 +344,13 @@ class OverlayHostState {
     internal fun withdrawFraction(key: Any, fraction: () -> Float) {
         if (fractions[key] === fraction) fractions.remove(key)
     }
+
+    /**
+     * How many times the receding page's corners have been cut: an increment
+     * where `backdropGround` cuts a step it has not kept, so the suite can ask
+     * whether a sheet coming and going cuts them again. See `GroundGeometry`.
+     */
+    internal var groundCuts: Int = 0
 
     /** How far in the entry [key] is, 0..1; 0 for one that has not published. */
     internal fun fractionOf(key: Any): Float = (fractions[key]?.invoke() ?: 0f).coerceIn(0f, 1f)
@@ -673,6 +692,20 @@ private fun EntryHost(
             entry.passThrough?.let { inRoot -> { inRoot()?.translate(-state.originInRoot) } }
         }
         ScrimLayer(
+            // **A layer of its own, so a frame of the scrim is not a frame of
+            // the page.** The scrim reads its fraction in its draw, which is
+            // right, and it is redrawn on every frame the overlay moves. A node
+            // with no layer is recorded into its nearest ancestor's, and here
+            // that is the one the page is recorded into too, unless a backdrop
+            // has given the page a layer of its own: so every frame of a menu,
+            // a popover, a sheet that does not recede, or a dialog where the
+            // backdrop cannot blur — Android 10 and 11, or `backdropBlur =
+            // false` — recorded the whole page again under it. Counted at 12
+            // of a menu's 13 opening frames, and 20 of a sheet's; 1, the frame
+            // it mounts, with this. No alpha, clip or effect on it, so it is a
+            // recording rather than an offscreen, and the picture is the same.
+            // See `ScrimLayerPressureTest`.
+            modifier = Modifier.graphicsLayer(),
             // The same number the panel is drawn with, so the dimming and the
             // thing it dims are one movement — see `Scrim` — and, with
             // something dimming above it, its share of that: see [scrimShare].
@@ -712,54 +745,125 @@ private fun EntryHost(
             LocalOverlayBack provides back,
             LocalOverlayLayer provides index + 1,
         ) {
-            if (backOwner != null) {
-                CompositionLocalProvider(LocalNavigationEventDispatcherOwner provides backOwner) {
-                    Recaught(entry.content)
-                }
-            } else {
-                Recaught(entry.content)
-            }
+            ComposedOnMeasure(entry.content, backOwner)
         }
     }
 }
 
 /**
- * [content], composed once more without skipping in the frame after it first
- * is, so a change its caller made while it was being added is not lost.
+ * [content], under [backOwner] where there is one, composed when the entry is
+ * first measured rather than with the rest of the host, so a change its caller
+ * makes as it opens is not lost.
  *
  * An overlay's content is the caller's lambda, drawn here at the root. When the
  * caller's values change, Compose updates that lambda in place and tells the
- * places that invoked it to recompose; this is one of them. But the caller is
- * usually in a subcomposition of its own — a `Scaffold`'s body, a lazy item —
- * which recomposes after the root in a frame. In the frame an overlay first
- * appears, then, the root has drawn its content from the lambda as it was, and
- * has not yet applied it, when the caller updates the lambda; Compose finds the
- * place it should tell is not in the composition yet, and forgets it. The
- * content stays as it opened until something inside it changes for itself.
+ * places that invoked it to recompose. But the caller is usually in a
+ * composition of its own — a `Scaffold`'s body, a lazy item — which recomposes
+ * after the root in a frame, or in an overlay above this one, which the root
+ * composes after it. Composed with the host, an overlay's content was drawn in
+ * the frame it appeared from the lambdas as they were, and was not yet applied
+ * when the caller updated them; Compose found the places it should tell were
+ * not in the composition yet, and forgot them. The content stayed as it opened
+ * until something inside it changed for itself. Reported from an admin as a
+ * rollback dialog stuck on "Comparing…", its button disabled, about one time
+ * in three: whenever the comparison came back in the frame the dialog
+ * appeared. See `DialogLiveContentTest`.
  *
- * Reported from an admin as a rollback dialog stuck on "Comparing…", its button
- * disabled, about one time in three: whenever the comparison came back in the
- * frame the dialog appeared. A change to [LocalRecaught] a frame later makes
- * everything under it recompose without skipping, once, from the lambdas as
- * they are; after that the root holds it and is told of changes as it should
- * be. Here, so it holds for every overlay, and around both of `EntryHost`'s
- * calls, so content moved from one to the other is caught again too.
+ * **Composed in measure, which comes after every composition in the frame.**
+ * By the time the entry is first measured, every caller has made what changes
+ * it will make in the frame, so the content is composed from the lambdas as
+ * they are; and a subcomposition is applied as it is composed, so a caller
+ * that changes one later — in a lazy item first laid out after it — finds it
+ * in place and is heard, a frame later, as anywhere else.
+ *
+ * Fixed first, 2026-10-17, by composing everything in every overlay once more,
+ * without skipping, the frame after it appeared — a static local changed under
+ * it. That held, and cost a whole second composition on the third frame of
+ * every opening, whether or not anything had changed: 296 recomposed scopes for
+ * a sheet of 40 rows against 314 for its first composition, and that frame at
+ * 5.4–10.6ms on a desktop JVM against 3.1ms without it. Nothing narrower was
+ * safe. The update that is lost leaves no trace outside the runtime's own
+ * lambda, so nothing public can say whether it happened; and the lambdas that
+ * can be stale are anywhere in the content — a slot passed through a wrapper,
+ * `ConfirmDialog(message = { … })`, is invoked inside the caller's own code —
+ * so only composing all of it again reached them all. Replaced 2026-10-29 by
+ * this, which composes it once. See `OverlayContentOnceTest`.
+ *
+ * Laid out as the `Box` it sits in would lay out [content] itself, from the top
+ * start corner with no minimum handed down, so the picture is the same.
+ * [backOwner]'s provider is inside, so that content does not move between
+ * compositions if it comes or goes.
+ *
+ * ### Intrinsic measurements stop here
+ *
+ * A `SubcomposeLayout` cannot answer an intrinsic measurement — its content is
+ * not composed until it is measured — and throws if asked. So
+ * [OverlayContentIntrinsics] answers in front of it, with nothing: an open
+ * overlay adds nothing to the host's intrinsic size, and the page under it
+ * answers for the host as it always has. That is the right answer as well as
+ * a safe one, since an overlay floats over the page rather than sizing it; the
+ * `Box` before this did add an open dialog's own size to the host's, which no
+ * layout could have meant to read. Measurements inside the content — an
+ * anchored panel reading its own intrinsics to choose a side — are made within
+ * the subcomposition, and are as they were. `OverlayHostIntrinsicsTest`.
  */
 @Composable
-private fun Recaught(content: @Composable () -> Unit) {
-    var caught by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) {
-        withFrameNanos { }
-        caught = true
+private fun ComposedOnMeasure(content: @Composable () -> Unit, backOwner: NavigationEventDispatcherOwner?) {
+    // Read in the subcomposition, so a new entry under the same key, or a new
+    // dispatcher, recomposes it in the same frame, as the host would have.
+    val latestContent = rememberUpdatedState(content)
+    val latestBack = rememberUpdatedState(backOwner)
+    // One lambda for the life of the entry: `subcompose` composes again
+    // whenever it is handed a different one.
+    val composed: @Composable () -> Unit = remember {
+        @Composable {
+            val back = latestBack.value
+            if (back != null) {
+                CompositionLocalProvider(LocalNavigationEventDispatcherOwner provides back) { latestContent.value() }
+            } else {
+                latestContent.value()
+            }
+        }
     }
-    CompositionLocalProvider(LocalRecaught provides caught, content = content)
+    val measurePolicy: SubcomposeMeasureScope.(Constraints) -> MeasureResult = remember(composed) {
+        { constraints ->
+            val loose = constraints.copy(minWidth = 0, minHeight = 0)
+            val placeables = subcompose(Unit, composed).map { it.measure(loose) }
+            var width = constraints.minWidth
+            var height = constraints.minHeight
+            for (placeable in placeables) {
+                width = maxOf(width, placeable.width)
+                height = maxOf(height, placeable.height)
+            }
+            layout(width, height) { for (placeable in placeables) placeable.placeRelative(0, 0) }
+        }
+    }
+    SubcomposeLayout(modifier = OverlayContentIntrinsics, measurePolicy = measurePolicy)
 }
 
 /**
- * Read by nothing: its change is what makes [Recaught]'s content recompose
- * without skipping, which a static local's does to everything it provides to.
+ * Answers an intrinsic measurement of an overlay's content with nothing, in
+ * front of the subcomposition that could not answer it. See [ComposedOnMeasure].
+ * Measuring and placing pass straight through.
  */
-private val LocalRecaught = staticCompositionLocalOf { false }
+private object OverlayContentIntrinsics : ModifierNodeElement<OverlayContentIntrinsicsNode>() {
+    override fun create() = OverlayContentIntrinsicsNode()
+    override fun update(node: OverlayContentIntrinsicsNode) = Unit
+    override fun equals(other: Any?): Boolean = other === this
+    override fun hashCode(): Int = "OverlayContentIntrinsics".hashCode()
+}
+
+private class OverlayContentIntrinsicsNode : Modifier.Node(), LayoutModifierNode {
+    override fun MeasureScope.measure(measurable: Measurable, constraints: Constraints): MeasureResult {
+        val placeable = measurable.measure(constraints)
+        return layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+    }
+
+    override fun IntrinsicMeasureScope.minIntrinsicWidth(measurable: IntrinsicMeasurable, height: Int): Int = 0
+    override fun IntrinsicMeasureScope.maxIntrinsicWidth(measurable: IntrinsicMeasurable, height: Int): Int = 0
+    override fun IntrinsicMeasureScope.minIntrinsicHeight(measurable: IntrinsicMeasurable, width: Int): Int = 0
+    override fun IntrinsicMeasureScope.maxIntrinsicHeight(measurable: IntrinsicMeasurable, width: Int): Int = 0
+}
 
 /**
  * How far this overlay is through appearing, or how far back through leaving.
@@ -912,7 +1016,9 @@ val LocalOverlayHost = staticCompositionLocalOf<OverlayHostState> {
  * ```
  *
  * **Overlays are clipped to this composable's bounds**, so it belongs at the
- * root. Why the stack renders in-composition rather than in platform windows,
+ * root. **An open overlay adds nothing to its intrinsic size**: measured
+ * intrinsically, the host is as big as [content] alone, whatever is open over
+ * it. Why the stack renders in-composition rather than in platform windows,
  * and how focus and reading order are handled, are in
  * `ui-docs/content/overlays.md`.
  */

@@ -29,6 +29,170 @@ On `main`, and in the next release. Nothing yet.
 
 ---
 
+## 0.5.1 — 29 October 2026
+
+Less work on a slower phone, with nothing looking or moving differently, and
+what testing on phones asked for: a marquee you can drag; arrows along a
+timeline's leg, one at a time or a run of them like an escalator, and a
+journey that can run back along the timeline, the arrows turning round with
+it; a time picker whose wheels go round; and tooltips that go at a press
+anywhere else and open on a button by touch, which they never did. Tooltips
+and coach marks open where they fit whole, a list in a sheet bounces past its
+end, a theme switch takes the controls with it, a menu's list let go from
+still springs back, and a faded edge no longer shows what is under its
+surface.
+
+### Added
+
+- **A marquee you can drag.** `Modifier.marquee(draggable = true)` lets a
+  finger or a mouse pull the text sideways to read it at its own pace. Held, it
+  stops. Let go, it coasts, then carries on after the pause and finishes the
+  pass it was in. It is off by default, because it takes the sideways drag
+  within the label from a pager or a row's swipe actions around it. Under
+  reduced motion it still drags, and never sets off by itself.
+- **Arrows along a timeline's leg.** `Timeline`, `HorizontalTimeline`,
+  `TimelineList` and `BranchTimeline` take `progressMotion`, which shows the
+  leg a journey is on with arrows towards the stop ahead instead of the band
+  sweeping it: `TimelineMotion.Arrow`, one at a time along the whole leg, or
+  `TimelineMotion.Arrows`, a run of them moving on together like an escalator.
+  Each grows in at the stop behind and fades out at the next. Under reduced
+  motion the arrows stand still on the part still to cover, and still say
+  which way the journey is going.
+- **A journey back along a timeline.** `Timeline`, `HorizontalTimeline`,
+  `TimelineList` and `timelineList` take `progressReversed`: the journey runs
+  from the last stop towards the first, a return trip on the same stops.
+  `progress` is still counted from the first; the stops reached are the ones at
+  and after it, and the band, the arrow and the run of arrows all run back.
+  Turned round while the arrows move, they stop, turn in place on the bouncy
+  spring a chevron turns on everywhere else, and set off the other way. All of
+  it is worked out as the rail draws, from the frame clock, so nothing composes
+  as it moves or turns.
+
+### Changed
+
+- **Less work on a slow phone, and nothing looks or moves differently.** Each
+  of these was measured before and after, has a test that counts it, and leaves
+  every screenshot as it was:
+  - A control makes its press animations on its first press rather than when
+    it appears, and a `Text` that is not redacted keeps no redaction state: a
+    pressable control costs a quarter less to bring on screen, and a theme
+    switch over a hundred of them a third less.
+  - A text or search field recomposes nothing on a keystroke once it has text.
+    A `Rating`'s fill and a `Knob` being turned no longer recompose every
+    frame, and a row with `SwipeActions` is composed once as it scrolls in,
+    not twice.
+  - A collapsed `TopBar` following a list does no work as the page scrolls on,
+    a one-line large title is not redrawn on each frame of a collapse, and a
+    page sliding under `pageEffects`, or a pane dragged back in `:ui-nav3`, is
+    moved rather than redrawn. Tab bars, nav bars and segmented controls stop
+    asking for frames once their marker is still.
+  - A menu, a popover, a sheet that does not recede or a dialog that cannot
+    blur no longer redraws the page behind it on every frame it opens and
+    closes, and a receding page's corners are worked out once and kept.
+  - A `Chart` dragged or hovered no longer measures its labels again each
+    frame, keeps its dashes, shapes and where its data lies, and recomposes
+    only the places whose selection changed. A moving `Sparkline` keeps its
+    paths.
+  - A list's `fadingEdges` draws only its two fade strips into layers, and the
+    list between them straight on: a frame of a full-height list scrolling
+    took 78ms in the software renderer and takes 15ms.
+  - A tab's, a filter chip's and a segment's label fades its colour as it
+    draws rather than by composing every frame, a segmented control's thumb
+    travels without composing, and content arriving through `revealOnScroll`
+    no longer composes the page around it.
+  - A dialog, a sheet or any other overlay is composed once as it opens, not
+    a second time two frames later. It is composed where it is first
+    measured, after its caller has had its say in the frame, so content that
+    changes as it opens still shows the change. One thing follows: an
+    `OverlayHost` measured for its intrinsic size is the size of its page,
+    whatever is open over it, where an open dialog used to count.
+- **A theme switch moves every control with it.** A button, a switch, a
+  field, a tab, a chip and the rest each faded their colours over 150ms of
+  their own after the theme changed, so with a theme that cuts — the default,
+  and always under reduced motion — they faded behind a page that had already
+  changed, and with `animateThemeChanges` they lagged the theme's own fade.
+  They now change with the theme, on its frames. A control's own change,
+  pressed or disabled or selected, fades as before.
+- **Lists in a sheet bounce past their end.** A scrollable inside a draggable
+  sheet was given no vertical overscroll, so the sheet answered a finger that
+  had run out of list. That is still so at the top, where pulling down moves the
+  sheet, but past the list's end, where nothing else can move, it bounces on iOS
+  and stretches on Android as any other list does. Nothing changes on desktop,
+  which has no overscroll.
+- **Tooltips and coach marks open where they fit whole.** A tooltip, a
+  `Modifier.coachmark` and each step of a `CoachmarkTour` used to be bounded to
+  the side asked for whenever that side had room for a line or two, and scroll
+  the rest, even when all of it would have fitted on the other side. They now
+  open on the side asked for if they fit there whole, then on the other side,
+  then beside the control, and scroll only when no side has room for all of
+  it. Menus and popovers, which are meant to scroll, are as they were.
+- **A tooltip goes at a press anywhere else.** A touch tooltip waited out its
+  four seconds, or a tap on the control itself. However it opened, a press
+  anywhere but on its control or on the tooltip now puts it away, and the
+  press goes on to do what it was aimed at: a tap on the button beside it
+  presses that button too. A tap on the tooltip leaves it open, as a plain
+  tooltip does everywhere. A `Tooltip` the app shows is asked, through its
+  `onDismissRequest`, as a dialog is.
+- **A time picker's wheels go round.** `TimePicker` and `DateTimePicker` take
+  `infinite`, true by default: past :59 comes :00 and past 23 comes 0, so 23:30
+  to half past midnight is one row on rather than twenty-three back. On a
+  12-hour clock the day period turns with the hour, so 11 PM turned on is
+  12 AM, not noon. Only the wheel goes round: the minutes passing :00 leave the
+  hour, and the hours passing midnight leave a date-time picker's day.
+  `infinite = false` keeps the ends.
+
+### Fixed
+
+- **A tooltip on a button opens from a long press.** `Modifier.tooltip` on an
+  `IconButton`, a `Button` or any control with a press of its own never opened
+  by touch: the control kept the press, and the long press was looked for after
+  it. It is watched ahead of the control now, as Compose's own `TooltipBox`
+  does, and the lift that ends it is the tooltip's, so letting go does not press
+  the button too. A tap on the control while its tooltip shows puts it away and
+  presses the control.
+- **A menu's list let go from still springs back.** Pulled past its end and
+  held still before the finger lifted, a `Menu`'s, a `Select`'s or a
+  `Combobox`'s list stayed stretched on Android and floating on iOS: the lift
+  went unsaid to the overscroll when it came at no speed at all.
+- **A `KeyValueList` in a `ListSection` lays out.** The list composed its rows
+  while measuring them, in a `SubcomposeLayout`, and a section reads its body's
+  row edges as it measures, which places the body early, before it was ready.
+  It is plain layouts now: the label column is the widest label, asked of the
+  rows, and nothing is composed while measuring. It no longer composes every
+  label twice a measure, and a list asked for its intrinsic width answers
+  rather than throwing.
+- **A list under a following `TopBar` no longer shifts by a pixel as the bar
+  collapses.** The bar's open height, which the list's top padding is, could
+  come out a pixel taller on some frames of a collapse and back again.
+- **A faded edge no longer shows what is under its surface.** A list's
+  `fadingEdges` in a sheet over a map could erase the sheet's surface as well as
+  its rows, and the map showed through the top of the sheet. The fade, a cut
+  title's, a `TopBar`'s collapsing second line, a `WheelSelect`'s next row and a
+  table's narrowed pinned columns each draw their erase in a layer of their own
+  opened in the same drawing, rather than relying on a layer switched on beside
+  it.
+
+### Breaking
+
+- **`Modifier.marquee` has a new parameter**, `draggable`, defaulted and
+  last, so anything built against 0.5.0 recompiles; every call site still
+  compiles as it is.
+- **`Timeline`, `HorizontalTimeline`, `TimelineList`, `timelineList`,
+  `BranchTimeline` and `branchTimeline` have a new parameter**,
+  `progressMotion`, defaulted, straight after `progress`, and the first four
+  `progressReversed` after that, so anything built against 0.5.0 recompiles. A
+  call that names its arguments, as every one in these docs does, needs
+  nothing. One that passes the argument after `progress` by position fails to
+  compile rather than meaning something else, and names it. See
+  [Migrating](migrating.md#name-the-argument-after-progress-on-a-timeline).
+- **`TimePicker` and `DateTimePicker` have a new parameter**, `infinite`,
+  defaulted, straight after `minuteStep`, so anything built against 0.5.0
+  recompiles. A call that passes `now` after `minuteStep` by position names
+  it; it fails to compile rather than meaning something else. See
+  [Migrating](migrating.md#name-the-argument-after-minutestep-on-a-time-picker).
+
+---
+
 ## 0.5.0 — 22 October 2026
 
 Charts, in a module of their own, `io.kontour:ui-charts`: a `Chart` of lines,

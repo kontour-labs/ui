@@ -1,8 +1,11 @@
 # `Modifier.fadingEdges`
 
-**It erases rather than painting over.** `BlendMode.DstOut` in an offscreen
-layer, not a gradient of the background colour — the shortcut version fails the
-moment anything is behind the list, which over a map is always.
+**It erases rather than painting over.** `BlendMode.DstOut` in a layer of its
+own, not a gradient of the background colour — the shortcut version fails the
+moment anything is behind the list, which over a map is always. The layer
+covers only the fade strips, and only while there is something past that edge;
+the list between them is drawn as it would be with no fade at all, so a long
+list costs a slow phone no more to scroll for having one.
 
 <!--sample:FadingEdgesBasics-->
 ```kotlin

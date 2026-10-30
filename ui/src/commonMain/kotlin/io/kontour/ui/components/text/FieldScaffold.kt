@@ -5,7 +5,6 @@ import io.kontour.ui.motion.exitOrFade
 import io.kontour.ui.motion.enterOrFade
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -58,6 +57,7 @@ import io.kontour.ui.foundation.Text
 import io.kontour.ui.motion.AnimatedSlot
 import io.kontour.ui.theme.Theme
 import kotlinx.coroutines.flow.collectLatest
+import io.kontour.ui.theme.animateComponentColour
 
 /** The gap between a field's label, its frame and its message. */
 private val FieldStackGap = 6.dp
@@ -148,9 +148,9 @@ internal fun FieldScaffold(
     // gated: a read-only field can still be invalid, and it still has to say so.
     val litUp = focused && !readOnly
 
-    val borderColour by animateColorAsState(
-        targetValue = colours.border(enabled, litUp, isError),
-        animationSpec = motion.tweenFast(),
+    val borderColour by animateComponentColour(
+        target = colours.border(enabled, litUp, isError),
+        spec = motion.tweenFast(),
         label = "fieldBorder",
     )
     val borderWidth by animateDpAsState(
@@ -164,19 +164,19 @@ internal fun FieldScaffold(
     )
     // Animated for the same reason the border is: a ground that changes colour
     // between frames reads as a repaint, and one that fades reads as a response.
-    val containerColour by animateColorAsState(
-        targetValue = colours.container(enabled, litUp),
-        animationSpec = motion.tweenFast(),
+    val containerColour by animateComponentColour(
+        target = colours.container(enabled, litUp),
+        spec = motion.tweenFast(),
         label = "fieldContainer",
     )
-    val labelColour by animateColorAsState(
-        targetValue = when {
+    val labelColour by animateComponentColour(
+        target = when {
             !enabled -> colours.contentDisabled
             isError -> colours.error
             litUp -> colours.labelFocused
             else -> colours.label
         },
-        animationSpec = motion.tweenFast(),
+        spec = motion.tweenFast(),
         label = "fieldLabel",
     )
 
