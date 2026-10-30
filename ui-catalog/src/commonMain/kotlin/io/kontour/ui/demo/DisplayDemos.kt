@@ -425,6 +425,9 @@ private val timelineProgress = Knob.Choice(
 /** How the leg being travelled moves: a band sweeping it, or arrows along it. */
 private val timelineMotion = Knob.Choice("Motion", TimelineMotion.entries.toList())
 
+/** The journey running back, from the last stop towards the first: arrows that are moving turn round. */
+private val timelineReversed = Knob.Flag("Reversed", initial = false)
+
 /** A small icon in some of the nodes: how the stop is left, and the end of the trip. */
 private val timelineIcons = Knob.Flag("Icons", initial = false)
 
@@ -435,7 +438,7 @@ internal val TimelineDemo = ComponentDemo(
     slug = "timeline",
     knobs = listOf(
         timelineConnector, timelineLoading, timelineIcons, timelineGrouped, timelineAcross, timelineLabels, timelineEqualWidths,
-        timelineProgress, timelineMotion,
+        timelineProgress, timelineMotion, timelineReversed,
     ),
 ) {
     val walking = this[timelineLoading]
@@ -477,11 +480,17 @@ internal val TimelineDemo = ComponentDemo(
             Modifier.fillMaxWidth(),
             progress = progress,
             progressMotion = this[timelineMotion],
+            progressReversed = this[timelineReversed],
             labelPlacement = this[timelineLabels],
             equalWidths = this[timelineEqualWidths],
         ) { stops() }
     } else {
-        Timeline(Modifier.fillMaxWidth(), progress = progress, progressMotion = this[timelineMotion]) { stops() }
+        Timeline(
+            Modifier.fillMaxWidth(),
+            progress = progress,
+            progressMotion = this[timelineMotion],
+            progressReversed = this[timelineReversed],
+        ) { stops() }
     }
 }
 
@@ -512,7 +521,8 @@ private val timelineListGroups = Knob.Flag("Fold stops", initial = false)
 internal val TimelineListDemo = ComponentDemo(
     slug = "timeline-list",
     knobs = listOf(
-        timelineListStyle, timelineListProgress, timelineMotion, timelineListLoading, timelineListIcons, timelineListGroups,
+        timelineListStyle, timelineListProgress, timelineMotion, timelineReversed, timelineListLoading, timelineListIcons,
+        timelineListGroups,
     ),
 ) {
     if (this[timelineListGroups]) {
@@ -528,6 +538,7 @@ internal val TimelineListDemo = ComponentDemo(
         style = this[timelineListStyle],
         progress = this[timelineListProgress].stops,
         progressMotion = this[timelineMotion],
+        progressReversed = this[timelineReversed],
         leadIn = ConnectorStyle.Dotted,
     ) {
         item(nodeColour = Color(0xFF1B5E20), icon = if (icons) Tabler.Outline.Train else null, onClick = { echo("Opened Perth Station") }) {

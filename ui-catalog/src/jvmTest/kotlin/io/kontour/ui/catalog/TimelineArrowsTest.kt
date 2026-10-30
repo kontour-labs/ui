@@ -4,6 +4,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
@@ -33,6 +36,9 @@ class TimelineArrowsTest {
     private val red = Color(0xFFD00000)
     private val grey = Color(0xFFB0B0B0)
     private val colours = TimelineColours(node = Color.Black, rail = grey, progress = red)
+
+    /** Which way the journey runs, read by the list as it composes: a test can turn it round mid-run. */
+    private var reversed by mutableStateOf(false)
 
     @Test
     fun arrowsShowBesideTheRailAndTheBandDoesNot() {
@@ -165,6 +171,54 @@ class TimelineArrowsTest {
     }
 
     /**
+     * Reversed — the journey running back up the list — the run of arrows
+     * climbs, and so does the band. Asked for as *"the ability to reverse the
+     * direction of the progress … that goes for all styles"*.
+     */
+    @Test
+    fun reversedTheArrowsAndTheBandRunUp() {
+        reversed = true
+        try {
+            trip(TimelineMotion.Arrows, reduceMotion = false, progress = Halfway) { scene, leg ->
+                val before = scene.frame()
+                val after = scene.frames(StepFrames)
+                val shift = bestShift(column(before, leg), column(after, leg))
+                assertTrue(shift < 0, "reversed, the arrows moved $shift px along the leg, not back up towards the stop behind")
+            }
+            trip(TimelineMotion.Band, reduceMotion = false, progress = Halfway) { scene, leg ->
+                // The band is on the rail itself: where it is solid red, down the rail's own column.
+                fun band(image: BufferedImage) = leg.filter { isRed(image.getRGB(RailX, it)) }
+                val tops = (0 until LoopFrames).map { band(scene.frame()) }.filter { it.isNotEmpty() }.map { it.first() }
+                val ups = tops.zipWithNext().count { (a, b) -> b < a }
+                val downs = tops.zipWithNext().count { (a, b) -> b > a }
+                assertTrue(ups > downs * 3, "reversed, the band did not run back up the leg: $ups frames up, $downs down")
+            }
+        } finally {
+            reversed = false
+        }
+    }
+
+    /**
+     * Turned round while they run, the arrows go back up the leg: down before,
+     * up after the turn. The turn itself — in place, on the bouncy spring — is
+     * `TimelineProgressTest`'s, against the rail's clock.
+     */
+    @Test
+    fun turnedRoundWhileTheyRunTheArrowsGoBackUp() {
+        reversed = false
+        trip(TimelineMotion.Arrows, reduceMotion = false, progress = Halfway) { scene, leg ->
+            val down = bestShift(column(scene.frame(), leg), column(scene.frames(StepFrames), leg))
+            assertTrue(down > 0, "before the turn the arrows moved $down px, not down the leg")
+            reversed = true
+            // Past the turn.
+            scene.frames(TurnFrames)
+            val up = bestShift(column(scene.frame(), leg), column(scene.frames(StepFrames), leg))
+            assertTrue(up < 0, "after the turn the arrows moved $up px, not back up the leg")
+        }
+        reversed = false
+    }
+
+    /**
      * A two-stop list a little way along its leg, with [leg] the rows of the
      * rail between the two nodes, clear of both.
      */
@@ -177,7 +231,7 @@ class TimelineArrowsTest {
         val labels = arrayOfNulls<Rect>(2)
         Scene(width = 360, height = 600, reduceMotion = reduceMotion) {
             Box(Modifier.fillMaxSize().background(Color.White)) {
-                TimelineList(progress = progress, progressMotion = motion, colours = colours) {
+                TimelineList(progress = progress, progressMotion = motion, progressReversed = reversed, colours = colours) {
                     repeat(2) { i ->
                         item {
                             label { Text("Stop $i", Modifier.reportBounds { labels[i] = it }) }
@@ -250,6 +304,9 @@ class TimelineArrowsTest {
 
         /** Long enough for the arrows to move a few pixels, short of a whole spacing. */
         const val StepFrames = 8
+
+        /** Longer than the turn on the bouncy spring takes, at 16ms a frame. */
+        const val TurnFrames = 60
 
         const val MaxShift = 12
 

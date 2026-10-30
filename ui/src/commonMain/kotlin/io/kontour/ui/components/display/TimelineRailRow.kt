@@ -1,10 +1,22 @@
 package io.kontour.ui.components.display
 
+import androidx.compose.animation.core.AnimationSpec
+import androidx.compose.animation.core.AnimationVector1D
+import androidx.compose.animation.core.TargetBasedAnimation
+import androidx.compose.animation.core.VectorConverter
+import androidx.compose.animation.core.spring
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.mutableLongStateOf
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
+import kotlin.math.floor
+import kotlin.math.round
 import androidx.compose.animation.core.withInfiniteAnimationFrameMillis
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.FloatState
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableFloatStateOf
@@ -88,6 +100,10 @@ internal class LegEnd(val lane: Int, val at: LegAt, val run: RunEnd)
  * ahead, over the leg drawn faint, as the band sweeps it. Still, the part
  * travelled is drawn in full and the chevrons stand on the rest, which says
  * the way the journey is going without moving.
+ *
+ * [reversed] is a journey heading the other way along the rail: towards [from]'s
+ * end of the connector, 0, rather than 1. Its [passed] is then counted in from
+ * the connector's other end, and the band and the chevrons run back along it.
  */
 @Immutable
 internal class LegTravel(
@@ -98,7 +114,16 @@ internal class LegTravel(
     val colour: Color,
     val arrows: Boolean = false,
     val stream: Boolean = false,
-)
+    val reversed: Boolean = false,
+) {
+    /** How the leg moves: the band, or chevrons one at a time or a run of them. */
+    val motion: TimelineMotion
+        get() = if (!arrows) TimelineMotion.Band else if (stream) TimelineMotion.Arrows else TimelineMotion.Arrow
+
+    /** The stretch of the connector travelled, from the end the journey came in at. */
+    val travelled: ClosedFloatingPointRange<Float>
+        get() = if (reversed) 1f - passed..1f else 0f..passed
+}
 
 /** A leg of a row's rail: drawn from [start] to [end], in [style], [colour] and [width]. */
 @Immutable
@@ -160,19 +185,27 @@ internal class StopProgress(
     val reached: Boolean,
     /** The journey is at this stop, not between two. */
     val here: Boolean,
-    /** How much of the leg after this stop has been travelled, 0 to 1. */
+    /**
+     * How much of the leg after this stop has been travelled, 0 to 1: from this
+     * stop, or from the next one on a journey running back up the rail.
+     */
     val legPassed: Float,
     /** The journey is on the leg after this stop, part of the way along. */
     val legBand: Boolean,
 )
 
-/** Where the stop at [index] stands against [progress]; null for a timeline that is not being travelled. */
-internal fun stopProgress(progress: Float?, index: Int): StopProgress? {
+/**
+ * Where the stop at [index] stands against [progress]; null for a timeline that
+ * is not being travelled. [reversed], the journey runs back up the rail, from
+ * the last stop towards the first: the stops reached are the ones at and after
+ * [progress], and a leg is travelled from its far end.
+ */
+internal fun stopProgress(progress: Float?, index: Int, reversed: Boolean = false): StopProgress? {
     if (progress == null) return null
     return StopProgress(
-        reached = index <= progress + ProgressSlack,
+        reached = if (reversed) index >= progress - ProgressSlack else index <= progress + ProgressSlack,
         here = abs(progress - index) <= ProgressSlack,
-        legPassed = (progress - index).coerceIn(0f, 1f),
+        legPassed = (if (reversed) index + 1 - progress else progress - index).coerceIn(0f, 1f),
         legBand = progress > index + ProgressSlack && progress < index + 1 - ProgressSlack,
     )
 }
@@ -192,32 +225,182 @@ internal fun bandRange(phase: Float): ClosedFloatingPointRange<Float>? {
 }
 
 /**
- * The loop the rail's motion runs on: 0 to 1 every [BandTravel], or NaN while
- * nothing moves.
+ * The rail's clock, and which way the journey along it is heading: the loop
+ * the pulse runs on, and where the band and the chevrons are along theirs.
  *
- * Read from the frame clock rather than started per row, so two rows drawing
- * halves of one leg — which may be two items of a `LazyColumn` composed at
- * different times — put the band in the same place on the same frame. Only runs
+ * **Read from the frame clock rather than started per row**, so two rows
+ * drawing halves of one leg — which may be two items of a `LazyColumn` composed
+ * at different times — put the band and the chevrons in the same place on the
+ * same frame. [time] is written once a frame while the rail runs, and every
+ * position here is a function of it, read as the rail draws: nothing composes
+ * as it moves, or as it turns.
+ *
+ * **Turned round** — `progressReversed` changed while the rail runs — the
+ * chevrons stand where they are and turn in place, on the theme's bouncy
+ * spring, as a chevron the library turns anywhere else does, and then set off
+ * the other way. Asked for for 0.5.1 as *"have the arrows flip in-place … and
+ * then go the other way"*. The change is stamped with the frame time of the
+ * first frame drawn after it, which every row on screen draws together, so
+ * the halves of a leg turn as one. After the turn the travel eases back, over
+ * [DriftMillis], onto the plain clock's — by less than the distance from one
+ * chevron to the next, which looks the same — so a row composed later, which
+ * knows nothing of the turn, still meets it at the seam.
+ */
+@Stable
+internal class RailMotion {
+    /** The frame time in milliseconds, or [Stopped] while nothing moves. */
+    internal val time = mutableLongStateOf(Stopped)
+
+    private var reversed = false
+    private var target = false
+    private var pending = false
+    private var flips = false
+    private var period = 1.0
+    private var spec: AnimationSpec<Float> = spring()
+    private var turnAt = NoTurn
+    private var turnMillis = 0L
+    private var turn: TargetBasedAnimation<Float, AnimationVector1D>? = null
+    private var frozen = 0.0
+    private var drift = 0.0
+
+    /**
+     * Heads the journey [reversed] or not. [flips], the chevrons turn in place
+     * first; [period] is how far through the loop the picture repeats, which
+     * the travel can be moved by unseen.
+     */
+    fun steer(reversed: Boolean, flips: Boolean, period: Double, spec: AnimationSpec<Float>) {
+        this.flips = flips
+        this.period = period
+        this.spec = spec
+        if (reversed == target) return
+        target = reversed
+        if (time.longValue == Stopped) {
+            // Still: nothing to turn, so it is simply the other way from here.
+            this.reversed = reversed
+            pending = false
+            turnAt = NoTurn
+            turn = null
+        } else {
+            pending = true
+        }
+    }
+
+    /** The pulse's loop, 0 to 1 every [BandTravel], or NaN while still. */
+    fun pulse(): Float {
+        val t = time.longValue
+        return if (t == Stopped) Float.NaN else (t % BandTravel).toFloat() / BandTravel
+    }
+
+    /**
+     * Where the band and the chevrons are in their loop, 0 to 1, running down
+     * through it, or up through it reversed; NaN while still.
+     */
+    fun travel(): Float {
+        val t = time.longValue
+        if (t == Stopped) return Float.NaN
+        stamp(t)
+        val loops = loops(t)
+        return (loops - floor(loops)).toFloat()
+    }
+
+    /**
+     * Which way the chevrons point, in degrees from down the connector: 0, or
+     * 180 reversed, and between while they turn.
+     */
+    fun heading(): Float {
+        val t = time.longValue
+        if (t == Stopped) return if (target) Reversed else 0f
+        stamp(t)
+        return headingAt(t)
+    }
+
+    private fun clock(t: Long, reversed: Boolean): Double = (if (reversed) -t else t).toDouble() / BandTravel
+
+    private fun loops(t: Long): Double {
+        if (turnAt == NoTurn) return clock(t, reversed)
+        val since = t - turnAt
+        if (since < turnMillis) return frozen
+        val plain = clock(t, reversed)
+        val k = (since - turnMillis).toDouble() / DriftMillis
+        return if (k >= 1.0) plain else plain + drift * (1.0 - k * k * (3.0 - 2.0 * k))
+    }
+
+    private fun headingAt(t: Long): Float {
+        val turning = turn
+        if (turnAt == NoTurn || turning == null || t - turnAt >= turnMillis) return if (reversed) Reversed else 0f
+        return turning.getValueFromNanos((t - turnAt) * 1_000_000L)
+    }
+
+    /** A change since the last frame, begun at this one. */
+    private fun stamp(t: Long) {
+        if (!pending) return
+        val loops = loops(t)
+        val heading = headingAt(t)
+        reversed = target
+        pending = false
+        val turning = TargetBasedAnimation(spec, Float.VectorConverter, heading, if (reversed) Reversed else 0f)
+        turn = turning
+        turnMillis = if (flips) turning.durationNanos / 1_000_000L else 0L
+        turnAt = t
+        frozen = loops
+        // How far ahead of the plain clock the travel is when it sets off
+        // again, by the nearest of the moves that look the same.
+        val ahead = loops - clock(t + turnMillis, reversed)
+        drift = ahead - period * round(ahead / period)
+    }
+}
+
+/**
+ * A [RailMotion] for a rail heading [reversed] — null to leave it as it was, for
+ * a row with no leg being travelled — and moving as [motion] does. It runs only
  * while [running], and never under reduced motion, so a settled timeline asks
  * for no frames.
  */
 @Composable
-internal fun rememberRailPhase(running: Boolean): FloatState {
-    val phase = remember { mutableFloatStateOf(Float.NaN) }
-    val on = running && !Theme.motion.reduceMotion
+internal fun rememberRailMotion(running: Boolean, reversed: Boolean?, motion: TimelineMotion): RailMotion {
+    val rail = remember { RailMotion() }
+    val theme = Theme.motion
+    val spec = theme.springOrTween<Float>(theme.springBouncy)
+    if (reversed != null) {
+        SideEffect {
+            rail.steer(
+                reversed = reversed,
+                flips = motion != TimelineMotion.Band,
+                // The run of chevrons looks the same a spacing on; one chevron, or
+                // the band, only a whole loop on.
+                period = if (motion == TimelineMotion.Arrows) 1.0 / ArrowsPerLoop else 1.0,
+                spec = spec,
+            )
+        }
+    }
+    val on = running && !theme.reduceMotion
     LaunchedEffect(on) {
         if (!on) {
-            phase.floatValue = Float.NaN
+            rail.time.longValue = Stopped
         } else {
             while (true) {
-                withInfiniteAnimationFrameMillis { time ->
-                    phase.floatValue = (time % BandTravel).toFloat() / BandTravel
-                }
+                withInfiniteAnimationFrameMillis { time -> rail.time.longValue = time }
             }
         }
     }
-    return phase
+    return rail
 }
+
+/** [RailMotion.time] while nothing moves. */
+private const val Stopped: Long = Long.MIN_VALUE
+
+/** No turn has been made. */
+private const val NoTurn: Long = Long.MIN_VALUE
+
+/** The heading of a journey running back up the rail. */
+private const val Reversed: Float = 180f
+
+/**
+ * How long the travel takes to ease back onto the plain clock after a turn: two
+ * loops, so a lone chevron half a loop out goes at no less than three quarters
+ * of its pace, or more than a quarter over, while it does.
+ */
+private const val DriftMillis: Long = 2_800L
 
 /**
  * Draws [row]'s rail.
@@ -225,8 +408,8 @@ internal fun rememberRailPhase(running: Boolean): FloatState {
  * Positions are along the rail ([axis]: down the page, or across it from the
  * start edge) and across it: lane `j` runs at [firstLane] `+ j ×` [laneWidth]
  * from the start edge, and the node sits [nodeAlong] along. Right to left is
- * handled here, for both axes. [phase] is [rememberRailPhase]'s; NaN draws the
- * rail still. [icon] is the node's [RailNode.icon], painted inside it.
+ * handled here, for both axes. [motion] is [rememberRailMotion]'s; stopped, the
+ * rail is drawn still. [icon] is the node's [RailNode.icon], painted inside it.
  */
 internal fun DrawScope.drawRail(
     row: RailRow,
@@ -235,11 +418,15 @@ internal fun DrawScope.drawRail(
     laneWidth: Float,
     nodeAlong: Float,
     nodeRadius: Float,
-    phase: Float = Float.NaN,
+    motion: RailMotion? = null,
     highContrast: Boolean = false,
     icon: Painter? = null,
 ) {
     val space = RailSpace(axis, layoutDirection == LayoutDirection.Rtl, size)
+    // The pulse on the stop reached keeps its own loop; the band and chevrons
+    // run on the journey's, which turns round with it.
+    val phase = motion?.pulse() ?: Float.NaN
+    val travelling = if (row.legs.any { it.travel?.band == true }) motion?.travel() ?: Float.NaN else Float.NaN
     val stack = row.node?.stack ?: 1
     // A node group's stack is longer along the rail than a node, and its legs
     // leave it from its ends; across the rail it is one node wide.
@@ -276,7 +463,7 @@ internal fun DrawScope.drawRail(
         // colour the leg is, its own or the rail's. Its arrows, moving or
         // still, are drawn over it faint the same way.
         val arrows = leg.travel?.let { it.band && it.arrows } == true
-        val sweeping = !arrows && leg.travel?.band == true && !phase.isNaN()
+        val sweeping = !arrows && leg.travel?.band == true && !travelling.isNaN()
         draw(if (sweeping || arrows) leg.colour.copy(alpha = leg.colour.alpha * FaintAlpha) else leg.colour)
 
         val travel = leg.travel ?: continue
@@ -301,19 +488,20 @@ internal fun DrawScope.drawRail(
         if (arrows) {
             // Moving, the arrows travel the whole leg, as the band sweeps it:
             // drawn up to where the journey is, they ran along half of it.
-            if (phase.isNaN() && travel.passed > 0f) overlay(0f, travel.passed)
+            if (travelling.isNaN() && travel.passed > 0f) overlay(travel.travelled.start, travel.travelled.endInclusive)
             val curve = if (leg.start.lane != leg.end.lane) space.curve(a0, c0, a1, c1) else null
-            drawLegArrows(travel, space.point(a0, c0), space.point(a1, c1), curve, stroke, phase)
+            val heading = if (travelling.isNaN()) (if (travel.reversed) 180f else 0f) else motion?.heading() ?: 0f
+            drawLegArrows(travel, space.point(a0, c0), space.point(a1, c1), curve, stroke, travelling, heading)
         } else if (sweeping) {
-            bandRange(phase)?.let { overlay(it.start, it.endInclusive) }
+            bandRange(travelling)?.let { overlay(it.start, it.endInclusive) }
         } else if (travel.passed > 0f) {
-            overlay(0f, travel.passed)
+            overlay(travel.travelled.start, travel.travelled.endInclusive)
         } else if (travel.band) {
             // Still — reduced motion — and nothing known of how far along: a
-            // stub the band's length at the leg's start, as a step bar shows one,
-            // so the leg still reads as the one being travelled rather than as
-            // one not yet reached.
-            overlay(0f, BandFraction)
+            // stub the band's length at the end the journey came in at, as a
+            // step bar shows one, so the leg still reads as the one being
+            // travelled rather than as one not yet reached.
+            if (travel.reversed) overlay(1f - BandFraction, 1f) else overlay(0f, BandFraction)
         }
     }
 
@@ -492,7 +680,9 @@ internal fun RailListRow(
     // Written by the measure pass below, read by the draw: where the label's
     // first line landed, which is where the node goes.
     val nodeY = remember { mutableFloatStateOf(0f) }
-    val phase = rememberRailPhase(rail.animates)
+    // Any of the row's legs says which way the journey runs, and how it moves.
+    val travel = rail.legs.firstNotNullOfOrNull { it.travel }
+    val motion = rememberRailMotion(rail.animates, travel?.reversed, travel?.motion ?: TimelineMotion.Band)
     val node = rail.node
     val size = nodeSizeFor(nodeSize, node?.icon)
     val icon = node?.icon?.let { rememberVectorPainter(it) }
@@ -530,7 +720,7 @@ internal fun RailListRow(
                     laneWidth = laneWidth.toPx(),
                     nodeAlong = nodeY.floatValue,
                     nodeRadius = size.toPx() / 2f,
-                    phase = phase.floatValue,
+                    motion = motion,
                     highContrast = enhanced,
                     icon = icon,
                 )
@@ -584,6 +774,11 @@ internal fun stackCentres(along: Float, radius: Float, stack: Int): FloatArray {
  * **Still** — [phase] NaN, under reduced motion — they stand on the part still
  * to cover: one halfway along it, or the run of them.
  *
+ * [phase] is [RailMotion.travel], which runs back through its loop on a
+ * journey heading up the rail, and [heading] is [RailMotion.heading]: which way
+ * they point, in degrees from down the connector, turning in place between the
+ * two when the journey turns round.
+ *
  * A chevron belongs to the piece its middle is in, and is drawn whole there.
  */
 private fun DrawScope.drawLegArrows(
@@ -593,6 +788,7 @@ private fun DrawScope.drawLegArrows(
     curve: Path?,
     stroke: Float,
     phase: Float,
+    heading: Float,
 ) {
     if (travel.to == travel.from) return
     val lo = min(travel.from, travel.to)
@@ -609,6 +805,9 @@ private fun DrawScope.drawLegArrows(
     val towards = if (travel.to > travel.from) 1f else -1f
     val fullHalf = max(ArrowHalfWidth.toPx(), stroke * 2f)
     val style = Stroke(width = stroke, cap = StrokeCap.Round, join = StrokeJoin.Round)
+    val turn = heading * (PI.toFloat() / 180f)
+    val cos = cos(turn)
+    val sin = sin(turn)
 
     fun chevron(at: Float) {
         // How far it is into the leg from the nearer stop, eased in and out.
@@ -619,14 +818,16 @@ private fun DrawScope.drawLegArrows(
         val depth = half * ArrowDepth
         val along = (at - travel.from) / (travel.to - travel.from) * length
         val centre: Offset
-        val direction: Offset
+        val down: Offset
         if (measure != null) {
             centre = measure.getPosition(along)
-            direction = measure.getTangent(along) * towards
+            down = measure.getTangent(along) * towards
         } else {
             centre = p0 + straight * (along / length)
-            direction = straight * (towards / length)
+            down = straight * (towards / length)
         }
+        // Down the connector, turned to the heading.
+        val direction = Offset(down.x * cos - down.y * sin, down.x * sin + down.y * cos)
         val across = Offset(-direction.y, direction.x) * half
         val tip = centre + direction * (depth / 2f)
         val back = centre - direction * (depth / 2f)
@@ -640,7 +841,8 @@ private fun DrawScope.drawLegArrows(
 
     if (!travel.stream) {
         // One: across the whole leg once a loop, or halfway along what is left.
-        val at = if (moving) phase else (max(travel.passed, 0f) + 1f) / 2f
+        val left = travel.travelled.let { if (travel.reversed) 0f..it.start else it.endInclusive..1f }
+        val at = if (moving) phase else (left.start + left.endInclusive) / 2f
         if (at in lo..hi && (at < hi || hi >= 1f)) chevron(at)
         return
     }
@@ -648,7 +850,7 @@ private fun DrawScope.drawLegArrows(
     val shift = if (moving) (phase * ArrowsPerLoop) % 1f else 0f
     for (k in 0 until count) {
         val at = lo + (hi - lo) * (k + shift) / count
-        if (!moving && at < travel.passed) continue
+        if (!moving && (if (travel.reversed) at > 1f - travel.passed else at < travel.passed)) continue
         chevron(at)
     }
 }
@@ -663,7 +865,7 @@ private val ArrowHalfWidth: Dp = 4.dp
 private const val ArrowDepth: Float = 0.8f
 
 /** How many chevron spacings they move on in each loop of the rail's motion. */
-private const val ArrowsPerLoop: Int = 2
+internal const val ArrowsPerLoop: Int = 2
 
 /** How far into the leg from either stop a chevron grows and fades in, or out. */
 private val ArrowFade: Dp = 16.dp

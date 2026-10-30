@@ -22,7 +22,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.FloatState
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
@@ -227,6 +226,12 @@ object TimelineDefaults {
  * @param progressMotion How the leg the journey is on moves: a band
  *   sweeping it, one arrow travelling it towards the next item, or a run of
  *   them moving on together. See [TimelineMotion].
+ * @param progressReversed Whether the journey runs back up the timeline, from
+ *   its last item towards its first: a return trip on the same stops. [progress]
+ *   is still counted from the first item; the items reached are the ones at and
+ *   after it, and the band and the arrows run back towards the first. Changed
+ *   while the arrows move, they turn in place, with a bounce, and go the other
+ *   way.
  * @param colours The nodes', rail's and progress's colours, for items that do
  *   not name their own.
  */
@@ -235,12 +240,13 @@ fun Timeline(
     modifier: Modifier = Modifier,
     progress: Float? = null,
     progressMotion: TimelineMotion = TimelineMotion.Band,
+    progressReversed: Boolean = false,
     colours: TimelineColours = TimelineDefaults.colours(),
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val registry = remember { TimelineRegistry() }
     CompositionLocalProvider(
-        LocalTimelineContext provides TimelineContext(Orientation.Vertical, progress, progressMotion, colours, registry),
+        LocalTimelineContext provides TimelineContext(Orientation.Vertical, progress, progressMotion, progressReversed, colours, registry),
     ) {
         Column(modifier.fillMaxWidth(), content = content)
     }
@@ -396,13 +402,18 @@ private fun TimelineStopItem(
     // Where the journey stands against this item. Read in composition only to
     // start and stop the motion and to colour a spinner; the rail itself reads
     // the index as it draws, after the timeline has laid its items out.
-    val here = slot.index.let { if (it >= 0) stopProgress(progress, it) else null }
-    val phase = rememberRailPhase(running = here != null && ((here.here && !loading) || here.legBand))
+    val reversed = context?.reversed == true
+    val here = slot.index.let { if (it >= 0) stopProgress(progress, it, reversed) else null }
+    val motion = rememberRailMotion(
+        running = here != null && ((here.here && !loading) || here.legBand),
+        reversed = reversed.takeIf { progress != null },
+        motion = context?.motion ?: TimelineMotion.Band,
+    )
     val spinnerColour = nodeColourFor(nodeColour, here, colours.node, colours.progress, colours.rail)
     // One leg, from the node to the end of the item, where the next one's node
     // begins: the same rail a list row draws, with one lane and one leg.
     fun rail(): RailRow {
-        val at = slot.index.let { if (it >= 0) stopProgress(progress, it) else null }
+        val at = slot.index.let { if (it >= 0) stopProgress(progress, it, reversed) else null }
         return RailRow(
             node = RailNode(
                 lane = 0,
@@ -423,14 +434,14 @@ private fun TimelineStopItem(
                     colour = connectorColour.takeOrElse { colours.rail },
                     width = connectorWidth,
                     travel = at?.let {
-                        LegTravel(0f, 1f, it.legPassed, it.legBand, colours.progress, arrows = arrows, stream = stream)
+                        LegTravel(0f, 1f, it.legPassed, it.legBand, colours.progress, arrows = arrows, stream = stream, reversed = reversed)
                     },
                 ),
             ),
         )
     }
     if (context?.axis == Orientation.Horizontal) {
-        AcrossItem(modifier, slot, ::rail, phase, spinnerColour, loading, dot, stack, connectorWidth, painter) {
+        AcrossItem(modifier, slot, ::rail, motion, spinnerColour, loading, dot, stack, connectorWidth, painter) {
             TimelineItemBody(slots, across = true)
         }
         return
@@ -496,7 +507,7 @@ private fun TimelineStopItem(
                     // never pokes above the row.
                     nodeAlong = stackHalfLength(nodeRadius, stack) + TimelineNodeGap.toPx(),
                     nodeRadius = nodeRadius,
-                    phase = phase.floatValue,
+                    motion = motion,
                     highContrast = enhanced,
                     icon = painter,
                 )
@@ -575,7 +586,7 @@ private fun AcrossItem(
     modifier: Modifier,
     slot: TimelineSlot,
     rail: () -> RailRow,
-    phase: FloatState,
+    motion: RailMotion,
     nodeColour: Color,
     loading: Boolean,
     nodeSize: Dp,
@@ -604,7 +615,7 @@ private fun AcrossItem(
                     laneWidth = 0f,
                     nodeAlong = gap + stackHalfLength(nodeRadius, stack),
                     nodeRadius = nodeRadius,
-                    phase = phase.floatValue,
+                    motion = motion,
                     highContrast = enhanced,
                     icon = icon,
                 )
@@ -669,6 +680,8 @@ internal class TimelineContext(
     val axis: Orientation,
     val progress: Float?,
     val motion: TimelineMotion,
+    /** The journey runs back up the timeline, from its last item towards its first. */
+    val reversed: Boolean,
     val colours: TimelineColours,
     val registry: TimelineRegistry,
 )
@@ -729,6 +742,12 @@ private class TimelinePartNode(var part: TimelinePart) : Modifier.Node(), Parent
  * @param progressMotion How the leg the journey is on moves: a band
  *   sweeping it, one arrow travelling it towards the next item, or a run of
  *   them moving on together. See [TimelineMotion].
+ * @param progressReversed Whether the journey runs back along the timeline, from
+ *   its last item towards its first: a return trip on the same stops. [progress]
+ *   is still counted from the first item; the items reached are the ones at and
+ *   after it, and the band and the arrows run back towards the first. Changed
+ *   while the arrows move, they turn in place, with a bounce, and go the other
+ *   way.
  * @param labelPlacement Each item's content under the rail, over it, or
  *   taking turns.
  * @param equalWidths Every item as wide as the widest — or, if they would not
@@ -745,6 +764,7 @@ fun HorizontalTimeline(
     modifier: Modifier = Modifier,
     progress: Float? = null,
     progressMotion: TimelineMotion = TimelineMotion.Band,
+    progressReversed: Boolean = false,
     labelPlacement: TimelineLabelPlacement = TimelineLabelPlacement.Below,
     equalWidths: Boolean = false,
     colours: TimelineColours = TimelineDefaults.colours(),
@@ -754,7 +774,7 @@ fun HorizontalTimeline(
     val labelGap = Theme.spacing.xs
     val registry = remember { TimelineRegistry() }
     CompositionLocalProvider(
-        LocalTimelineContext provides TimelineContext(Orientation.Horizontal, progress, progressMotion, colours, registry),
+        LocalTimelineContext provides TimelineContext(Orientation.Horizontal, progress, progressMotion, progressReversed, colours, registry),
     ) {
         BoxWithConstraints(modifier.fillMaxWidth()) {
             val viewport = if (constraints.hasBoundedWidth) constraints.maxWidth else 0
