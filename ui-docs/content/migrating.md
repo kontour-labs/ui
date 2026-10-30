@@ -18,17 +18,18 @@ from the version the app is on.
 ## 0.5.0 to 0.5.1
 
 Most of this release is less work on a slow phone, which an app has nothing to
-do for. What it changes is two new parameters partway through others, a
-timeline's `progressMotion` and a time picker's `infinite`, each of which a
-positional argument after it names; and some things that look or behave
-differently and still compile, under **Check**.
+do for. What it changes is new parameters partway through others — a
+timeline's `progressMotion` and `progressReversed`, and a time picker's
+`infinite` — each of which a positional argument after it names, and some
+things that look or behave differently and still compile, under **Check**.
 
 ### Name the argument after `progress` on a timeline
 
 `Timeline`, `HorizontalTimeline`, `TimelineList`, `timelineList`,
 `BranchTimeline` and `branchTimeline` take `progressMotion`, defaulted,
-straight after `progress`. A call that names its arguments needs nothing. One
-that passes the argument after `progress` by position names it:
+straight after `progress`, and all but the branch timelines `progressReversed`
+after that. A call that names its arguments needs nothing. One that passes the
+argument after `progress` by position names it:
 
 ```diff
 - Timeline(Modifier, 1.5f, colours) { stops() }
@@ -66,7 +67,7 @@ It fails to compile rather than meaning something else.
   after a theme switch shows them in the new theme's colours. Their own
   changes, pressed or disabled or selected, fade as before.
 - **Tooltips go at a press elsewhere**, and the press still lands where it was
-  aimed. A `Tooltip` the app shows is asked through `onDismissRequest`; one
+  aimed; a press on the tooltip itself leaves it. A `Tooltip` the app shows is asked through `onDismissRequest`; one
   whose caller passes none stays until the app hides it, as before, so pass one
   to have it go. And a `Modifier.tooltip` on a button opens from a long press,
   which it never did by touch: a test that long-pressed a button expecting

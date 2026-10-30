@@ -32,12 +32,14 @@ On `main`, and in the next release. Nothing yet.
 ## 0.5.1 — 29 October 2026
 
 Less work on a slower phone, with nothing looking or moving differently, and
-what testing on phones asked for: a marquee you can drag, arrows along a
-timeline's leg, a time picker whose wheels go round, and tooltips that go at a
-press anywhere else and open on a button by touch, which they never did.
-Tooltips and coach marks open where they fit whole, a list in a sheet bounces
-past its end, a theme switch takes the controls with it, a menu's list let go
-from still springs back, and a faded edge no longer shows what is under its
+what testing on phones asked for: a marquee you can drag; arrows along a
+timeline's leg, one at a time or a run of them like an escalator, and a
+journey that can run back along the timeline, the arrows turning round with
+it; a time picker whose wheels go round; and tooltips that go at a press
+anywhere else and open on a button by touch, which they never did. Tooltips
+and coach marks open where they fit whole, a list in a sheet bounces past its
+end, a theme switch takes the controls with it, a menu's list let go from
+still springs back, and a faded edge no longer shows what is under its
 surface.
 
 ### Added
@@ -56,6 +58,15 @@ surface.
   Each grows in at the stop behind and fades out at the next. Under reduced
   motion the arrows stand still on the part still to cover, and still say
   which way the journey is going.
+- **A journey back along a timeline.** `Timeline`, `HorizontalTimeline`,
+  `TimelineList` and `timelineList` take `progressReversed`: the journey runs
+  from the last stop towards the first, a return trip on the same stops.
+  `progress` is still counted from the first; the stops reached are the ones at
+  and after it, and the band, the arrow and the run of arrows all run back.
+  Turned round while the arrows move, they stop, turn in place on the bouncy
+  spring a chevron turns on everywhere else, and set off the other way. All of
+  it is worked out as the rail draws, from the frame clock, so nothing composes
+  as it moves or turns.
 
 ### Changed
 
@@ -115,13 +126,13 @@ surface.
   open on the side asked for if they fit there whole, then on the other side,
   then beside the control, and scroll only when no side has room for all of
   it. Menus and popovers, which are meant to scroll, are as they were.
-- **A tooltip goes at a press anywhere else.** However it opened, a press
-  anywhere but on its control or on the tooltip puts it away, and the press
-  goes on to do what it was aimed at: a tap on the button beside it presses
-  that button too. A tap on the tooltip leaves it open.
-  A touch tooltip waited out its four seconds, or a tap on the control itself.
-  A `Tooltip` the app shows is asked, through its `onDismissRequest`, as a
-  dialog is.
+- **A tooltip goes at a press anywhere else.** A touch tooltip waited out its
+  four seconds, or a tap on the control itself. However it opened, a press
+  anywhere but on its control or on the tooltip now puts it away, and the
+  press goes on to do what it was aimed at: a tap on the button beside it
+  presses that button too. A tap on the tooltip leaves it open, as a plain
+  tooltip does everywhere. A `Tooltip` the app shows is asked, through its
+  `onDismissRequest`, as a dialog is.
 - **A time picker's wheels go round.** `TimePicker` and `DateTimePicker` take
   `infinite`, true by default: past :59 comes :00 and past 23 comes 0, so 23:30
   to half past midnight is one row on rather than twenty-three back. On a
@@ -161,11 +172,11 @@ surface.
   compiles as it is.
 - **`Timeline`, `HorizontalTimeline`, `TimelineList`, `timelineList`,
   `BranchTimeline` and `branchTimeline` have a new parameter**,
-  `progressMotion`, defaulted, straight after `progress`, so anything built
-  against 0.5.0 recompiles. A call that names its arguments, as every one in
-  these docs does, needs nothing. One that passes the argument after
-  `progress` by position fails to compile rather than meaning something else,
-  and names it. See
+  `progressMotion`, defaulted, straight after `progress`, and the first four
+  `progressReversed` after that, so anything built against 0.5.0 recompiles. A
+  call that names its arguments, as every one in these docs does, needs
+  nothing. One that passes the argument after `progress` by position fails to
+  compile rather than meaning something else, and names it. See
   [Migrating](migrating.md#name-the-argument-after-progress-on-a-timeline).
 - **`TimePicker` and `DateTimePicker` have a new parameter**, `infinite`,
   defaulted, straight after `minuteStep`, so anything built against 0.5.0

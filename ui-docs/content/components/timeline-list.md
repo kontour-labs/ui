@@ -120,6 +120,12 @@ an escalator, each growing in at the stop behind and fading out at the next.
 Each row fits a whole number of arrows to its half of the leg, so they cross
 from one row to the next without a jump too.
 
+`progressReversed = true` runs the journey back up the list, from the last stop
+towards the first, a return trip on the same stops: the stops reached are the
+ones at and after `progress`, and the band or arrows climb. Turned round while
+the arrows move, they turn in place, with a bounce, and set off the other way,
+the two halves of the leg together.
+
 Under reduced motion the halo holds still and there is no band: the leg is
 coloured as far as the journey has got instead. The
 colours are a `TimelineColours`, the same as a `Timeline`'s, and

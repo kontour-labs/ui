@@ -52,6 +52,13 @@ By default it resolves dark mode, contrast tier and reduced motion from the
 operating system, and follows all three live. Which platform setting drives
 which is in [`accessibility.md`](accessibility.md#contrast-tiers).
 
+**A change of theme is a cut**, light to dark in one frame. Pass
+`animateThemeChanges = true` for a cross-fade instead, which is never used
+under reduced motion. Either way every control moves with the theme, on its
+frames: a button, a switch, a tab or a chip does not fade on its own behind a
+page that has already changed. A control's own change — pressed, disabled,
+selected — still fades as it always has.
+
 **It also tells the host which way round the app is drawing.** Every platform
 has chrome the canvas cannot reach and that picks its own colours from a flag
 the host owns — Android's status and navigation bar icons, iOS's status bar, a
