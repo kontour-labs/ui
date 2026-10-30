@@ -349,6 +349,7 @@ final enum class io.kontour.ui.components.display/TimelineListStyle : kotlin/Enu
 }
 
 final enum class io.kontour.ui.components.display/TimelineMotion : kotlin/Enum<io.kontour.ui.components.display/TimelineMotion> { // io.kontour.ui.components.display/TimelineMotion|null[0]
+    enum entry Arrow // io.kontour.ui.components.display/TimelineMotion.Arrow|null[0]
     enum entry Arrows // io.kontour.ui.components.display/TimelineMotion.Arrows|null[0]
     enum entry Band // io.kontour.ui.components.display/TimelineMotion.Band|null[0]
 

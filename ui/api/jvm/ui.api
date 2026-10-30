@@ -1306,6 +1306,7 @@ public final class io/kontour/ui/components/display/TimelineListStyle : java/lan
 }
 
 public final class io/kontour/ui/components/display/TimelineMotion : java/lang/Enum {
+	public static final field Arrow Lio/kontour/ui/components/display/TimelineMotion;
 	public static final field Arrows Lio/kontour/ui/components/display/TimelineMotion;
 	public static final field Band Lio/kontour/ui/components/display/TimelineMotion;
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
