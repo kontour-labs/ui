@@ -20,6 +20,7 @@ import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.theme.KontourTheme
+import io.kontour.ui.theme.Theme
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -33,11 +34,15 @@ import kotlin.test.assertTrue
 @OptIn(ExperimentalTestApi::class)
 class CoachmarkTourOptionsTest {
 
+    /** A small ghost button's pad and the bubble row's gap, read from the theme. */
+    private var gap = 0.dp
+
     private fun ComposeUiTest.tour(dismissible: Boolean = false, showSkip: Boolean = false): CoachmarkTour {
         val steps = arrayOf("a", "b", "c")
         lateinit var tour: CoachmarkTour
         setContent {
             KontourTheme(reduceMotion = true) {
+                gap = Theme.componentDefaults.buttonPaddingSmall + Theme.spacing.xs
                 tour = rememberCoachmarkTour(*steps, dismissible = dismissible, showSkip = showSkip)
                 Box(Modifier.requiredSize(400.dp, 700.dp)) {
                     OverlayHost(Modifier.fillMaxSize()) {
@@ -99,25 +104,24 @@ class CoachmarkTourOptionsTest {
     }
 
     /**
-     * Skip and Back stand as far apart as Back stands from Next: two ghost
-     * buttons side by side kept twice their invisible pad between their words,
-     * and Skip looked to have more room on its right than anything else.
+     * Skip's word stands as far from Next as any ghost button's does from what
+     * follows it: its own pad and the row's gap. When Skip and Back stood side
+     * by side, each kept its invisible pad and there was twice of it between
+     * their words; Back has gone to the start of the row since 0.5.2, and Skip
+     * stands alone beside Next.
      */
     @Test
-    fun skipBackAndNextAreEvenlySpaced() = runComposeUiTest {
+    fun skipStandsItsPadAndAGapFromNext() = runComposeUiTest {
         tour(showSkip = true)
         button("Next").performClick()
         waitForIdle()
-        fun text(label: String) = onAllNodes(hasText(label), useUnmergedTree = true).fetchSemanticsNodes()
+        val skip = onAllNodes(hasText("Skip"), useUnmergedTree = true).fetchSemanticsNodes()
             .first { it.children.isEmpty() }.boundsInRoot
-        val skip = text("Skip")
-        val back = text("Back")
         val next = button("Next").fetchSemanticsNode().boundsInRoot
-        val skipToBack = back.left - skip.right
-        val backToNext = next.left - back.right
+        val expected = with(density) { gap.toPx() }
         assertTrue(
-            kotlin.math.abs(skipToBack - backToNext) <= 2f,
-            "Skip's word is ${skipToBack}px from Back's, and Back's ${backToNext}px from Next",
+            kotlin.math.abs(next.left - skip.right - expected) <= 2f,
+            "Skip's word is ${next.left - skip.right}px from Next, not its pad and the row's gap, ${expected}px",
         )
     }
 
