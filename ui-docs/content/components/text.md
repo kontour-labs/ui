@@ -177,7 +177,12 @@ near a field is an unrelated node however close it is on screen.
 
 Links inside an `AnnotatedString` use `LinkAnnotation`, so the platform gets real
 link semantics — focusable, announced as a link, activated by the keyboard —
-rather than a tap handler that works out which range was hit.
+rather than a tap handler that works out which range was hit. A press or a hover
+on one grounds just that link, line by line, as a
+[`TextButton`](text-button.md#a-link-inside-a-sentence) is grounded, and a tap is
+held long enough to be seen; nothing in the paragraph moves for it. At high
+contrast a pressed link inverts, its words in the accent's `onSolid` on the
+accent's solid.
 
 Never size type in `sp` computed from a `Dp`. `Theme.typography` scales with the
 user's text setting; a literal does not, and 200% is the setting the
