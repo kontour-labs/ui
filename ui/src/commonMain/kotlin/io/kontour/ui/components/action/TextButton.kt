@@ -1,16 +1,13 @@
 package io.kontour.ui.components.action
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.indication
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsHoveredAsState
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -25,6 +22,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.isSpecified
 import io.kontour.ui.a11y.minimumTouchTarget
+import io.kontour.ui.foundation.GroundClearance
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.LocalContentColour
 import io.kontour.ui.foundation.LocalTextStyle
@@ -33,6 +31,7 @@ import io.kontour.ui.foundation.RowContentScope
 import io.kontour.ui.foundation.contentScope
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
+import io.kontour.ui.interaction.textIndication
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.a11y.LocalNamedByContent
 import androidx.compose.ui.semantics.contentDescription
@@ -65,9 +64,16 @@ import androidx.compose.ui.semantics.contentDescription
  * confused with, and the underline there reads as a mistake — which is why every
  * platform's own "Forgot password?" is a coloured word without one.
  *
- * Press and hover are a tint behind the word, matching the inline link exactly;
- * see [io.kontour.ui.foundation.LinkDefaults.styles] for why a link's feedback
- * cannot be the scale every filled control uses.
+ * **A press is the accent's ground behind the word**, in [shape], and the
+ * label in the ink made for that ground; at high contrast the two invert, the
+ * accent's solid behind and its `onSolid` on it. A hover is the ground alone,
+ * and only for a pointer that can hover. All of it is drawn rather than laid
+ * out, so the button is the same size pressed as at rest and nothing beside it
+ * moves, and a tap too quick to see is held long enough to be seen, as every
+ * other control's press is. It does not shrink: a word that shrinks reads as
+ * the text jumping, the reason a ghost [Button] with a label does not either. A
+ * [richText][io.kontour.ui.foundation.richText] link in a [Text][io.kontour.ui.foundation.Text]
+ * answers a press the same way, behind just its own words, line by line.
  *
  * @param contentDescription What a screen reader announces in place of the
  *   label, where the label alone does not say enough: "Save" on screen, "Save
@@ -92,16 +98,7 @@ fun TextButton(
     content: @Composable RowContentScope.() -> Unit,
 ) {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
-    val pressed by interactions.collectIsPressedAsState()
-    val hovered by interactions.collectIsHoveredAsState()
-    val colours = Theme.colours
-
-    val ink = when {
-        !enabled -> colours.contentDisabled
-        pressed -> colours.accent.onContainer
-        else -> colour
-    }
-    val ground = if (enabled && (pressed || hovered)) colours.accent.container else Color.Transparent
+    val ink = if (enabled) colour else Theme.colours.contentDisabled
 
     Row(
         modifier = modifier
@@ -111,7 +108,7 @@ fun TextButton(
             }
             .minimumTouchTarget()
             .focusRing(interactions, shape)
-            .background(ground, shape)
+            .textPress(interactions, enabled, shape, pressScale = 1f)
             .pointerCursor(enabled = enabled)
             .clickable(
                 interactionSource = interactions,
@@ -166,16 +163,7 @@ fun TextIconButton(
     interactionSource: MutableInteractionSource? = null,
 ) {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
-    val pressed by interactions.collectIsPressedAsState()
-    val hovered by interactions.collectIsHoveredAsState()
-    val colours = Theme.colours
-
-    val ink = when {
-        !enabled -> colours.contentDisabled
-        pressed -> colours.accent.onContainer
-        else -> colour
-    }
-    val ground = if (enabled && (pressed || hovered)) colours.accent.container else Color.Transparent
+    val ink = if (enabled) colour else Theme.colours.contentDisabled
 
     Icon(
         imageVector = icon,
@@ -185,7 +173,9 @@ fun TextIconButton(
         modifier = modifier
             .minimumTouchTarget()
             .focusRing(interactions, shape)
-            .background(ground, shape)
+            // A glyph is a shape rather than a line of type, so it takes the
+            // shrink a ghost icon button does; see `ButtonDefaults.pressScale`.
+            .textPress(interactions, enabled, shape, ButtonDefaults.pressScale(ButtonVariant.Ghost, ButtonSize.XSmall, iconOnly = true))
             .pointerCursor(enabled = enabled)
             .clickable(
                 interactionSource = interactions,
@@ -196,6 +186,27 @@ fun TextIconButton(
             ),
     )
 }
+
+/**
+ * The press and hover of a [TextButton] or a [TextIconButton]: a ground behind
+ * it in [shape], drawn by the shared indication so that a tap is held long
+ * enough to be seen. See [io.kontour.ui.interaction.GroundIndication].
+ *
+ * Not there at all when disabled, rather than there and told not to draw: a
+ * disabled control answers nothing, and a caller's own interaction source can
+ * still be sent a press it did not get from a finger.
+ *
+ * Before the ground in the chain is where the old `background` was, so the
+ * ground is drawn over exactly the box it was — the label and its clearance,
+ * inside the 48dp the target reserves without painting.
+ */
+@Composable
+private fun Modifier.textPress(
+    interactions: MutableInteractionSource,
+    enabled: Boolean,
+    shape: Shape,
+    pressScale: Float,
+): Modifier = if (enabled) indication(interactions, textIndication(shape, pressScale)) else this
 
 /**
  * An icon as tall as the current text, so the two grow together.
@@ -217,7 +228,7 @@ private fun textSizedIcon(): Dp {
 }
 
 /** The tint's clearance around the label. Not padding a caller can feel. */
-private val TintPadding: Dp = 2.dp
+private val TintPadding: Dp = GroundClearance
 
 /** Between an icon and the word it belongs to, at text scale. */
 private val TextGap: Dp = 4.dp

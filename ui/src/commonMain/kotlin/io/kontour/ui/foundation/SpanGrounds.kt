@@ -28,9 +28,10 @@ import androidx.compose.ui.text.buildAnnotatedString
  * wraps grounds both its halves, and a ground and the highlight over it are the
  * same shape.
  *
- * A link's focus, hover and press grounds are not among them: those come from
- * `TextLinkStyles`, which Compose applies inside `BasicText`, out of reach. They
- * are drawn only while the pointer or focus is on the link, which is not when a
+ * A link's grounds are not among them. Its focus ground comes from
+ * `TextLinkStyles`, which Compose applies inside `BasicText`, out of reach, and
+ * its hover and press grounds are `LinkPress`'s, drawn over these. All three are
+ * drawn only while the pointer or focus is on the link, which is not when a
  * reader is dragging a selection across it.
  */
 internal object SpanGrounds {
