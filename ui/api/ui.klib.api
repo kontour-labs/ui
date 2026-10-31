@@ -1083,6 +1083,19 @@ abstract fun interface io.kontour.ui.interaction/FeedbackDispatcher { // io.kont
     }
 }
 
+abstract fun interface io.kontour.ui.overlay/CoachmarkSkip { // io.kontour.ui.overlay/CoachmarkSkip|null[0]
+    abstract fun target(kotlin/String, kotlin.collections/List<kotlin/String>): kotlin/String? // io.kontour.ui.overlay/CoachmarkSkip.target|target(kotlin.String;kotlin.collections.List<kotlin.String>){}[0]
+
+    final object Companion { // io.kontour.ui.overlay/CoachmarkSkip.Companion|null[0]
+        final val End // io.kontour.ui.overlay/CoachmarkSkip.Companion.End|{}End[0]
+            final fun <get-End>(): io.kontour.ui.overlay/CoachmarkSkip // io.kontour.ui.overlay/CoachmarkSkip.Companion.End.<get-End>|<get-End>(){}[0]
+        final val ToLast // io.kontour.ui.overlay/CoachmarkSkip.Companion.ToLast|{}ToLast[0]
+            final fun <get-ToLast>(): io.kontour.ui.overlay/CoachmarkSkip // io.kontour.ui.overlay/CoachmarkSkip.Companion.ToLast.<get-ToLast>|<get-ToLast>(){}[0]
+
+        final fun to(kotlin/String): io.kontour.ui.overlay/CoachmarkSkip // io.kontour.ui.overlay/CoachmarkSkip.Companion.to|to(kotlin.String){}[0]
+    }
+}
+
 abstract fun interface io.kontour.ui.theme/StringLookup { // io.kontour.ui.theme/StringLookup|null[0]
     abstract fun text(kotlin/String): kotlin/String? // io.kontour.ui.theme/StringLookup.text|text(kotlin.String){}[0]
     open fun plural(kotlin/String, io.kontour.ui.locale/Quantity): kotlin/String? // io.kontour.ui.theme/StringLookup.plural|plural(kotlin.String;io.kontour.ui.locale.Quantity){}[0]
@@ -2944,6 +2957,7 @@ final class io.kontour.ui.overlay/CoachmarkTour { // io.kontour.ui.overlay/Coach
     final fun next() // io.kontour.ui.overlay/CoachmarkTour.next|next(){}[0]
     final fun previous() // io.kontour.ui.overlay/CoachmarkTour.previous|previous(){}[0]
     final fun skip() // io.kontour.ui.overlay/CoachmarkTour.skip|skip(){}[0]
+    final fun skipTo(kotlin/String) // io.kontour.ui.overlay/CoachmarkTour.skipTo|skipTo(kotlin.String){}[0]
     final fun start() // io.kontour.ui.overlay/CoachmarkTour.start|start(){}[0]
 }
 
@@ -6388,7 +6402,7 @@ final fun io.kontour.ui.overlay/io_kontour_ui_overlay_PopoverDefaults$stableprop
 final fun io.kontour.ui.overlay/io_kontour_ui_overlay_ToastDefaults$stableprop_getter(): kotlin/Int // io.kontour.ui.overlay/io_kontour_ui_overlay_ToastDefaults$stableprop_getter|io_kontour_ui_overlay_ToastDefaults$stableprop_getter(){}[0]
 final fun io.kontour.ui.overlay/io_kontour_ui_overlay_ToastHostState$stableprop_getter(): kotlin/Int // io.kontour.ui.overlay/io_kontour_ui_overlay_ToastHostState$stableprop_getter|io_kontour_ui_overlay_ToastHostState$stableprop_getter(){}[0]
 final fun io.kontour.ui.overlay/io_kontour_ui_overlay_TooltipDefaults$stableprop_getter(): kotlin/Int // io.kontour.ui.overlay/io_kontour_ui_overlay_TooltipDefaults$stableprop_getter|io_kontour_ui_overlay_TooltipDefaults$stableprop_getter(){}[0]
-final fun io.kontour.ui.overlay/rememberCoachmarkTour(kotlin/Array<out kotlin/String>..., io.kontour.ui.overlay/CoachmarkTransition?, kotlin/Boolean, kotlin/Boolean, kotlin.coroutines/SuspendFunction1<kotlin/String, kotlin/Unit>?, androidx.compose.runtime/Composer?, kotlin/Int, kotlin/Int): io.kontour.ui.overlay/CoachmarkTour // io.kontour.ui.overlay/rememberCoachmarkTour|rememberCoachmarkTour(kotlin.Array<out|kotlin.String>...;io.kontour.ui.overlay.CoachmarkTransition?;kotlin.Boolean;kotlin.Boolean;kotlin.coroutines.SuspendFunction1<kotlin.String,kotlin.Unit>?;androidx.compose.runtime.Composer?;kotlin.Int;kotlin.Int){}[0]
+final fun io.kontour.ui.overlay/rememberCoachmarkTour(kotlin/Array<out kotlin/String>..., io.kontour.ui.overlay/CoachmarkTransition?, kotlin/Boolean, kotlin/Boolean, io.kontour.ui.overlay/CoachmarkSkip?, kotlin.coroutines/SuspendFunction1<kotlin/String, kotlin/Unit>?, androidx.compose.runtime/Composer?, kotlin/Int, kotlin/Int): io.kontour.ui.overlay/CoachmarkTour // io.kontour.ui.overlay/rememberCoachmarkTour|rememberCoachmarkTour(kotlin.Array<out|kotlin.String>...;io.kontour.ui.overlay.CoachmarkTransition?;kotlin.Boolean;kotlin.Boolean;io.kontour.ui.overlay.CoachmarkSkip?;kotlin.coroutines.SuspendFunction1<kotlin.String,kotlin.Unit>?;androidx.compose.runtime.Composer?;kotlin.Int;kotlin.Int){}[0]
 final fun io.kontour.ui.overlay/rememberConfirmHostState(androidx.compose.runtime/Composer?, kotlin/Int): io.kontour.ui.overlay/ConfirmHostState // io.kontour.ui.overlay/rememberConfirmHostState|rememberConfirmHostState(androidx.compose.runtime.Composer?;kotlin.Int){}[0]
 final fun io.kontour.ui.overlay/rememberOverlayHostState(androidx.compose.runtime/Composer?, kotlin/Int): io.kontour.ui.overlay/OverlayHostState // io.kontour.ui.overlay/rememberOverlayHostState|rememberOverlayHostState(androidx.compose.runtime.Composer?;kotlin.Int){}[0]
 final fun io.kontour.ui.overlay/rememberOverlayQueue(kotlin/Int, androidx.compose.runtime/Composer?, kotlin/Int, kotlin/Int): io.kontour.ui.overlay/OverlayQueue // io.kontour.ui.overlay/rememberOverlayQueue|rememberOverlayQueue(kotlin.Int;androidx.compose.runtime.Composer?;kotlin.Int;kotlin.Int){}[0]

@@ -1,6 +1,6 @@
 # `Modifier.coachmark`
 
-*Also on this page: `CoachmarkTour`, `Modifier.coachmarkStep`, `CoachmarkStep`, `rememberCoachmarkTour`, `CoachmarkTransition`, `CoachmarkDefaults`.*
+*Also on this page: `CoachmarkTour`, `Modifier.coachmarkStep`, `CoachmarkStep`, `rememberCoachmarkTour`, `CoachmarkTransition`, `CoachmarkSkip`, `CoachmarkDefaults`.*
 
 A tip that introduces a control the user has not found, or a tour of several.
 
@@ -90,19 +90,20 @@ holds only the **order**; each step's words live at the control they describe, i
 can be kept honest when that control changes.
 
 `tour.start()` begins it, and each bubble carries its position — "2 / 3" — with
-Back and Next, and Back and Done on the last. The way on, Next or Done, is
-filled in the bubble's ink so it reads as a button beside Back. A tour of one
-step has only "Got it", since there is nothing to go back to or to be done
-with. `tour.index`, `isRunning` and `isFinished` say where it is; `finish()`
-ends it early.
+Back at the start of its row and Next at the end, or Done on the last step.
+Back is on the left, or the right in a right-to-left language, with its word in
+line with the title and message above it, and Skip, where there is one, stands
+beside the way on. The way on, Next or Done, is filled in the bubble's ink so it
+reads as a button. A tour of one step has only "Got it", since there is nothing
+to go back to or to be done with. `tour.index`, `isRunning` and `isFinished`
+say where it is; `finish()` ends it early.
 
 **A tour is not dismissed by accident.** A tap on the dim, Back and Escape do
 nothing by default: the reader asked for the tour, and a stray tap beside the
 bubble used to lose the rest of it. Its way out is its own buttons. Pass
 `dismissible = true` for a tour that a tap outside, Back or Escape ends.
-`showSkip = true` adds **Skip** to every bubble but the last, which goes
-straight to the last step (`tour.skip()`), so a skipped tour still ends on
-its Done.
+`showSkip = true` adds **Skip** beside the way on, which goes to the last step
+unless the tour says otherwise — see [Where Skip goes](#where-skip-goes).
 
 While a step shows, everything but the control is dimmed, and a hole is cut
 around the control, `CoachmarkDefaults.SpotlightPadding` past its edge with the
@@ -117,6 +118,30 @@ was leaving, so between every pair of steps the page went twice as dark and came
 back — *"the background gets twice as dim when animating between two
 coachmarks"*. The tour's one overlay is the tour's own now: it stays up across a
 change of screen, and comes down when the tour finishes.
+
+### Where Skip goes
+
+By default Skip goes straight to the last step (`tour.skip()`), so a skipped
+tour still ends on its Done, and every bubble but the last offers it.
+`skipTo` chooses somewhere else:
+
+| `skipTo` | Skip goes | Offered on |
+|---|---|---|
+| `CoachmarkSkip.ToLast`, the default | on to the last step | every step but the last |
+| `CoachmarkSkip.End` | out of the tour there and then, the last step included | every step but the last, whose Done already ends it |
+| `CoachmarkSkip.to("plan")` | on to that step | the steps before it |
+| `CoachmarkSkip { from, steps -> … }` | the step it names, or out of the tour for `null` | every step but the last from which it goes forwards or out |
+
+```kotlin
+// Past the introductions, from any step before the first control.
+val tour = rememberCoachmarkTour("welcome", "how", "plan", "saved", showSkip = true, skipTo = CoachmarkSkip.to("plan"))
+```
+
+Skip only goes forwards. A rule that names the step showing, one before it, or
+one the tour does not have gives that step no Skip. A step skipped to is reached
+as Next reaches one: `navigate` is told it, and if its control does not turn up
+the tour passes on towards the end. An app that drives the tour itself can jump
+with `tour.skipTo("plan")`, forwards only.
 
 ### From one step to the next
 
@@ -212,7 +237,8 @@ unrelated ones, and its buttons carry real labels — "Got it", and in a tour
 so it follows the reader's language and plural rules.
 
 A tour's dim blocks every tap outside the bubble, so its own buttons are the only
-way on — Next, Back, Skip where there is one, or Done to finish. They are
+way on — Back, Skip where there is one, Next, or Done to finish, in that order
+for a keyboard and a screen reader as on screen. They are
 buttons a keyboard and a screen reader reach, so a tour that is not dismissible
 is never a trap. Its screen reader dismiss action, and Escape, are there only
 when the tour is `dismissible`.
@@ -221,7 +247,10 @@ At high contrast a single tip is the enhanced scheme's inverse surface and ink,
 which already stand apart from the page, and its "Got it" is a ghost button that
 gains the edge those take at this tier. A tour's bubble is the solid accent with
 its own ink, in whichever tone it is in, and its position is drawn at full
-strength rather than faded.
+strength rather than faded. Its Back and Skip gain an edge, as every ghost
+button does at this tier, so Back's edge stands at the bubble's margin rather
+than its word, and every button in the row keeps a gap between its edge and the
+next one's.
 
 Under reduced motion a coach mark and a tour's bubble fade in where they will sit
 rather than scaling into place, and from one step to the next the marks

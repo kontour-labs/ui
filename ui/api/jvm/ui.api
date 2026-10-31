@@ -3706,7 +3706,18 @@ public final class io/kontour/ui/overlay/CoachmarkDefaults {
 public final class io/kontour/ui/overlay/CoachmarkKt {
 	public static final fun CoachmarkStep (Lio/kontour/ui/overlay/CoachmarkTour;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Landroidx/compose/ui/graphics/vector/ImageVector;Lio/kontour/ui/theme/Tone;ZLandroidx/compose/runtime/Composer;II)V
 	public static final fun coachmarkStep-wn8IZOc (Landroidx/compose/ui/Modifier;Lio/kontour/ui/overlay/CoachmarkTour;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Landroidx/compose/ui/graphics/vector/ImageVector;Lio/kontour/ui/overlay/OverlaySide;Lio/kontour/ui/overlay/OverlayAlignment;FLandroidx/compose/foundation/shape/CornerBasedShape;Lio/kontour/ui/theme/Tone;ZLandroidx/compose/runtime/Composer;III)Landroidx/compose/ui/Modifier;
-	public static final fun rememberCoachmarkTour ([Ljava/lang/String;Lio/kontour/ui/overlay/CoachmarkTransition;ZZLkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)Lio/kontour/ui/overlay/CoachmarkTour;
+	public static final fun rememberCoachmarkTour ([Ljava/lang/String;Lio/kontour/ui/overlay/CoachmarkTransition;ZZLio/kontour/ui/overlay/CoachmarkSkip;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)Lio/kontour/ui/overlay/CoachmarkTour;
+}
+
+public abstract interface class io/kontour/ui/overlay/CoachmarkSkip {
+	public static final field Companion Lio/kontour/ui/overlay/CoachmarkSkip$Companion;
+	public abstract fun target (Ljava/lang/String;Ljava/util/List;)Ljava/lang/String;
+}
+
+public final class io/kontour/ui/overlay/CoachmarkSkip$Companion {
+	public final fun getEnd ()Lio/kontour/ui/overlay/CoachmarkSkip;
+	public final fun getToLast ()Lio/kontour/ui/overlay/CoachmarkSkip;
+	public final fun to (Ljava/lang/String;)Lio/kontour/ui/overlay/CoachmarkSkip;
 }
 
 public final class io/kontour/ui/overlay/CoachmarkTour {
@@ -3723,6 +3734,7 @@ public final class io/kontour/ui/overlay/CoachmarkTour {
 	public final fun next ()V
 	public final fun previous ()V
 	public final fun skip ()V
+	public final fun skipTo (Ljava/lang/String;)V
 	public final fun start ()V
 }
 
