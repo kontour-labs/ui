@@ -1,5 +1,8 @@
 package io.kontour.ui.components.selection
 
+import androidx.compose.foundation.shape.CornerBasedShape
+import io.kontour.ui.theme.drawDot
+import io.kontour.ui.theme.cornerRadius
 import io.kontour.ui.theme.clipProxy
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.focusable
@@ -691,6 +694,8 @@ private fun Track(
     }
 
     val look = cursorLook()
+    // The strip's ends, the theme's capsule, as its clip is. 0.5.2.
+    val stripShape = Theme.shapes.capsule
     val interactions = remember { MutableInteractionSource() }
     Canvas(
         Modifier
@@ -758,12 +763,11 @@ private fun Track(
                 }
             }
     ) {
-        val radius = size.height / 2f
         scale(scaleX = if (rtl) -1f else 1f, scaleY = 1f) {
             behind?.invoke(this)
             drawRoundRect(
                 brush = background(),
-                cornerRadius = androidx.compose.ui.geometry.CornerRadius(radius),
+                cornerRadius = stripShape.cornerRadius(size, this),
             )
         }
         val along = fraction.coerceIn(0f, 1f)
@@ -819,13 +823,14 @@ private fun DrawScope.cursor(at: Offset, look: CursorLook) {
         at.x.coerceIn(edge, (size.width - edge).coerceAtLeast(edge)),
         at.y.coerceIn(edge, (size.height - edge).coerceAtLeast(edge)),
     )
-    drawCircle(
+    drawDot(
         color = Color.Black.copy(alpha = look.outerAlpha),
         radius = radius + stroke / 2f,
         center = centre,
+        shape = look.shape,
         style = Stroke(stroke * 2f),
     )
-    drawCircle(color = Color.White, radius = radius, center = centre, style = Stroke(stroke))
+    drawDot(color = Color.White, radius = radius, center = centre, shape = look.shape, style = Stroke(stroke))
 }
 
 /**
@@ -892,12 +897,13 @@ private val CursorRadius: Dp = 7.dp
  * translucent half of the pair; and both are as thick as a strong border.
  */
 @Immutable
-private class CursorLook(val stroke: Dp, val outerAlpha: Float)
+private class CursorLook(val stroke: Dp, val outerAlpha: Float, val shape: CornerBasedShape)
 
 @Composable
 @ReadOnlyComposable
 private fun cursorLook(): CursorLook =
-    CursorLook(Theme.sizing.borderWidthStrong, if (highContrast()) 1f else CursorShadowAlpha)
+    // The ring in the theme's pill: round, unless the theme is squarer. 0.5.2.
+    CursorLook(Theme.sizing.borderWidthStrong, if (highContrast()) 1f else CursorShadowAlpha, Theme.shapes.pill)
 private const val CursorShadowAlpha = 0.28f
 
 /**

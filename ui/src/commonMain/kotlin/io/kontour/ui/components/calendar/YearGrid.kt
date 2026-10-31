@@ -1,5 +1,6 @@
 package io.kontour.ui.components.calendar
 
+import io.kontour.ui.theme.drawDot
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -304,6 +305,9 @@ private fun MiniMonth(scope: CalendarScope, month: LocalDate, busy: Map<LocalDat
     val density = LocalDensity.current
     val markerGap = with(density) { MarkerGap.toPx() }
     val markerRadius = with(density) { MarkerSize.toPx() } / 2f
+    // Today's ring and the busy days' dots, in the theme's pill, as a month
+    // grid's day cells are. 0.5.2.
+    val dotShape = Theme.shapes.pill
     // At least as tall as a number and its busy dot, where 40dp cut both at
     // large type.
     val numberHeight = digits.numbers.maxOfOrNull { it.size.height }?.toFloat() ?: 0f
@@ -359,15 +363,16 @@ private fun MiniMonth(scope: CalendarScope, month: LocalDate, busy: Map<LocalDat
                         val text = if (isToday) digits.todayNumbers[day - 1] else digits.numbers[day - 1]
                         if (isToday) {
                             val amount = flash?.invoke() ?: 0f
-                            if (amount > 0f) drawCircle(flashColour, radius = row * TodayRingShare, center = centre, alpha = amount * TodayFlashAlpha)
-                            drawCircle(ring, radius = row * TodayRingShare, center = centre, style = Stroke(ringWidth.toPx()))
+                            if (amount > 0f) drawDot(flashColour, radius = row * TodayRingShare, center = centre, shape = dotShape, alpha = amount * TodayFlashAlpha)
+                            drawDot(ring, radius = row * TodayRingShare, center = centre, shape = dotShape, style = Stroke(ringWidth.toPx()))
                         }
                         drawText(text, ink, topLeft = Offset(centre.x - text.size.width / 2f, centre.y - text.size.height / 2f))
                         val tone = busy[date] ?: continue
-                        drawCircle(
+                        drawDot(
                             tones.getValue(tone),
                             radius = markerRadius,
                             center = Offset(centre.x, centre.y + text.size.height / 2f + markerGap + markerRadius),
+                            shape = dotShape,
                         )
                     }
                 }

@@ -912,7 +912,13 @@ def haptics_policy_drift() -> list[str]:
     return problems
 
 
-MAX_CIRCLES = 30
+# 30 until 0.5.2, then 40: the dots, rings and thumbs the library draws on a
+# canvas — a timeline's stops, a slider's ticks, a gauge's and a meter's thumb,
+# a calendar's dots, a page dot, a scrollbar's thumb, a colour picker's cursor —
+# each named half its own size, which no theme could reach, and read `pill` now
+# so a square theme squares them too. Every one is a dot on a square box, which
+# is what `pill` is for.
+MAX_CIRCLES = 40
 MAX_ROUNDED_RECT_SHAPES = 0
 
 

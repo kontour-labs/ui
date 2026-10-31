@@ -144,29 +144,32 @@ class SettingsLabelFitTest {
          */
         val Surfaces = listOf("sheet" to 336f, "popover" to 316f)
 
-        /** What the table reads today. */
+        /**
+         * What the table reads today. A third theme, Square, in 0.5.2 put the
+         * popover's theme picker in rows at twice the text size.
+         */
         val Pinned = listOf(
-            "sheet Theme at 1.0: 'Kontour' 51.5dp in 168.0dp — fits",
+            "sheet Theme at 1.0: 'Kontour' 51.5dp in 112.0dp — fits",
             "sheet Text size at 1.0: 'Auto' 30.5dp in 67.2dp — fits",
             "sheet Haptics at 1.0: 'Standard' 60.0dp in 84.0dp — fits",
             "sheet Input modality at 1.0: 'Keyboard' 62.0dp in 84.0dp — fits",
-            "sheet Theme at 1.3: 'Kontour' 67.0dp in 168.0dp — fits",
+            "sheet Theme at 1.3: 'Kontour' 67.0dp in 112.0dp — fits",
             "sheet Text size at 1.3: 'Auto' 40.0dp in 67.2dp — fits",
             "sheet Haptics at 1.3: 'Standard' 78.0dp in 84.0dp — STACKS",
             "sheet Input modality at 1.3: 'Keyboard' 81.0dp in 84.0dp — STACKS",
-            "sheet Theme at 2.0: 'Kontour' 103.0dp in 168.0dp — fits",
+            "sheet Theme at 2.0: 'Kontour' 103.0dp in 112.0dp — fits",
             "sheet Text size at 2.0: 'Auto' 61.0dp in 67.2dp — STACKS",
             "sheet Haptics at 2.0: 'Standard' 119.5dp in 84.0dp — STACKS",
             "sheet Input modality at 2.0: 'Keyboard' 124.0dp in 84.0dp — STACKS",
-            "popover Theme at 1.0: 'Kontour' 51.5dp in 158.0dp — fits",
+            "popover Theme at 1.0: 'Kontour' 51.5dp in 105.333336dp — fits",
             "popover Text size at 1.0: 'Auto' 30.5dp in 63.2dp — fits",
             "popover Haptics at 1.0: 'Standard' 60.0dp in 79.0dp — fits",
             "popover Input modality at 1.0: 'Keyboard' 62.0dp in 79.0dp — fits",
-            "popover Theme at 1.3: 'Kontour' 67.0dp in 158.0dp — fits",
+            "popover Theme at 1.3: 'Kontour' 67.0dp in 105.333336dp — fits",
             "popover Text size at 1.3: 'Auto' 40.0dp in 63.2dp — fits",
             "popover Haptics at 1.3: 'Standard' 78.0dp in 79.0dp — STACKS",
             "popover Input modality at 1.3: 'Keyboard' 81.0dp in 79.0dp — STACKS",
-            "popover Theme at 2.0: 'Kontour' 103.0dp in 158.0dp — fits",
+            "popover Theme at 2.0: 'Kontour' 103.0dp in 105.333336dp — STACKS",
             "popover Text size at 2.0: 'Auto' 61.0dp in 63.2dp — STACKS",
             "popover Haptics at 2.0: 'Standard' 119.5dp in 79.0dp — STACKS",
             "popover Input modality at 2.0: 'Keyboard' 124.0dp in 79.0dp — STACKS",

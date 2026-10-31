@@ -55,6 +55,8 @@ internal class DrawConfig(
     val cellInks: Pair<Color, Color> = Color.Black to Color.White,
     /** Whether the theme is at its high contrast tier, where what is outside a marked range fades less. */
     highContrast: Boolean = false,
+    /** How a series' line ends: the theme's line ends, round unless it asks otherwise. */
+    val lineCap: StrokeCap = StrokeCap.Round,
 ) {
     /** The squircles a bar's end, a rectangle and a region are cut from, made once. */
     val corners = Corners(cornerShape)
@@ -681,7 +683,7 @@ private fun DrawScope.drawLineMark(layer: Layer, look: SeriesLook, m: Mapper, co
     val path = linePath(decimate(points, m.frame.plot.width), layer.mark.interpolation, into = config.marks.empty(2))
     val stroke = Stroke(
         width = config.lineWidth,
-        cap = StrokeCap.Round,
+        cap = config.lineCap,
         join = StrokeJoin.Round,
         pathEffect = config.lineEffect(look.line),
     )
@@ -726,7 +728,7 @@ private fun DrawScope.drawArea(
     val stroke = if (band) {
         null
     } else {
-        Stroke(width = config.lineWidth, cap = StrokeCap.Round, join = StrokeJoin.Round, pathEffect = config.lineEffect(look.line))
+        Stroke(width = config.lineWidth, cap = config.lineCap, join = StrokeJoin.Round, pathEffect = config.lineEffect(look.line))
     }
     splitAt(focus, alpha) { part ->
         fill(fillPath, look, config, part, opacity = opacity)

@@ -110,6 +110,7 @@ import io.kontour.ui.interaction.freeDragOwning
 import io.kontour.ui.interaction.rememberDetentTicker
 import io.kontour.ui.motion.enterOrFade
 import io.kontour.ui.motion.exitOrFade
+import io.kontour.ui.theme.cornerRadius
 import io.kontour.ui.theme.Motion
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.Tone
@@ -2037,6 +2038,8 @@ private fun Modifier.countdownDrawn(toast: Toast, countdown: ToastCountdown, ink
     }
     val wash = ink.copy(alpha = CountdownWash)
     val bar = ink.copy(alpha = CountdownBarInk)
+    // The bar's ends, from the theme's capsule: round, unless it is squarer. 0.5.2.
+    val countdownShape = Theme.shapes.capsule
     return drawWithContent {
         val share = left.floatValue
         val rtl = layoutDirection == LayoutDirection.Rtl
@@ -2057,7 +2060,7 @@ private fun Modifier.countdownDrawn(toast: Toast, countdown: ToastCountdown, ink
                 bar,
                 topLeft = Offset(left, size.height - height * 2f),
                 size = Size(width, height),
-                cornerRadius = CornerRadius(height / 2f),
+                cornerRadius = countdownShape.cornerRadius(Size(width.coerceAtLeast(height), height), this),
             )
         }
     }

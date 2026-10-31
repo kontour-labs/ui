@@ -1,5 +1,8 @@
 package io.kontour.ui.components.selection
 
+import androidx.compose.foundation.shape.CornerBasedShape
+import io.kontour.ui.theme.drawDot
+import io.kontour.ui.theme.cornerRadius
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
@@ -648,11 +651,13 @@ internal fun DrawScope.sliderTicks(
     coveredColour: Color,
     uncoveredColour: Color,
     covered: (x: Float) -> Boolean,
+    shape: CornerBasedShape,
 ) {
     if (steps <= 0) return
     val everyMinor = minorTicks.coerceAtLeast(0) + 1
     val divisions = (steps + 1) * everyMinor
-    val radius = CornerRadius(widthPx / 2f)
+    // Dots and short bars, in the theme's pill: round, unless it is squarer. 0.5.2.
+    val radius = shape.cornerRadius(Size(widthPx, heightPx), this)
     for (i in 0..divisions) {
         val x = trackLeft + trackWidth * i / divisions
         if (i % everyMinor == 0) {
@@ -663,10 +668,11 @@ internal fun DrawScope.sliderTicks(
                 cornerRadius = radius,
             )
         } else {
-            drawCircle(
+            drawDot(
                 color = if (covered(x)) coveredColour else uncoveredColour,
                 radius = widthPx / 2f,
                 center = Offset(x, centreY),
+                shape = shape,
             )
         }
     }

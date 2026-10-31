@@ -161,6 +161,8 @@ fun Spinner(
         LaunchedEffect(Unit) { handover.animateTo(1f, handoverSpec) }
     }
 
+    // Its arc's ends follow the theme's line ends: round unless it asks otherwise. 0.5.2.
+    val lineCap = Theme.shapes.lineCap
     Canvas(
         modifier
             .size(size)
@@ -192,7 +194,7 @@ fun Spinner(
                 width = this.size.width - stroke,
                 height = this.size.height - stroke,
             ),
-            style = Stroke(width = stroke, cap = androidx.compose.ui.graphics.StrokeCap.Round),
+            style = Stroke(width = stroke, cap = lineCap),
         )
     }
 }

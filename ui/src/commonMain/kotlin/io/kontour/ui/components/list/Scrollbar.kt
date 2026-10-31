@@ -86,6 +86,7 @@ import io.kontour.ui.input.pointerIconFor
 import io.kontour.ui.sheet.LocalSheetState
 import io.kontour.ui.sheet.flingingInPlace
 import io.kontour.ui.sheet.SheetState
+import io.kontour.ui.theme.cornerRadius
 import io.kontour.ui.theme.Theme
 import kotlin.math.roundToInt
 import kotlin.time.Duration
@@ -482,6 +483,9 @@ fun Modifier.scrollbar(
     val strip = with(density) { hoveredThickness.toPx() } + 2 * margin
     val minThumb = with(density) { minThumbLength.toPx() }
     val corner = with(density) { cornerInset.toPx() }
+    // The thumb's ends: the theme's pill, as the composable `Scrollbar`'s are —
+    // round, unless the theme is squarer. 0.5.2.
+    val thumbShape = Theme.shapes.pill
     val track = remember { ScrollbarTrack() }
     val direction = LocalLayoutDirection.current
     val clear = trackClearance(contentPadding, orientation, direction, density)
@@ -552,7 +556,7 @@ fun Modifier.scrollbar(
                 color = colour.copy(alpha = colour.alpha * alpha),
                 topLeft = thumb.topLeft,
                 size = thumb.size,
-                cornerRadius = CornerRadius(minOf(thumb.width, thumb.height) / 2f),
+                cornerRadius = thumbShape.cornerRadius(thumb.size, this),
             )
         }
 }

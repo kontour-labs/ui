@@ -552,6 +552,8 @@ private fun RefreshIndicator(
     // for the buffer, not for the layout. Same fix as `overlayAppearance`, and
     // `Shadow.bleed` is where the two get the number from.
     val room = Theme.elevation.high.bleed
+    // The arc's ends, as the theme's lines end. 0.5.2.
+    val lineCap = Theme.shapes.lineCap
     val clearance = PullToRefreshDefaults.Clearance
 
     Box(
@@ -690,7 +692,7 @@ private fun RefreshIndicator(
                     useCenter = false,
                     topLeft = Offset(inset, inset),
                     size = Size(size.width - stroke, size.height - stroke),
-                    style = Stroke(width = stroke, cap = StrokeCap.Round),
+                    style = Stroke(width = stroke, cap = lineCap),
                 )
             }
         }

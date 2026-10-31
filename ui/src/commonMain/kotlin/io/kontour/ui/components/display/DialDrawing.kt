@@ -1,5 +1,7 @@
 package io.kontour.ui.components.display
 
+import androidx.compose.foundation.shape.CornerBasedShape
+import io.kontour.ui.theme.drawDot
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -178,6 +180,7 @@ internal fun DrawScope.dialTicks(
     width: Float,
     colour: Color,
     inward: Boolean,
+    cap: StrokeCap,
 ) {
     if (majors < 2) return
     val divisions = (majors - 1) * (minorsBetween + 1)
@@ -191,7 +194,7 @@ internal fun DrawScope.dialTicks(
             start = geometry.pointAt(fraction, inner),
             end = geometry.pointAt(fraction, inner + length),
             strokeWidth = width,
-            cap = StrokeCap.Round,
+            cap = cap,
         )
     }
 }
@@ -246,10 +249,12 @@ internal fun DrawScope.dialThumb(
     ring: Float,
     fill: Color,
     ringColour: Color,
+    shape: CornerBasedShape,
 ) {
+    // In the theme's pill: round, unless it is squarer. 0.5.2.
     val at = geometry.pointAt(fraction)
-    drawCircle(ringColour, radius = radius, center = at)
-    drawCircle(fill, radius = radius - ring, center = at)
+    drawDot(ringColour, radius = radius, center = at, shape = shape)
+    drawDot(fill, radius = radius - ring, center = at, shape = shape)
 }
 
 /** How much of its width a needle keeps at its tip. */

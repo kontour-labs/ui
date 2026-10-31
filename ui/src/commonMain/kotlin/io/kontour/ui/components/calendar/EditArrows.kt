@@ -52,6 +52,7 @@ internal fun BoxScope.EditArrows(scope: CalendarScope) {
     val placed = remember { PlacedAt() }
     val colours = Theme.colours
     val stroke = Theme.sizing.lines(1.5f)
+    val arrowCap = Theme.shapes.lineCap
     val ring = colours.outlineStrong
     val fill = colours.primary
     val chevron = colours.content
@@ -106,6 +107,7 @@ internal fun BoxScope.EditArrows(scope: CalendarScope) {
                         fill = fill,
                         chevron = chevron,
                         stroke = stroke.toPx(),
+                        cap = arrowCap,
                     )
                 }
             },

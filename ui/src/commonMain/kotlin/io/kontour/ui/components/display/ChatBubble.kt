@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.constrain
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.theme.MinCornerSize
 import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.a11y.highContrast
 import io.kontour.ui.foundation.ContentScope
@@ -219,14 +220,16 @@ internal fun bodyShape(
 ): CornerBasedShape {
     val above = position == GroupPosition.Middle || position == GroupPosition.Last
     val below = position == GroupPosition.First || position == GroupPosition.Middle
+    // Never rounder than the bubble's own corner, as a grouped row's inner
+    // corner is not: a square theme's bubbles joined at 4dp corners. 0.5.2.
     return when (side) {
         BubbleSide.Outgoing -> shape.copy(
-            topEnd = if (above) joined else shape.topEnd,
-            bottomEnd = if (below) joined else shape.bottomEnd,
+            topEnd = if (above) MinCornerSize(joined, shape.topEnd) else shape.topEnd,
+            bottomEnd = if (below) MinCornerSize(joined, shape.bottomEnd) else shape.bottomEnd,
         )
         BubbleSide.Incoming -> shape.copy(
-            topStart = if (above) joined else shape.topStart,
-            bottomStart = if (below) joined else shape.bottomStart,
+            topStart = if (above) MinCornerSize(joined, shape.topStart) else shape.topStart,
+            bottomStart = if (below) MinCornerSize(joined, shape.bottomStart) else shape.bottomStart,
         )
     }
 }
