@@ -4787,6 +4787,8 @@ public final class io/kontour/ui/theme/ShapesKt {
 	public static final fun lerpCorners (Landroidx/compose/foundation/shape/CornerBasedShape;Landroidx/compose/foundation/shape/CornerBasedShape;F)Landroidx/compose/foundation/shape/CornerBasedShape;
 	public static final fun mirrorHorizontally (Landroidx/compose/foundation/shape/CornerBasedShape;)Landroidx/compose/foundation/shape/CornerBasedShape;
 	public static final fun outset-3ABfNKs (Landroidx/compose/foundation/shape/CornerBasedShape;F)Landroidx/compose/foundation/shape/CornerBasedShape;
+	public static final fun squareShapes-IWMj-S4 (FZI)Lio/kontour/ui/theme/Shapes;
+	public static synthetic fun squareShapes-IWMj-S4$default (FZIILjava/lang/Object;)Lio/kontour/ui/theme/Shapes;
 	public static final fun topCornersOnly (Landroidx/compose/foundation/shape/CornerBasedShape;)Landroidx/compose/foundation/shape/CornerBasedShape;
 	public static final fun trailingCornersOnly (Landroidx/compose/foundation/shape/CornerBasedShape;)Landroidx/compose/foundation/shape/CornerBasedShape;
 }

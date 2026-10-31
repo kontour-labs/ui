@@ -917,9 +917,9 @@ def haptics_policy_drift() -> list[str]:
 # a calendar's dots, a page dot, a scrollbar's thumb, a colour picker's cursor —
 # each named half its own size, which no theme could reach, and read `pill` now
 # so a square theme squares them too. Every one is a dot on a square box, which
-# is what `pill` is for. 41 with the spinner's track, which runs round a square
-# in a square theme rather than going back to a circle.
-MAX_CIRCLES = 41
+# is what `pill` is for. 43 with the spinner's track and the two progress
+# rings', which run round a square in a square theme rather than staying circles.
+MAX_CIRCLES = 43
 MAX_ROUNDED_RECT_SHAPES = 0
 
 
