@@ -533,7 +533,7 @@ fun CircularStepProgress(
         val ringBox = Size(ring.radius * 2f, ring.radius * 2f)
         val ringCorner = pill.cornerPx(ringBox, this)
         val track = if (ringCorner < ring.radius) traced.also { it.fit(ringBox, ringCorner) } else null
-        track?.let { ring.keepClearOfCorners(it.degreesFor(ring.stroke * 1.5f)) }
+        track?.let { ring.keepClearOfCorners(it.degreesFor(ring.stroke * 2.5f)) }
         val at = Offset((this.size.width - ringBox.width) / 2f, (this.size.height - ringBox.height) / 2f)
 
         // Every track before any fill, as in [StepProgress].
