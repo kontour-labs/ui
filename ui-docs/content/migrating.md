@@ -19,7 +19,8 @@ from the version the app is on.
 
 A theme reaches every corner the library draws now, and the default theme draws
 them all as it did. One property moves into composition, and what a square or
-compressed theme draws changes, under **Check**.
+compressed theme draws changes, under **Check**, as does where a coach mark
+tour's Back button stands.
 
 ### Read `ActivityCalendarDefaults.CellShape` in a composable
 
@@ -47,6 +48,9 @@ needs nothing; one outside reads it in the composable and passes it in:
   corner round square buttons.
 - **A `Meter` or a `Gauge` given `cap = StrokeCap.Butt`** has butt ends on its
   ticks too.
+- **A coach mark tour's Back is at the start of its bubble's row**, and Skip
+  beside Next. A test that found Back by its place beside Next finds it at the
+  other end.
 
 ---
 

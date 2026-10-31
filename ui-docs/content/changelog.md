@@ -36,6 +36,13 @@ On `main`, and in the next release.
   `lineCap` beside `capsuleCap`, so
   `kontourShapes(extraSmall = 0.dp, step = 0.dp, capsuleCap = 0.dp, pillCap = 0.dp, lineCap = StrokeCap.Butt)`
   is a square theme in one call. The gallery's theme picker has it as *Square*.
+- **A coach mark tour's Skip goes where the app says.** `rememberCoachmarkTour(skipTo = …)`
+  takes a [`CoachmarkSkip`](components/coachmark.md#where-skip-goes): `ToLast`,
+  the default and what Skip always did; `End`, which leaves the tour there and
+  then, last step included; `to(step)`, on to a step of the app's choosing; or
+  a rule of the app's own. Skip only goes forwards, and a bubble offers it only
+  where it would go somewhere, never on the last step. `tour.skipTo(step)` jumps
+  forwards for an app that drives the tour itself.
 
 ### Changed
 
@@ -71,6 +78,12 @@ On `main`, and in the next release.
   the theme says otherwise, and their ticks end as `cap` does. They were round
   whatever `cap` was.
 
+- **A coach mark tour's Back is at the start of its bubble's row**, on the
+  left, or the right in a right-to-left language, with its word in line with
+  the title and message. Skip stands beside Next. Back used to stand beside Next
+  with Skip, and at the high contrast tier Skip's and Back's outlines
+  overlapped; every button keeps a gap now.
+
 ### Breaking
 
 - **`ActivityCalendarDefaults.CellShape` is composable**, because it reads the
@@ -79,6 +92,9 @@ On `main`, and in the next release.
 - **`Shapes` has two more properties**, `mark` and `lineCap`, at the end. Source
   that builds a `Shapes` compiles as it is; a library compiled against the old
   constructor has to be rebuilt.
+- **`rememberCoachmarkTour` takes `skipTo`**, after `showSkip`. It comes after
+  the `vararg` of steps, so it can only be passed by name, and a call compiles
+  as it is; a library compiled against the old signature has to be rebuilt.
 
 ---
 
