@@ -21,6 +21,8 @@ longer when they can see the end. Both are in
 
 ---
 
+**In the theme's shapes.** The arc runs round the theme's `pill` and ends as its `lineCap` says: a circle with round ends by default, and a square with square ends in a square theme, so a spinner standing in for a square control is square too.
+
 ## Accessibility
 
 `Spinner` carries `ProgressBarRangeInfo` and takes a `contentDescription` — an

@@ -45,6 +45,8 @@ link, a picture — is a composable in the same block.
 
 ---
 
+**In the theme's shapes.** A bubble is the theme's `capsule`, and where bubbles of a run meet, `joinedCorner` is never rounder than the bubble's own corner. On a square bubble the tail bends out of the side from as high up as on a round one.
+
 ## Accessibility
 
 Each bubble is one merged node, so its message and its meta are read together

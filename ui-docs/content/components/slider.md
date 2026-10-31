@@ -162,6 +162,8 @@ perfectly ordinary slider, passed every screenshot, and crashed the first time
 somebody moved it with a screen reader or an automated accessibility check. It
 now fails at the call, for everyone, on the first frame.
 
+**In the theme's shapes.** The head is the theme's `pill`, its track's ends its `capsule`, and its ticks are `pill` dots. Where the pill is squarer than round, the head is that shape at rest, stretched and squashed: pressed into the end of its track it narrows as a box rather than as an egg.
+
 ## Accessibility
 
 `stateDescription` is the parameter to pass. Without it a slider announces a

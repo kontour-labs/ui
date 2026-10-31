@@ -37,6 +37,8 @@ registry as a render-only specimen — see
 
 ---
 
+**Its corner is `Theme.shapes.mark`**, as a checkbox's is, so a square theme's key caps are square.
+
 ## Accessibility
 
 `Kbd` is presentational — it clears its own semantics, so a screen reader does

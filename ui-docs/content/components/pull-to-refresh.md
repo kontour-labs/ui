@@ -109,6 +109,8 @@ Box {
 
 ---
 
+**In the theme's shapes.** The badge is the theme's `pill`, and the pull's arc runs round the badge's own shape, as the spinner that takes over from it does: a circle by default, a square in a square theme.
+
 ## Accessibility
 
 The indicator is a **polite live region** whose description tracks the gesture —

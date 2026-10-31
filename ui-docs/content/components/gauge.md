@@ -167,6 +167,8 @@ bar mirrors, and a dial is not a bar bent round.
 
 ---
 
+**`cap` defaults to the theme's `lineCap`**, round unless the theme says otherwise, and the ticks end as the arc does. The thumb is a dot in the theme's `pill`. The dial itself stays an arc in any theme: it is a dial.
+
 ## Accessibility
 
 One node, merged, reported as a progress reading over `valueRange` — so a screen
