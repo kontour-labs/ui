@@ -1,5 +1,6 @@
 package io.kontour.ui.components.display
 
+import kotlin.math.round
 import io.kontour.ui.theme.cornerPx
 import androidx.compose.foundation.shape.CornerBasedShape
 import io.kontour.ui.theme.drawDot
@@ -532,6 +533,7 @@ fun CircularStepProgress(
         val ringBox = Size(ring.radius * 2f, ring.radius * 2f)
         val ringCorner = pill.cornerPx(ringBox, this)
         val track = if (ringCorner < ring.radius) traced.also { it.fit(ringBox, ringCorner) } else null
+        track?.let { ring.keepClearOfCorners(it.degreesFor(ring.stroke * 1.5f)) }
         val at = Offset((this.size.width - ringBox.width) / 2f, (this.size.height - ringBox.height) / 2f)
 
         // Every track before any fill, as in [StepProgress].
@@ -628,6 +630,30 @@ internal class StepRing(
 
     /** Where step [index]'s ink starts. */
     fun start(index: Int): Float = top + begins[index] + gapAngle / 2f
+
+    /**
+     * Moves each step's boundary that falls near a corner of a square ring
+     * along the edge it is on, until its gap and [stub] degrees of line beside
+     * it are clear of the corner.
+     *
+     * On a circle a gap can fall anywhere. On a square one, a gap across a
+     * corner took the corner out, and a gap just short of one left a stub of
+     * line round it: an uneven ring's steps looked chopped, reported for 0.5.2
+     * as *"it looks like it chops part of the line"*. The corners are at 45°,
+     * 135°, 225° and 315° from the top, where a square's outline turns.
+     */
+    fun keepClearOfCorners(stub: Float) {
+        if (gapAngle <= 0f) return
+        val clear = gapAngle / 2f + stub
+        for (i in 1 until begins.size - 1) {
+            val at = begins[i]
+            val corner = round((at - 45f) / 90f) * 90f + 45f
+            val off = at - corner
+            if (abs(off) < clear) {
+                begins[i] = (corner + if (off < 0f) -clear else clear).coerceIn(begins[i - 1], begins[i + 1])
+            }
+        }
+    }
 
     /** Where step [index]'s ink ends. */
     fun end(index: Int): Float = top + begins[index + 1] - gapAngle / 2f
