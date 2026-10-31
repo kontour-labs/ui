@@ -27,18 +27,26 @@ The version an app is on is the `kontour` entry in its version catalog. See
 
 On `main`, and in the next release.
 
+A theme that reaches every corner the library draws, at rest and in motion,
+with `squareShapes()` for a square one in one call and the default theme drawn
+as it always was, pixel for pixel. A coach mark tour's Skip goes where the app
+says, and its Back stands after its position with the same room as the other
+buttons. A text button and a link in a `Text` answer a tap you can see. A
+scrollbar's thumb gives way as its list is pulled past its end, and the event
+calendar's today slides in from a year away rather than cutting there.
+
 ### Added
 
 - **A theme can square everything.** `Shapes` takes `mark`, the corner of a
   `Checkbox` and a `Kbd`, and `lineCap`, how the library's drawn lines end: a
   progress ring, a spinner, a gauge's and a knob's arc, a timeline's rail, a
   pull-to-refresh arc and a chart's lines. `kontourShapes` takes `pillCap` and
-  `lineCap` beside `capsuleCap`, so
-  `kontourShapes(extraSmall = 0.dp, step = 0.dp, capsuleCap = 0.dp, pillCap = 0.dp, lineCap = StrokeCap.Butt)`
-  is a square theme. `squareShapes()` is the same in one call, with three
-  choices: `corner`, to take the sharpness off; `roundPills`, to keep avatars,
-  switches, dots, spinners and progress rings round; and `lineCap`. The
-  gallery's theme picker has it as *Square*, and its apps follow the picker.
+  `lineCap` beside `capsuleCap`. `squareShapes()` is a square theme in one
+  call, with three choices: `corner`, to take the sharpness off; `roundPills`,
+  to keep avatars, switches, dots, spinners and progress rings round; and
+  `lineCap`. A radio button stays round in any theme, since round is how it
+  says it is not a checkbox. The gallery's theme picker has the square theme
+  as *Square*, and its apps follow the picker.
 - **A coach mark tour's Skip goes where the app says.** `rememberCoachmarkTour(skipTo = …)`
   takes a [`CoachmarkSkip`](components/coachmark.md#where-skip-goes): `ToLast`,
   the default and what Skip always did; `End`, which leaves the tour there and
@@ -46,6 +54,12 @@ On `main`, and in the next release.
   a rule of the app's own. Skip only goes forwards, and a bubble offers it only
   where it would go somewhere, never on the last step. `tour.skipTo(step)` jumps
   forwards for an app that drives the tour itself.
+- **A scrollbar's thumb gives way while its list is pulled past its end.**
+  Where the content overscrolls, Android's stretch or iOS's bounce, the thumb
+  on `Modifier.scrollbar` stays against the end it has reached and gives up
+  some of its length, up to half of it on a long pull, and has it back on the
+  theme's spring once let go, as a phone's own scroll indicator does. Where
+  nothing overscrolls, a desktop's, it stays as it is.
 
 ### Changed
 
@@ -56,15 +70,16 @@ On `main`, and in the next release.
   - from `capsule`: the ends of a `LinearProgress`, a `StepProgress`, a
     `Slider`'s and a `RangeSlider`'s track, a toast's countdown bar and a
     `ColourPicker`'s strips;
-  - from `pill`: a slider's ticks, a `Scrollbar`'s thumb (the modifier's as
-    well as the composable's), a `Carousel`'s travelling page dot, a
-    timeline's stops and the halo round the stop reached, a `Meter`'s and a
-    `Gauge`'s thumb, a `ColourPicker`'s cursor, the dots on an
-    `ActivityCalendar`, a month's days, a `YearGrid` and an `IndexScroller`,
-    a `YearGrid`'s today ring and the time grid's now dot, and a `Spinner`'s
-    track, so a square theme's spinner, and a timeline's loading stop with it,
-    runs round a square, and a `CircularProgress`'s and a
-    `CircularStepProgress`'s ring;
+  - from `pill`: a slider's ticks, a `Scrollbar`'s thumb, a `Carousel`'s
+    travelling page dot, a timeline's stops and the halo round the stop
+    reached, a `Meter`'s and a `Gauge`'s thumb, a `ColourPicker`'s cursor, the
+    dots on an `ActivityCalendar`, a month's days, a `YearGrid` and an
+    `IndexScroller`, a `YearGrid`'s today ring, the time grid's now dot, and a
+    redacted line of text;
+  - round the `pill`: a `Spinner`, a `CircularProgress` and a
+    `CircularStepProgress` run round a square in a square theme, and so does
+    the pull-to-refresh arc, round its badge; a square step ring keeps its
+    gaps clear of its corners;
   - from `mark`: a `Checkbox` and a `Kbd`, which were their own 6dp;
   - from `lineCap`: the line ends listed above, a timeline's dotted, dashed and
     solid connectors, and a `Meter`'s and a `Gauge`'s ticks, which follow
@@ -73,6 +88,10 @@ On `main`, and in the next release.
     rounder than `extraSmall`; a `NavExpansion` panel's corner no rounder
     than `container`; a selected `DocumentTabs` tab curves out into the page
     no further than its own corner.
+- **A theme's shapes hold while they move.** A slider's or a switch's thumb
+  pushed into the end of its track squashes as the theme's shape where that
+  is squarer than round, rather than into an egg; the default thumb squashes
+  as it did.
 - **Grouped corners are no rounder than the group's.** Where grouped list rows,
   a `ButtonGroup`'s or a `SplitButton`'s buttons, or a run of `ChatBubble`s
   meet, the corner is 4dp (2dp in a button group) or the shape's own,
@@ -86,12 +105,39 @@ On `main`, and in the next release.
 - **`Meter` and `Gauge` default `cap` to the theme's `lineCap`**, round unless
   the theme says otherwise, and their ticks end as `cap` does. They were round
   whatever `cap` was.
-
 - **A coach mark tour's Back follows its position** at the start of the
   bubble's row, on the left, or the right in a right-to-left language, with the
   same room round it as every other button. Skip stands beside Next. Back used
   to stand beside Next with Skip, and at the high contrast tier Skip's and
   Back's outlines overlapped; every button keeps a gap now.
+- **A text button answers a tap you can see.** `TextButton` and
+  `TextIconButton` draw a press as the accent's container behind the label,
+  with the label in its `onContainer`, held for the same floor every other
+  control's press has, so a quick tap shows. Before, the tint followed the
+  press state, which a tap holds for less than a frame, as every press inside a
+  scrolling column does. A hover is the ground alone, and only for a pointer
+  that can hover. At high contrast a press inverts, to the accent's `solid`
+  with `onSolid` on it. A `TextIconButton` also shrinks a little, as a ghost
+  `IconButton` does, except under reduced motion. Nothing is laid out again:
+  the button keeps its size and the words beside it stay where they were.
+- **A link in a `Text` answers a press and a hover the same way**, behind just
+  its own words, line by line, in the theme's `small` shape. A link that wraps
+  is grounded on both of its lines, and a finger that lands on a link to
+  scroll does not light it up. `LinkDefaults.styles()` no longer paints a
+  background on hover or press: its `hoveredStyle` is `null` and its
+  `pressedStyle` has no `background`, because `Text` draws both grounds for
+  any link whose styles have a `pressedStyle`.
+
+### Fixed
+
+- **The event calendar's today slides in from a year away.** In the month
+  view, today pressed more than half a year from it cut straight there, where
+  a nearer month scrolled; in the year view, the same past two years. The month
+  or year it goes to now stands in just past the screen and slides in, as the
+  date picker's far months do, so a jump of years looks like a step to the next
+  month and is in place as soon as one would be. The header's arrows,
+  `state.show` and `state.step` going as far do the same. Under reduced motion
+  it still jumps.
 
 ### Breaking
 

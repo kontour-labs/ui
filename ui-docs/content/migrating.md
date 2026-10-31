@@ -18,9 +18,11 @@ from the version the app is on.
 ## 0.5.1 to 0.5.2
 
 A theme reaches every corner the library draws now, and the default theme draws
-them all as it did. One property moves into composition, and what a square or
-compressed theme draws changes, under **Check**, as does where a coach mark
-tour's Back button stands.
+them all as it did. One property moves into composition. The rest still
+compiles and looks or behaves differently, under **Check**: what a square or
+compressed theme draws, where a coach mark tour's Back stands, how a text button
+and a link answer a press, a scrollbar's thumb at the end of an overscrolling
+list, and the event calendar's far jumps.
 
 ### Read `ActivityCalendarDefaults.CellShape` in a composable
 
@@ -33,24 +35,42 @@ needs nothing; one outside reads it in the composable and passes it in:
 + @Composable fun Legend() { Box(Modifier.background(ink, ActivityCalendarDefaults.CellShape)) }
 ```
 
+### Rebuild a library that builds a `Shapes` or calls `rememberCoachmarkTour`
+
+`Shapes` gained two properties and `rememberCoachmarkTour` a parameter. Source
+compiles as it is, but a library compiled against 0.5.1 that calls either has
+to be compiled again against 0.5.2 rather than having the jar swapped under it.
+
 ### Check
 
-- **A theme whose shapes are not the default** now reaches progress bars,
-  slider tracks and ticks, scrollbar thumbs, page dots, timeline stops, gauge
-  and meter thumbs, calendar dots, checkboxes and key caps, the corners where
-  grouped rows and buttons meet, and the line ends of rings, rails and charts.
-  A theme that squared its scale and expected those to stay round sets
-  `pillCap` back to `Dp.Infinity`, or `capsuleCap` to `Shapes.CapsuleCap`.
+- **A theme whose shapes are not the default** now reaches progress bars and
+  rings, spinners, slider tracks, thumbs and ticks, scrollbar thumbs, page
+  dots, timeline stops, gauge and meter thumbs, calendar dots, redacted text,
+  checkboxes and key caps, the corners where grouped rows and buttons meet,
+  and the line ends of rings, rails and charts. A theme that squared its scale
+  and expected those to stay round sets `pillCap` back to `Dp.Infinity`, or
+  passes `roundPills = true` to `squareShapes`.
 - **A `kontourShapes` ladder below 10dp** takes `mark` down with it:
   `extraSmall = 6.dp` gives checkboxes a 2dp corner. Set `mark` with `copy` to
   keep another.
 - **A focus ring round a square corner is square**, and so is a `Toolbar`'s
   corner round square buttons.
 - **A `Meter` or a `Gauge` given `cap = StrokeCap.Butt`** has butt ends on its
-  ticks too.
+  ticks too, and one given no `cap` takes the theme's `lineCap`.
 - **A coach mark tour's Back follows its position**, at the start of the
-  bubble's row, and Skip stands beside Next. A test that found Back by its place beside Next finds it at the
-  other end.
+  bubble's row, and Skip stands beside Next. A test that found Back by its
+  place beside Next finds it after the position.
+- **A pressed `TextButton` or `TextIconButton`** shows a ground behind its
+  label for a moment after a tap, and a pressed or hovered link in a `Text` a
+  ground behind its words. A screenshot taken just after a tap shows it. An
+  app that styled its links' press with `TextLinkStyles(pressedStyle = …)` and
+  a `background` keeps its own; `LinkDefaults.styles()` no longer sets one.
+- **A scrollbar's thumb** on `Modifier.scrollbar` is shorter while its list is
+  held past its end, on a platform that overscrolls.
+- **The event calendar's month and year views slide** to a month or year far
+  away rather than cutting there, in the time a step to the next one takes. A
+  test that read the calendar the frame after a far jump waits for it to
+  settle.
 
 ---
 
