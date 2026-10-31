@@ -433,6 +433,43 @@ fun kontourShapes(
     )
 }
 
+/**
+ * A square theme's shapes, from three choices rather than the ladder's five.
+ *
+ * ```
+ * KontourTheme(shapes = squareShapes()) { AppRoot() }
+ * ```
+ *
+ * Every rung of the ladder is [corner] — square by default — so cards,
+ * buttons, fields, sheets, checkboxes and the corners where rows meet all
+ * agree; there is no step between them to keep, because there is no curve to
+ * nest. It is [kontourShapes] with its arguments chosen, and a theme that
+ * wants something between this and the default reaches for that instead.
+ *
+ * Added for 0.5.2, for an app asking for a "square" theme. What is left to
+ * choose is what a square design most often wants back:
+ *
+ * @param corner Every corner's radius: 0dp is square, and a few dp takes the
+ *   sharpness off without reading as rounded. A checkbox's corner stops at 6dp
+ *   whatever this is, so it never becomes a radio button.
+ * @param roundPills Keeps [Shapes.pill] round: avatars, switches, icon buttons,
+ *   page dots, a timeline's stops, spinners and progress rings stay circles
+ *   while everything else is square. A radio button is round either way.
+ * @param lineCap How drawn lines end: [StrokeCap.Butt], square, by default, or
+ *   [StrokeCap.Round] to keep progress rings, rails and chart lines soft.
+ */
+fun squareShapes(
+    corner: Dp = 0.dp,
+    roundPills: Boolean = false,
+    lineCap: StrokeCap = StrokeCap.Butt,
+): Shapes = kontourShapes(
+    extraSmall = corner,
+    step = 0.dp,
+    capsuleCap = corner,
+    pillCap = if (roundPills) Dp.Infinity else corner,
+    lineCap = lineCap,
+).let { it.copy(mark = SquircleShape(corner.coerceIn(0.dp, MarkMost))) }
+
 /** How far inside [Shapes.extraSmall] a [Shapes.mark] is: `spacing.xxs`, the step from a badge to the box inside it. */
 private val MarkInset: Dp = 4.dp
 

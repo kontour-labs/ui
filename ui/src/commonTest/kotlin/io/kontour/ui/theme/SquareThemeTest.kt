@@ -23,6 +23,7 @@ import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.components.display.CircularProgress
 import io.kontour.ui.components.display.LinearProgress
 import io.kontour.ui.foundation.GroupPosition
 import io.kontour.ui.foundation.shape
@@ -109,6 +110,50 @@ class SquareThemeTest {
         }
         assertTrue(corner(null) < 0.5f, "the default bar's corner was filled: its ends were not round")
         assertTrue(corner(square) > 0.95f, "a square theme's bar still had round ends")
+    }
+
+    @Test
+    fun squareShapesIsTheSquareLadderInOneCall() {
+        assertEquals(square, squareShapes())
+        // Round pills keep avatars, switches and dots round, and nothing else.
+        val pills = squareShapes(roundPills = true)
+        assertEquals(10f, pills.pill.topStart.toPx(Size(20f, 20f), density))
+        assertEquals(0f, pills.control.topStart.toPx(Size(80f, 40f), density))
+        // A softened square: every rung the same few dp, a checkbox no rounder than 6.
+        val soft = squareShapes(corner = 4.dp)
+        assertEquals(4f, soft.container.topStart.toPx(Size(200f, 80f), density))
+        assertEquals(4f, soft.mark.topStart.toPx(Size(20f, 20f), density))
+        assertEquals(6f, squareShapes(corner = 12.dp).mark.topStart.toPx(Size(20f, 20f), density))
+        assertEquals(StrokeCap.Round, squareShapes(lineCap = StrokeCap.Round).lineCap)
+    }
+
+    @Test
+    fun aProgressRingRunsRoundTheThemesPill() {
+        fun corner(shapes: Shapes): Float {
+            var ink = 0f
+            runComposeUiTest {
+                setContent {
+                    KontourTheme(shapes = shapes, reduceMotion = true) {
+                        Box(Modifier.background(Color.White).padding(8.dp)) {
+                            CircularProgress(
+                                progress = 0.5f,
+                                modifier = Modifier.testTag("ring"),
+                                size = 48.dp,
+                                trackColour = Color.Black,
+                                strokeWidth = 6.dp,
+                            )
+                        }
+                    }
+                }
+                waitForIdle()
+                // Just inside the ring's top-left corner, on its track.
+                val image = onNodeWithTag("ring").captureToImage().toPixelMap()
+                ink = image[2, 2].let { 1f - (it.red + it.green + it.blue) / 3f }
+            }
+            return ink
+        }
+        assertTrue(corner(Shapes()) < 0.2f, "the default ring reached its box's corner: it was not a circle")
+        assertTrue(corner(squareShapes()) > 0.9f, "a square theme's ring left its corner empty: it was still a circle")
     }
 
     /** How much of a 20 by 20 dot's top-left pixel is ink, from 0 to 1. */

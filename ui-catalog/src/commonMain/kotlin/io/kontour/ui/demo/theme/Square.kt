@@ -1,9 +1,7 @@
 package io.kontour.ui.demo.theme
 
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.unit.dp
 import io.kontour.ui.theme.kontourColourScheme
-import io.kontour.ui.theme.kontourShapes
+import io.kontour.ui.theme.squareShapes
 
 /**
  * The library's own colours with every corner square and every line ending
@@ -22,11 +20,5 @@ import io.kontour.ui.theme.kontourShapes
 val squareDemoTheme = DemoTheme(
     name = "Square",
     colours = { dark, contrast -> kontourColourScheme(dark, contrast) },
-    shapes = kontourShapes(
-        extraSmall = 0.dp,
-        step = 0.dp,
-        capsuleCap = 0.dp,
-        pillCap = 0.dp,
-        lineCap = StrokeCap.Butt,
-    ),
+    shapes = squareShapes(),
 )

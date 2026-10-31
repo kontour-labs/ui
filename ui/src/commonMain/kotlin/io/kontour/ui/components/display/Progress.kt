@@ -1,5 +1,6 @@
 package io.kontour.ui.components.display
 
+import io.kontour.ui.theme.cornerPx
 import androidx.compose.foundation.shape.CornerBasedShape
 import io.kontour.ui.theme.drawDot
 import io.kontour.ui.theme.cornerRadius
@@ -198,6 +199,10 @@ fun CircularProgress(
     )
 
     val lineCap = Theme.shapes.lineCap
+    // Round the theme's pill: a circle, unless the theme is squarer, when the
+    // ring runs round that box, as a spinner does. 0.5.2.
+    val pill = Theme.shapes.pill
+    val traced = remember { RingTrack() }
     Canvas(
         modifier
             .size(size)
@@ -209,6 +214,13 @@ fun CircularProgress(
         val stroke = strokeWidth.toPx()
         val inset = stroke / 2f
         val arcSize = Size(this.size.width - stroke, this.size.height - stroke)
+        val corner = pill.cornerPx(arcSize, this)
+        if (corner < arcSize.minDimension / 2f) {
+            traced.fit(arcSize, corner)
+            traced.drawWhole(this, trackColour, Offset(inset, inset), Stroke(width = stroke))
+            traced.drawRun(this, colour, Offset(inset, inset), -90f, 360f * animated, Stroke(width = stroke, cap = lineCap))
+            return@Canvas
+        }
 
         drawArc(
             color = trackColour,
@@ -484,6 +496,8 @@ fun CircularStepProgress(
     val steps = rememberStepMotion(current, total, working, stepProgress)
     val shares = remember(total, weights) { stepShares(total, weights) }
     val lineCap = Theme.shapes.lineCap
+    val pill = Theme.shapes.pill
+    val traced = remember { RingTrack() }
 
     Canvas(
         modifier
@@ -513,10 +527,16 @@ fun CircularStepProgress(
             seamless = gap <= 0.dp || total == 1,
         )
         val animated = steps.filled
+        // Round the theme's pill, as [CircularProgress] is: the ring's own box
+        // when the pill is squarer than a circle on it. 0.5.2.
+        val ringBox = Size(ring.radius * 2f, ring.radius * 2f)
+        val ringCorner = pill.cornerPx(ringBox, this)
+        val track = if (ringCorner < ring.radius) traced.also { it.fit(ringBox, ringCorner) } else null
+        val at = Offset((size.width - ringBox.width) / 2f, (size.height - ringBox.height) / 2f)
 
         // Every track before any fill, as in [StepProgress].
         for (index in 0 until total) {
-            drawRingCapsule(trackColour, ring, ring.start(index) - ring.reach, ring.end(index) + ring.reach, lineCap)
+            drawRingCapsule(trackColour, ring, ring.start(index) - ring.reach, ring.end(index) + ring.reach, lineCap, track, at)
         }
         for (index in 0 until total) {
             val fill = steps.fillOf(index)
@@ -533,7 +553,7 @@ fun CircularStepProgress(
                     animated > index + 1 -> ring.end(index) + ring.reach
                     else -> ring.end(index)
                 }
-                drawRingCapsule(colour, ring, from, to, lineCap)
+                drawRingCapsule(colour, ring, from, to, lineCap, track, at)
             }
             if (steps.chasing(index)) {
                 // Round the whole ring when it is indeterminate, from twelve
@@ -549,6 +569,8 @@ fun CircularStepProgress(
                         (spanStart + span * from).coerceAtLeast(limitStart),
                         (spanStart + span * to).coerceAtMost(limitEnd),
                         lineCap,
+                        track,
+                        at,
                     )
                 }
             }
@@ -619,9 +641,30 @@ internal class StepRing(
  * as [drawCapsule] draws one along a bar, so a chasing bar arrives as a point
  * and stretches into an arc.
  */
-internal fun DrawScope.drawRingCapsule(colour: Color, ring: StepRing, from: Float, to: Float, cap: StrokeCap) {
+internal fun DrawScope.drawRingCapsule(
+    colour: Color,
+    ring: StepRing,
+    from: Float,
+    to: Float,
+    cap: StrokeCap,
+    track: RingTrack? = null,
+    at: Offset = Offset.Zero,
+) {
     val sweep = to - from
     if (sweep <= 0f || ring.radius <= 0f) return
+    // A ring that is the theme's squarer pill rather than a circle: the same
+    // run along its box, its caps placed by the same rule as below. 0.5.2.
+    if (track != null) {
+        val capDegrees = if (cap == StrokeCap.Butt) 0f else track.degreesFor(ring.stroke / 2f)
+        when {
+            sweep >= capDegrees * 2f ->
+                track.drawRun(this, colour, at, from + capDegrees, sweep - capDegrees * 2f, Stroke(width = ring.stroke, cap = cap))
+            cap == StrokeCap.Round ->
+                drawCircle(colour, radius = track.length * sweep / 360f / 2f, center = track.pointAt(at, (from + to) / 2f))
+            else -> track.drawRun(this, colour, at, from, sweep, Stroke(width = ring.stroke, cap = StrokeCap.Butt))
+        }
+        return
+    }
     // A theme whose lines end square ([io.kontour.ui.theme.Shapes.lineCap]):
     // `Butt` stops exactly at both ends, and a sliver is an arc that short
     // rather than a dot. `Square` carries on by half the stroke, as a round cap
