@@ -918,8 +918,9 @@ def haptics_policy_drift() -> list[str]:
 # each named half its own size, which no theme could reach, and read `pill` now
 # so a square theme squares them too. Every one is a dot on a square box, which
 # is what `pill` is for. 43 with the spinner's track and the two progress
-# rings', which run round a square in a square theme rather than staying circles.
-MAX_CIRCLES = 43
+# rings', which run round a square in a square theme rather than staying circles,
+# and 45 with the pull-to-refresh arc's and redacted text's bars.
+MAX_CIRCLES = 45
 MAX_ROUNDED_RECT_SHAPES = 0
 
 
