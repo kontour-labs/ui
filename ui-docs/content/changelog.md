@@ -58,7 +58,9 @@ On `main`, and in the next release.
     timeline's stops and the halo round the stop reached, a `Meter`'s and a
     `Gauge`'s thumb, a `ColourPicker`'s cursor, the dots on an
     `ActivityCalendar`, a month's days, a `YearGrid` and an `IndexScroller`,
-    a `YearGrid`'s today ring and the time grid's now dot;
+    a `YearGrid`'s today ring and the time grid's now dot, and a `Spinner`'s
+    track, so a square theme's spinner, and a timeline's loading stop with it,
+    runs round a square;
   - from `mark`: a `Checkbox` and a `Kbd`, which were their own 6dp;
   - from `lineCap`: the line ends listed above, a timeline's dotted, dashed and
     solid connectors, and a `Meter`'s and a `Gauge`'s ticks, which follow
@@ -71,6 +73,9 @@ On `main`, and in the next release.
   a `ButtonGroup`'s or a `SplitButton`'s buttons, or a run of `ChatBubble`s
   meet, the corner is 4dp (2dp in a button group) or the shape's own,
   whichever is smaller. A square theme's rows used to meet at rounded corners.
+- **A square `ChatBubble`'s tail bends out of its side** from as high up as a
+  round one's does. On a bubble whose corner was smaller than the tail, it was
+  a spike out of the last half dp of the side.
 - **A ring round a square corner is square.** `outset`, which a focus ring and
   a `Toolbar` use to sit round what they hold, leaves a square corner square.
   It used to round it by the gap.

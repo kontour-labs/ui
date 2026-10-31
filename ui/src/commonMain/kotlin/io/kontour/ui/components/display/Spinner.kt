@@ -1,5 +1,12 @@
 package io.kontour.ui.components.display
 
+import io.kontour.ui.theme.cornerPx
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.PathMeasure
+import androidx.compose.ui.graphics.Path
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloat
@@ -163,6 +170,11 @@ fun Spinner(
 
     // Its arc's ends follow the theme's line ends: round unless it asks otherwise. 0.5.2.
     val lineCap = Theme.shapes.lineCap
+    // And its track the theme's pill: a circle, unless the theme is squarer, when
+    // the arc runs round that shape instead — a square theme's loading timeline
+    // stop went back to a circle while it loaded. 0.5.2.
+    val track = Theme.shapes.pill
+    val traced = remember { TracedTrack() }
     Canvas(
         modifier
             .size(size)
@@ -181,6 +193,12 @@ fun Spinner(
             breathing + (initialSweep - breathing) * (1f - handover.value)
         } else {
             breathing
+        }
+        val box = androidx.compose.ui.geometry.Size(this.size.width - stroke, this.size.height - stroke)
+        val corner = track.cornerPx(box, this)
+        if (corner < box.minDimension / 2f) {
+            traced.draw(this, colour, box, inset, corner, initialAngle + rotation - effectiveSweep, effectiveSweep, Stroke(width = stroke, cap = lineCap))
+            return@Canvas
         }
         drawArc(
             color = colour,
@@ -263,4 +281,60 @@ object SpinnerDefaults {
 
     /** The arc's length, in degrees, at the instant a spinner appears. */
     val OpeningSweep: Float get() = spinnerSweep(OpeningPhase)
+}
+
+/**
+ * A spinner's run round a track that is not a circle: a rounded or square box
+ * the theme's pill gives it.
+ *
+ * Angles are turned into distances round the box's outline from its top
+ * centre, clockwise, as `drawArc` measures from three o'clock: the head goes
+ * round at an even pace along the edge rather than an even angle, which on a
+ * square is the one that reads as steady. The outline and its measure are
+ * kept until the box or the corner changes, so a spinning frame builds nothing
+ * but the run it draws.
+ */
+private class TracedTrack {
+    private val outline = Path()
+    private val run = Path()
+    private val measure = PathMeasure()
+    private var box = Size.Zero
+    private var corner = -1f
+
+    fun draw(scope: DrawScope, colour: Color, box: Size, inset: Float, corner: Float, startAngle: Float, sweep: Float, stroke: Stroke) {
+        if (box.width <= 0f || box.height <= 0f || sweep <= 0f) return
+        if (box != this.box || corner != this.corner) {
+            this.box = box
+            this.corner = corner
+            outline.rewind()
+            val w = box.width
+            val h = box.height
+            val r = corner.coerceIn(0f, minOf(w, h) / 2f)
+            outline.moveTo(w / 2f, 0f)
+            outline.lineTo(w - r, 0f)
+            if (r > 0f) outline.arcTo(Rect(w - 2f * r, 0f, w, 2f * r), -90f, 90f, false)
+            outline.lineTo(w, h - r)
+            if (r > 0f) outline.arcTo(Rect(w - 2f * r, h - 2f * r, w, h), 0f, 90f, false)
+            outline.lineTo(r, h)
+            if (r > 0f) outline.arcTo(Rect(0f, h - 2f * r, 2f * r, h), 90f, 90f, false)
+            outline.lineTo(0f, r)
+            if (r > 0f) outline.arcTo(Rect(0f, 0f, 2f * r, 2f * r), 180f, 90f, false)
+            outline.close()
+            measure.setPath(outline, forceClosed = true)
+        }
+        val length = measure.length
+        if (length <= 0f) return
+        // From twelve o'clock, where the outline starts, clockwise.
+        val from = (((startAngle + 90f) / 360f) % 1f + 1f) % 1f * length
+        val along = (sweep / 360f).coerceAtMost(1f) * length
+        run.rewind()
+        val to = from + along
+        if (to <= length) {
+            measure.getSegment(from, to, run, startWithMoveTo = true)
+        } else {
+            measure.getSegment(from, length, run, startWithMoveTo = true)
+            measure.getSegment(0f, to - length, run, startWithMoveTo = false)
+        }
+        scope.translate(inset, inset) { drawPath(run, colour, style = stroke) }
+    }
 }

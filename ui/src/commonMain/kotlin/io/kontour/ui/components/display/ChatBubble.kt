@@ -312,10 +312,16 @@ internal class ChatBubbleShape(
         // and up the side no further than the top corner's — on a one-line bubble,
         // the middle of its round end, which stays round.
         val junction = maxOf(edge - replaced.x - seam, far.x)
-        val sideStart = maxOf(h - replaced.y - seam, above.y).coerceIn(0f, h)
         // The tail bends away from the side about as high as the corner it
         // replaces would have started, and never above the middle.
         val rise = maxOf(replaced.y, reach * TailClearance).coerceAtMost(h / 2f)
+        // And the square is filled from no lower than that. On a body whose
+        // corner is smaller than the tail's own clearance — a square theme's —
+        // the fill started half a dp above the bottom and held the bend down
+        // with it, so the tail was a spike out of the last half dp of the side.
+        // 0.5.2. Every corner the library's own themes give a bubble reaches
+        // further up than the clearance, so for them this changes nothing.
+        val sideStart = minOf(maxOf(h - replaced.y - seam, above.y), h - rise).coerceIn(0f, h)
         val flareStart = maxOf(h - rise, sideStart)
         // Drawn for a tail on the right, then mirrored if it belongs on the left.
         fun x(at: Float) = if (right) at else w - at
