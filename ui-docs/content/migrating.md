@@ -48,8 +48,8 @@ needs nothing; one outside reads it in the composable and passes it in:
   corner round square buttons.
 - **A `Meter` or a `Gauge` given `cap = StrokeCap.Butt`** has butt ends on its
   ticks too.
-- **A coach mark tour's Back is at the start of its bubble's row**, and Skip
-  beside Next. A test that found Back by its place beside Next finds it at the
+- **A coach mark tour's Back follows its position**, at the start of the
+  bubble's row, and Skip stands beside Next. A test that found Back by its place beside Next finds it at the
   other end.
 
 ---

@@ -89,11 +89,12 @@ holds only the **order**; each step's words live at the control they describe, i
 `Modifier.coachmarkStep(tour, id, title, message)`, which is the only place they
 can be kept honest when that control changes.
 
-`tour.start()` begins it, and each bubble carries its position — "2 / 3" — with
-Back at the start of its row and Next at the end, or Done on the last step.
-Back is on the left, or the right in a right-to-left language, with its word in
-line with the title and message above it, and Skip, where there is one, stands
-beside the way on. The way on, Next or Done, is filled in the bubble's ink so it
+`tour.start()` begins it, and each bubble carries its position — "2 / 3" — at
+the start of its row, Back straight after it, and Next at the end, or Done on
+the last step. The start is the left, or the right in a right-to-left language.
+Every button in the row has the same room round it: Back stands the row's gap
+from the position, as Skip, where there is one, stands the row's gap from the
+way on. The way on, Next or Done, is filled in the bubble's ink so it
 reads as a button. A tour of one step has only "Got it", since there is nothing
 to go back to or to be done with. `tour.index`, `isRunning` and `isFinished`
 say where it is; `finish()` ends it early.
@@ -248,9 +249,8 @@ which already stand apart from the page, and its "Got it" is a ghost button that
 gains the edge those take at this tier. A tour's bubble is the solid accent with
 its own ink, in whichever tone it is in, and its position is drawn at full
 strength rather than faded. Its Back and Skip gain an edge, as every ghost
-button does at this tier, so Back's edge stands at the bubble's margin rather
-than its word, and every button in the row keeps a gap between its edge and the
-next one's.
+button does at this tier, and every button in the row keeps a gap between its
+edge and the next one's.
 
 Under reduced motion a coach mark and a tour's bubble fade in where they will sit
 rather than scaling into place, and from one step to the next the marks

@@ -1,5 +1,6 @@
 package io.kontour.ui.components.selection
 
+import io.kontour.ui.theme.cornerPx
 import androidx.compose.foundation.shape.CornerBasedShape
 import io.kontour.ui.theme.drawDot
 import io.kontour.ui.theme.cornerRadius
@@ -372,6 +373,19 @@ internal fun DrawScope.squashedCapsule(
     val restingHalf = outerHeight / 2f
     val half = restingHalf - inset
     if (half <= 0f || outerWidth - inset * 2f <= 0f) return
+
+    // A theme whose pill is squarer than round on this box squashes *that*: a
+    // square thumb pressed into the wall is a narrower square, not an egg. The
+    // egg below is a round thumb's, and drew round ends on a square theme's
+    // thumb for as long as it was pressed. 0.5.2.
+    val inner = Size(outerWidth - inset * 2f, outerHeight - inset * 2f)
+    if (capsule is CornerBasedShape && capsule.cornerPx(inner, this) < inner.minDimension / 2f) {
+        val outline = capsule.createOutline(inner, layoutDirection, this)
+        translate(left = left + inset, top = top + inset) {
+            drawOutline(outline, colour, style = style)
+        }
+        return
+    }
 
     // Decided on the **outer** box, so the ring and the fill are never two
     // different shapes: at the crossover an inset box can be narrower than it is

@@ -1168,41 +1168,25 @@ private fun CoachmarkBubble(
         said = strings.sentences(spoken),
         modifier = modifier,
     ) {
-        // Back at the start, the way it goes, and the way on at the end. Back
-        // used to stand beside Next, with Skip, all three in one corner; asked
-        // for for 0.5.2 as *"can we make it so in the coachmarks, the "back"
-        // button is on the left side of the tip (and obviously reversed in
-        // RTL), rather than right next to the next button with the skip
-        // button?"* A row starts at the right in a right-to-left layout, so
-        // nothing here needs to know which way the language runs.
+        // Where you are, then Back, then the way on at the end. Back used to
+        // stand beside Next, with Skip, all three in one corner; asked for for
+        // 0.5.2 as *"can we make it so in the coachmarks, the "back" button is
+        // on the left side of the tip"*, and then, having seen it there, *"it
+        // should be to the right of the progress marker, and it also needs
+        // equal padding, same as the other buttons"*. So it follows the count,
+        // a plain ghost button the row's gap from it, as Skip is the row's gap
+        // from Next: nothing pulled out by its pad, and the same room round
+        // every button. A row starts at the right in a right-to-left layout,
+        // so nothing here needs to know which way the language runs.
         //
-        // A ghost button's invisible pad would have put its word that far in
-        // from the title and message above it, which the count, a bare text,
-        // never was. So it is pulled out by its pad, and its word lines up
-        // with theirs; its pressed fill reaches into the bubble's own margin.
-        // The pad after it stays, and with the row's gap it puts the count as
-        // far from Back as Skip's word is from Next.
+        // At the high-contrast tier a ghost button is drawn with an edge, and
+        // the row's gap is what is left between each edge and the next: the
+        // old pairing pulled Skip and Back together by their pads, and their
+        // outlines overlapped, reported from a phone as *"another reason to
+        // move them apart"*.
         //
-        // Only where the pad is invisible. Where a ghost button is drawn with
-        // an edge — the high-contrast tier — the edge is the button, and it
-        // stands at the bubble's margin as Next's does at the other end,
-        // rather than an outline 2dp from the bubble's own. Each button in
-        // the row then keeps the row's whole gap between its edge and the
-        // next: the old pairing pulled Skip and Back together by their pads,
-        // and at this tier their outlines overlapped, reported for 0.5.2 from
-        // a phone as *"another reason to move them apart"*.
-        val pad = Theme.componentDefaults.buttonPaddingSmall
-        val padInvisible = ButtonDefaults.colours(ButtonVariant.Ghost).border == null
-        if (hasPrevious) {
-            Button(
-                onClick = tour::previous,
-                variant = ButtonVariant.Ghost,
-                size = ButtonSize.Small,
-                modifier = if (padInvisible) Modifier.pulledToStart(pad) else Modifier,
-            ) { +strings.back }
-        }
-        // Where you are, at the start or after Back. A tour with no count is
-        // one the user cannot decide whether to sit through.
+        // A tour with no count is one the user cannot decide whether to sit
+        // through.
         if (count > 1) {
             Text(
                 text = strings.tourPosition(formats.quantity(index + 1), formats.quantity(count)),
@@ -1213,14 +1197,19 @@ private fun CoachmarkBubble(
                 colour = if (highContrast()) colours.content else colours.content.copy(alpha = StepCountAlpha),
             )
         }
+        if (hasPrevious) {
+            Button(
+                onClick = tour::previous,
+                variant = ButtonVariant.Ghost,
+                size = ButtonSize.Small,
+            ) { +strings.back }
+        }
         Box(Modifier.weight(1f))
         // Skip, beside the way on: past the rest, to where the tour's
         // `CoachmarkSkip` says, and offered only where that is somewhere —
         // never on the last step, whose Done is the way out, nor on a step at
-        // or past the one it skips to. Its pad stands between its word and
-        // Next, with the row's gap, which is the room Back's word has before
-        // the count; outlined, at the high-contrast tier, the row's gap is
-        // what is left between its edge and Next's, and they never touch.
+        // or past the one it skips to. The row's gap stands between it and
+        // Next, as between the count and Back.
         if (tour.showSkip && hasNext && tour.skipsTo(index) != null) {
             Button(
                 onClick = tour::skip,
@@ -1320,23 +1309,6 @@ internal fun CoachmarkOnward(label: String, colours: SolidTone, onClick: () -> U
             border = null,
         ),
     ) { +label }
-}
-
-/**
- * Laid out [by] further towards the start than its place in a row, and that
- * much narrower, so what follows it keeps its gap: for a ghost button whose
- * word should line up with the text above it rather than its invisible pad.
- * The start is the right in a right-to-left layout, and it is pulled out to
- * the right there.
- */
-private fun Modifier.pulledToStart(by: Dp): Modifier = layout { measurable, constraints ->
-    val pull = by.roundToPx()
-    val placeable = measurable.measure(constraints)
-    val width = (placeable.width - pull).coerceAtLeast(0)
-    layout(width, placeable.height) {
-        // Relative, so a right-to-left row mirrors it.
-        placeable.placeRelative(width - placeable.width, 0)
-    }
 }
 
 /** A tone's solid pair: what a coach mark is filled with, and what is written on it. */

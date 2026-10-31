@@ -87,11 +87,11 @@ On `main`, and in the next release.
   the theme says otherwise, and their ticks end as `cap` does. They were round
   whatever `cap` was.
 
-- **A coach mark tour's Back is at the start of its bubble's row**, on the
-  left, or the right in a right-to-left language, with its word in line with
-  the title and message. Skip stands beside Next. Back used to stand beside Next
-  with Skip, and at the high contrast tier Skip's and Back's outlines
-  overlapped; every button keeps a gap now.
+- **A coach mark tour's Back follows its position** at the start of the
+  bubble's row, on the left, or the right in a right-to-left language, with the
+  same room round it as every other button. Skip stands beside Next. Back used
+  to stand beside Next with Skip, and at the high contrast tier Skip's and
+  Back's outlines overlapped; every button keeps a gap now.
 
 ### Breaking
 

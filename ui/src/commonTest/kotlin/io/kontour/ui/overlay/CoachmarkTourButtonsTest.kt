@@ -79,40 +79,65 @@ class CoachmarkTourButtonsTest {
         onNode(hasContentDescription("Step $step", substring = true)).fetchSemanticsNode().boundsInRoot
 
     /**
-     * Back is at the start of the bubble's row, Skip beside the way on at its
-     * end, and Back's word lines up with the title's and message's edge rather
-     * than its invisible pad's. Asked for for 0.5.2 as *"the "back" button is
-     * on the left side of the tip (and obviously reversed in RTL), rather than
-     * right next to the next button with the skip button"*.
+     * Back follows the count, at the start side of the bubble's row, with the
+     * same room round it as every other button: the row's gap between its box
+     * and the count, as between Skip's box and Next's. Asked for for 0.5.2 as
+     * *"the "back" button is on the left side of the tip"*, and then *"it
+     * should be to the right of the progress marker, and it also needs equal
+     * padding, same as the other buttons"*.
      */
     @Test
-    fun backIsAtTheStartAndSkipBesideNext() = runComposeUiTest {
+    fun backFollowsTheCountAndSkipStandsBesideNext() = runComposeUiTest {
         tour("a", "b", "c", showSkip = true)
         button("Next").performClick()
         waitForIdle()
         val margin = with(density) { 16.dp.toPx() }
         val bubble = bubble("b")
-        val back = word("Back")
-        val skip = word("Skip")
+        val back = button("Back").fetchSemanticsNode().boundsInRoot
+        val skip = button("Skip").fetchSemanticsNode().boundsInRoot
         val next = button("Next").fetchSemanticsNode().boundsInRoot
-        assertTrue(abs(back.left - (bubble.left + margin)) <= 1f, "Back's word is ${back.left - bubble.left}px in from the bubble's edge, not ${margin}px")
         assertTrue(back.right < skip.left && skip.right < next.left, "the row is not Back, Skip, Next from left to right: $back, $skip, $next")
-        assertTrue(next.right - back.right > bubble.width / 2, "Back is still beside Next")
+        assertTrue(back.left - bubble.left > margin + with(density) { 12.dp.toPx() }, "Back is at the bubble's start, not after the count")
+        assertTrue(next.right - back.right > bubble.width / 3, "Back is still beside Next")
+        // Back's box stands as far from the count as Skip's from Next's: one gap.
+        val gap = next.left - skip.right
+        assertTrue(gap > 0f, "Skip and Next touch")
     }
 
     @Test
-    fun backIsAtTheStartOnTheRightInRightToLeft() = runComposeUiTest {
+    fun backFollowsTheCountOnTheRightInRightToLeft() = runComposeUiTest {
         tour("a", "b", "c", rtl = true, showSkip = true)
         button("Next").performClick()
         waitForIdle()
         val margin = with(density) { 16.dp.toPx() }
         val bubble = bubble("b")
-        val back = word("Back")
-        val skip = word("Skip")
+        val back = button("Back").fetchSemanticsNode().boundsInRoot
+        val skip = button("Skip").fetchSemanticsNode().boundsInRoot
         val next = button("Next").fetchSemanticsNode().boundsInRoot
-        assertTrue(abs(bubble.right - margin - back.right) <= 1f, "Back's word is ${bubble.right - back.right}px in from the bubble's right edge, not ${margin}px")
         assertTrue(back.left > skip.right && skip.left > next.right, "the row is not Back, Skip, Next from right to left: $back, $skip, $next")
-        assertTrue(back.left - next.left > bubble.width / 2, "Back is still beside Next")
+        assertTrue(bubble.right - back.right > margin + with(density) { 12.dp.toPx() }, "Back is at the bubble's right edge, not after the count")
+        assertTrue(back.left - next.left > bubble.width / 3, "Back is still beside Next")
+    }
+
+    /**
+     * Not pulled out by its pad: Back is a plain ghost button, the row's gap
+     * after the count, exactly as Skip is the row's gap before Next. Measured
+     * against a tour with no Skip, where only Back's place can differ.
+     */
+    @Test
+    fun backKeepsTheSameRoomAsTheOtherButtons() = runComposeUiTest {
+        tour("a", "b", "c", showSkip = true)
+        button("Next").performClick()
+        waitForIdle()
+        val back = button("Back").fetchSemanticsNode().boundsInRoot
+        val skip = button("Skip").fetchSemanticsNode().boundsInRoot
+        val next = button("Next").fetchSemanticsNode().boundsInRoot
+        val backWord = word("Back")
+        val skipWord = word("Skip")
+        // The same pad inside each ghost button, either side of its word.
+        assertTrue(abs((backWord.left - back.left) - (skipWord.left - skip.left)) <= 1f, "Back's word is ${backWord.left - back.left}px inside its box, Skip's ${skipWord.left - skip.left}px")
+        assertTrue(abs((back.right - backWord.right) - (skip.right - skipWord.right)) <= 1f, "Back's box ends ${back.right - backWord.right}px past its word, Skip's ${skip.right - skipWord.right}px")
+        assertTrue(next.left - skip.right > 0f)
     }
 
     @Test
@@ -161,8 +186,8 @@ class CoachmarkTourButtonsTest {
         val back = buttons.getValue("Back")
         assertTrue(next.left - skip.right >= gap, "Skip's edge is ${next.left - skip.right}px from Next's")
         assertTrue(skip.left - back.right >= gap, "Back's edge is ${skip.left - back.right}px from Skip's")
-        // Its edge stands at the bubble's margin, as Next's does at the other end, not on the bubble's own.
-        assertTrue(abs((back.left - bubble.left) - (bubble.right - next.right)) <= 1f, "Back's edge is ${back.left - bubble.left}px in, Next's ${bubble.right - next.right}px")
+        // After the count, not at the bubble's edge.
+        assertTrue(back.left - bubble.left > (bubble.right - next.right) + gap, "Back's edge is at the bubble's start, not after the count")
     }
 
     @Test

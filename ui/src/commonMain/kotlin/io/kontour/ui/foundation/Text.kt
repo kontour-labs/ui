@@ -1,5 +1,6 @@
 package io.kontour.ui.foundation
 
+import io.kontour.ui.theme.cornerPx
 import io.kontour.ui.theme.clipProxy
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.InlineTextContent
@@ -423,7 +424,11 @@ private fun rememberTextRedaction(): TextRedaction {
     val bars = remember { mutableStateOf(emptyList<Rect>()) }
     val boxes = bars.value
 
-    val shape = remember(boxes) {
+    // The bars' ends, the theme's pill: round, as they always were, unless the
+    // theme is squarer, when a redacted line is a square bar beside square
+    // everything else. 0.5.2.
+    val pill = Theme.shapes.pill
+    val shape = remember(boxes, pill) {
         if (boxes.isEmpty()) {
             null
         } else {
@@ -435,7 +440,7 @@ private fun rememberTextRedaction(): TextRedaction {
                 ): Outline {
                     val path = Path()
                     for (box in boxes) {
-                        val radius = box.height / 2f
+                        val radius = pill.cornerPx(box.size, density)
                         path.addRoundRect(
                             RoundRect(
                                 left = box.left,
