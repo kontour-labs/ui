@@ -25,7 +25,60 @@ The version an app is on is the `kontour` entry in its version catalog. See
 
 ## Unreleased
 
-On `main`, and in the next release. Nothing yet.
+On `main`, and in the next release.
+
+### Added
+
+- **A theme can square everything.** `Shapes` takes `mark`, the corner of a
+  `Checkbox` and a `Kbd`, and `lineCap`, how the library's drawn lines end: a
+  progress ring, a spinner, a gauge's and a knob's arc, a timeline's rail, a
+  pull-to-refresh arc and a chart's lines. `kontourShapes` takes `pillCap` and
+  `lineCap` beside `capsuleCap`, so
+  `kontourShapes(extraSmall = 0.dp, step = 0.dp, capsuleCap = 0.dp, pillCap = 0.dp, lineCap = StrokeCap.Butt)`
+  is a square theme in one call. The gallery's theme picker has it as *Square*.
+
+### Changed
+
+- **Every corner the library draws reads the theme.** These named their own
+  radius and now take it from the shape scale, so a theme that squares the
+  scale squares them too. The default theme draws them exactly as before,
+  pixel for pixel:
+  - from `capsule`: the ends of a `LinearProgress`, a `StepProgress`, a
+    `Slider`'s and a `RangeSlider`'s track, a toast's countdown bar and a
+    `ColourPicker`'s strips;
+  - from `pill`: a slider's ticks, a `Scrollbar`'s thumb (the modifier's as
+    well as the composable's), a `Carousel`'s travelling page dot, a
+    timeline's stops and the halo round the stop reached, a `Meter`'s and a
+    `Gauge`'s thumb, a `ColourPicker`'s cursor, the dots on an
+    `ActivityCalendar`, a month's days, a `YearGrid` and an `IndexScroller`,
+    a `YearGrid`'s today ring and the time grid's now dot;
+  - from `mark`: a `Checkbox` and a `Kbd`, which were their own 6dp;
+  - from `lineCap`: the line ends listed above, a timeline's dotted, dashed and
+    solid connectors, and a `Meter`'s and a `Gauge`'s ticks, which follow
+    their `cap`;
+  - an `ActivityCalendar`'s cells, and a chart legend's swatches, are no
+    rounder than `extraSmall`; a `NavExpansion` panel's corner no rounder
+    than `container`; a selected `DocumentTabs` tab curves out into the page
+    no further than its own corner.
+- **Grouped corners are no rounder than the group's.** Where grouped list rows,
+  a `ButtonGroup`'s or a `SplitButton`'s buttons, or a run of `ChatBubble`s
+  meet, the corner is 4dp (2dp in a button group) or the shape's own,
+  whichever is smaller. A square theme's rows used to meet at rounded corners.
+- **A ring round a square corner is square.** `outset`, which a focus ring and
+  a `Toolbar` use to sit round what they hold, leaves a square corner square.
+  It used to round it by the gap.
+- **`Meter` and `Gauge` default `cap` to the theme's `lineCap`**, round unless
+  the theme says otherwise, and their ticks end as `cap` does. They were round
+  whatever `cap` was.
+
+### Breaking
+
+- **`ActivityCalendarDefaults.CellShape` is composable**, because it reads the
+  theme. A call from a composable compiles as it is; one from anywhere else
+  reads it in a composable and passes it in.
+- **`Shapes` has two more properties**, `mark` and `lineCap`, at the end. Source
+  that builds a `Shapes` compiles as it is; a library compiled against the old
+  constructor has to be rebuilt.
 
 ---
 

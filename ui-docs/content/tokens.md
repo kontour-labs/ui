@@ -323,6 +323,43 @@ same `of(n)` is a sign that value wants a name.
 | `pill` | 50%, uncapped | Avatars, scrollbars, indicators, both FABs, `FabMenu`, a floating `NavBar`, a `Switch`'s track |
 | `sheet` | 34dp top only | Bottom sheets |
 | `sideSheet` | 28dp leading only | Side sheets |
+| `mark` | 6dp | A `Checkbox`'s box, a `Kbd`'s key cap |
+
+And `lineCap`, which is not a corner but is a line's: how a progress ring, a
+spinner, a gauge's arc, a timeline's rail and a chart's lines end. Round by
+default.
+
+**Every corner the library draws reads one of these**, not only the ones it
+clips. A progress bar's ends, a slider's track, a scrollbar's thumb and a
+toast's countdown are drawn from `capsule`; a slider's thumb and ticks, a page
+dot, a timeline's stop, a gauge's thumb and a calendar's dots from `pill`; the
+corners where grouped rows meet are never rounder than the rows' own, and a ring
+drawn round a square corner, a focus ring or a toolbar, stays square. So a theme
+that squares the scale squares all of it:
+
+```kotlin
+KontourTheme(
+    shapes = kontourShapes(
+        extraSmall = 0.dp,
+        step = 0.dp,
+        capsuleCap = 0.dp,
+        pillCap = 0.dp,
+        lineCap = StrokeCap.Butt,
+    ),
+) { AppRoot() }
+```
+
+`pillCap` is the one that is easy to forget: without it, switches, icon buttons
+and avatars stay round beside square buttons. A radio button stays round
+whatever the theme, because round is how it says it is not a checkbox, and a
+knob's face stays a disc because it turns. The gallery's theme picker has this
+as *Square*.
+
+Built with `copy` rather than `kontourShapes`, name `sheet` and `sideSheet` too:
+a `copy` keeps the shapes it is not given, so `copy(extraLarge = square)` leaves
+a sheet's 34dp top corners where they were. On a phone a sheet's corners are
+raised to the display's own, but only where they are rounded to begin with; a
+square one stays square.
 
 **Set the ladder as a ladder.** `kontourShapes(extraSmall = 6.dp, step = 2.dp)`
 is the whole scale from one rung and one step, with `container`, `panel`,

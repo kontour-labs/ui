@@ -184,6 +184,24 @@ The scale — sizes, weights, line heights, tracking — is preserved; only the
 family changes. Name the mono face as well: left out, the brand face takes the
 mono role too, and code and figures stop being monospaced.
 
+**Square it off:**
+
+```kotlin
+KontourTheme(
+    shapes = kontourShapes(
+        extraSmall = 0.dp,
+        step = 0.dp,
+        capsuleCap = 0.dp,
+        pillCap = 0.dp,
+        lineCap = StrokeCap.Butt,
+    ),
+) { AppRoot() }
+```
+
+Every corner the library draws comes from the shape scale, including the ends
+of a progress bar and the dots on a calendar, so one argument squares all of
+them. A radio button stays round. [Tokens](tokens.md#shape) has the detail.
+
 **Change a component's geometry, everywhere:**
 
 ```kotlin
