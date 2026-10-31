@@ -187,20 +187,16 @@ mono role too, and code and figures stop being monospaced.
 **Square it off:**
 
 ```kotlin
-KontourTheme(
-    shapes = kontourShapes(
-        extraSmall = 0.dp,
-        step = 0.dp,
-        capsuleCap = 0.dp,
-        pillCap = 0.dp,
-        lineCap = StrokeCap.Butt,
-    ),
-) { AppRoot() }
+KontourTheme(shapes = squareShapes()) { AppRoot() }
 ```
 
 Every corner the library draws comes from the shape scale, including the ends
-of a progress bar and the dots on a calendar, so one argument squares all of
-them. A radio button stays round. [Tokens](tokens.md#shape) has the detail.
+of a progress bar, the dots on a calendar and the track a spinner runs round,
+so one argument squares all of them. A radio button stays round. Three things
+are left to choose: `squareShapes(corner = 3.dp)` takes the sharpness off,
+`roundPills = true` keeps avatars, switches, dots, spinners and progress rings
+round, and `lineCap = StrokeCap.Round` keeps the ends of lines soft.
+[Tokens](tokens.md#shape) has the detail.
 
 **Change a component's geometry, everywhere:**
 

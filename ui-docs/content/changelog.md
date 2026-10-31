@@ -35,7 +35,10 @@ On `main`, and in the next release.
   pull-to-refresh arc and a chart's lines. `kontourShapes` takes `pillCap` and
   `lineCap` beside `capsuleCap`, so
   `kontourShapes(extraSmall = 0.dp, step = 0.dp, capsuleCap = 0.dp, pillCap = 0.dp, lineCap = StrokeCap.Butt)`
-  is a square theme in one call. The gallery's theme picker has it as *Square*.
+  is a square theme. `squareShapes()` is the same in one call, with three
+  choices: `corner`, to take the sharpness off; `roundPills`, to keep avatars,
+  switches, dots, spinners and progress rings round; and `lineCap`. The
+  gallery's theme picker has it as *Square*, and its apps follow the picker.
 - **A coach mark tour's Skip goes where the app says.** `rememberCoachmarkTour(skipTo = …)`
   takes a [`CoachmarkSkip`](components/coachmark.md#where-skip-goes): `ToLast`,
   the default and what Skip always did; `End`, which leaves the tour there and
@@ -60,7 +63,8 @@ On `main`, and in the next release.
     `ActivityCalendar`, a month's days, a `YearGrid` and an `IndexScroller`,
     a `YearGrid`'s today ring and the time grid's now dot, and a `Spinner`'s
     track, so a square theme's spinner, and a timeline's loading stop with it,
-    runs round a square;
+    runs round a square, and a `CircularProgress`'s and a
+    `CircularStepProgress`'s ring;
   - from `mark`: a `Checkbox` and a `Kbd`, which were their own 6dp;
   - from `lineCap`: the line ends listed above, a timeline's dotted, dashed and
     solid connectors, and a `Meter`'s and a `Gauge`'s ticks, which follow

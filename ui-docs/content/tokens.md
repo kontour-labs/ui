@@ -332,25 +332,23 @@ default.
 **Every corner the library draws reads one of these**, not only the ones it
 clips. A progress bar's ends, a slider's track, a scrollbar's thumb and a
 toast's countdown are drawn from `capsule`; a slider's thumb and ticks, a page
-dot, a timeline's stop, a gauge's thumb and a calendar's dots from `pill`; the
-corners where grouped rows meet are never rounder than the rows' own, and a ring
-drawn round a square corner, a focus ring or a toolbar, stays square. So a theme
-that squares the scale squares all of it:
+dot, a timeline's stop, a gauge's thumb, a calendar's dots, and the track a
+spinner and a progress ring run round from `pill`; the corners where grouped
+rows meet are never rounder than the rows' own, and a ring drawn round a square
+corner, a focus ring or a toolbar, stays square. So a theme that squares the
+scale squares all of it, and `squareShapes()` is that theme in one call:
 
 ```kotlin
-KontourTheme(
-    shapes = kontourShapes(
-        extraSmall = 0.dp,
-        step = 0.dp,
-        capsuleCap = 0.dp,
-        pillCap = 0.dp,
-        lineCap = StrokeCap.Butt,
-    ),
-) { AppRoot() }
+KontourTheme(shapes = squareShapes()) { AppRoot() }
 ```
 
-`pillCap` is the one that is easy to forget: without it, switches, icon buttons
-and avatars stay round beside square buttons. A radio button stays round
+It takes three choices and no more. `corner` is every corner's radius, 0dp by
+default, or a few dp to take the sharpness off; `roundPills` keeps avatars,
+switches, icon buttons, dots, spinners and progress rings round while the rest
+is square; `lineCap` is how lines end, flat by default. Anything between this
+and the default is `kontourShapes`, whose `pillCap` is the argument that is
+easy to forget: without it, switches, icon buttons and avatars stay round
+beside square buttons. A radio button stays round
 whatever the theme, because round is how it says it is not a checkbox, and a
 knob's face stays a disc because it turns. The gallery's theme picker has this
 as *Square*.
