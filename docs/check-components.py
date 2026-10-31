@@ -1391,8 +1391,10 @@ def public_declarations() -> set[str]:
         re.compile(r"^[ \t]*(?:(?:public|internal|private)\s+)?"
                    r"(?:(?:override|suspend|inline|operator|infix|expect|actual|tailrec)\s+)*"
                    r"fun\s+(?:<[^>]*>\s*)?(?:([A-Za-z_][\w.]*)\.)?(\w+)\s*\(", re.MULTILINE),
+        # `fun` for a `fun interface`, which this missed until `CoachmarkSkip`
+        # was the first to be named on a page (0.5.2).
         re.compile(r"^[ \t]*(?:(?:public|internal|private|abstract|open|sealed|data|value|inner"
-                   r"|expect|actual|enum|annotation)\s+)*"
+                   r"|expect|actual|enum|annotation|fun)\s+)*"
                    r"(?:class|interface|object)\s+()(\w+)", re.MULTILINE),
         re.compile(r"^[ \t]*(?:(?:public|internal|private)\s+)?"
                    r"va[lr]\s+(?:<[^>]*>\s*)?(?:([A-Za-z_][\w.]*)\.)?(\w+)", re.MULTILINE),
