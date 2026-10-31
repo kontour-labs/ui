@@ -65,6 +65,8 @@ hand-drawn skeleton away.
 
 ---
 
+**In the theme's shapes.** A redacted line of text is a bar in the theme's `pill`: a capsule by default, square in a square theme.
+
 ## Accessibility
 
 **Redacted content leaves the accessibility tree entirely**, and stops taking

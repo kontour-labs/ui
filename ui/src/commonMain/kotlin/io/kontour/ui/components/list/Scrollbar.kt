@@ -1,5 +1,10 @@
 package io.kontour.ui.components.list
 
+import kotlin.math.abs
+import kotlinx.coroutines.Job
+import androidx.compose.foundation.LocalOverscrollFactory
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.runtime.LaunchedEffect
 import kotlinx.coroutines.flow.collectLatest
@@ -86,6 +91,7 @@ import io.kontour.ui.input.pointerIconFor
 import io.kontour.ui.sheet.LocalSheetState
 import io.kontour.ui.sheet.flingingInPlace
 import io.kontour.ui.sheet.SheetState
+import io.kontour.ui.theme.cornerRadius
 import io.kontour.ui.theme.Theme
 import kotlin.math.roundToInt
 import kotlin.time.Duration
@@ -482,7 +488,18 @@ fun Modifier.scrollbar(
     val strip = with(density) { hoveredThickness.toPx() } + 2 * margin
     val minThumb = with(density) { minThumbLength.toPx() }
     val corner = with(density) { cornerInset.toPx() }
+    // The thumb's ends: the theme's pill, as the composable `Scrollbar`'s are —
+    // round, unless the theme is squarer. 0.5.2.
+    val thumbShape = Theme.shapes.pill
     val track = remember { ScrollbarTrack() }
+    // How far past an end the content has been pulled, which the thumb gives
+    // up length to: see [ScrollbarStretch]. Only where something overscrolls.
+    val scope = rememberCoroutineScope()
+    val stretch = remember { ScrollbarStretch(scope) }
+    stretch.vertical = orientation == Orientation.Vertical
+    stretch.enabled = LocalOverscrollFactory.current != null
+    stretch.settle = Theme.motion.springOrTween(Theme.motion.springDefault)
+    val stretchSoftness = with(density) { StretchSoftness.toPx() }
     val direction = LocalLayoutDirection.current
     val clear = trackClearance(contentPadding, orientation, direction, density)
     track.update(orientation, direction, margin, strip, minThumb, corner, clear)
@@ -521,6 +538,9 @@ fun Modifier.scrollbar(
         // Before the content's own scroll, so a drag of the thumb goes up the
         // chain past the content rather than into it.
         .scrollbarChain(source)
+        // Nearer the content than the chain, so the pull past its end is seen
+        // before anything above it is offered it. It takes none of it.
+        .nestedScroll(stretch)
         // There all along and the arrow, overriding nothing, until the pointer
         // is on the bar: Compose asks the nodes under a press at the moment it
         // goes down. See `heldCursor`.
@@ -547,12 +567,13 @@ fun Modifier.scrollbar(
             val alpha = look.alpha.value
             if (alpha <= 0f) return@drawWithContent
             if (!geometry.isUseful) return@drawWithContent
-            val thumb = track.thumb(size, layoutDirection, geometry, look.width.value.toPx()) ?: return@drawWithContent
+            val whole = track.thumb(size, layoutDirection, geometry, look.width.value.toPx()) ?: return@drawWithContent
+            val thumb = whole.stretched(stretch.pull.value, stretchSoftness, size, stretch.vertical)
             drawRoundRect(
                 color = colour.copy(alpha = colour.alpha * alpha),
                 topLeft = thumb.topLeft,
                 size = thumb.size,
-                cornerRadius = CornerRadius(minOf(thumb.width, thumb.height) / 2f),
+                cornerRadius = thumbShape.cornerRadius(thumb.size, this),
             )
         }
 }
@@ -1609,3 +1630,89 @@ internal class RowSizes {
         if (notify) version++
     }
 }
+
+/**
+ * How far past an end the content under a scrollbar has been pulled, read as a
+ * nested-scroll parent of it.
+ *
+ * Asked for for 0.5.2 as *"if a scrollbar is in a container with overscroll,
+ * it shrinks at the bottom slightly as the overscroll happens"*, as a scroll
+ * indicator does on a phone. The platform's overscroll — Android's stretch,
+ * iOS's bounce — says nothing of how far it has gone, so this keeps its own
+ * account of the same thing: the drag the content could not take at its end,
+ * which is what the overscroll is then handed, offered here first on its way
+ * up and none of it consumed. Let go, it springs back to nothing on the
+ * theme's spring, as the content does; and a scroll the content takes again
+ * lets it go at once.
+ *
+ * Off where nothing overscrolls — a desktop, or a list given no overscroll —
+ * so a wheel turned against the end of a list does not shrink a thumb over
+ * content that has not moved.
+ */
+private class ScrollbarStretch(private val scope: CoroutineScope) : NestedScrollConnection {
+    /** Past the end, positive; past the start, negative; in pixels of drag. */
+    val pull = Animatable(0f)
+    var vertical = true
+    var enabled = false
+    var settle: AnimationSpec<Float> = spring()
+    private var target = 0f
+    private var releasing: Job? = null
+
+    override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
+        if (!enabled || source != NestedScrollSource.UserInput) return Offset.Zero
+        val taken = if (vertical) consumed.y else consumed.x
+        val left = if (vertical) available.y else available.x
+        if (taken != 0f && target != 0f) {
+            release()
+        } else if (left != 0f) {
+            releasing?.cancel()
+            // A drag towards the start is a positive delta, so past the end is
+            // the drag's opposite.
+            target -= left
+            val to = target
+            scope.launch { pull.snapTo(to) }
+        }
+        return Offset.Zero
+    }
+
+    override suspend fun onPreFling(available: Velocity): Velocity {
+        release()
+        return Velocity.Zero
+    }
+
+    private fun release() {
+        target = 0f
+        if (pull.value == 0f && !pull.isRunning) return
+        releasing?.cancel()
+        releasing = scope.launch { pull.animateTo(0f, settle) }
+    }
+}
+
+/**
+ * This thumb, given up [pull]'s share of its length at the end away from the
+ * edge it is pressed against, as a scroll indicator does at the end of a list
+ * pulled past it: it keeps its place at the edge and shortens from the other
+ * end. A diminishing share — half its length at most, half of that by
+ * [softness] of pull — so a long pull is not a thumb shrunk to nothing.
+ */
+private fun Rect.stretched(pull: Float, softness: Float, track: Size, vertical: Boolean): Rect {
+    if (pull == 0f) return this
+    val reach = abs(pull)
+    val length = if (vertical) height else width
+    val thickness = if (vertical) width else height
+    val most = (length * StretchMostShare).coerceAtMost((length - thickness).coerceAtLeast(0f))
+    val give = most * reach / (reach + softness)
+    if (give <= 0f) return this
+    return if (vertical) {
+        // Pressed against whichever end it is nearer.
+        if (track.height - bottom <= top) copy(top = top + give) else copy(bottom = bottom - give)
+    } else {
+        if (track.width - right <= left) copy(left = left + give) else copy(right = right - give)
+    }
+}
+
+/** The most of its length a thumb gives up to a pull past the end. */
+private const val StretchMostShare = 0.5f
+
+/** The pull at which a thumb has given up half the most it will. */
+private val StretchSoftness: Dp = 160.dp

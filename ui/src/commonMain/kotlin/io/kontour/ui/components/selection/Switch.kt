@@ -1,5 +1,6 @@
 package io.kontour.ui.components.selection
 
+import io.kontour.ui.theme.cornerPx
 import io.kontour.ui.platform.webRole
 import io.kontour.ui.platform.WebRole
 import androidx.compose.ui.unit.LayoutDirection
@@ -676,6 +677,10 @@ fun Switch(
             bottom = top + thumbPx,
             colour = thumbColour,
             wallOnRight = band.offset > 0f,
+            // The theme's pill where it is squarer than a circle on this box, so
+            // a square theme's thumb is square in its square track; otherwise
+            // the circle it always was. 0.5.2.
+            capsule = if (shape.cornerPx(Size(thumbWidth, thumbPx), this) < minOf(thumbWidth, thumbPx) / 2f) shape else null,
         )
 
         if (stateGlyph) {

@@ -1252,7 +1252,9 @@ internal val GaugeDemo = ComponentDemo(
             size = 200.dp,
             sweepAngle = this@ComponentDemo[gaugeSweep],
             thickness = this@ComponentDemo[gaugeThickness],
-            cap = if (this@ComponentDemo[gaugeFlatEnds]) StrokeCap.Butt else StrokeCap.Round,
+            // Flat when asked, and otherwise the theme's own ends — round, or a square
+            // theme's flat ones, which a fixed `Round` here overrode.
+            cap = if (this@ComponentDemo[gaugeFlatEnds]) StrokeCap.Butt else Theme.shapes.lineCap,
             indicator = indicator,
             needleLength = this@ComponentDemo[gaugeNeedleLength],
             needleMatchesFill = this@ComponentDemo[gaugeNeedleMatchesFill],
@@ -1364,7 +1366,9 @@ internal val MeterDemo = ComponentDemo(
             orientation = this@ComponentDemo[meterOrientation],
             modifier = if (vertical) Modifier.height(220.dp) else Modifier.fillMaxWidth(),
             thickness = this@ComponentDemo[meterThickness],
-            cap = if (this@ComponentDemo[meterFlatEnds]) StrokeCap.Butt else StrokeCap.Round,
+            // Flat when asked, and otherwise the theme's own ends — round, or a square
+            // theme's flat ones, which a fixed `Round` here overrode.
+            cap = if (this@ComponentDemo[meterFlatEnds]) StrokeCap.Butt else Theme.shapes.lineCap,
             colours = MeterDefaults.colours(indicator = fill),
             indicator = this@ComponentDemo[meterIndicator],
             needleMatchesFill = this@ComponentDemo[meterNeedleMatchesFill],

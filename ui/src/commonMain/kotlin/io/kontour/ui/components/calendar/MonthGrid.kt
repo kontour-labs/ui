@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -183,7 +182,8 @@ internal fun MonthView(scope: CalendarScope) {
             val maxRows by remember(viewportPx, most, leastRowPx, dateLabelPx, linePx, padPx) {
                 derivedStateOf { itemPx().let { if (it > 0f) floor((rowPx() - dateLabelPx) / it).toInt().coerceAtLeast(0) else 0 } }
             }
-            val list = rememberMonthList(scope, inView, rowPx, zooming)
+            val bridged = rememberMonthList(scope, inView, rowPx, zooming)
+            val list = bridged.list
             val snap = rememberWeekSnap(list)
             val placed = remember { PlacedAt() }
             val coroutines = rememberCoroutineScope()
@@ -194,7 +194,7 @@ internal fun MonthView(scope: CalendarScope) {
             zoom.leastRowPx = leastRowPx
             zoomer[0] = zoom
             dayAt[0] = {
-                val row = periods.rowOf(state.date)
+                val row = periods.rowOf(state.date, bridged)
                 list.layoutInfo.visibleItemsInfo.firstOrNull { it.index == row }?.let { it.offset + it.size / 2f } ?: (viewportPx / 2f)
             }
             // Each week's events, found once for as long as the events are the same.
@@ -236,8 +236,10 @@ internal fun MonthView(scope: CalendarScope) {
                         userScrollEnabled = scope.enabled,
                         modifier = Modifier.fillMaxSize().tellsWheelFromFinger(snap),
                     ) {
-                        items(WeekRows, key = { it }) { index ->
-                            val weekStart = periods.weekOfRow(index)
+                        // Keyed by the week's own row, so a bridge taken down —
+                        // the same weeks at other indices — composes nothing again.
+                        items(WeekRows, key = { bridged.real(it) }) { index ->
+                            val weekStart = periods.weekOf(index, bridged)
                             val events = byWeek.getOrPut(weekStart) {
                                 scope.eventsBetween(weekStart, weekStart.plus(DaysPerWeek - 1, DateTimeUnit.DAY))
                             }
@@ -246,9 +248,9 @@ internal fun MonthView(scope: CalendarScope) {
                     }
                     // Where a carried event would land, over the weeks on screen:
                     // from one to the next is travel down.
-                    val ghostRows = remember(list, periods) { ListRows(list, periods) }
+                    val ghostRows = remember(bridged, periods) { ListRows(bridged, periods) }
                     ghostRows.rowPx = rowPx
-                    val first by remember(list, periods) { derivedStateOf { periods.weekOfRow(list.firstVisibleItemIndex) } }
+                    val first by remember(bridged, periods) { derivedStateOf { periods.weekOf(list.firstVisibleItemIndex, bridged) } }
                     DaysGhostLayer(
                         scope,
                         first,
@@ -271,9 +273,10 @@ internal fun MonthView(scope: CalendarScope) {
 internal const val MonthRowsInView = 6
 
 /** A scrolling month's weeks for the copy a carry draws, read as they are laid out. */
-private class ListRows(private val list: LazyListState, private val periods: CalendarPeriods) : GhostRows {
+private class ListRows(private val bridged: BridgedList, private val periods: CalendarPeriods) : GhostRows {
+    private val list get() = bridged.list
     var rowPx: () -> Float = { 0f }
-    override fun start(): LocalDate = periods.weekOfRow(list.layoutInfo.visibleItemsInfo.firstOrNull()?.index ?: list.firstVisibleItemIndex)
+    override fun start(): LocalDate = periods.weekOf(list.layoutInfo.visibleItemsInfo.firstOrNull()?.index ?: list.firstVisibleItemIndex, bridged)
     override fun top(): Float = (list.layoutInfo.visibleItemsInfo.firstOrNull()?.offset ?: 0).toFloat()
     override fun height(): Float = rowPx()
 }

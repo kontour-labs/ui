@@ -119,6 +119,8 @@ fun Sparkline(
     }
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val lineWidth = Theme.sizing.borderWidthStrong
+    // Its line's ends, as the theme's lines end. 0.5.2.
+    val lineCap = Theme.shapes.lineCap
 
     Spacer(
         modifier
@@ -160,7 +162,7 @@ fun Sparkline(
                 }
                 val line = linePath(points, ChartInterpolation.Monotone)
                 val area = if (showArea) areaUnder(points) else null
-                val lineStroke = Stroke(stroke, cap = StrokeCap.Round, join = StrokeJoin.Round)
+                val lineStroke = Stroke(stroke, cap = lineCap, join = StrokeJoin.Round)
                 // Where each new point sets off from: the old line's height at
                 // the same place along it.
                 val start = from.value?.let { old -> points.mapIndexed { i, point -> point?.let { it.copy(y = old.heightAt(i.toFloat() / last) ?: it.y) } } }

@@ -184,6 +184,20 @@ The scale — sizes, weights, line heights, tracking — is preserved; only the
 family changes. Name the mono face as well: left out, the brand face takes the
 mono role too, and code and figures stop being monospaced.
 
+**Square it off:**
+
+```kotlin
+KontourTheme(shapes = squareShapes()) { AppRoot() }
+```
+
+Every corner the library draws comes from the shape scale, including the ends
+of a progress bar, the dots on a calendar and the track a spinner runs round,
+so one argument squares all of them. A radio button stays round. Three things
+are left to choose: `squareShapes(corner = 3.dp)` takes the sharpness off,
+`roundPills = true` keeps avatars, switches, dots, spinners and progress rings
+round, and `lineCap = StrokeCap.Round` keeps the ends of lines soft.
+[Tokens](tokens.md#shape) has the detail.
+
 **Change a component's geometry, everywhere:**
 
 ```kotlin

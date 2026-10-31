@@ -51,6 +51,7 @@ import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.rememberRubberBand
 import io.kontour.ui.interaction.rememberDetentTicker
 import io.kontour.ui.interaction.horizontalDragsOwning
+import io.kontour.ui.theme.cornerRadius
 import io.kontour.ui.theme.Theme
 import kotlin.math.abs
 import kotlin.math.ceil
@@ -424,6 +425,10 @@ fun RangeSlider(
     val labelGap = with(density) { SliderLabelGap.toPx() }
     // The switch's pill: round at rest, a G2 pill stretched. See `sliderThumb`.
     val pill = Theme.shapes.pill
+    // The track's ends: half its height, unless the theme's capsule is squarer.
+    // Resolved on the whole track, so a fill shorter than it is tall keeps the
+    // radius it always had. 0.5.2.
+    val capsule = Theme.shapes.capsule
     val rtl = layoutDirection == LayoutDirection.Rtl
     // See `Slider`: the limit is the finger's travel past the stop, not a
     // fraction of the thumb, and `sliderThumb` normalises by the same number.
@@ -1168,6 +1173,7 @@ fun RangeSlider(
                             // note in `Slider`. Must match the pointer maths.
                             val trackLeft = thumbReachPx
                             val trackWidth = (size.width - thumbReachPx * 2f).coerceAtLeast(0f)
+                            val trackRadius = capsule.cornerRadius(Size(trackWidth.coerceAtLeast(trackHeightPx), trackHeightPx), this)
                             // Mirrored right to left, as the pointer maths
                             // always was — see `Slider`.
                             val now = drawnNow()
@@ -1181,7 +1187,7 @@ fun RangeSlider(
                                 color = inactiveColour,
                                 topLeft = Offset(trackLeft, trackTop),
                                 size = Size(trackWidth, trackHeightPx),
-                                cornerRadius = CornerRadius(trackHeightPx / 2f),
+                                cornerRadius = trackRadius,
                             )
                             // The band between the thumbs, which is the value —
                             // on a plain slider the filled part runs from the
@@ -1190,12 +1196,13 @@ fun RangeSlider(
                                 color = activeColour,
                                 topLeft = Offset(bandLeft, trackTop),
                                 size = Size(bandRight - bandLeft, trackHeightPx),
-                                cornerRadius = CornerRadius(trackHeightPx / 2f),
+                                cornerRadius = trackRadius,
                             )
 
                             if (showTicks) {
                                 sliderTicks(
                                     trackLeft = trackLeft,
+                                    shape = pill,
                                     trackWidth = trackWidth,
                                     centreY = centreY,
                                     steps = steps,

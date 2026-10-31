@@ -69,6 +69,16 @@ one over a moment rather than stepping to it. While a finger or the mouse holds
 the thumb, it stays under the pointer, its length holds still, and taking it to
 the end of its track takes the content to its very end.
 
+**Pulled past its end, the thumb gives way.** Where the content overscrolls —
+Android's stretch, iOS's bounce — the thumb on `Modifier.scrollbar` stays
+against the end it has reached and gives up some of its length as the content
+is pulled past it, up to half of it on a long pull, and has it back on the
+theme's spring once let go, as a phone's own scroll indicator does. Where
+nothing overscrolls, a desktop's mouse wheel turned against the end of a list,
+it stays as it is. It is read from the drag the content could not take, so it
+is on the modifier, on the scroller; a `Scrollbar` beside its content does not
+see it.
+
 A list with an [`IndexScroller`](index-scroller.md) down its edge has no
 scrollbar: the index is its position control, and the bar draws nothing while
 the index is there.

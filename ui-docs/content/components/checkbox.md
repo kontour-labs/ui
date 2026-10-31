@@ -32,6 +32,8 @@ which is what `LocalRowInteractionSource` was always for.
 
 ---
 
+**Its corner is `Theme.shapes.mark`**, 6dp by default: a ladder compressed below the default takes it down with it, and none takes it above 6dp, since a checkbox with a corner of half its side is a circle and reads as a radio button.
+
 ## Accessibility
 
 `Role.Checkbox` with a `toggleableState`, so a screen reader announces checked,

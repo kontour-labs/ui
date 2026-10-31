@@ -153,6 +153,8 @@ fills outward from wherever `origin` is put, in whichever direction the reading 
 
 ---
 
+**`cap` defaults to the theme's `lineCap`**, round unless the theme says otherwise, and the ticks end as the track does. The thumb is a dot in the theme's `pill`.
+
 ## Accessibility
 
 One node, merged, reported as a progress reading over `valueRange` — so a screen

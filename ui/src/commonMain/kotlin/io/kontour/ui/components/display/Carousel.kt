@@ -1,5 +1,6 @@
 package io.kontour.ui.components.display
 
+import io.kontour.ui.theme.cornerRadius
 import io.kontour.ui.theme.clipProxy
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.runtime.withFrameNanos
@@ -942,6 +943,9 @@ private fun PageDots(
     // one the layout just produced.
     val dotWidth = remember(count) { FloatArray(count) }
     val dotRadius = with(LocalDensity.current) { PageIndicatorDefaults.DotSize.toPx() / 2f }
+    // The travelling pill's ends, as round as the dots are: the theme's pill, so
+    // a square theme's is square with them. 0.5.2.
+    val dotShape = Theme.shapes.pill
     // The gesture below outlives the composition that installed it, so the
     // handler has to be read at tap time rather than captured.
     val select = rememberUpdatedState(onPageClick)
@@ -1122,7 +1126,7 @@ private fun PageDots(
                                 Offset(left, (size.height - dotRadius * 2f) / 2f)
                             },
                             size = if (vertical) Size(dotRadius * 2f, right - left) else Size(right - left, dotRadius * 2f),
-                            cornerRadius = CornerRadius(dotRadius),
+                            cornerRadius = dotShape.cornerRadius(Size(dotRadius * 2f, dotRadius * 2f), this),
                         )
                     }
                 } else {

@@ -508,13 +508,22 @@ object LinkDefaults {
      * not inside a block of text, so nothing has to distinguish it from its
      * neighbours — which is why that one is not underlined and this one is.
      *
-     * **Hover and press are a highlight behind the words, not a second colour on
-     * them.** A `SpanStyle` is all a link gets, and a wash over the glyphs is
-     * the one thing it cannot draw — so the feedback every other control in the
-     * library gives with `Indication` is given here by the accent's own pair:
-     * [highlight] behind, and on press [pressedColour] in front, which is the
-     * tone that exists to be legible on exactly that ground. Inventing a darker
-     * accent for it would be a colour nothing else in the scheme has.
+     * **Hover and press are a ground behind the words, not a second colour on
+     * them**, and [Text] draws it — the accent's container behind just the
+     * link, line box by line box, in the theme's shape, with the words in the
+     * container's ink while pressed: the ground and ink a
+     * [TextButton][io.kontour.ui.components.action.TextButton] has, held for as
+     * long as a quick tap needs to be seen. A focused link has [highlight]
+     * behind it, which Compose paints.
+     *
+     * **Neither the hover nor the press carries a background here any more.**
+     * Changed 2026-10-31 for 0.5.2. Compose applies these styles while the press is down, and
+     * a tap's press is down for less than a frame, so a tap showed nothing; and a
+     * background a style paints is a square box the paragraph draws over
+     * anything [Text] puts behind it, so the two could not be drawn together.
+     * [Text] draws a link's ground for any link whose styles have a
+     * `pressedStyle`, as these do. [pressedColour] stays on it, for whatever
+     * else draws the string, and is what Compose shows while a press is held.
      */
     @Composable
     @ReadOnlyComposable
@@ -529,14 +538,11 @@ object LinkDefaults {
             background = highlight,
             textDecoration = TextDecoration.Underline,
         ),
-        hoveredStyle = SpanStyle(
-            color = colour,
-            background = highlight,
-            textDecoration = TextDecoration.Underline,
-        ),
+        // None: [Text] draws the hover, and a hovered style the same as the
+        // resting one would only lay the paragraph out again for nothing.
+        hoveredStyle = null,
         pressedStyle = SpanStyle(
             color = pressedColour,
-            background = highlight,
             textDecoration = TextDecoration.Underline,
         ),
     )

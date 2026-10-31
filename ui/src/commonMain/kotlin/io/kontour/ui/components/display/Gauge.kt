@@ -82,7 +82,8 @@ import kotlin.math.max
  * @param sweepAngle How far round the scale goes, in degrees, centred on the gap
  *   at the bottom. 270 by default; 180 is a half-dial, 360 a ring.
  * @param thickness The arc's width. The thumb and the needle scale with it.
- * @param cap How the arc's two ends and the fill's ends are cut.
+ * @param cap How the arc's two ends, the fill's ends and the ticks are cut: the
+ *   theme's [io.kontour.ui.theme.Shapes.lineCap], round unless it asks otherwise.
  * @param colours The fill is `indicator`, a [ScaleColours]: one colour, a gradient
  *   along the scale, or bands at values on it in the gauge's own units. The needle
  *   is `needle`.
@@ -124,7 +125,7 @@ inline fun Gauge(
     size: Dp = GaugeDefaults.Size,
     sweepAngle: Float = GaugeDefaults.SweepAngle,
     thickness: Dp = GaugeDefaults.Thickness,
-    cap: StrokeCap = StrokeCap.Round,
+    cap: StrokeCap = Theme.shapes.lineCap,
     colours: DialColours = GaugeDefaults.colours(),
     indicator: GaugeIndicator = GaugeIndicator.None,
     needleLength: Float = GaugeDefaults.NeedleLength,
@@ -202,6 +203,7 @@ internal fun GaugeLayout(
     // A tick and the thumb's ring are lines, and thicken with the tier.
     val tickLine = Theme.sizing.lines(1.5f)
     val thumbRingLine = Theme.sizing.borderWidthStrong
+    val thumbShape = Theme.shapes.pill
     val labelStyle = Theme.typography.labelSmall.copy(color = colours.tickLabel)
     val measurer = rememberTextMeasurer()
     val sweep = sweepAngle.coerceIn(MinSweep, FullTurn)
@@ -311,7 +313,7 @@ internal fun GaugeLayout(
                         )
                         dialTicks(
                             geometry, majorTicks, minorTicks, tickEdge, majorPx, minorPx,
-                            tickWidth, colours.tick, inward = !outside,
+                            tickWidth, colours.tick, inward = !outside, cap = cap,
                         )
                         // Under the needle, as on a speedometer — unless the reading has
                         // a background, which reaches out over the scale in a narrow
@@ -332,6 +334,7 @@ internal fun GaugeLayout(
                                 geometry, at, radius = thumbPx,
                                 ring = thumbRingLine.toPx(),
                                 fill = colours.thumb, ringColour = colours.thumbRing,
+                                shape = thumbShape,
                             )
                         }
                         drawContent()

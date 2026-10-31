@@ -180,6 +180,8 @@ the stages in order, not all the ones above the rail first.
 
 ---
 
+**In the theme's shapes.** A stop is a dot in the theme's `pill`, its halo and a stop's loading spinner with it, and a rail's ends are its `lineCap`: round by default, square in a square theme.
+
 ## Accessibility
 
 The timeline is a `Column` and its items are read top to bottom, which is the

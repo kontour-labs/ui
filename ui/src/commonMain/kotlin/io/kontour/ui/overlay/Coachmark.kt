@@ -57,6 +57,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -125,6 +126,65 @@ enum class CoachmarkTransition {
      * behind the one and opens round the other.
      */
     Morph,
+}
+
+/**
+ * Where a [CoachmarkTour]'s Skip goes from the step showing: given to
+ * [rememberCoachmarkTour] as `skipTo`.
+ *
+ * Asked for for 0.5.2 as *"i'd like the user to be able to control where it
+ * skips to, because right now it only skips to the last one. sometimes i only
+ * want to skip to a certain option, sometimes i want to skip the whole tour
+ * entirely, including the last coachmark"*. [ToLast] is the default, and is
+ * what Skip always did.
+ *
+ * Skip only goes forwards. A rule that names the step showing, one before it,
+ * or one the tour does not have, gives that step no Skip, and
+ * [CoachmarkTour.skip] does nothing there.
+ *
+ * ```kotlin
+ * // Past the introductions to the first thing worth showing, from any step before it.
+ * val tour = rememberCoachmarkTour("welcome", "how", "plan", "saved", showSkip = true, skipTo = CoachmarkSkip.to("plan"))
+ * ```
+ */
+@Immutable
+fun interface CoachmarkSkip {
+
+    /**
+     * The step to go to from [from], one of [steps] in the tour's order, or
+     * null to end the tour there and then.
+     */
+    fun target(from: String, steps: List<String>): String?
+
+    companion object {
+
+        /**
+         * On to the last step, which is the tour's own way out — Done — so a
+         * skipped tour still ends on it. The default, and what Skip always did.
+         */
+        val ToLast: CoachmarkSkip = CoachmarkSkip { _, order -> order.lastOrNull() }
+
+        /**
+         * Ends the tour there and then, last step included. The last step
+         * offers no Skip of its own: its Done already ends the tour.
+         */
+        val End: CoachmarkSkip = CoachmarkSkip { _, _ -> null }
+
+        /**
+         * On to [step]. Offered only on the steps before it: from [step] and
+         * any step after it there is nothing to skip.
+         */
+        fun to(step: String): CoachmarkSkip = SkipToStep(step)
+    }
+}
+
+/**
+ * [CoachmarkSkip.to]'s rule. A class with equality rather than a lambda, so a
+ * `CoachmarkSkip.to("plan")` written in a composable is the same rule each time
+ * it is composed, and the bubbles reading it are not told it changed.
+ */
+private data class SkipToStep(val step: String) : CoachmarkSkip {
+    override fun target(from: String, steps: List<String>): String = step
 }
 
 /**
@@ -246,14 +306,52 @@ class CoachmarkTour internal constructor(internal val order: List<String>) {
     }
 
     /**
-     * On to the last step, past the rest: what the bubble's Skip does, where
-     * [rememberCoachmarkTour] was asked for one. The last step is the tour's
-     * own way out — Done — so a skipped tour still ends on it.
+     * Past the rest, to where the tour's [CoachmarkSkip] says: what the
+     * bubble's Skip does, where [rememberCoachmarkTour] was asked for one. By
+     * default that is the last step, the tour's own way out — Done — so a
+     * skipped tour still ends on it; [CoachmarkSkip.End] ends the tour instead.
+     * Nothing, where the rule names no step after the one showing.
      */
     fun skip() {
-        if (!isRunning || !hasNext) return
+        if (!isRunning) return
+        when (val to = skipsTo(index)) {
+            null -> return
+            order.size -> finish()
+            else -> goForwardTo(to)
+        }
+    }
+
+    /**
+     * On to [step], past the ones between, for an app that drives the tour
+     * itself. Forwards only, as Skip is: nothing for the step showing, one
+     * before it, or an id the tour does not have.
+     */
+    fun skipTo(step: String) {
+        if (!isRunning) return
+        val to = order.indexOf(step)
+        if (to > index) goForwardTo(to)
+    }
+
+    /**
+     * Where Skip goes from the step at [at]: a later step's index, the tour's
+     * [count] for its end, or null where the rule names no step after it.
+     * Read by the bubble too, which offers Skip only where it would go
+     * somewhere.
+     */
+    internal fun skipsTo(at: Int): Int? {
+        if (at !in order.indices) return null
+        val target = skipRule.target(order[at], order) ?: return order.size
+        return order.indexOf(target).takeIf { it > at }
+    }
+
+    /**
+     * Heading forwards, so a step on the way that does not turn up is passed
+     * over towards the end, as Next's would be; `navigate` is told the step as
+     * for any other.
+     */
+    private fun goForwardTo(to: Int) {
         heading = 1
-        index = order.lastIndex
+        index = to
     }
 
     /** Ends the tour, whether it was walked through or skipped. */
@@ -271,6 +369,9 @@ class CoachmarkTour internal constructor(internal val order: List<String>) {
 
     /** Whether its bubbles offer Skip; see [rememberCoachmarkTour]. */
     internal var showSkip: Boolean by mutableStateOf(false)
+
+    /** Where Skip goes; see [rememberCoachmarkTour]. */
+    internal var skipRule: CoachmarkSkip by mutableStateOf(CoachmarkSkip.ToLast)
 
     /** The way the reader last went: 1 forwards, -1 back. Which way a missing step is passed over. */
     internal var heading: Int = 1
@@ -327,8 +428,12 @@ class CoachmarkTour internal constructor(internal val order: List<String>) {
  *   ends the tour. Not by default: a tour is something the reader asked for and
  *   walks through — a stray tap beside the bubble lost the rest of it — and its
  *   way out is the bubble's own, Done on the last step, or [showSkip]'s Skip.
- * @param showSkip Whether each bubble but the last offers Skip, which goes
- *   straight to the last step: see [CoachmarkTour.skip].
+ * @param showSkip Whether the bubbles offer Skip, which goes where [skipTo]
+ *   says: see [CoachmarkTour.skip]. Every bubble but the last, by default.
+ * @param skipTo Where Skip goes from the step showing: on to the last step by
+ *   default, [CoachmarkSkip.End] to end the tour there and then, or
+ *   [CoachmarkSkip.to] a step. A bubble offers Skip only where it would go
+ *   forwards, and never on the last step, whose Done is already the way out.
  * @param navigate Takes the reader to the screen a step is on, told each step's
  *   id as the tour reaches it — at the start, forwards and back. Null for a tour
  *   that stays on one screen. Called where this is, so remember the tour above
@@ -340,6 +445,7 @@ fun rememberCoachmarkTour(
     transition: CoachmarkTransition = CoachmarkTransition.Morph,
     dismissible: Boolean = false,
     showSkip: Boolean = false,
+    skipTo: CoachmarkSkip = CoachmarkSkip.ToLast,
     navigate: (suspend (step: String) -> Unit)? = null,
 ): CoachmarkTour {
     val tour = remember(steps.toList()) { CoachmarkTour(steps.toList()) }
@@ -347,6 +453,7 @@ fun rememberCoachmarkTour(
         tour.transition = transition
         tour.dismissible = dismissible
         tour.showSkip = showSkip
+        tour.skipRule = skipTo
     }
     val goTo by rememberUpdatedState(navigate)
     LaunchedEffect(tour) {
@@ -1061,8 +1168,25 @@ private fun CoachmarkBubble(
         said = strings.sentences(spoken),
         modifier = modifier,
     ) {
-        // Where you are, on the left. A tour with no count is one the
-        // user cannot decide whether to sit through.
+        // Where you are, then Back, then the way on at the end. Back used to
+        // stand beside Next, with Skip, all three in one corner; asked for for
+        // 0.5.2 as *"can we make it so in the coachmarks, the "back" button is
+        // on the left side of the tip"*, and then, having seen it there, *"it
+        // should be to the right of the progress marker, and it also needs
+        // equal padding, same as the other buttons"*. So it follows the count,
+        // a plain ghost button the row's gap from it, as Skip is the row's gap
+        // from Next: nothing pulled out by its pad, and the same room round
+        // every button. A row starts at the right in a right-to-left layout,
+        // so nothing here needs to know which way the language runs.
+        //
+        // At the high-contrast tier a ghost button is drawn with an edge, and
+        // the row's gap is what is left between each edge and the next: the
+        // old pairing pulled Skip and Back together by their pads, and their
+        // outlines overlapped, reported from a phone as *"another reason to
+        // move them apart"*.
+        //
+        // A tour with no count is one the user cannot decide whether to sit
+        // through.
         if (count > 1) {
             Text(
                 text = strings.tourPosition(formats.quantity(index + 1), formats.quantity(count)),
@@ -1073,31 +1197,25 @@ private fun CoachmarkBubble(
                 colour = if (highContrast()) colours.content else colours.content.copy(alpha = StepCountAlpha),
             )
         }
+        if (hasPrevious) {
+            Button(
+                onClick = tour::previous,
+                variant = ButtonVariant.Ghost,
+                size = ButtonSize.Small,
+            ) { +strings.back }
+        }
         Box(Modifier.weight(1f))
-        // Skip, past the rest to the last step, and Back: as quiet as
-        // each other, and as far apart as Back is from the way on. Two
-        // ghost buttons side by side each keep their invisible pad,
-        // which put twice of it between their words — Skip looked to
-        // have more room on its right than anything else in the row.
-        val skips = tour.showSkip && hasNext
-        if (skips || hasPrevious) {
-            val pad = Theme.componentDefaults.buttonPaddingSmall
-            Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs - pad)) {
-                if (skips) {
-                    Button(
-                        onClick = tour::skip,
-                        variant = ButtonVariant.Ghost,
-                        size = ButtonSize.Small,
-                    ) { +strings.skipTour }
-                }
-                if (hasPrevious) {
-                    Button(
-                        onClick = tour::previous,
-                        variant = ButtonVariant.Ghost,
-                        size = ButtonSize.Small,
-                    ) { +strings.back }
-                }
-            }
+        // Skip, beside the way on: past the rest, to where the tour's
+        // `CoachmarkSkip` says, and offered only where that is somewhere —
+        // never on the last step, whose Done is the way out, nor on a step at
+        // or past the one it skips to. The row's gap stands between it and
+        // Next, as between the count and Back.
+        if (tour.showSkip && hasNext && tour.skipsTo(index) != null) {
+            Button(
+                onClick = tour::skip,
+                variant = ButtonVariant.Ghost,
+                size = ButtonSize.Small,
+            ) { +strings.skipTour }
         }
         // Done on the last step of a tour, which is what finishing one is;
         // "Got it" is a lone mark's, acknowledging rather than ending.

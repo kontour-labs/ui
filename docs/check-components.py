@@ -912,7 +912,15 @@ def haptics_policy_drift() -> list[str]:
     return problems
 
 
-MAX_CIRCLES = 30
+# 30 until 0.5.2, then 40: the dots, rings and thumbs the library draws on a
+# canvas — a timeline's stops, a slider's ticks, a gauge's and a meter's thumb,
+# a calendar's dots, a page dot, a scrollbar's thumb, a colour picker's cursor —
+# each named half its own size, which no theme could reach, and read `pill` now
+# so a square theme squares them too. Every one is a dot on a square box, which
+# is what `pill` is for. 43 with the spinner's track and the two progress
+# rings', which run round a square in a square theme rather than staying circles,
+# and 45 with the pull-to-refresh arc's and redacted text's bars.
+MAX_CIRCLES = 45
 MAX_ROUNDED_RECT_SHAPES = 0
 
 
@@ -1391,8 +1399,10 @@ def public_declarations() -> set[str]:
         re.compile(r"^[ \t]*(?:(?:public|internal|private)\s+)?"
                    r"(?:(?:override|suspend|inline|operator|infix|expect|actual|tailrec)\s+)*"
                    r"fun\s+(?:<[^>]*>\s*)?(?:([A-Za-z_][\w.]*)\.)?(\w+)\s*\(", re.MULTILINE),
+        # `fun` for a `fun interface`, which this missed until `CoachmarkSkip`
+        # was the first to be named on a page (0.5.2).
         re.compile(r"^[ \t]*(?:(?:public|internal|private|abstract|open|sealed|data|value|inner"
-                   r"|expect|actual|enum|annotation)\s+)*"
+                   r"|expect|actual|enum|annotation|fun)\s+)*"
                    r"(?:class|interface|object)\s+()(\w+)", re.MULTILINE),
         re.compile(r"^[ \t]*(?:(?:public|internal|private)\s+)?"
                    r"va[lr]\s+(?:<[^>]*>\s*)?(?:([A-Za-z_][\w.]*)\.)?(\w+)", re.MULTILINE),

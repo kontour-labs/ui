@@ -1,6 +1,8 @@
 package io.kontour.ui.foundation
 
+import io.kontour.ui.theme.cornerPx
 import io.kontour.ui.theme.clipProxy
+import androidx.compose.foundation.indication
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.InlineTextContent
 import androidx.compose.foundation.text.selection.DisableSelection
@@ -15,6 +17,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -39,6 +42,7 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.isUnspecified
 import io.kontour.ui.components.display.skeletonFill
+import io.kontour.ui.interaction.textIndication
 import io.kontour.ui.theme.Theme
 
 /**
@@ -217,17 +221,36 @@ fun Text(
         Modifier.spanGradients(text, gradients, resolved, overflow, softWrap, maxLines, content)
     }
 
+    // A pressed or hovered link's ground, drawn here for the reason
+    // `LinkPress` gives. One look at the annotations for a string without a
+    // link, and nothing remembered.
+    val pressable = if (!redaction.redacted && text.hasLinkAnnotations(0, text.length)) {
+        remember(text) { LinkPress.find(text) }
+    } else {
+        emptyList()
+    }
+    // A text button's shape, so a link and a text button pressed side by side
+    // are grounded alike.
+    val linkPress = if (pressable.isEmpty()) {
+        null
+    } else {
+        val linkShape = Theme.shapes.small
+        remember(pressable, linkShape) { LinkPress(pressable, linkShape) }
+    }
+
     // The grounds' shapes come from the text's own layout, so the callback that
-    // reports it records them; with no grounds the callback is the one there
-    // would have been anyway, and `BasicText` sees no change.
+    // reports it records them, and hands it to the links' grounds; with
+    // neither, the callback is the one there would have been anyway, and
+    // `BasicText` sees no change.
     val reported = redaction.layoutCallback(onTextLayout)
     val groundPaths = remember { SpanGrounds.Painted() }
-    val layoutCallback = if (grounds.isEmpty()) {
+    val layoutCallback = if (grounds.isEmpty() && linkPress == null) {
         reported
     } else {
-        remember(grounds, reported) {
+        remember(grounds, linkPress, reported) {
             val record: (TextLayoutResult) -> Unit = { result ->
-                groundPaths.paths = SpanGrounds.paths(result, grounds)
+                if (grounds.isNotEmpty()) groundPaths.paths = SpanGrounds.paths(result, grounds)
+                linkPress?.layout = result
                 reported?.invoke(result)
             }
             record
@@ -243,10 +266,24 @@ fun Text(
         }
     }
 
+    // After the span grounds, so a pressed link's ground is drawn over a
+    // highlighter's or code's rather than lost under it, and still under the
+    // selection and the words, which the text's own node draws.
+    val pressed = if (linkPress == null) {
+        Modifier
+    } else {
+        val indication = textIndication(shape = linkPress.ground, inkShape = linkPress.ink)
+        remember(linkPress, indication) {
+            Modifier
+                .pointerInput(linkPress) { linkPress.track(this) }
+                .indication(linkPress.interactions, indication)
+        }
+    }
+
     ExcludedWhenRedacted(redaction.redacted) {
         BasicText(
             text = shown,
-            modifier = modifier.then(redaction.modifier).then(painted).then(grounded),
+            modifier = modifier.then(redaction.modifier).then(painted).then(grounded).then(pressed),
             style = resolved,
             onTextLayout = layoutCallback,
             overflow = overflow,
@@ -423,7 +460,11 @@ private fun rememberTextRedaction(): TextRedaction {
     val bars = remember { mutableStateOf(emptyList<Rect>()) }
     val boxes = bars.value
 
-    val shape = remember(boxes) {
+    // The bars' ends, the theme's pill: round, as they always were, unless the
+    // theme is squarer, when a redacted line is a square bar beside square
+    // everything else. 0.5.2.
+    val pill = Theme.shapes.pill
+    val shape = remember(boxes, pill) {
         if (boxes.isEmpty()) {
             null
         } else {
@@ -435,7 +476,7 @@ private fun rememberTextRedaction(): TextRedaction {
                 ): Outline {
                     val path = Path()
                     for (box in boxes) {
-                        val radius = box.height / 2f
+                        val radius = pill.cornerPx(box.size, density)
                         path.addRoundRect(
                             RoundRect(
                                 left = box.left,

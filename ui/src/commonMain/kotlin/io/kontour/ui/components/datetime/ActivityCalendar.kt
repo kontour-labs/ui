@@ -1,5 +1,7 @@
 package io.kontour.ui.components.datetime
 
+import androidx.compose.foundation.shape.CornerBasedShape
+import io.kontour.ui.theme.drawDot
 import io.kontour.ui.locale.NameWidth
 import io.kontour.ui.locale.LocaleFormats
 import io.kontour.ui.locale.DateStyle
@@ -103,6 +105,7 @@ import io.kontour.ui.overlay.OverlayAlignment
 import io.kontour.ui.overlay.OverlaySide
 import io.kontour.ui.overlay.TooltipDefaults
 import io.kontour.ui.overlay.TooltipOverlay
+import io.kontour.ui.theme.MinCornerSize
 import io.kontour.ui.theme.SquircleShape
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.lines
@@ -216,8 +219,15 @@ object ActivityCalendarDefaults {
     /** The space between cells. */
     val CellGap: Dp get() = ActivityCellGap
 
-    /** A rounded square, with the library's corner curve at a fifth of its side. */
-    val CellShape: Shape get() = ActivityCellShape
+    /**
+     * A rounded square, with the library's corner curve at a fifth of its side,
+     * and never rounder than the theme's [io.kontour.ui.theme.Shapes.extraSmall]
+     * — so a square theme's cells are square. Read from the theme since 0.5.2,
+     * and composable for that reason.
+     */
+    val CellShape: Shape
+        @Composable @ReadOnlyComposable get() =
+            SquircleShape(MinCornerSize(CornerSize(ActivityCellCornerPercent), Theme.shapes.extraSmall.topStart))
 
     /**
      * [levels] shades after the empty one, blended from [empty] to [full].
@@ -377,6 +387,8 @@ fun ActivityCalendar(
 
     // Each shown day's marks, combined, in the same order as the shades.
     val strings = Theme.strings
+    // A day's dots, in the theme's pill: round, unless it is squarer. 0.5.2.
+    val dotShape = Theme.shapes.pill
     val marks = remember(activity, grid, marksFor, formats, strings) {
         if (marksFor == null) {
             null
@@ -742,6 +754,7 @@ fun ActivityCalendar(
                                                         mark.icons.map { painters.getValue(it) },
                                                         mark.text?.let { markTexts[it to mark.icons.isNotEmpty()] },
                                                         markStroke,
+                                                        dotShape,
                                                     )
                                                 }
                                             }
@@ -979,6 +992,7 @@ private fun DrawScope.drawMarks(
     painters: List<VectorPainter>,
     text: TextLayoutResult?,
     ringStroke: Float,
+    dotShape: CornerBasedShape,
 ) {
     mark.corners.forEachIndexed { k, colour -> clipPath(cell) { drawPath(dogEars[k], colour) } }
     if (mark.dots.isNotEmpty()) {
@@ -989,7 +1003,7 @@ private fun DrawScope.drawMarks(
         val first = size / 2f - pitch * (mark.dots.size - 1) / 2f
         mark.dots.forEachIndexed { k, colour ->
             val along = first + pitch * k
-            drawCircle(colour, radius, Offset(if (rtl) size - along else along, y))
+            drawDot(colour, radius, Offset(if (rtl) size - along else along, y), dotShape)
         }
     }
     mark.outlines.forEachIndexed { k, colour ->
@@ -1119,7 +1133,6 @@ private fun levelRamp(levels: Int, empty: Color, full: Color): List<Color> {
 
 private const val ActivityWeeks: Int = 53
 private val ActivityCellGap: Dp = 3.dp
-private val ActivityCellShape: Shape = SquircleShape(CornerSize(ActivityCellCornerPercent))
 private const val ActivityCellCornerPercent: Int = 20
 /** With the 3dp gap, a 24dp target: the least WCAG asks of something to pick. */
 private val MinCell: Dp = 20.dp
