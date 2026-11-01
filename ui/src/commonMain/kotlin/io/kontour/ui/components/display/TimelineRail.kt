@@ -1,5 +1,11 @@
 package io.kontour.ui.components.display
 
+import io.kontour.ui.theme.Theme
+import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
+import androidx.compose.foundation.shape.CornerBasedShape
+import io.kontour.ui.theme.drawDot
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -205,6 +211,7 @@ internal fun DrawScope.drawConnectorRun(
     colour: Color,
     end: RunEnd = RunEnd.Mark,
     start: RunEnd = RunEnd.Mark,
+    cap: StrokeCap = StrokeCap.Round,
 ) {
     val dx = to.x - from.x
     val dy = to.y - from.y
@@ -218,7 +225,7 @@ internal fun DrawScope.drawConnectorRun(
                 pointMode = PointMode.Points,
                 color = colour,
                 strokeWidth = stroke,
-                cap = StrokeCap.Round,
+                cap = dotCap(cap),
             )
         }
         ConnectorStyle.Dashed -> drawLine(
@@ -226,20 +233,28 @@ internal fun DrawScope.drawConnectorRun(
             start = from,
             end = to,
             strokeWidth = stroke,
-            cap = StrokeCap.Round,
+            cap = cap,
             pathEffect = dashIntervals(run, stroke, end, start)?.let {
                 PathEffect.dashPathEffect(it, dashPhase(it, start))
             },
         )
         ConnectorStyle.Solid -> if (end == RunEnd.Mark && start == RunEnd.Mark) {
-            drawLine(colour, from, to, strokeWidth = stroke, cap = StrokeCap.Round)
-        } else {
+            drawLine(colour, from, to, strokeWidth = stroke, cap = cap)
+        } else if (cap == StrokeCap.Round) {
             // Square at a seam, so the part drawn by the next row butts against
             // it rather than overlapping a round cap — which would show wherever
             // the two are different colours. Round at a node.
             drawLine(colour, from, to, strokeWidth = stroke, cap = StrokeCap.Butt)
             if (start == RunEnd.Mark) drawCircle(colour, radius = stroke / 2f, center = from)
             if (end == RunEnd.Mark) drawCircle(colour, radius = stroke / 2f, center = to)
+        } else {
+            // The theme's line ends ([io.kontour.ui.theme.Shapes.lineCap]): a
+            // square cap is half the stroke past the end, so the end at a node
+            // is carried on by that and the end at a seam is not.
+            val reach = if (cap == StrokeCap.Square) stroke / 2f / run else 0f
+            val a = if (start == RunEnd.Mark) Offset(from.x - dx * reach, from.y - dy * reach) else from
+            val b = if (end == RunEnd.Mark) Offset(to.x + dx * reach, to.y + dy * reach) else to
+            drawLine(colour, a, b, strokeWidth = stroke, cap = StrokeCap.Butt)
         }
         ConnectorStyle.None -> Unit
     }
@@ -258,6 +273,7 @@ internal fun DrawScope.drawConnectorCurve(
     colour: Color,
     start: RunEnd,
     end: RunEnd,
+    cap: StrokeCap = StrokeCap.Round,
 ) {
     if (style == ConnectorStyle.None) return
     val measure = PathMeasure().apply { setPath(path, forceClosed = false) }
@@ -271,7 +287,7 @@ internal fun DrawScope.drawConnectorCurve(
                 pointMode = PointMode.Points,
                 color = colour,
                 strokeWidth = stroke,
-                cap = StrokeCap.Round,
+                cap = dotCap(cap),
             )
         }
         ConnectorStyle.Dashed -> drawPath(
@@ -279,7 +295,7 @@ internal fun DrawScope.drawConnectorCurve(
             colour,
             style = Stroke(
                 width = stroke,
-                cap = StrokeCap.Round,
+                cap = cap,
                 pathEffect = dashIntervals(length, stroke, end, start)?.let {
                     PathEffect.dashPathEffect(it, dashPhase(it, start))
                 },
@@ -287,8 +303,12 @@ internal fun DrawScope.drawConnectorCurve(
         )
         ConnectorStyle.Solid -> {
             drawPath(path, colour, style = Stroke(width = stroke, cap = StrokeCap.Butt))
-            if (start == RunEnd.Mark) drawCircle(colour, radius = stroke / 2f, center = measure.getPosition(0f))
-            if (end == RunEnd.Mark) drawCircle(colour, radius = stroke / 2f, center = measure.getPosition(length))
+            // Round ends at a node, as a straight run's are; a theme whose lines
+            // end otherwise leaves the curve's ends where they are drawn to.
+            if (cap == StrokeCap.Round) {
+                if (start == RunEnd.Mark) drawCircle(colour, radius = stroke / 2f, center = measure.getPosition(0f))
+                if (end == RunEnd.Mark) drawCircle(colour, radius = stroke / 2f, center = measure.getPosition(length))
+            }
         }
         ConnectorStyle.None -> Unit
     }
@@ -305,13 +325,36 @@ internal fun DrawScope.drawTimelineNode(
     stroke: Float,
     colour: Color,
     filled: Boolean,
+    shape: CornerBasedShape,
 ) {
+    // In the theme's pill: a circle, unless the theme is squarer. 0.5.2.
     if (filled) {
-        drawCircle(color = colour, radius = radius, center = centre)
+        drawDot(colour, radius = radius, center = centre, shape = shape)
     } else {
-        drawCircle(color = colour, radius = radius - stroke / 2f, center = centre, style = Stroke(width = stroke))
+        drawDot(colour, radius = radius - stroke / 2f, center = centre, shape = shape, style = Stroke(width = stroke))
     }
 }
+
+/**
+ * The theme's say in a rail: the shape its stops are drawn in, and how its
+ * lines end. A circle and a round cap by default, as they always were; a
+ * square theme's are square. Raised for 0.5.2, when a theme could square
+ * every corner but a timeline's.
+ */
+@Immutable
+internal data class RailEnds(val node: CornerBasedShape, val cap: StrokeCap)
+
+/** The [RailEnds] the theme asks for. */
+@Composable
+@ReadOnlyComposable
+internal fun railEnds(): RailEnds = RailEnds(Theme.shapes.pill, Theme.shapes.lineCap)
+
+/**
+ * The cap a dotted connector's dots are drawn with: a dot is a point, and a
+ * point with a butt cap is nothing at all, so a theme whose lines end
+ * [StrokeCap.Butt] gets square dots.
+ */
+private fun dotCap(cap: StrokeCap): StrokeCap = if (cap == StrokeCap.Butt) StrokeCap.Square else cap
 
 /**
  * The centre of a row's first line of label, where the node on a list row's rail

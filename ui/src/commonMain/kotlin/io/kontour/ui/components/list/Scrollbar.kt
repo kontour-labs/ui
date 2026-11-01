@@ -1,5 +1,9 @@
 package io.kontour.ui.components.list
 
+import io.kontour.ui.foundation.overscrollProbe
+import io.kontour.ui.foundation.OverscrollProbe
+import kotlin.math.abs
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.runtime.LaunchedEffect
 import kotlinx.coroutines.flow.collectLatest
@@ -86,6 +90,7 @@ import io.kontour.ui.input.pointerIconFor
 import io.kontour.ui.sheet.LocalSheetState
 import io.kontour.ui.sheet.flingingInPlace
 import io.kontour.ui.sheet.SheetState
+import io.kontour.ui.theme.cornerRadius
 import io.kontour.ui.theme.Theme
 import kotlin.math.roundToInt
 import kotlin.time.Duration
@@ -482,7 +487,16 @@ fun Modifier.scrollbar(
     val strip = with(density) { hoveredThickness.toPx() } + 2 * margin
     val minThumb = with(density) { minThumbLength.toPx() }
     val corner = with(density) { cornerInset.toPx() }
+    // The thumb's ends: the theme's pill, as the composable `Scrollbar`'s are —
+    // round, unless the theme is squarer. 0.5.2.
+    val thumbShape = Theme.shapes.pill
     val track = remember { ScrollbarTrack() }
+    // How far past an end the content has been pulled, which the thumb gives
+    // up length to: read from the scroller's own overscroll, which the theme
+    // keeps an account of. See `TrackedOverscroll` for why not the drag the
+    // list declined, which was what this first read.
+    val overscroll = remember { OverscrollProbe() }
+    val stretchSoftness = with(density) { StretchSoftness.toPx() }
     val direction = LocalLayoutDirection.current
     val clear = trackClearance(contentPadding, orientation, direction, density)
     track.update(orientation, direction, margin, strip, minThumb, corner, clear)
@@ -521,6 +535,8 @@ fun Modifier.scrollbar(
         // Before the content's own scroll, so a drag of the thumb goes up the
         // chain past the content rather than into it.
         .scrollbarChain(source)
+        // Ahead of the scroll and its overscroll, which it finds after it.
+        .overscrollProbe(overscroll)
         // There all along and the arrow, overriding nothing, until the pointer
         // is on the bar: Compose asks the nodes under a press at the moment it
         // goes down. See `heldCursor`.
@@ -547,12 +563,13 @@ fun Modifier.scrollbar(
             val alpha = look.alpha.value
             if (alpha <= 0f) return@drawWithContent
             if (!geometry.isUseful) return@drawWithContent
-            val thumb = track.thumb(size, layoutDirection, geometry, look.width.value.toPx()) ?: return@drawWithContent
+            val whole = track.thumb(size, layoutDirection, geometry, look.width.value.toPx()) ?: return@drawWithContent
+            val thumb = whole.stretched(overscroll.pull(), stretchSoftness, size, orientation == Orientation.Vertical)
             drawRoundRect(
                 color = colour.copy(alpha = colour.alpha * alpha),
                 topLeft = thumb.topLeft,
                 size = thumb.size,
-                cornerRadius = CornerRadius(minOf(thumb.width, thumb.height) / 2f),
+                cornerRadius = thumbShape.cornerRadius(thumb.size, this),
             )
         }
 }
@@ -1609,3 +1626,32 @@ internal class RowSizes {
         if (notify) version++
     }
 }
+
+/**
+ * This thumb, given up [pull]'s share of its length at the end away from the
+ * edge it is pressed against, as a scroll indicator does at the end of a list
+ * pulled past it: it keeps its place at the edge and shortens from the other
+ * end. A diminishing share — half its length at most, half of that by
+ * [softness] of pull — so a long pull is not a thumb shrunk to nothing.
+ */
+private fun Rect.stretched(pull: Float, softness: Float, track: Size, vertical: Boolean): Rect {
+    if (pull == 0f) return this
+    val reach = abs(pull)
+    val length = if (vertical) height else width
+    val thickness = if (vertical) width else height
+    val most = (length * StretchMostShare).coerceAtMost((length - thickness).coerceAtLeast(0f))
+    val give = most * reach / (reach + softness)
+    if (give <= 0f) return this
+    return if (vertical) {
+        // Pressed against whichever end it is nearer.
+        if (track.height - bottom <= top) copy(top = top + give) else copy(bottom = bottom - give)
+    } else {
+        if (track.width - right <= left) copy(left = left + give) else copy(right = right - give)
+    }
+}
+
+/** The most of its length a thumb gives up to a pull past the end. */
+private const val StretchMostShare = 0.5f
+
+/** The pull at which a thumb has given up half the most it will. */
+private val StretchSoftness: Dp = 160.dp

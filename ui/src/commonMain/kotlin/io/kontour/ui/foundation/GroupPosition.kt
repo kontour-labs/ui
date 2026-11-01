@@ -3,6 +3,7 @@ package io.kontour.ui.foundation
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.foundation.shape.CornerSize
+import io.kontour.ui.theme.MinCornerSize
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.unit.Dp
 
@@ -90,20 +91,28 @@ fun GroupPosition.shape(
     square: Dp,
     orientation: Orientation,
 ): CornerBasedShape {
+    // Never rounder than the corner it replaces. A group's inside rounder than
+    // its outside is what a square theme got: square rows with 4dp corners
+    // where they met. Raised for 0.5.2; every default shape is rounder than
+    // [square], so nothing else moves.
     val flat = CornerSize(square)
+    val topStart = MinCornerSize(flat, shape.topStart)
+    val topEnd = MinCornerSize(flat, shape.topEnd)
+    val bottomEnd = MinCornerSize(flat, shape.bottomEnd)
+    val bottomStart = MinCornerSize(flat, shape.bottomStart)
     return when (this) {
         GroupPosition.Only -> shape
         GroupPosition.Middle ->
-            shape.copy(topStart = flat, topEnd = flat, bottomStart = flat, bottomEnd = flat)
+            shape.copy(topStart = topStart, topEnd = topEnd, bottomStart = bottomStart, bottomEnd = bottomEnd)
 
         GroupPosition.First -> when (orientation) {
-            Orientation.Horizontal -> shape.copy(topEnd = flat, bottomEnd = flat)
-            Orientation.Vertical -> shape.copy(bottomStart = flat, bottomEnd = flat)
+            Orientation.Horizontal -> shape.copy(topEnd = topEnd, bottomEnd = bottomEnd)
+            Orientation.Vertical -> shape.copy(bottomStart = bottomStart, bottomEnd = bottomEnd)
         }
 
         GroupPosition.Last -> when (orientation) {
-            Orientation.Horizontal -> shape.copy(topStart = flat, bottomStart = flat)
-            Orientation.Vertical -> shape.copy(topStart = flat, topEnd = flat)
+            Orientation.Horizontal -> shape.copy(topStart = topStart, bottomStart = bottomStart)
+            Orientation.Vertical -> shape.copy(topStart = topStart, topEnd = topEnd)
         }
     }
 }

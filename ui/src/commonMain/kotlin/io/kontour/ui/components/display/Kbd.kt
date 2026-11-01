@@ -31,19 +31,7 @@ import io.kontour.ui.foundation.ContentScope
 import io.kontour.ui.foundation.ContentSlot
 import io.kontour.ui.foundation.ProvideContentColour
 import io.kontour.ui.foundation.ProvideTextStyle
-import io.kontour.ui.theme.SquircleShape
 import io.kontour.ui.theme.Theme
-
-/**
- * A keycap's own corner, for the same reason a checkbox has one.
- *
- * [KbdDefaults.Height] and [KbdDefaults.MinWidth] are both 20dp, so a
- * single-character key is a 20dp square — and once
- * [io.kontour.ui.theme.Shapes.extraSmall] became 10dp, that square was a circle.
- * A keycap that is round is not a keycap; the whole point of the component is
- * that it looks like the thing on the keyboard.
- */
-private val KbdShape = SquircleShape(6.dp)
 
 /**
  * A key cap — one key, or one accelerator.
@@ -77,7 +65,10 @@ fun Kbd(
     colour: Color = Theme.colours.contentMuted,
     content: @Composable ContentScope.() -> Unit,
 ) {
-    val shape = KbdShape
+    // [io.kontour.ui.theme.Shapes.mark], as a checkbox is: a single key is a
+    // 20dp square, and `extraSmall`'s 10dp made it a circle. A round keycap is
+    // not a keycap.
+    val shape = Theme.shapes.mark
     Row(
         modifier = modifier
             .clearAndSetSemantics { }

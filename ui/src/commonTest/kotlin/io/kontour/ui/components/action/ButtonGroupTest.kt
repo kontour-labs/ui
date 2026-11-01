@@ -1,5 +1,7 @@
 package io.kontour.ui.components.action
 
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.geometry.Size
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.foundation.shape.CornerSize
@@ -146,25 +148,28 @@ class ButtonGroupTest {
     @Test
     fun aVerticalGroupSquaresTheCornersFacingUpAndDown() {
         val round = RoundedCornerShape(12.dp)
-        val square = CornerSize(ButtonGroupDefaults.InnerCorner)
-        val rounded = CornerSize(12.dp)
+        // Compared as the radii they come to on a box, which is what is drawn:
+        // a squared corner is no rounder than its own since 0.5.2, so it is a
+        // corner that works that out, not a plain `CornerSize`.
+        val square = ButtonGroupDefaults.InnerCorner.value
+        val rounded = 12f
 
         val first = GroupPosition.First.shape(round, ButtonGroupDefaults.InnerCorner, Orientation.Vertical)
         assertEquals(
             listOf(rounded, rounded, square, square),
-            listOf(first.topStart, first.topEnd, first.bottomEnd, first.bottomStart),
+            radii(first),
             "the top button of a vertical group rounds its top and squares its bottom",
         )
         val last = GroupPosition.Last.shape(round, ButtonGroupDefaults.InnerCorner, Orientation.Vertical)
         assertEquals(
             listOf(square, square, rounded, rounded),
-            listOf(last.topStart, last.topEnd, last.bottomEnd, last.bottomStart),
+            radii(last),
             "the bottom button of a vertical group squares its top and rounds its bottom",
         )
         val across = GroupPosition.First.shape(round, ButtonGroupDefaults.InnerCorner, Orientation.Horizontal)
         assertEquals(
             listOf(rounded, square, square, rounded),
-            listOf(across.topStart, across.topEnd, across.bottomEnd, across.bottomStart),
+            radii(across),
             "and a row is unchanged: the first button squares the corners facing its neighbour",
         )
     }
@@ -198,4 +203,8 @@ class ButtonGroupTest {
             "the first action should be on top, and it is at ${short.top} against ${long.top}",
         )
     }
+
+    /** The four corners' radii, start of the top first and clockwise, on a 100 by 40 box at density 1. */
+    private fun radii(shape: CornerBasedShape): List<Float> = listOf(shape.topStart, shape.topEnd, shape.bottomEnd, shape.bottomStart)
+        .map { it.toPx(Size(100f, 40f), Density(1f)) }
 }

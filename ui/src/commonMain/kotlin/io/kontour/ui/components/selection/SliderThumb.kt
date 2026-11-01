@@ -1,5 +1,9 @@
 package io.kontour.ui.components.selection
 
+import io.kontour.ui.theme.cornerPx
+import androidx.compose.foundation.shape.CornerBasedShape
+import io.kontour.ui.theme.drawDot
+import io.kontour.ui.theme.cornerRadius
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
@@ -370,6 +374,19 @@ internal fun DrawScope.squashedCapsule(
     val half = restingHalf - inset
     if (half <= 0f || outerWidth - inset * 2f <= 0f) return
 
+    // A theme whose pill is squarer than round on this box squashes *that*: a
+    // square thumb pressed into the wall is a narrower square, not an egg. The
+    // egg below is a round thumb's, and drew round ends on a square theme's
+    // thumb for as long as it was pressed. 0.5.2.
+    val inner = Size(outerWidth - inset * 2f, outerHeight - inset * 2f)
+    if (capsule is CornerBasedShape && capsule.cornerPx(inner, this) < inner.minDimension / 2f) {
+        val outline = capsule.createOutline(inner, layoutDirection, this)
+        translate(left = left + inset, top = top + inset) {
+            drawOutline(outline, colour, style = style)
+        }
+        return
+    }
+
     // Decided on the **outer** box, so the ring and the fill are never two
     // different shapes: at the crossover an inset box can be narrower than it is
     // tall while the box around it is not.
@@ -648,11 +665,13 @@ internal fun DrawScope.sliderTicks(
     coveredColour: Color,
     uncoveredColour: Color,
     covered: (x: Float) -> Boolean,
+    shape: CornerBasedShape,
 ) {
     if (steps <= 0) return
     val everyMinor = minorTicks.coerceAtLeast(0) + 1
     val divisions = (steps + 1) * everyMinor
-    val radius = CornerRadius(widthPx / 2f)
+    // Dots and short bars, in the theme's pill: round, unless it is squarer. 0.5.2.
+    val radius = shape.cornerRadius(Size(widthPx, heightPx), this)
     for (i in 0..divisions) {
         val x = trackLeft + trackWidth * i / divisions
         if (i % everyMinor == 0) {
@@ -663,10 +682,11 @@ internal fun DrawScope.sliderTicks(
                 cornerRadius = radius,
             )
         } else {
-            drawCircle(
+            drawDot(
                 color = if (covered(x)) coveredColour else uncoveredColour,
                 radius = widthPx / 2f,
                 center = Offset(x, centreY),
+                shape = shape,
             )
         }
     }

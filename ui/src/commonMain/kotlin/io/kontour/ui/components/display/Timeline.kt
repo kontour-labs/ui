@@ -399,6 +399,7 @@ private fun TimelineStopItem(
     val stream = context?.motion == TimelineMotion.Arrows
     val slot = remember { TimelineSlot() }
     val enhanced = highContrast()
+    val ends = railEnds()
     // Where the journey stands against this item. Read in composition only to
     // start and stop the motion and to colour a spinner; the rail itself reads
     // the index as it draws, after the timeline has laid its items out.
@@ -507,6 +508,7 @@ private fun TimelineStopItem(
                     // never pokes above the row.
                     nodeAlong = stackHalfLength(nodeRadius, stack) + TimelineNodeGap.toPx(),
                     nodeRadius = nodeRadius,
+                    ends = ends,
                     motion = motion,
                     highContrast = enhanced,
                     icon = painter,
@@ -599,6 +601,7 @@ private fun AcrossItem(
     // Along the rail: a node group's stack is longer than a node.
     val length = (nodeSize * (stackHalfLength(1f, stack) - 1f)) + band
     val enhanced = highContrast()
+    val ends = railEnds()
     Box(
         Modifier
             .then(TimelinePartElement(TimelinePart(slot, TimelinePart.Kind.Band, band, length)))
@@ -615,6 +618,7 @@ private fun AcrossItem(
                     laneWidth = 0f,
                     nodeAlong = gap + stackHalfLength(nodeRadius, stack),
                     nodeRadius = nodeRadius,
+                    ends = ends,
                     motion = motion,
                     highContrast = enhanced,
                     icon = icon,

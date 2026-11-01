@@ -1,5 +1,7 @@
 package io.kontour.ui.nav
 
+import androidx.compose.foundation.shape.CornerSize
+import io.kontour.ui.theme.MinCornerSize
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Easing
 import androidx.compose.animation.core.LinearEasing
@@ -487,8 +489,13 @@ internal val LocalNavMorphProbe = staticCompositionLocalOf<((NavMorphDrawn) -> U
 @Composable
 private fun MorphCapsule(morph: NavMorph, controlColour: Color) {
     val fallback = Theme.colours.surface
-    // A panel with no field to become ends as a box rounded by the panel's margin.
-    val panelShape = remember { SquircleShape(NavExpandingSlotDefaults.Margin) }
+    // A panel with no field to become ends as a box rounded by the panel's
+    // margin, and never rounder than the theme's containers: a square theme's
+    // panel ended rounded. 0.5.2.
+    val container = Theme.shapes.container.topStart
+    val panelShape = remember(container) {
+        SquircleShape(MinCornerSize(CornerSize(NavExpandingSlotDefaults.Margin), container))
+    }
     val probe = LocalNavMorphProbe.current
     val layer = remember { arrayOfNulls<LayoutCoordinates>(1) }
     val carried = morph.carried

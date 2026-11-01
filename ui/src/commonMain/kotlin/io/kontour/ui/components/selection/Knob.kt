@@ -264,6 +264,10 @@ internal fun KnobLayout(
     // and a faded scale is still its colours, so a knob with a green-to-red
     // scale stayed green-to-red, and stronger than the grey switch beside it.
     val dial = if (enabled) colours else disabledDial(colours)
+    // Its arcs, ticks and notch end as the theme's lines do. Its face stays a
+    // disc whatever the theme: a knob turns, and a square one would turn its
+    // corners. 0.5.2.
+    val lineCap = Theme.shapes.lineCap
     val span = valueRange.endInclusive - valueRange.start
 
     fun fractionOf(v: Float): Float = if (span <= 0f) 0f else ((v - valueRange.start) / span).coerceIn(0f, 1f)
@@ -526,17 +530,17 @@ internal fun KnobLayout(
                     val tickWidth = tickLine.toPx()
                     val tickLength = KnobTick.toPx()
                     val tickEdge = radius + thicknessPx / 2f + KnobTickGap.toPx()
-                    val fill = dialFill(geometry, thicknessPx, StrokeCap.Round, dial.indicator.stops(valueRange, scaleDefault))
+                    val fill = dialFill(geometry, thicknessPx, lineCap, dial.indicator.stops(valueRange, scaleDefault))
                     onDrawBehind {
                         // Coerced: `springSnappy` overshoots, and a notch past the end
                         // of its own scale reads as a fault rather than a bounce.
                         val at = if (detented) detentDrawn.value.coerceIn(0f, 1f) else fractionOf(drawnValue.value)
-                        dialArcs(geometry, thicknessPx, StrokeCap.Round, dial.track, fill, 0f, at)
+                        dialArcs(geometry, thicknessPx, lineCap, dial.track, fill, 0f, at)
                         if (steps > 0) {
                             dialTicks(
                                 geometry, majors = steps + 2, minorsBetween = 0, edge = tickEdge,
                                 majorLength = tickLength, minorLength = tickLength, width = tickWidth,
-                                colour = dial.tick, inward = false,
+                                colour = dial.tick, inward = false, cap = lineCap,
                             )
                         }
                         drawCircle(dial.thumbRing, radius = face, center = centre)
@@ -546,7 +550,7 @@ internal fun KnobLayout(
                             start = geometry.pointAt(at, face * NotchFrom),
                             end = geometry.pointAt(at, face * NotchTo),
                             strokeWidth = notchWidth,
-                            cap = StrokeCap.Round,
+                            cap = lineCap,
                         )
                     }
                 },

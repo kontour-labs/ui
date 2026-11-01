@@ -133,6 +133,8 @@ way it went, `ToggleOn` or `ToggleOff`, and the two feel different;
 
 ---
 
+**In the theme's shapes.** In a theme whose `pill` is squarer than round, the track and the thumb are that shape, and the thumb pushed into the end narrows as a box rather than as an egg.
+
 ## Accessibility
 
 `Role.Switch` with a `toggleableState`, which is what makes a screen reader say

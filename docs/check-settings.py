@@ -163,8 +163,6 @@ QUIET_FILL_ALLOWED = {
     "content that is loading, is not interactive, and says so to a screen reader",
     "Surfaces.kt": "`shimmer()`'s resting tone, the same loading placeholder "
     "`Skeleton` draws with it",
-    "TextButton.kt": "the tint is the hover and press wash on a text-only "
-    "button; its label, at 7:1, is the control",
     "TimelineList.kt": "its rows are list rows, which draw the tier's edge "
     "themselves (`edged`) and the selection's",
     "SelectionRow.kt": "a grouped row is drawn by the list row, which draws the "

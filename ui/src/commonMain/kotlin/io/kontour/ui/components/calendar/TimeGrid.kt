@@ -1,5 +1,6 @@
 package io.kontour.ui.components.calendar
 
+import io.kontour.ui.theme.drawDot
 import io.kontour.ui.foundation.snappedLineWidth
 import io.kontour.ui.foundation.snappedLineCentre
 import androidx.compose.runtime.getValue
@@ -815,6 +816,7 @@ private fun DayColumn(scope: CalendarScope, date: LocalDate, modifier: Modifier)
     val nowLine = Theme.sizing.borderWidthStrong
     val lineColour = gridLine()
     val nowColour = colours.accent.solid
+    val nowShape = Theme.shapes.pill
     val hourPx = with(density) { scope.hourHeight.toPx() }
     // Every event as tall as its time, so an hour is an hour whatever is in
     // it and a quarter-hour's edge is on the quarter: no shorter than a step,
@@ -937,7 +939,7 @@ private fun DayColumn(scope: CalendarScope, date: LocalDate, modifier: Modifier)
                     val radius = stroke * NowDotScale
                     val inset = radius + width
                     val dot = if (layoutDirection == LayoutDirection.Rtl) size.width - inset else inset
-                    drawCircle(nowColour, radius = radius, center = Offset(dot, y))
+                    drawDot(nowColour, radius = radius, center = Offset(dot, y), shape = nowShape)
                 }
             }
             .drawWithContent {

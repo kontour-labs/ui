@@ -1,5 +1,6 @@
 package io.kontour.ui.components.calendar
 
+import io.kontour.ui.theme.drawDot
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -102,17 +103,19 @@ internal fun YearView(scope: CalendarScope) {
             return@BoxWithConstraints
         }
         val perYear = 1 + MonthsPerYear / columns
-        val list = rememberYearList(scope, columns, perYear)
+        val bridged = rememberYearList(scope, columns, perYear)
         LazyColumn(
-            state = list,
+            state = bridged.list,
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
             flingBehavior = ScrollDefaults.flingBehavior(),
             userScrollEnabled = scope.enabled,
         ) {
-            items(YearItems * perYear, key = { index -> yearKey(index, perYear, columns) }) { index ->
-                val year = FirstYear + index / perYear
-                val within = index % perYear
+            // Each item is the one it stands for across any bridge, and keyed so.
+            items(YearItems * perYear, key = { index -> yearKey(bridged.real(index), perYear, columns) }) { index ->
+                val item = bridged.real(index)
+                val year = FirstYear + item / perYear
+                val within = item % perYear
                 if (within == 0) {
                     Text(
                         scope.formats.digits(year.toLong()),
@@ -154,7 +157,9 @@ internal fun yearItemOf(date: LocalDate, columns: Int, perYear: Int): Int =
 /**
  * The year list, and what ties it to the state, as the month's weeks are:
  * scrolled to show a year, the state is about it; the state moved to another
- * year — the header, today, the app — the list goes to its month.
+ * year — the header, today, the app — the list goes to its month. More than
+ * two years away, the year comes in across a bridge from just past the
+ * screen, as the month's far months do: see [BridgedList].
  *
  * Today gone back to is brought in even where the state was about it
  * already, scrolled away from within its own year, and flashed once it is
@@ -164,9 +169,10 @@ internal fun yearItemOf(date: LocalDate, columns: Int, perYear: Int): Int =
  * a month still off screen or still sliding in.
  */
 @Composable
-private fun rememberYearList(scope: CalendarScope, columns: Int, perYear: Int): LazyListState {
+private fun rememberYearList(scope: CalendarScope, columns: Int, perYear: Int): BridgedList {
     val state = scope.state
     val list = remember(columns) { LazyListState(firstVisibleItemIndex = yearItemOf(state.date, columns, perYear)) }
+    val bridged = rememberBridgedList(list)
     val motion by rememberUpdatedState(Theme.motion)
     val going = remember { BooleanArray(1) }
     LaunchedEffect(list, perYear) {
@@ -176,7 +182,7 @@ private fun rememberYearList(scope: CalendarScope, columns: Int, perYear: Int): 
             val shares = HashMap<Int, Int>()
             for (item in info.visibleItemsInfo) {
                 val shown = (minOf(item.offset + item.size, info.viewportEndOffset) - maxOf(item.offset, info.viewportStartOffset)).coerceAtLeast(0)
-                val year = FirstYear + item.index / perYear
+                val year = FirstYear + bridged.real(item.index) / perYear
                 shares[year] = (shares[year] ?: 0) + shown
             }
             shares
@@ -198,13 +204,32 @@ private fun rememberYearList(scope: CalendarScope, columns: Int, perYear: Int): 
             if (!pointed && date == state.scrolledDate) return@collectLatest
             val target = yearItemOf(date, columns, perYear)
             // Already on screen, whole, it stays where it is.
-            val item = list.layoutInfo.visibleItemsInfo.firstOrNull { it.index == target }
+            val shownAt = bridged.indexOf(target)
+            val item = list.layoutInfo.visibleItemsInfo.firstOrNull { it.index == shownAt }
             val whole = item != null && item.offset >= 0 && item.offset + item.size <= list.layoutInfo.viewportEndOffset
             if (!whole) {
                 going[0] = true
                 try {
-                    // At once under reduced motion, as the month's arrows go.
-                    if (motion.reduceMotion || abs(target - list.firstVisibleItemIndex) > perYear * 2) list.scrollToItem(target) else list.animateScrollToItem(target)
+                    bridged.clear()
+                    when {
+                        // At once under reduced motion, as the month's arrows go.
+                        motion.reduceMotion -> list.scrollToItem(target)
+                        abs(target - list.firstVisibleItemIndex) <= perYear * 2 -> list.animateScrollToItem(target)
+                        // Further, across a bridge, as the month goes to a far
+                        // month: it used to cut. The items here are of two
+                        // heights, a year's title and a row of months, so the
+                        // screen it lands on is given one more than this one
+                        // holds.
+                        else -> {
+                            val landing = bridged.open(target, fill = list.layoutInfo.visibleItemsInfo.size + 1)
+                            if (landing == null) {
+                                list.scrollToItem(target)
+                            } else {
+                                list.animateScrollToItem(landing)
+                                bridged.close()
+                            }
+                        }
+                    }
                 } finally {
                     going[0] = false
                 }
@@ -218,7 +243,7 @@ private fun rememberYearList(scope: CalendarScope, columns: Int, perYear: Int): 
             }
         }
     }
-    return list
+    return bridged
 }
 
 /** [year]'s days with an event, each in the tone of its first. */
@@ -304,6 +329,9 @@ private fun MiniMonth(scope: CalendarScope, month: LocalDate, busy: Map<LocalDat
     val density = LocalDensity.current
     val markerGap = with(density) { MarkerGap.toPx() }
     val markerRadius = with(density) { MarkerSize.toPx() } / 2f
+    // Today's ring and the busy days' dots, in the theme's pill, as a month
+    // grid's day cells are. 0.5.2.
+    val dotShape = Theme.shapes.pill
     // At least as tall as a number and its busy dot, where 40dp cut both at
     // large type.
     val numberHeight = digits.numbers.maxOfOrNull { it.size.height }?.toFloat() ?: 0f
@@ -359,15 +387,16 @@ private fun MiniMonth(scope: CalendarScope, month: LocalDate, busy: Map<LocalDat
                         val text = if (isToday) digits.todayNumbers[day - 1] else digits.numbers[day - 1]
                         if (isToday) {
                             val amount = flash?.invoke() ?: 0f
-                            if (amount > 0f) drawCircle(flashColour, radius = row * TodayRingShare, center = centre, alpha = amount * TodayFlashAlpha)
-                            drawCircle(ring, radius = row * TodayRingShare, center = centre, style = Stroke(ringWidth.toPx()))
+                            if (amount > 0f) drawDot(flashColour, radius = row * TodayRingShare, center = centre, shape = dotShape, alpha = amount * TodayFlashAlpha)
+                            drawDot(ring, radius = row * TodayRingShare, center = centre, shape = dotShape, style = Stroke(ringWidth.toPx()))
                         }
                         drawText(text, ink, topLeft = Offset(centre.x - text.size.width / 2f, centre.y - text.size.height / 2f))
                         val tone = busy[date] ?: continue
-                        drawCircle(
+                        drawDot(
                             tones.getValue(tone),
                             radius = markerRadius,
                             center = Offset(centre.x, centre.y + text.size.height / 2f + markerGap + markerRadius),
+                            shape = dotShape,
                         )
                     }
                 }

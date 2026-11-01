@@ -2,6 +2,7 @@ package io.kontour.ui.demo.theme
 
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.theme.SquircleShape
 import io.kontour.ui.theme.CodeColours
 import io.kontour.ui.theme.ColourScheme
 import io.kontour.ui.theme.ComponentDefaults
@@ -526,5 +527,11 @@ private fun gTurboShapes(): Shapes =
         //
         // `capsule` itself is untouched — the design's avatars and status dots
         // are as round as anybody's, and 10dp is where they cap.
-        it.copy(control = it.small, field = it.small)
+        //
+        // `mark` is held at the 6dp it always was. The ladder would give 2 (6
+        // less the 4dp step in), and a 2dp checkbox beside 8dp buttons reads
+        // as a square that lost its corners rather than as one of the family.
+        // It was the library's own 6dp until 0.5.2, when a theme could first
+        // say, and saying 6 keeps this theme's pictures as they were.
+        it.copy(control = it.small, field = it.small, mark = SquircleShape(6.dp))
     }

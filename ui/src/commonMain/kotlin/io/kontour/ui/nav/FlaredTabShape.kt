@@ -71,25 +71,32 @@ internal class FlaredTabShape(
         val path = Path()
         path.addOutline(body.createOutline(bodySize, layoutDirection, density))
         path.translate(Offset(r, 0f))
-        if (r <= 0f || bodySize.width <= 0f) return Outline.Generic(path)
+        // The curve reaches no further out than the body's own corner reaches
+        // along its top, so a square theme's tab stands square on the page
+        // rather than curving out into it; the room either side stays [foot],
+        // which the strip's layout is spaced by. 0.5.2. A squircle's corner
+        // reaches past its radius, and every body the library draws reaches
+        // past its foot, so `reach` is `r` and nothing else moves.
+        val reach = minOf(r, body.cornerReaches(bodySize, density, LayoutDirection.Ltr).topLeft.x)
+        if (r <= 0f || reach <= 0f || bodySize.width <= 0f) return Outline.Generic(path)
 
-        val cutter = footCutter(r, density)
+        val cutter = footCutter(reach, density)
         // Left: the square between the body's side and the bottom, less a
         // rounded corner standing in the square's bottom right.
         val left = Path.combine(
             PathOperation.Difference,
-            Path().apply { addRect(Rect(0f, h - r, r, h)) },
+            Path().apply { addRect(Rect(r - reach, h - reach, r, h)) },
             Path().apply {
-                addOutline(cutter.end.createOutline(Size(2 * r, 2 * r), LayoutDirection.Ltr, density))
-                translate(Offset(-r, h - 2 * r))
+                addOutline(cutter.end.createOutline(Size(2 * reach, 2 * reach), LayoutDirection.Ltr, density))
+                translate(Offset(r - 2 * reach, h - 2 * reach))
             },
         )
         val right = Path.combine(
             PathOperation.Difference,
-            Path().apply { addRect(Rect(w - r, h - r, w, h)) },
+            Path().apply { addRect(Rect(w - r, h - reach, if (reach < r) w - r + reach else w, h)) },
             Path().apply {
-                addOutline(cutter.start.createOutline(Size(2 * r, 2 * r), LayoutDirection.Ltr, density))
-                translate(Offset(w - r, h - 2 * r))
+                addOutline(cutter.start.createOutline(Size(2 * reach, 2 * reach), LayoutDirection.Ltr, density))
+                translate(Offset(w - r, h - 2 * reach))
             },
         )
         return Outline.Generic(Path.combine(PathOperation.Union, Path.combine(PathOperation.Union, path, left), right))

@@ -9,12 +9,18 @@ import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.isSpecified
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.node.CompositionLocalConsumerModifierNode
 import androidx.compose.ui.node.DelegatableNode
@@ -24,6 +30,7 @@ import androidx.compose.ui.node.currentValueOf
 import androidx.compose.ui.node.invalidateDraw
 import androidx.compose.ui.node.observeReads
 import androidx.compose.ui.Modifier
+import io.kontour.ui.a11y.highContrast
 import io.kontour.ui.input.LocalInputModality
 import io.kontour.ui.theme.Motion
 import io.kontour.ui.theme.Theme
@@ -85,6 +92,9 @@ class KontourIndication(
             pressScale = pressScale,
             motion = motion,
             hoverEnabled = hoverEnabled,
+            behind = false,
+            pressedInk = Color.Unspecified,
+            inkShape = RectangleShape,
         )
 
     override fun equals(other: Any?): Boolean {
@@ -111,6 +121,14 @@ class KontourIndication(
     }
 }
 
+/**
+ * @param behind Whether the wash is a ground drawn under the content, for
+ *   [GroundIndication], rather than a wash over it.
+ * @param pressedInk What the content is recoloured to while pressed, or
+ *   unspecified to leave it as it is drawn.
+ * @param inkShape Where [pressedInk] is laid: only there, and only over what the
+ *   content drew.
+ */
 private class KontourIndicationNode(
     private val interactionSource: InteractionSource,
     private val shape: Shape,
@@ -120,6 +138,9 @@ private class KontourIndicationNode(
     private val pressScale: Float,
     private val motion: Motion,
     private val hoverEnabled: Boolean,
+    private val behind: Boolean,
+    private val pressedInk: Color,
+    private val inkShape: Shape,
 ) : Modifier.Node(), DrawModifierNode, CompositionLocalConsumerModifierNode, ObserverModifierNode {
 
     // Replaced rather than snapped in [reset], which runs outside a coroutine.
@@ -135,6 +156,15 @@ private class KontourIndicationNode(
     // screen, 846KB against 543. Null draws what a fresh pair at 0 and 1 drew.
     private var overlayAlpha: Animatable<Float, AnimationVector1D>? = null
     private var scale: Animatable<Float, AnimationVector1D>? = null
+
+    /**
+     * How far the content has been recoloured to [pressedInk]: 1 pressed, 0 not.
+     *
+     * Its own animation rather than the wash's, because a ground answers a hover
+     * as well as a press and the ink only a press. Made with the other two, and
+     * only by a node that has an ink to lay.
+     */
+    private var ink: Animatable<Float, AnimationVector1D>? = null
 
     /** The wash currently being drawn. Press wins over drag, drag over hover. */
     private var overlayColour: Color = Color.Transparent
@@ -240,6 +270,7 @@ private class KontourIndicationNode(
         overlayColour = Color.Transparent
         overlayAlpha = null
         scale = null
+        ink = null
     }
 
     /** Moves the drawing to what [presses], [drags] and [hovers] now say. */
@@ -316,6 +347,7 @@ private class KontourIndicationNode(
         val made = overlayAlpha == null
         val alpha = overlayAlpha ?: Animatable(0f).also { overlayAlpha = it }
         val shrink = scale ?: Animatable(1f).also { scale = it }
+        val inked = if (pressedInk.isSpecified) ink ?: Animatable(0f).also { ink = it } else null
         if (made) {
             indicationAnimationsMade++
             invalidateDraw()
@@ -337,6 +369,17 @@ private class KontourIndicationNode(
                     targetValue = if (target == Color.Transparent) 0f else target.alpha,
                     animationSpec = motion.tweenFast(),
                 )
+            }
+            if (inked != null) {
+                launch {
+                    // Held with the ground, by the same hold above, so a quick
+                    // tap's label is recoloured for as long as its ground is
+                    // there to be read against.
+                    inked.animateTo(
+                        targetValue = if (pressed) 1f else 0f,
+                        animationSpec = motion.tweenFast(),
+                    )
+                }
             }
             launch {
                 // Asymmetric on purpose. Going down: snappy and critically
@@ -366,14 +409,46 @@ private class KontourIndicationNode(
         // which is the one thing guaranteed to make a shrink read as something
         // else.
         if (currentScale == 1f) {
+            drawLayers(alpha)
+        } else {
+            scale(currentScale) { this@draw.drawLayers(alpha) }
+        }
+    }
+
+    private fun ContentDrawScope.drawLayers(alpha: Float) {
+        if (!behind) {
             drawContent()
             if (alpha > 0f) drawWash(alpha)
-        } else {
-            scale(currentScale) {
-                this@draw.drawContent()
-                if (alpha > 0f) this@draw.drawWash(alpha)
-            }
+            return
         }
+        if (alpha > 0f) drawWash(alpha)
+        val inked = ink?.value ?: 0f
+        if (inked <= 0f) {
+            drawContent()
+            return
+        }
+        // The pressed ink, laid over the content in a layer of its own so that
+        // `SrcAtop` recolours what the content drew and nothing else: a glyph's
+        // own edges keep their coverage, the ground under it is outside the
+        // layer, and the space between the letters stays empty. Only while
+        // pressed, so a control at rest draws no layer at all.
+        //
+        // A colour change through composition was what this replaced, and it
+        // could not be held: the label changed when the press state did, a
+        // frame at most for a tap, which is no change anyone sees.
+        drawIntoCanvas { it.saveLayer(Rect(Offset.Zero, size), Paint()) }
+        drawContent()
+        val colour = pressedInk.copy(alpha = pressedInk.alpha * inked)
+        if (inkShape === RectangleShape) {
+            drawRect(color = colour, blendMode = BlendMode.SrcAtop)
+        } else {
+            drawOutline(
+                outline = inkShape.createOutline(size, layoutDirection, this),
+                color = colour,
+                blendMode = BlendMode.SrcAtop,
+            )
+        }
+        drawIntoCanvas { it.restore() }
     }
 
     private fun DrawScope.drawWash(alpha: Float) {
@@ -394,6 +469,102 @@ private class KontourIndicationNode(
  * interaction a node answers, and not before.
  */
 internal var indicationAnimationsMade: Int = 0
+
+/**
+ * The press and hover of something with no container of its own — a word, a
+ * glyph at the size of the text — drawn **behind** it as a ground, where
+ * [KontourIndication] lays a wash over a container.
+ *
+ * A wash over a word is a grey film on the letters and the space between them,
+ * which reads as the word going dim rather than as the word being pressed, and
+ * the scale is the one thing a line of type cannot take: it reads as the text
+ * jumping. So the press is the accent's own ground behind the label and the
+ * label in the ink made for that ground, both drawn: nothing is measured again,
+ * the bounds do not move, and the words either side stay where they were.
+ *
+ * Everything else is [KontourIndication]'s, by being its node: the floor that
+ * holds a tap long enough to be seen, hover only for a pointer that can, the
+ * fade on the theme's `tweenFast`, and the shrink when [pressScale] asks for
+ * one — which only a glyph does.
+ *
+ * Asked for for 0.5.2 as *"with text buttons, can we add some sort of visual
+ * feedback that they've been tapped, similar to regular buttons?"*. There was
+ * a tint, but it followed the press state through composition, and a tap is a
+ * press and a release inside one frame — inside a scrolling column, where
+ * `clickable` holds the press back to see whether it is a scroll, always. The
+ * tint was there for a mouse and never for a thumb.
+ *
+ * @param shape The ground's shape. A text button's own, or the line boxes of an
+ *   inline link, given as a shape that draws them.
+ * @param inkShape Where [pressedInk] is laid over the content.
+ */
+internal data class GroundIndication(
+    val shape: Shape,
+    val hoverGround: Color,
+    val pressGround: Color,
+    val pressedInk: Color,
+    val pressScale: Float,
+    val motion: Motion,
+    val inkShape: Shape = RectangleShape,
+) : IndicationNodeFactory {
+
+    override fun create(interactionSource: InteractionSource): DelegatableNode =
+        KontourIndicationNode(
+            interactionSource = interactionSource,
+            shape = shape,
+            hoverColour = hoverGround,
+            pressColour = pressGround,
+            // A text button is never dragged, and a link's drag is a selection,
+            // which has its own highlight.
+            draggedColour = Color.Transparent,
+            pressScale = pressScale,
+            motion = motion,
+            hoverEnabled = true,
+            behind = true,
+            pressedInk = pressedInk,
+            inkShape = inkShape,
+        )
+}
+
+/**
+ * The ground a [TextButton][io.kontour.ui.components.action.TextButton] and a
+ * link in a [Text][io.kontour.ui.foundation.Text] draw behind themselves, from
+ * the theme.
+ *
+ * The accent's container behind the word for a hover and a press alike, and the
+ * label in the container's own ink while pressed — the pair the scheme holds
+ * legible on each other, so nothing here is a colour the scheme lacks.
+ *
+ * **At the enhanced tier a press inverts**: the accent's solid behind the word
+ * and the label in its `onSolid`. The container there is a tint a few points off
+ * the page, about 1.25:1 on the light tier's white, and the two inks it is
+ * pressed between are both a deep violet; a ghost [Button][io.kontour.ui.components.action.Button]'s
+ * wash is made stronger at that tier for the same reason, and a wash over a
+ * tint muddies the words on it. The solid and its `onSolid` are a pair the tier
+ * holds to its own contrast, and a solid ground is unmissable. A hover stays the
+ * tint: it says where a pointer is, not that anything happened.
+ */
+@Composable
+internal fun textIndication(
+    shape: Shape,
+    pressScale: Float = 1f,
+    inkShape: Shape = RectangleShape,
+): GroundIndication {
+    val colours = Theme.colours
+    val motion = Theme.motion
+    val enhanced = highContrast()
+    return remember(shape, inkShape, pressScale, colours, motion, enhanced) {
+        GroundIndication(
+            shape = shape,
+            hoverGround = colours.accent.container,
+            pressGround = if (enhanced) colours.accent.solid else colours.accent.container,
+            pressedInk = if (enhanced) colours.accent.onSolid else colours.accent.onContainer,
+            pressScale = pressScale,
+            motion = motion,
+            inkShape = inkShape,
+        )
+    }
+}
 
 /** What a press looks like, when a control does not say otherwise. */
 object IndicationDefaults {

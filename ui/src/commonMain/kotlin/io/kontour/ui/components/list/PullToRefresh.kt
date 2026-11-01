@@ -1,5 +1,7 @@
 package io.kontour.ui.components.list
 
+import io.kontour.ui.components.display.RingTrack
+import io.kontour.ui.theme.cornerPx
 import kotlinx.coroutines.flow.collectLatest
 import androidx.compose.animation.core.Animatable
 import androidx.compose.runtime.snapshotFlow
@@ -552,6 +554,8 @@ private fun RefreshIndicator(
     // for the buffer, not for the layout. Same fix as `overlayAppearance`, and
     // `Shadow.bleed` is where the two get the number from.
     val room = Theme.elevation.high.bleed
+    // The arc's ends, as the theme's lines end. 0.5.2.
+    val lineCap = Theme.shapes.lineCap
     val clearance = PullToRefreshDefaults.Clearance
 
     Box(
@@ -671,6 +675,10 @@ private fun RefreshIndicator(
             val colour = LocalContentColour.current
             // Half a line heavier than a strong border, at either tier.
             val arcStroke = Theme.sizing.borderWidthStrong + 0.5.dp
+            // Round the badge's own shape, as the spinner it hands over to does:
+            // a square theme's badge is square, and its arc was a circle. 0.5.2.
+            val pill = Theme.shapes.pill
+            val traced = remember { RingTrack() }
             Canvas(Modifier.size(Theme.sizing.iconMedium)) {
                 val stroke = arcStroke.toPx()
                 val inset = stroke / 2f
@@ -683,6 +691,13 @@ private fun RefreshIndicator(
                 val pull = progress().coerceIn(0f, 1f)
                 val sweep = pull * full
                 val head = PullHead + if (reduceMotion) 0f else pull * PullTurn
+                val box = Size(size.width - stroke, size.height - stroke)
+                val corner = pill.cornerPx(box, this)
+                if (corner < box.minDimension / 2f) {
+                    traced.fit(box, corner)
+                    traced.drawRun(this, colour, Offset(inset, inset), head - sweep, sweep, Stroke(width = stroke, cap = lineCap))
+                    return@Canvas
+                }
                 drawArc(
                     color = colour,
                     startAngle = head - sweep,
@@ -690,7 +705,7 @@ private fun RefreshIndicator(
                     useCenter = false,
                     topLeft = Offset(inset, inset),
                     size = Size(size.width - stroke, size.height - stroke),
-                    style = Stroke(width = stroke, cap = StrokeCap.Round),
+                    style = Stroke(width = stroke, cap = lineCap),
                 )
             }
         }

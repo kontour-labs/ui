@@ -5,6 +5,7 @@ import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.foundation.shape.ZeroCornerSize
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import io.kontour.ui.platform.DeviceCorners
@@ -34,6 +35,22 @@ import kotlin.math.min
  * | [pill] | half its shorter side, uncapped | Avatars, scrollbars, swatches, day cells, FABs |
  * | [sheet] | 34dp top only | Bottom sheets |
  * | [sideSheet] | 28dp leading only | Side sheets |
+ * | [mark] | 6dp | Checkboxes, key caps |
+ *
+ * And [lineCap], which is not a corner but is a line's: how a progress ring, a
+ * rail or a chart's line ends.
+ *
+ * ### Every corner the library draws reads one of these
+ *
+ * Not only its surfaces: the capsule ends of a progress bar, a slider's track
+ * and a scrollbar's thumb are drawn from [capsule]; a slider's thumb, a page
+ * dot, a timeline's stop and a knob's thumb from [pill]; the corners where
+ * grouped rows meet are never rounder than the rows' own. So a theme that
+ * squares the scale squares all of it. Made so for 0.5.2, asked for as a
+ * "square" theme in which some things were square and some were not.
+ *
+ * The one exception is a radio button, which stays round whatever [pill] is:
+ * round is how a radio button says it is not a checkbox.
  *
  * ### The numbers line up on purpose
  *
@@ -149,8 +166,9 @@ data class Shapes(
     /**
      * Round from what a thing *is*, rather than from how tall it happens to be.
      *
-     * An avatar, a scrollbar thumb, a status dot, the ring round a radio button,
-     * a colour swatch, an icon button, a day cell, a switch's track. Half the
+     * An avatar, a status dot, a slider's thumb, a page dot, a timeline's stop,
+     * a colour swatch, an icon button, a day cell, a switch's track. Not a radio
+     * button, which stays round whatever this is. Half the
      * shorter side with **no cap**, which is the whole of the difference between
      * this and [capsule]: a theme that caps its capsules at 10dp still gets a
      * fully round avatar, and still gets a switch whose track and thumb are
@@ -170,8 +188,8 @@ data class Shapes(
      *
      * The distinction between the two is worth stating because it is the whole
      * of this token. [pill] is a true circular arc, and it is right for the
-     * things that genuinely are circles — an avatar, a status dot, the ring round
-     * a radio button, a scrollbar thumb. Everything *else* that was reaching for
+     * things that genuinely are circles — an avatar, a status dot, a slider's
+     * thumb. Everything *else* that was reaching for
      * `pill` wanted a capsule, and a capsule with circular ends beside a family
      * of squircles is the mismatch that makes nesting look wrong: two curves that
      * meet at a tangent but disagree about everything after it.
@@ -259,6 +277,35 @@ data class Shapes(
      * with [mirrorHorizontally] for a leading-edge sheet.
      */
     val sideSheet: CornerBasedShape = large.leadingCornersOnly(),
+
+    /**
+     * The smallest corner in the library: a checkbox's box, a key cap.
+     *
+     * Its own token because nothing on the ladder is this small, and these
+     * used to be a `SquircleShape(6.dp)` apiece that no theme could reach — a
+     * square theme had square buttons beside rounded checkboxes. 6dp is
+     * [extraSmall] less `spacing.xxs`, and [kontourShapes] derives it that
+     * way, so a compressed ladder takes the marks down with it — but no
+     * higher than 6dp, because a 20dp checkbox with a 10dp corner is a circle,
+     * and shape is the only thing that tells "choose any" from "choose one"
+     * before either is ticked.
+     */
+    val mark: CornerBasedShape = SquircleShape(6.dp),
+
+    /**
+     * How a drawn line ends: the arc of a progress ring and a spinner, a
+     * gauge's and a knob's track, a timeline's rail, a pull-to-refresh arc,
+     * a strikethrough, and a chart's lines and sparklines.
+     *
+     * A line's end is its corner, and a theme that squares its corners
+     * usually wants these to stop square too: [StrokeCap.Butt] ends a line
+     * exactly where it is drawn to, which is the square answer;
+     * [StrokeCap.Square] carries it on by half its width.
+     *
+     * Not the strokes inside glyphs — a check mark, a chevron, an icon. Those
+     * are icons, and a theme changes them through `Theme.icons`.
+     */
+    val lineCap: StrokeCap = StrokeCap.Round,
 ) {
     companion object {
         /**
@@ -336,12 +383,26 @@ data class Shapes(
  *   [Shapes.field] — see [Shapes.CapsuleCap] for why the default is 18dp. A brand
  *   compressing the ladder almost always wants this smaller too, and forgetting
  *   it is what leaves a small-cornered design with capsule buttons.
+ * @param pillCap The ceiling on [Shapes.pill]: uncapped by default, because a
+ *   pill is round from what it is. A square theme passes `0.dp` here too, or
+ *   its switches, icon buttons and avatars stay round beside square buttons.
+ *   A radio button stays round whatever this is: a square one reads as a
+ *   checkbox.
+ * @param lineCap How drawn lines end; see [Shapes.lineCap].
+ *
+ * A square theme, every corner and every line end:
+ *
+ * ```
+ * kontourShapes(extraSmall = 0.dp, step = 0.dp, capsuleCap = 0.dp, pillCap = 0.dp, lineCap = StrokeCap.Butt)
+ * ```
  */
 fun kontourShapes(
     extraSmall: Dp = 10.dp,
     step: Dp = 6.dp,
     smoothing: Float = SquircleShape.DefaultSmoothing,
     capsuleCap: Dp = Shapes.CapsuleCap,
+    pillCap: Dp = Dp.Infinity,
+    lineCap: StrokeCap = StrokeCap.Round,
 ): Shapes {
     val xs = SquircleShape(extraSmall, smoothing)
     val sm = SquircleShape(extraSmall + step, smoothing)
@@ -359,7 +420,7 @@ fun kontourShapes(
         // [smoothing] like every other rung — which it did not when it was a
         // plain circular arc, so a theme could not soften a tag or a nav
         // indicator without softening everything else.
-        pill = SquircleShape(CapsuleCornerSize(), smoothing),
+        pill = SquircleShape(CapsuleCornerSize(cap = pillCap), smoothing),
         capsule = capsule,
         control = capsule,
         field = SquircleShape(CapsuleCornerSize(cap = capsuleCap), smoothing),
@@ -367,8 +428,57 @@ fun kontourShapes(
         panel = lg,
         sheet = xl.topCornersOnly(),
         sideSheet = lg.leadingCornersOnly(),
+        mark = SquircleShape((extraSmall - MarkInset).coerceIn(0.dp, MarkMost), smoothing),
+        lineCap = lineCap,
     )
 }
+
+/**
+ * A square theme's shapes, from three choices rather than the ladder's five.
+ *
+ * ```
+ * KontourTheme(shapes = squareShapes()) { AppRoot() }
+ * ```
+ *
+ * Every rung of the ladder is [corner] — square by default — so cards,
+ * buttons, fields, sheets, checkboxes and the corners where rows meet all
+ * agree; there is no step between them to keep, because there is no curve to
+ * nest. It is [kontourShapes] with its arguments chosen, and a theme that
+ * wants something between this and the default reaches for that instead.
+ *
+ * Added for 0.5.2, for an app asking for a "square" theme. What is left to
+ * choose is what a square design most often wants back:
+ *
+ * @param corner Every corner's radius: 0dp is square, and a few dp takes the
+ *   sharpness off without reading as rounded. A checkbox's corner stops at 6dp
+ *   whatever this is, so it never becomes a radio button.
+ * @param roundPills Keeps [Shapes.pill] round: avatars, switches, icon buttons,
+ *   page dots, a timeline's stops, spinners and progress rings stay circles
+ *   while everything else is square. A radio button is round either way.
+ * @param lineCap How drawn lines end: [StrokeCap.Butt], square, by default, or
+ *   [StrokeCap.Round] to keep progress rings, rails and chart lines soft.
+ */
+fun squareShapes(
+    corner: Dp = 0.dp,
+    roundPills: Boolean = false,
+    lineCap: StrokeCap = StrokeCap.Butt,
+): Shapes = kontourShapes(
+    extraSmall = corner,
+    step = 0.dp,
+    capsuleCap = corner,
+    pillCap = if (roundPills) Dp.Infinity else corner,
+    lineCap = lineCap,
+).let { it.copy(mark = SquircleShape(corner.coerceIn(0.dp, MarkMost))) }
+
+/** How far inside [Shapes.extraSmall] a [Shapes.mark] is: `spacing.xxs`, the step from a badge to the box inside it. */
+private val MarkInset: Dp = 4.dp
+
+/**
+ * The roundest [Shapes.mark] a ladder gives: a 20dp checkbox with a 10dp corner
+ * is a circle, and a round checkbox is a radio button. Down the ladder it
+ * follows; up it, it stops here.
+ */
+private val MarkMost: Dp = 6.dp
 
 /**
  * Half the shorter side, up to [cap]. What keeps a family's corner consistent
@@ -575,7 +685,13 @@ private data class OutsetCornerSize(val base: CornerSize, val gap: Dp) : CornerS
             (shapeSize.width - grow * 2f).coerceAtLeast(0f),
             (shapeSize.height - grow * 2f).coerceAtLeast(0f),
         )
-        return base.toPx(inner, density) + grow
+        val own = base.toPx(inner, density)
+        // A square corner stays square, as it does under [MaxCornerSize]: a
+        // square button's focus ring, or a toolbar round square buttons, came
+        // out rounded by the gap between them. 0.5.2, for square themes; no
+        // default shape the library outsets has a square corner.
+        if (own <= 0f) return own
+        return own + grow
     }
 }
 

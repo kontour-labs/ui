@@ -376,6 +376,7 @@ fun CalendarMonth(
         val colours = Theme.colours
         // The dwell arrow's ring: a line and a half, thickening with the tier.
         val arrowStroke = Theme.sizing.lines(1.5f)
+        val arrowCap = Theme.shapes.lineCap
     // On the range's cap the ring is faded at the standard tier and solid at the enhanced one.
     val capRingAlpha = if (highContrast()) 1f else CapRingAlpha
         val insetPx = with(LocalDensity.current) { CalendarMonthDefaults.CellInset.toPx() }
@@ -463,6 +464,7 @@ fun CalendarMonth(
                             fill = if (onCap) colours.onPrimary else colours.primary,
                             chevron = if (onCap) colours.onPrimary else colours.content,
                             stroke = arrowStroke.toPx(),
+                            cap = arrowCap,
                         )
                     }
                 },

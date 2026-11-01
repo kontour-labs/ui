@@ -54,6 +54,9 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.isSpecified
+import io.kontour.ui.theme.cornerRadius
+import io.kontour.ui.theme.addDot
+import io.kontour.ui.theme.drawDot
 import io.kontour.ui.a11y.contentColourFor
 import io.kontour.ui.a11y.highContrast
 import io.kontour.ui.components.list.ListItemImpl
@@ -418,6 +421,7 @@ internal fun DrawScope.drawRail(
     laneWidth: Float,
     nodeAlong: Float,
     nodeRadius: Float,
+    ends: RailEnds,
     motion: RailMotion? = null,
     highContrast: Boolean = false,
     icon: Painter? = null,
@@ -453,9 +457,9 @@ internal fun DrawScope.drawRail(
         val c1 = cross(leg.end.lane)
         fun draw(colour: Color) {
             if (leg.start.lane == leg.end.lane) {
-                drawConnectorRun(leg.style, space.point(a0, c0), space.point(a1, c1), stroke, colour, leg.end.run, leg.start.run)
+                drawConnectorRun(leg.style, space.point(a0, c0), space.point(a1, c1), stroke, colour, leg.end.run, leg.start.run, ends.cap)
             } else {
-                drawConnectorCurve(leg.style, space.curve(a0, c0, a1, c1), stroke, colour, leg.start.run, leg.end.run)
+                drawConnectorCurve(leg.style, space.curve(a0, c0, a1, c1), stroke, colour, leg.start.run, leg.end.run, ends.cap)
             }
         }
         // The leg the journey is on, while its band runs, is drawn faint and
@@ -525,7 +529,7 @@ internal fun DrawScope.drawRail(
                 node.colour.copy(alpha = alpha),
                 topLeft = Offset(min(a.x, b.x), min(a.y, b.y)),
                 size = Size(abs(b.x - a.x), abs(b.y - a.y)),
-                cornerRadius = CornerRadius(across),
+                cornerRadius = ends.node.cornerRadius(Size(across * 2f, across * 2f), this),
                 style = haloStyle,
             )
         }
@@ -541,15 +545,16 @@ internal fun DrawScope.drawRail(
         val haloStyle = if (highContrast) Stroke(ring) else Fill
         val haloAlpha = if (highContrast) 1f else HaloAlpha
         val haloRadius = if (highContrast) clear - ring / 2f else clear
-        drawCircle(node.colour.copy(alpha = haloAlpha), radius = haloRadius, center = centre, style = haloStyle)
+        drawDot(node.colour.copy(alpha = haloAlpha), radius = haloRadius, center = centre, shape = ends.node, style = haloStyle)
         if (!phase.isNaN()) {
             // A ping off the halo: out to [PulseReach] of it, easing off as it
             // goes, and fading to nothing on the way — then again.
             val eased = 1f - (1f - phase).let { it * it * it }
-            drawCircle(
+            drawDot(
                 node.colour.copy(alpha = haloAlpha * (1f - phase)),
                 radius = haloRadius * (1f + (PulseReach - 1f) * eased),
                 center = centre,
+                shape = ends.node,
                 style = haloStyle,
             )
         }
@@ -565,16 +570,16 @@ internal fun DrawScope.drawRail(
             val at = space.point(along, cross(node.lane))
             val next = centres.getOrNull(i + 1)
             if (next == null) {
-                drawTimelineNode(at, nodeRadius, ring, node.colour, solid)
+                drawTimelineNode(at, nodeRadius, ring, node.colour, solid, ends.node)
             } else {
                 val cover = space.point(next, cross(node.lane))
-                val cut = Path().apply { addOval(Rect(cover, nodeRadius + ring)) }
-                clipPath(cut, ClipOp.Difference) { drawTimelineNode(at, nodeRadius, ring, node.colour, solid) }
+                val cut = Path().apply { addDot(cover, nodeRadius + ring, ends.node, this@drawRail) }
+                clipPath(cut, ClipOp.Difference) { drawTimelineNode(at, nodeRadius, ring, node.colour, solid, ends.node) }
             }
         }
         return
     }
-    drawTimelineNode(centre, nodeRadius, ring, node.colour, solid)
+    drawTimelineNode(centre, nodeRadius, ring, node.colour, solid, ends.node)
     if (icon != null) {
         // On a solid node, whichever of light or dark reads on it — a route
         // colour straight from a feed included; inside a ring, the ring's own.
@@ -674,6 +679,7 @@ internal fun RailListRow(
     val start = Theme.spacing.xs
     val label = Theme.typography.bodyMedium
     val enhanced = highContrast()
+    val ends = railEnds()
     val lineHeight = with(LocalDensity.current) {
         if (label.lineHeight.isSpecified) label.lineHeight.toPx() else label.fontSize.toPx() * FallbackLeading
     }
@@ -720,6 +726,7 @@ internal fun RailListRow(
                     laneWidth = laneWidth.toPx(),
                     nodeAlong = nodeY.floatValue,
                     nodeRadius = size.toPx() / 2f,
+                    ends = ends,
                     motion = motion,
                     highContrast = enhanced,
                     icon = icon,

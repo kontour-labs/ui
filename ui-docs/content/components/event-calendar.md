@@ -123,7 +123,11 @@ through the weeks either side. A finger's swipe or fling settles with a week at
 the top; a mouse's wheel or a trackpad scrolls the weeks freely and leaves them
 where it stops, as a desktop's calendars do. The month
 most on screen is the one the title and the state are about, and the header's
-arrows scroll to the first week of the month before or after. A day's number, in the month and over a week's columns, opens that
+arrows scroll to the first week of the month before or after. A month more than
+half a year away — today, pressed a year or more from it — does not scroll
+through every week between, nor cut there: it comes in from just past the
+screen, as the date picker's far months do, and is in place as soon as the next
+month would be. The year does the same for today more than two years away. A day's number, in the month and over a week's columns, opens that
 day. In the year, a month's name opens the month and a day opens the day. An
 app can do the same with `state.show(date, view)`, `state.step(n)` and
 `state.showToday()`.
@@ -325,5 +329,5 @@ well into the next one, so a finger resting on the line between two days
 does not flick the event back and forth.
 
 Under reduced motion the swipe and the header's arrows change the period in
-place, without sliding, a month's arrows jump to the month rather than
+place, without sliding, a month's arrows and today jump to the month rather than
 scrolling there, and a month let go after a pinch settles on its week at once.

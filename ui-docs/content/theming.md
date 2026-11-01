@@ -109,6 +109,15 @@ ProvideTokens(colours = kontourColourScheme(dark = true)) { MapScreen() }
 > is derived where `KontourTheme` provides it and is not re-derived by providing
 > the scheme again.
 
+**Overscroll is the platform's, with an account kept of it.** `KontourTheme`
+wraps the `LocalOverscrollFactory` it finds, Android's stretch or iOS's bounce,
+so each effect also records how far it has taken its content past an end; a
+scrollbar's thumb gives way by that much. The effect itself is untouched and
+draws as it always did. A factory an app provides *above* the theme is wrapped
+the same way; one provided *below* it is used as it is, and a scrollbar on a
+scroller under it stays whole. Where there is no factory, a desktop's, nothing
+is wrapped.
+
 **Change the words the library puts on screen:**
 
 ```kotlin
@@ -183,6 +192,20 @@ KontourTheme(typography = kontourTypography(myBrandFamily, jetBrainsMonoFontFami
 The scale — sizes, weights, line heights, tracking — is preserved; only the
 family changes. Name the mono face as well: left out, the brand face takes the
 mono role too, and code and figures stop being monospaced.
+
+**Square it off:**
+
+```kotlin
+KontourTheme(shapes = squareShapes()) { AppRoot() }
+```
+
+Every corner the library draws comes from the shape scale, including the ends
+of a progress bar, the dots on a calendar and the track a spinner runs round,
+so one argument squares all of them. A radio button stays round. Three things
+are left to choose: `squareShapes(corner = 3.dp)` takes the sharpness off,
+`roundPills = true` keeps avatars, switches, dots, spinners and progress rings
+round, and `lineCap = StrokeCap.Round` keeps the ends of lines soft.
+[Tokens](tokens.md#shape) has the detail.
 
 **Change a component's geometry, everywhere:**
 

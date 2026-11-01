@@ -164,6 +164,8 @@ Picking a day here is for showing that day's detail somewhere else.
 
 ---
 
+**A cell is a rounded square no rounder than the theme's `extraSmall`**, so a square theme's cells are square. `ActivityCalendarDefaults.CellShape` reads the theme, and is read in a composable for that reason.
+
 ## Accessibility
 
 **A screen reader moves through the calendar a week at a time.** Each week is

@@ -3,6 +3,9 @@ package io.kontour.ui.components.calendar
 import androidx.compose.foundation.gestures.FlingBehavior
 import androidx.compose.foundation.gestures.ScrollScope
 import androidx.compose.foundation.layout.size
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.semantics.SemanticsProperties
@@ -37,6 +40,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.Month
 import kotlinx.datetime.plus
 
@@ -230,6 +234,103 @@ class MonthScrollTest {
         waitForIdle()
         assertEquals(probe.sunken, ground(LocalDate(2026, 10, 26)), "October's 26th is not quiet in November")
         assertTrue(ground(LocalDate(2026, 11, 3)) != probe.sunken, "November's 3rd is quiet in November")
+    }
+
+    // --- Today from far away: asked for 0.5.2 as *"in the event calendar's
+    // month view, if you click the "today" button and you're like more than a
+    // year away or something, it just snaps back (rather than animating like
+    // it does if you're only a few months down). can we make it animate in the
+    // same way, just ensure it's no slower"*. More than half a year away it
+    // cut; it slides in from just past the screen now, across a bridge. ---
+
+    /**
+     * The top of [week]'s Monday's box, unclipped, after each of [frames]
+     * frames from a press of the header's today — or of [press], given one —
+     * and null in a frame it is not on screen.
+     */
+    private fun androidx.compose.ui.test.ComposeUiTest.watch(probe: Probe, week: LocalDate, frames: Int = 40, press: () -> Unit = {
+        onNode(hasContentDescription(probe.strings.returnToToday) and hasClickAction()).performClick()
+    }): List<Float?> {
+        val name = probe.formats.date(week, DateStyle.Full)
+        mainClock.autoAdvance = false
+        press()
+        val tops = List(frames) {
+            mainClock.advanceTimeByFrame()
+            onAllNodes(SemanticsMatcher("$week's box") { node ->
+                node.config.getOrNull(SemanticsProperties.ContentDescription).orEmpty().any { it.startsWith(name) }
+            } and hasClickAction()).fetchSemanticsNodes().firstOrNull()?.positionInRoot?.y
+        }
+        mainClock.autoAdvance = true
+        waitForIdle()
+        return tops
+    }
+
+    /** The frame from which [tops] are where they end, counted from one. */
+    private fun settledBy(tops: List<Float?>): Int = tops.indexOfLast { it != tops.last() } + 2
+
+    @Test
+    fun todayMoreThanAYearAwaySlidesInAndIsThereAsSoonAsTheNextMonthIs() = runComposeUiTest {
+        val probe = Probe()
+        var now by mutableStateOf(LocalDateTime(2027, 11, 20, 9, 0))
+        setContent {
+            KontourTheme(reduceMotion = false) {
+                OverlayHost(Modifier.size(700.dp, 800.dp)) {
+                    probe.formats = Theme.formats
+                    probe.strings = Theme.strings
+                    probe.state = rememberEventCalendarState(LocalDate(2026, 10, 14), CalendarView.Month, firstDayOfWeek = DayOfWeek.MONDAY)
+                    EventCalendar(state = probe.state, events = emptyList(), now = now, modifier = Modifier.size(700.dp, 800.dp))
+                }
+            }
+        }
+        waitForIdle()
+        // The shortest of the slides there were: on a month, its first week four rows down.
+        val step = watch(probe, LocalDate(2026, 10, 26)) {
+            onNode(hasContentDescription(probe.strings.nextMonth) and hasClickAction()).performClick()
+        }
+        val top = step.last() ?: error("November's first week is not on screen after the step")
+
+        // November 2027, a year and its 53 weeks on: its first week starts on 1 November.
+        val on = watch(probe, LocalDate(2027, 11, 1))
+        assertEquals(LocalDate(2027, 11, 20), probe.state.date)
+        // And 2025's, from there, the other way: September 2025's first week starts on 1 September.
+        now = LocalDateTime(2025, 9, 10, 9, 0)
+        waitForIdle()
+        val back = watch(probe, LocalDate(2025, 9, 1))
+        assertEquals(LocalDate(2025, 9, 10), probe.state.date)
+
+        for ((way, tops) in listOf("on" to on, "back" to back)) {
+            assertEquals(top, tops.last(), "today's month, gone $way to, is not at the top as the next month was: $tops")
+            // Cut, it was at its place in the first frame and nowhere else.
+            val places = tops.filterNotNull().distinct()
+            assertTrue(places.size >= 6, "today's month, gone $way to, did not slide in: its first week was at $tops")
+            val moving = tops.filterNotNull()
+            assertTrue(moving.zipWithNext().all { (a, b) -> if (way == "on") b <= a else b >= a }, "today's month, gone $way to, went back and forth: $tops")
+            assertTrue(
+                settledBy(tops) <= settledBy(step),
+                "today's month, gone $way to, took ${settledBy(tops)} frames to come to rest, where the next month took ${settledBy(step)}: $tops against $step",
+            )
+        }
+    }
+
+    /** Under reduced motion, today far away is still a cut, as the arrows are. */
+    @Test
+    fun underReducedMotionTodayFarAwayIsThereAtOnce() = runComposeUiTest {
+        val probe = Probe()
+        setContent {
+            KontourTheme(reduceMotion = true) {
+                OverlayHost(Modifier.size(700.dp, 800.dp)) {
+                    probe.formats = Theme.formats
+                    probe.strings = Theme.strings
+                    probe.state = rememberEventCalendarState(LocalDate(2026, 10, 14), CalendarView.Month, firstDayOfWeek = DayOfWeek.MONDAY)
+                    EventCalendar(state = probe.state, events = emptyList(), now = LocalDateTime(2028, 11, 20, 9, 0), modifier = Modifier.size(700.dp, 800.dp))
+                }
+            }
+        }
+        waitForIdle()
+        // 1 November 2028 is a Wednesday: its first week starts on 30 October.
+        val tops = watch(probe, LocalDate(2028, 10, 30), frames = 10)
+        assertEquals(1, tops.filterNotNull().distinct().size, "under reduced motion today's month moved into place: $tops")
+        assertTrue(tops.first() != null, "under reduced motion today's month was not there in the first frame: $tops")
     }
 
     // --- Zoomed: asked for as *"pinch to zoom: change the row height so you

@@ -1,5 +1,6 @@
 package io.kontour.ui.components.list
 
+import io.kontour.ui.theme.drawDot
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.lazy.LazyListState
@@ -216,6 +217,8 @@ fun IndexScroller(
     val touch = if (modality.needsLargeTargets) Theme.sizing.minTouchTarget else TouchTargetDefaults.PointerMinimum
     val pad = Theme.spacing.xs
     val dotRadius = with(density) { (IndexDotSize / 2).toPx() }
+    // The dots standing for skipped letters, in the theme's pill. 0.5.2.
+    val dotShape = Theme.shapes.pill
     val inset = Theme.spacing.xxs
 
     val geometry = remember { RailGeometry() }
@@ -383,10 +386,11 @@ fun IndexScroller(
                                 topLeft = Offset(centreX - text.size.width / 2f, centreY - text.size.height / 2f),
                             )
                         }
-                        is IndexSlot.Dot -> drawCircle(
+                        is IndexSlot.Dot -> drawDot(
                             color = if (enabled) colours.label else colours.disabled,
                             radius = dotRadius,
                             center = Offset(centreX, centreY),
+                            shape = dotShape,
                         )
                     }
                 }

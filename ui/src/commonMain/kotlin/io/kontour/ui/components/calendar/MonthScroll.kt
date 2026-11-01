@@ -1,8 +1,11 @@
 package io.kontour.ui.components.calendar
 
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.exponentialDecay
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.gestures.FlingBehavior
 import androidx.compose.foundation.gestures.ScrollScope
+import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.PointerEventPass
@@ -83,7 +86,10 @@ internal fun CalendarPeriods.dominantMonth(rows: List<VisibleRow>, viewport: Int
 /**
  * The scrolling month's list, and what ties it to the state: scrolled to show
  * a month, the state is about that month; the state moved to another month —
- * by the header, a key, the app, today — the list scrolls there.
+ * by the header, a key, the app, today — the list scrolls there. A month more
+ * than [FarRows] weeks away comes in across a bridge, from just past the
+ * screen: see [BridgedList]. Its rows' weeks are [CalendarPeriods.weekOf] and
+ * [CalendarPeriods.rowOf], across it.
  *
  * @param rowsInView How many whole rows fit on screen.
  * @param rowPx How tall a row is, in pixels, read when it is needed: it moves
@@ -93,12 +99,13 @@ internal fun CalendarPeriods.dominantMonth(rows: List<VisibleRow>, viewport: Int
  *   pinch moves the list without scrolling it.
  */
 @Composable
-internal fun rememberMonthList(scope: CalendarScope, rowsInView: Int, rowPx: () -> Float, zooming: State<Boolean>): LazyListState {
+internal fun rememberMonthList(scope: CalendarScope, rowsInView: Int, rowPx: () -> Float, zooming: State<Boolean>): BridgedList {
     val state = scope.state
     val periods = state.periods
     // Kept as the periods are counted afresh for a week view: only the first
     // day of the week moves a month's rows.
     val list = remember(periods.firstDayOfWeek) { LazyListState(firstVisibleItemIndex = periods.monthTarget(state.date, rowsInView)) }
+    val bridged = rememberBridgedList(list)
     val motion by rememberUpdatedState(Theme.motion)
     val rows by rememberUpdatedState(rowsInView)
     val row by rememberUpdatedState(rowPx)
@@ -114,13 +121,18 @@ internal fun rememberMonthList(scope: CalendarScope, rowsInView: Int, rowPx: () 
             val info = list.layoutInfo
             val visible = info.visibleItemsInfo
             val viewport = info.viewportEndOffset - info.viewportStartOffset
-            val shown = visible.map { VisibleRow(periods.weekOfRow(it.index), it.offset, it.offset + it.size) }
-            Triple(shown, viewport, visible.firstOrNull()?.index to visible.lastOrNull()?.index)
-        }.collect { (shown, viewport, ends) ->
-            val (first, last) = ends
-            if (first != null && last != null) {
-                val from = periods.weekOfRow(first)
-                val weeks = from..periods.weekOfRow(last).plus(DaysPerWeek - 1, DateTimeUnit.DAY)
+            val shown = visible.map { VisibleRow(periods.weekOf(it.index, bridged), it.offset, it.offset + it.size) }
+            // Across a bridge, the weeks on screen are two stretches a year or
+            // more apart, and the ones between are not there to load: only the
+            // month it is going to, which is the state's, until it lands.
+            val first = visible.firstOrNull()?.index
+            val last = visible.lastOrNull()?.index
+            val weeks = if (first == null || last == null || bridged.up) null else {
+                periods.weekOfRow(first)..periods.weekOfRow(last).plus(DaysPerWeek - 1, DateTimeUnit.DAY)
+            }
+            Triple(shown, viewport, weeks)
+        }.collect { (shown, viewport, weeks) ->
+            if (weeks != null || bridged.up) {
                 if (state.shownWeeks != weeks) state.shownWeeks = weeks
             }
             if (going[0] || state.view != CalendarView.Month) return@collect
@@ -136,19 +148,59 @@ internal fun rememberMonthList(scope: CalendarScope, rowsInView: Int, rowPx: () 
         snapshotFlow { state.date }.collectLatest { date ->
             if (state.view != CalendarView.Month) return@collectLatest
             val period = periods.indexOf(date, CalendarView.Month)
-            val target = if (period != state.scrolledTo) {
+            if (period != state.scrolledTo) {
                 state.scrolledTo = period
-                periods.monthTarget(date, rows)
-            } else {
-                // Moved there by the scroll itself, it is where the scroll left it.
-                if (!scope.cursorShown || date == state.scrolledDate) return@collectLatest
-                val row = periods.rowOf(date)
-                val item = list.layoutInfo.visibleItemsInfo.firstOrNull { it.index == row }
-                val viewport = list.layoutInfo.viewportEndOffset
-                if (item != null && item.offset >= 0 && item.offset + item.size <= viewport) return@collectLatest
-                val above = item?.let { it.offset < 0 } ?: (row < list.firstVisibleItemIndex)
-                if (above) row else (row - rows + 1).coerceAtLeast(0)
+                val target = periods.monthTarget(date, rows)
+                going[0] = true
+                try {
+                    // A bridge a finger stopped is taken down first, so the
+                    // rows are counted plainly from here.
+                    bridged.clear()
+                    when {
+                        motion.reduceMotion -> list.scrollToItem(target)
+                        abs(target - list.firstVisibleItemIndex) <= FarRows -> list.animateScrollToItem(target)
+                        // Further, it slides one screen as a month's step
+                        // does, the month it is going to standing in just
+                        // past it, rather than cutting there.
+                        else -> {
+                            val landing = bridged.open(target, fill = rows)
+                            val first = list.layoutInfo.visibleItemsInfo.firstOrNull()
+                            if (landing == null || first == null) {
+                                list.scrollToItem(target)
+                            } else {
+                                // By the pixel, the rows all one height: the
+                                // spring `animateScrollToItem` moves a row on
+                                // screen with — critically damped, Compose's
+                                // medium stiffness, from rest — without its
+                                // search for a row off screen, which took
+                                // three frames longer over the screen's six
+                                // rows than a month's step over its four. It
+                                // stops a pixel short, where the step creeps
+                                // on through the last one, and the scroll
+                                // after it puts the row on its place: so the
+                                // longer way still ends no later.
+                                val px = first.offset + (landing - first.index) * first.size.toFloat()
+                                list.animateScrollBy(px, spring(Spring.DampingRatioNoBouncy, Spring.StiffnessMedium, visibilityThreshold = LandingPx))
+                                list.scrollToItem(landing)
+                                bridged.close()
+                            }
+                        }
+                    }
+                } finally {
+                    going[0] = false
+                }
+                return@collectLatest
             }
+            // Moved there by the scroll itself, it is where the scroll left it.
+            if (!scope.cursorShown || date == state.scrolledDate) return@collectLatest
+            // A day the cursor moved to is in the month on screen, never one a
+            // bridge has left out.
+            val row = periods.rowOf(date, bridged) ?: return@collectLatest
+            val item = list.layoutInfo.visibleItemsInfo.firstOrNull { it.index == row }
+            val viewport = list.layoutInfo.viewportEndOffset
+            if (item != null && item.offset >= 0 && item.offset + item.size <= viewport) return@collectLatest
+            val above = item?.let { it.offset < 0 } ?: (row < list.firstVisibleItemIndex)
+            val target = if (above) row else (row - rows + 1).coerceAtLeast(0)
             going[0] = true
             try {
                 if (motion.reduceMotion || abs(target - list.firstVisibleItemIndex) > FarRows) {
@@ -194,8 +246,14 @@ internal fun rememberMonthList(scope: CalendarScope, rowsInView: Int, rowPx: () 
             if (motion.reduceMotion) list.scrollToItem(row) else list.animateScrollToItem(row)
         }
     }
-    return list
+    return bridged
 }
+
+/** The week the scrolling month's row [index] shows, across any bridge [bridged] has up. */
+internal fun CalendarPeriods.weekOf(index: Int, bridged: BridgedList): LocalDate = weekOfRow(bridged.real(index))
+
+/** The scrolling month's row that shows [date]'s week, across any bridge; null for a week the bridge has left out. */
+internal fun CalendarPeriods.rowOf(date: LocalDate, bridged: BridgedList): Int? = bridged.indexOf(rowOf(date))
 
 /**
  * A month's fling: as far as it was flung, ending with a week at the top.
@@ -245,8 +303,15 @@ internal fun Modifier.tellsWheelFromFinger(snap: WeekSnap): Modifier = pointerIn
     }
 }
 
-/** How many rows a scroll to another month is animated over, at most: further, it is a cut. */
-private const val FarRows = 26
+/**
+ * How many rows a scroll to another month travels through, at most: further,
+ * the month comes in across a bridge from just past the screen. It used to be
+ * a cut, and today pressed more than half a year away snapped there.
+ */
+internal const val FarRows = 26
+
+/** How near its place a far month's slide stops, in pixels, for the scroll after it to put it there. */
+private const val LandingPx = 1f
 
 /** How long after a carry's scroll has stopped the month settles on a week. */
 private const val CarrySettleMillis = 150L

@@ -55,6 +55,7 @@ import io.kontour.ui.interaction.rememberDetentTicker
 import io.kontour.ui.interaction.rememberDragTexture
 import io.kontour.ui.interaction.rememberEndStopLatch
 import io.kontour.ui.interaction.horizontalDragOwning
+import io.kontour.ui.theme.cornerRadius
 import io.kontour.ui.theme.Theme
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -277,6 +278,10 @@ fun Slider(
     val labelGap = with(density) { SliderLabelGap.toPx() }
     // The switch's pill: round at rest, a G2 pill stretched. See `sliderThumb`.
     val pill = Theme.shapes.pill
+    // The track's ends: half its height, unless the theme's capsule is squarer.
+    // Resolved on the whole track, so a fill shorter than it is tall keeps the
+    // radius it always had. 0.5.2.
+    val capsule = Theme.shapes.capsule
     val rtl = layoutDirection == LayoutDirection.Rtl
     val fraction = if (range == 0f) 0f else ((value - valueRange.start) / range).coerceIn(0f, 1f)
 
@@ -736,6 +741,7 @@ fun Slider(
                         // fraction the track does not draw at.
                         val trackLeft = thumbReachPx
                         val trackWidth = (size.width - thumbReachPx * 2f).coerceAtLeast(0f)
+                        val trackRadius = capsule.cornerRadius(Size(trackWidth.coerceAtLeast(trackHeightPx), trackHeightPx), this)
                         // **Mirrored right to left**, as the pointer maths above
                         // always was. The drawing was not: a right-to-left slider
                         // took a touch at its right-hand end as its minimum and
@@ -751,7 +757,7 @@ fun Slider(
                             color = inactiveColour,
                             topLeft = Offset(trackLeft, trackTop),
                             size = Size(trackWidth, trackHeightPx),
-                            cornerRadius = CornerRadius(trackHeightPx / 2f),
+                            cornerRadius = trackRadius,
                         )
                         val filledFrom = if (rtl) thumbX else trackLeft
                         val filledTo = if (rtl) trackLeft + trackWidth else thumbX
@@ -759,12 +765,13 @@ fun Slider(
                             color = activeColour,
                             topLeft = Offset(filledFrom, trackTop),
                             size = Size(filledTo - filledFrom, trackHeightPx),
-                            cornerRadius = CornerRadius(trackHeightPx / 2f),
+                            cornerRadius = trackRadius,
                         )
 
                         if (showTicks) {
                             sliderTicks(
                                 trackLeft = trackLeft,
+                                shape = pill,
                                 trackWidth = trackWidth,
                                 centreY = centreY,
                                 steps = steps,

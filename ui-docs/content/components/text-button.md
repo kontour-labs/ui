@@ -25,9 +25,17 @@ be confused with. A standalone label has no neighbours, and an underline there
 reads as a mistake — which is why every platform's own "Forgot password?" is a
 coloured word without one.
 
-Press and hover are a tint behind the word. The scale every filled control uses
-is unavailable to something with no container to scale, and a second colour on
-the glyphs alone is not enough to notice at a caption's size.
+**A press is the accent's ground behind the word**, in the theme's `small`
+shape, with the label in the ink made for that ground. A hover is the ground
+alone, and only for a pointer that can hover, as a [`Button`](button.md)'s is.
+All of it is drawn rather than laid out: the button is the same size pressed as
+at rest, and the words beside it do not move. A tap too quick to see is held
+long enough to be seen, by the same floor every other control's press has, so a
+thumb gets the answer a mouse does. A square theme grounds it in a square.
+
+It does not shrink. A word that shrinks reads as the text jumping, which is why
+a ghost `Button` with a label does not shrink either, and a second colour on the
+glyphs alone is not enough to notice at a caption's size.
 
 ---
 
@@ -55,6 +63,10 @@ fixed icon size would be the one thing on the line that did not grow.
 It still needs a `contentDescription`: an icon with no text beside it is the only
 thing saying what the button does.
 
+A press grounds it as it does a `TextButton`, and it also shrinks a little, as a
+ghost [`IconButton`](icon-button.md) does: a glyph is a shape rather than a line
+of type, and shrinking one reads as it should.
+
 ---
 
 ## A link *inside* a sentence
@@ -78,6 +90,14 @@ Text(
 The text wraps around it, a screen reader lists it with the page's other links,
 and the platform's own link focus and hit-testing apply.
 
+**A press and a hover ground just the link, line by line.** [`Text`](text.md)
+draws the same ground a `TextButton` has behind each line the link is on, in the
+same shape, so a link that wraps is grounded on both of its lines and nothing
+else in the paragraph is touched: no word moves and no line is laid out again. A
+tap is held long enough to be seen, and a finger that lands on a link to scroll
+the page does not light it up on the way past, which is how a `clickable` reads
+a touch too.
+
 **Why this exists rather than `buildAnnotatedString` at the call site.**
 `LinkAnnotation.Clickable` compares by tag, styles **and**
 `linkInteractionListener` — and the listener *by identity*. A lambda written at
@@ -92,10 +112,12 @@ close over whatever they like. The string comes out value-equal to the one befor
 it, and no caller has to know any of this.
 
 `LinkDefaults.styles()` is accent-coloured and underlined, with the accent's own
-container tint behind the words on hover and press. Pass your own, through
+container tint behind the words when the link has focus. Pass your own, through
 `RichTextDefaults.styles(links = …)`, for a link that has to sit on a coloured
-ground. `link(text, url)` opens an address with the platform's own handler and
-needs no lambda at all.
+ground. `Text` draws its hover and press ground for any link whose styles have a
+`pressedStyle`, as the default's do; a `TextLinkStyles(style = …)` of your own
+without one is drawn just as it asks. `link(text, url)` opens an address with
+the platform's own handler and needs no lambda at all.
 
 ---
 
@@ -117,8 +139,14 @@ most likely to be read out of context, because it is the one most likely to be
 one of several on a screen.
 
 At high contrast it gains no edge, unlike a ghost [`Button`](button.md): the
-label is the whole control, in the enhanced scheme's colours, and the tint
-behind it on a press or a hover stays a tint. The focus ring is thicker.
+label is the whole control, in the enhanced scheme's colours. **A press
+inverts**: the accent's solid behind the label and its `onSolid` on it, where the
+standard tiers have the container and its ink. The container is a tint about
+1.25:1 off that tier's white, and its two inks are both a deep violet, so a
+pressed button looked much like one at rest; the solid and its `onSolid` are a
+pair the tier holds to its own contrast. A hover stays the tint. A link pressed
+in a paragraph inverts the same way. The focus ring is thicker.
 
-Nothing moves, so reduced motion changes nothing: a press is a tint behind the
-label, never a shrink, at every setting.
+Under reduced motion a `TextIconButton` keeps its ground and does not shrink. A
+`TextButton` and a link never shrink, so reduced motion changes nothing for
+them.

@@ -479,6 +479,7 @@ private fun <X : Any, Y : Any> ChartPlot(
                 pointSize = ChartDefaults.PointSize.toPx(),
                 cornerShape = shapes.extraSmall,
                 pinShape = shapes.capsule,
+                lineCap = shapes.lineCap,
                 hairline = sizing.dividerThickness.toPx(),
                 patternWeight = patternWeight,
                 tiles = tiles,

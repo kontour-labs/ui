@@ -755,6 +755,7 @@ internal fun DrawScope.drawEdgeArrow(
     fill: Color,
     chevron: Color,
     stroke: Float,
+    cap: StrokeCap,
 ) {
     if (alpha <= 0f) return
     val (out, radius) = arrowRing(halfCell)
@@ -770,7 +771,9 @@ internal fun DrawScope.drawEdgeArrow(
             topLeft = Offset(centre.x - radius, centre.y - radius),
             size = Size(radius * 2f, radius * 2f),
             alpha = alpha,
-            style = Stroke(stroke * ProgressStrokeShare, cap = StrokeCap.Round),
+            // The theme's line ends, as a progress ring's are; the ring itself
+            // stays round, as a progress ring does. 0.5.2.
+            style = Stroke(stroke * ProgressStrokeShare, cap = cap),
         )
     }
     val arm = radius * ChevronShare

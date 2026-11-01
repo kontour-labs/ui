@@ -1,5 +1,8 @@
 package io.kontour.ui.components.display
 
+import androidx.compose.ui.geometry.Offset
+import io.kontour.ui.theme.cornerPx
+import androidx.compose.ui.geometry.Size
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloat
@@ -161,6 +164,13 @@ fun Spinner(
         LaunchedEffect(Unit) { handover.animateTo(1f, handoverSpec) }
     }
 
+    // Its arc's ends follow the theme's line ends: round unless it asks otherwise. 0.5.2.
+    val lineCap = Theme.shapes.lineCap
+    // And its track the theme's pill: a circle, unless the theme is squarer, when
+    // the arc runs round that shape instead — a square theme's loading timeline
+    // stop went back to a circle while it loaded. 0.5.2.
+    val track = Theme.shapes.pill
+    val traced = remember { RingTrack() }
     Canvas(
         modifier
             .size(size)
@@ -180,6 +190,13 @@ fun Spinner(
         } else {
             breathing
         }
+        val box = androidx.compose.ui.geometry.Size(this.size.width - stroke, this.size.height - stroke)
+        val corner = track.cornerPx(box, this)
+        if (corner < box.minDimension / 2f) {
+            traced.fit(box, corner)
+            traced.drawRun(this, colour, Offset(inset, inset), initialAngle + rotation - effectiveSweep, effectiveSweep, Stroke(width = stroke, cap = lineCap))
+            return@Canvas
+        }
         drawArc(
             color = colour,
             // The head is at `rotation`, offset to wherever it opened; the
@@ -192,7 +209,7 @@ fun Spinner(
                 width = this.size.width - stroke,
                 height = this.size.height - stroke,
             ),
-            style = Stroke(width = stroke, cap = androidx.compose.ui.graphics.StrokeCap.Round),
+            style = Stroke(width = stroke, cap = lineCap),
         )
     }
 }

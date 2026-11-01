@@ -40,6 +40,8 @@ they can see the end.
 
 ---
 
+**In the theme's shapes.** A bar's and a segment's ends are the theme's `capsule`, and the rings run round its `pill`, with their line ends from `lineCap`. In the default theme that is everything described above; in a square one, a bar is square-ended and a ring is a square, whose step gaps are kept clear of its corners so no corner is cut and no stub of line is left round one.
+
 ## Accessibility
 
 All four report `ProgressBarRangeInfo` and take a `contentDescription`, which

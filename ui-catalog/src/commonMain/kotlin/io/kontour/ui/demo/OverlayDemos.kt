@@ -56,6 +56,7 @@ import io.kontour.ui.overlay.LoadingOverlay
 import io.kontour.ui.overlay.LocalOverlayHost
 import io.kontour.ui.overlay.LocalOverlayQueue
 import io.kontour.ui.overlay.coachmark
+import io.kontour.ui.overlay.CoachmarkSkip
 import io.kontour.ui.overlay.CoachmarkTransition
 import io.kontour.ui.overlay.CoachmarkStep
 import io.kontour.ui.overlay.coachmarkStep
@@ -433,9 +434,22 @@ private val coachmarkTone = Knob.Choice("Tone", Tone.entries.toList(), initial =
 private val coachmarkSkippable = Knob.Flag("Skip button", initial = true)
 private val coachmarkDismissible = Knob.Flag("Tap outside ends the tour", initial = false)
 
+/**
+ * Where Skip goes: the last step, as it always did, a step of the app's
+ * choosing, or out of the tour altogether — asked for for 0.5.2 as
+ * *"sometimes i only want to skip to a certain option, sometimes i want to skip
+ * the whole tour entirely"*. "Saved trips" has no Skip on it or after it.
+ */
+private val coachmarkSkips = mapOf(
+    "Last step" to CoachmarkSkip.ToLast,
+    "Saved trips" to CoachmarkSkip.to("saved"),
+    "End of the tour" to CoachmarkSkip.End,
+)
+private val coachmarkSkipTo = Knob.Choice("Skip to", coachmarkSkips.keys.toList(), initial = "Last step", name = { it })
+
 internal val CoachmarkDemo = ComponentDemo(
     slug = "coachmark",
-    knobs = listOf(coachmarkSide, coachmarkTransition, coachmarkTone, coachmarkSkippable, coachmarkDismissible),
+    knobs = listOf(coachmarkSide, coachmarkTransition, coachmarkTone, coachmarkSkippable, coachmarkSkipTo, coachmarkDismissible),
 ) {
     val side = this[coachmarkSide]
     val tone = this[coachmarkTone]
@@ -448,6 +462,7 @@ internal val CoachmarkDemo = ComponentDemo(
             transition = this@ComponentDemo[coachmarkTransition],
             dismissible = this@ComponentDemo[coachmarkDismissible],
             showSkip = this@ComponentDemo[coachmarkSkippable],
+            skipTo = coachmarkSkips.getValue(this@ComponentDemo[coachmarkSkipTo]),
         )
         // The first step points at nothing: a card in the middle, to say what
         // the tour is before it starts pointing at things.

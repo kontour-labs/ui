@@ -1,5 +1,6 @@
 package io.kontour.ui.components.display
 
+import io.kontour.ui.theme.drawDot
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Spacer
@@ -87,7 +88,8 @@ import kotlin.math.roundToInt
  * @param orientation Across the page, filling from the start of the line, or up it,
  *   filling from the bottom.
  * @param thickness The track's width. The thumb and the needle scale with it.
- * @param cap How the track's ends and the fill's ends are cut.
+ * @param cap How the track's ends, the fill's ends and the ticks are cut: the
+ *   theme's [io.kontour.ui.theme.Shapes.lineCap], round unless it asks otherwise.
  * @param colours The fill is `indicator`, a [ScaleColours] laid along the scale;
  *   the rest are the gauge's — see [DialColours].
  * @param indicator What marks the value besides the fill: nothing, a needle — a
@@ -131,7 +133,7 @@ inline fun Meter(
     origin: Float = valueRange.start,
     orientation: MeterOrientation = MeterOrientation.Horizontal,
     thickness: Dp = MeterDefaults.Thickness,
-    cap: StrokeCap = StrokeCap.Round,
+    cap: StrokeCap = Theme.shapes.lineCap,
     colours: DialColours = MeterDefaults.colours(),
     indicator: GaugeIndicator = GaugeIndicator.None,
     needleLength: Float = MeterDefaults.NeedleLength,
@@ -210,6 +212,7 @@ internal fun MeterLayout(
     // As `Gauge`'s: lines, thickening with the tier.
     val tickLine = Theme.sizing.lines(1.5f)
     val thumbRingLine = Theme.sizing.borderWidthStrong
+    val thumbShape = Theme.shapes.pill
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val labelStyle = Theme.typography.labelSmall.copy(color = colours.tickLabel)
     val measurer = rememberTextMeasurer()
@@ -354,7 +357,7 @@ internal fun MeterLayout(
                                 point(f, tickSign * tickEdge),
                                 point(f, tickSign * (tickEdge + tick)),
                                 tickWidthPx,
-                                StrokeCap.Round,
+                                cap,
                             )
                         }
                         labels.forEachIndexed { index, label ->
@@ -385,8 +388,9 @@ internal fun MeterLayout(
                         }
                         if (hasThumb) {
                             val c = point(at)
-                            drawCircle(colours.thumbRing, radius = thumbPx, center = c)
-                            drawCircle(colours.thumb, radius = thumbPx - ringPx, center = c)
+                            // In the theme's pill: round, unless it is squarer. 0.5.2.
+                            drawDot(colours.thumbRing, radius = thumbPx, center = c, shape = thumbShape)
+                            drawDot(colours.thumb, radius = thumbPx - ringPx, center = c, shape = thumbShape)
                         }
                     }
                 }

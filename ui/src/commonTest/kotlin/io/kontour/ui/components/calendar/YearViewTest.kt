@@ -1,6 +1,9 @@
 package io.kontour.ui.components.calendar
 
 import androidx.compose.foundation.layout.size
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.toPixelMap
@@ -267,5 +270,58 @@ class YearViewTest {
         assertTrue(beganOnScreen(shown), "today was already lit as it came on screen, so the flash began off it: $shown")
         assertEquals(2, pulses(shown), "today should pulse twice once on screen; its distance from resting was $shown")
         assertEquals(today, probe.state.date)
+    }
+
+    /**
+     * Today years away slides in, as the month's far months do, rather than
+     * cutting there as it did past two years: from just past the screen, so a
+     * jump of five years is there no later than one of a year. Asked for
+     * 0.5.2, for the month, as *"it just snaps back (rather than animating
+     * like it does if you're only a few months down)"*.
+     */
+    @Test
+    fun todayYearsAwaySlidesInNoLaterThanFromAYearAway() = runComposeUiTest {
+        val probe = Probe()
+        var now by mutableStateOf(LocalDateTime(2027, 10, 14, 12, 0))
+        setContent {
+            KontourTheme(reduceMotion = false) {
+                OverlayHost(Modifier.size(420.dp, 800.dp)) {
+                    probe.formats = Theme.formats
+                    probe.strings = Theme.strings
+                    probe.state = rememberEventCalendarState(today, CalendarView.Year, firstDayOfWeek = DayOfWeek.MONDAY)
+                    EventCalendar(state = probe.state, events = emptyList(), now = now, modifier = Modifier.size(420.dp, 800.dp))
+                }
+            }
+        }
+        waitForIdle()
+        // Today's month's name, unclipped, each frame from the press of today; null off screen.
+        fun watch(): List<Float?> {
+            val name = onAllNodes(hasContentDescription(probe.formats.monthAndYear(now.date)) and hasClickAction())
+            mainClock.autoAdvance = false
+            onNode(hasContentDescription(probe.strings.returnToToday) and hasClickAction()).performClick()
+            val tops = List(50) {
+                mainClock.advanceTimeByFrame()
+                name.fetchSemanticsNodes().firstOrNull()?.positionInRoot?.y
+            }
+            mainClock.autoAdvance = true
+            waitForIdle()
+            return tops
+        }
+        fun settledBy(tops: List<Float?>): Int = tops.indexOfLast { it != tops.last() } + 2
+        val year = watch()
+        now = LocalDateTime(2032, 10, 14, 12, 0)
+        waitForIdle()
+        val on = watch()
+        now = LocalDateTime(2027, 3, 14, 12, 0)
+        waitForIdle()
+        val back = watch()
+        assertEquals(LocalDate(2027, 3, 14), probe.state.date)
+        for ((way, tops) in listOf("on" to on, "back" to back)) {
+            assertTrue(tops.filterNotNull().distinct().size >= 4, "today's month five years $way did not slide in: $tops")
+            assertTrue(
+                settledBy(tops) <= settledBy(year),
+                "today's month five years $way took ${settledBy(tops)} frames to come to rest, where a year on took ${settledBy(year)}: $tops against $year",
+            )
+        }
     }
 }

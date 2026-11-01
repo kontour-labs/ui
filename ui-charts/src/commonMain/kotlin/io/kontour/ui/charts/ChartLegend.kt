@@ -1,5 +1,7 @@
 package io.kontour.ui.charts
 
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.runtime.ReadOnlyComposable
 import io.kontour.ui.interaction.rememberToggleFeedback
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.input.focusRing
@@ -176,6 +178,8 @@ internal fun SeriesSwatch(model: ChartModel, series: ChartSeries, colours: Chart
     val markSymbol = mark.symbol
     val symbolShown = kind == MarkKind.Point || mark.showPoints || patterns
     val sizing = Theme.sizing
+    // A line series' key ends as its line does. 0.5.2.
+    val lineCap = Theme.shapes.lineCap
     Spacer(
         Modifier
             .size(width = LineSwatchWidth, height = SwatchSize)
@@ -186,7 +190,7 @@ internal fun SeriesSwatch(model: ChartModel, series: ChartSeries, colours: Chart
                         moveTo(0f, size.height / 2)
                         lineTo(size.width, size.height / 2)
                     }
-                    drawPath(path, look.colour, style = Stroke(width, cap = StrokeCap.Round, pathEffect = look.line.effect(width)))
+                    drawPath(path, look.colour, style = Stroke(width, cap = lineCap, pathEffect = look.line.effect(width)))
                 }
                 if (symbolShown) {
                     val symbol = Path()
@@ -247,7 +251,8 @@ private val LineSwatchWidth = 20.dp
  * a fifth of its side, so it reads as a square, as a key's should, and a heat
  * map's key is the shape of an activity calendar's.
  */
-private val SwatchShape = ActivityCalendarDefaults.CellShape
+private val SwatchShape: Shape
+    @Composable @ReadOnlyComposable get() = ActivityCalendarDefaults.CellShape
 
 /** A heat map key's ramp: long enough to see its shades change, short enough to sit in a legend's line. */
 private val ScaleWidth = 72.dp

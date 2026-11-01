@@ -118,7 +118,7 @@ val kontourDemoTheme = DemoTheme(
  * Kontour first: it is the default, and a picker whose first entry is the thing
  * you already have is a picker you can read without pressing anything.
  */
-val demoThemes: List<DemoTheme> = listOf(kontourDemoTheme, gTurboDemoTheme).also { themes ->
+val demoThemes: List<DemoTheme> = listOf(kontourDemoTheme, gTurboDemoTheme, squareDemoTheme).also { themes ->
     require(themes.map(DemoTheme::name).distinct().size == themes.size) {
         "two demo themes share a name: " +
             themes.groupBy(DemoTheme::name).filterValues { it.size > 1 }.keys.joinToString()
