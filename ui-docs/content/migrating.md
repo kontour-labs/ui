@@ -67,6 +67,11 @@ to be compiled again against 0.5.2 rather than having the jar swapped under it.
   a `background` keeps its own; `LinkDefaults.styles()` no longer sets one.
 - **A scrollbar's thumb** on `Modifier.scrollbar` is shorter while its list is
   held past its end, on a platform that overscrolls.
+- **`LocalOverscrollFactory` under `KontourTheme` is the platform's, wrapped.**
+  Code that read it to check which effect it was, with `is`, sees the wrapper.
+  An app that wants its own overscroll provides it above the theme to have it
+  wrapped too, so its scrollbars give way, or below the theme to have it as it
+  is.
 - **The event calendar's month and year views slide** to a month or year far
   away rather than cutting there, in the time a step to the next one takes. A
   test that read the calendar the frame after a far jump waits for it to

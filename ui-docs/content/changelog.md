@@ -58,8 +58,11 @@ calendar's today slides in from a year away rather than cutting there.
   Where the content overscrolls, Android's stretch or iOS's bounce, the thumb
   on `Modifier.scrollbar` stays against the end it has reached and gives up
   some of its length, up to half of it on a long pull, and has it back on the
-  theme's spring once let go, as a phone's own scroll indicator does. Where
-  nothing overscrolls, a desktop's, it stays as it is.
+  theme's spring once let go, as a phone's own scroll indicator does; a fling
+  that reaches the end gives it a brief squish as the content bounces. It is
+  read from the overscroll itself, which `KontourTheme` now keeps an account
+  of: see *Changed*. Where nothing overscrolls, a desktop's, it stays as it
+  is, and a pull that moves a sheet rather than its list leaves it whole.
 
 ### Changed
 
@@ -127,6 +130,12 @@ calendar's today slides in from a year away rather than cutting there.
   background on hover or press: its `hoveredStyle` is `null` and its
   `pressedStyle` has no `background`, because `Text` draws both grounds for
   any link whose styles have a `pressedStyle`.
+
+- **`KontourTheme` wraps the overscroll it finds.** The platform's
+  `LocalOverscrollFactory` is provided again below the theme, wrapped so each
+  effect keeps an account of how far it has taken its content past an end,
+  which a scrollbar's thumb reads. The stretch and the bounce draw exactly as
+  they did. See [Theming](theming.md#overriding).
 
 ### Fixed
 

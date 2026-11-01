@@ -109,6 +109,15 @@ ProvideTokens(colours = kontourColourScheme(dark = true)) { MapScreen() }
 > is derived where `KontourTheme` provides it and is not re-derived by providing
 > the scheme again.
 
+**Overscroll is the platform's, with an account kept of it.** `KontourTheme`
+wraps the `LocalOverscrollFactory` it finds, Android's stretch or iOS's bounce,
+so each effect also records how far it has taken its content past an end; a
+scrollbar's thumb gives way by that much. The effect itself is untouched and
+draws as it always did. A factory an app provides *above* the theme is wrapped
+the same way; one provided *below* it is used as it is, and a scrollbar on a
+scroller under it stays whole. Where there is no factory, a desktop's, nothing
+is wrapped.
+
 **Change the words the library puts on screen:**
 
 ```kotlin
