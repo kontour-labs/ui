@@ -854,8 +854,19 @@ jobs:
       # A gate, not a report: `failOnWarning` is on, so a malformed `@param` or a
       # `[Link]` to a symbol that no longer exists fails the build. That is a
       # class of KDoc defect nothing else here can see.
+      #
+      # **In a Kotlin daemon of its own.** The site's and the probes' builds
+      # leave theirs running, holding what it read of every library, and the
+      # reference compiles `:ui` for JS in it while Kotlin/Native compiles
+      # beside it. On 0.5.2's merge that daemon crashed reading a library's
+      # metadata, an internal compiler error on a file the change never
+      # touched, while the same JS compile passed in `targets` and here on the
+      # same commit. Stopped first, as `test` stops its own between compiling
+      # and testing, and the memory it held goes to Dokka.
       - name: Build the API reference
-        run: ./gradlew --no-daemon :ui:dokkaGenerateHtml :ui-nav3:dokkaGenerateHtml :ui-charts:dokkaGenerateHtml :haptics:dokkaGenerateHtml
+        run: |
+          pkill -f '[K]otlinCompileDaemon' || true
+          ./gradlew --no-daemon :ui:dokkaGenerateHtml :ui-nav3:dokkaGenerateHtml :ui-charts:dokkaGenerateHtml :haptics:dokkaGenerateHtml
 
       # Only here, and only in this order: it compares the paths the site
       # derived when it was built against the pages the reference published a
