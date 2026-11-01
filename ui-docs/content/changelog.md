@@ -25,7 +25,11 @@ The version an app is on is the `kontour` entry in its version catalog. See
 
 ## Unreleased
 
-On `main`, and in the next release.
+On `main`, and in the next release. Nothing yet.
+
+---
+
+## 0.5.2 — 1 November 2026
 
 A theme that reaches every corner the library draws, at rest and in motion,
 with `squareShapes()` for a square one in one call and the default theme drawn
