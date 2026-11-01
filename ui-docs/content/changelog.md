@@ -136,6 +136,7 @@ calendar's today slides in from a year away rather than cutting there.
   effect keeps an account of how far it has taken its content past an end,
   which a scrollbar's thumb reads. The stretch and the bounce draw exactly as
   they did. See [Theming](theming.md#overriding).
+- **The icons are Tabler 3.50.0**, from 3.49.0.1: `io.kontour:tabler-icons-outline` and `-filled`, which the library's own icons are drawn from.
 
 ### Fixed
 
