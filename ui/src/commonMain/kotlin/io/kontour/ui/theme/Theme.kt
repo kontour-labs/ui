@@ -1,5 +1,7 @@
 package io.kontour.ui.theme
 
+import io.kontour.ui.foundation.TrackedOverscrollFactory
+import androidx.compose.foundation.LocalOverscrollFactory
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.text.selection.LocalTextSelectionColors
 import androidx.compose.runtime.Composable
@@ -412,6 +414,16 @@ fun KontourTheme(
     val outerWindow = LocalWindowSizeClass.current
     val windowClass = if (outerWindow === PhoneDefault) rememberWindowSizeClassFromWindow() ?: outerWindow else outerWindow
 
+    // The platform's overscroll, with an account kept of how far it has taken
+    // content past an end, for a scrollbar's thumb to give way by: see
+    // `TrackedOverscroll`. Wrapped once, by the outermost theme; nothing where
+    // nothing overscrolls.
+    val platformOverscroll = LocalOverscrollFactory.current
+    val overscrollSettle = resolvedMotion.springOrTween<Float>(resolvedMotion.springDefault)
+    val overscroll = remember(platformOverscroll, overscrollSettle) {
+        platformOverscroll?.let { if (it is TrackedOverscrollFactory) it else TrackedOverscrollFactory(it, overscrollSettle) }
+    }
+
     CompositionLocalProvider(
         // **The target, not the frame.** This is a static local, so providing it
         // invalidates everything below — which is right for a theme change and
@@ -442,6 +454,7 @@ fun KontourTheme(
         // not feel components.
         LocalFeedbackFloor provides feedbackFloor,
         LocalWindowSizeClass provides windowClass,
+        LocalOverscrollFactory provides overscroll,
     ) {
         // Only where the app has chosen a locale written the other way from the
         // device's: the platform already lays its own locale out, and an app

@@ -1,10 +1,9 @@
 package io.kontour.ui.components.list
 
+import io.kontour.ui.foundation.overscrollProbe
+import io.kontour.ui.foundation.OverscrollProbe
 import kotlin.math.abs
-import kotlinx.coroutines.Job
-import androidx.compose.foundation.LocalOverscrollFactory
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.runtime.LaunchedEffect
 import kotlinx.coroutines.flow.collectLatest
@@ -493,12 +492,10 @@ fun Modifier.scrollbar(
     val thumbShape = Theme.shapes.pill
     val track = remember { ScrollbarTrack() }
     // How far past an end the content has been pulled, which the thumb gives
-    // up length to: see [ScrollbarStretch]. Only where something overscrolls.
-    val scope = rememberCoroutineScope()
-    val stretch = remember { ScrollbarStretch(scope) }
-    stretch.vertical = orientation == Orientation.Vertical
-    stretch.enabled = LocalOverscrollFactory.current != null
-    stretch.settle = Theme.motion.springOrTween(Theme.motion.springDefault)
+    // up length to: read from the scroller's own overscroll, which the theme
+    // keeps an account of. See `TrackedOverscroll` for why not the drag the
+    // list declined, which was what this first read.
+    val overscroll = remember { OverscrollProbe() }
     val stretchSoftness = with(density) { StretchSoftness.toPx() }
     val direction = LocalLayoutDirection.current
     val clear = trackClearance(contentPadding, orientation, direction, density)
@@ -538,9 +535,8 @@ fun Modifier.scrollbar(
         // Before the content's own scroll, so a drag of the thumb goes up the
         // chain past the content rather than into it.
         .scrollbarChain(source)
-        // Nearer the content than the chain, so the pull past its end is seen
-        // before anything above it is offered it. It takes none of it.
-        .nestedScroll(stretch)
+        // Ahead of the scroll and its overscroll, which it finds after it.
+        .overscrollProbe(overscroll)
         // There all along and the arrow, overriding nothing, until the pointer
         // is on the bar: Compose asks the nodes under a press at the moment it
         // goes down. See `heldCursor`.
@@ -568,7 +564,7 @@ fun Modifier.scrollbar(
             if (alpha <= 0f) return@drawWithContent
             if (!geometry.isUseful) return@drawWithContent
             val whole = track.thumb(size, layoutDirection, geometry, look.width.value.toPx()) ?: return@drawWithContent
-            val thumb = whole.stretched(stretch.pull.value, stretchSoftness, size, stretch.vertical)
+            val thumb = whole.stretched(overscroll.pull(), stretchSoftness, size, orientation == Orientation.Vertical)
             drawRoundRect(
                 color = colour.copy(alpha = colour.alpha * alpha),
                 topLeft = thumb.topLeft,
@@ -1628,63 +1624,6 @@ internal class RowSizes {
         sizes[index] = size
         if (key != null) keys[index] = key
         if (notify) version++
-    }
-}
-
-/**
- * How far past an end the content under a scrollbar has been pulled, read as a
- * nested-scroll parent of it.
- *
- * Asked for for 0.5.2 as *"if a scrollbar is in a container with overscroll,
- * it shrinks at the bottom slightly as the overscroll happens"*, as a scroll
- * indicator does on a phone. The platform's overscroll — Android's stretch,
- * iOS's bounce — says nothing of how far it has gone, so this keeps its own
- * account of the same thing: the drag the content could not take at its end,
- * which is what the overscroll is then handed, offered here first on its way
- * up and none of it consumed. Let go, it springs back to nothing on the
- * theme's spring, as the content does; and a scroll the content takes again
- * lets it go at once.
- *
- * Off where nothing overscrolls — a desktop, or a list given no overscroll —
- * so a wheel turned against the end of a list does not shrink a thumb over
- * content that has not moved.
- */
-private class ScrollbarStretch(private val scope: CoroutineScope) : NestedScrollConnection {
-    /** Past the end, positive; past the start, negative; in pixels of drag. */
-    val pull = Animatable(0f)
-    var vertical = true
-    var enabled = false
-    var settle: AnimationSpec<Float> = spring()
-    private var target = 0f
-    private var releasing: Job? = null
-
-    override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
-        if (!enabled || source != NestedScrollSource.UserInput) return Offset.Zero
-        val taken = if (vertical) consumed.y else consumed.x
-        val left = if (vertical) available.y else available.x
-        if (taken != 0f && target != 0f) {
-            release()
-        } else if (left != 0f) {
-            releasing?.cancel()
-            // A drag towards the start is a positive delta, so past the end is
-            // the drag's opposite.
-            target -= left
-            val to = target
-            scope.launch { pull.snapTo(to) }
-        }
-        return Offset.Zero
-    }
-
-    override suspend fun onPreFling(available: Velocity): Velocity {
-        release()
-        return Velocity.Zero
-    }
-
-    private fun release() {
-        target = 0f
-        if (pull.value == 0f && !pull.isRunning) return
-        releasing?.cancel()
-        releasing = scope.launch { pull.animateTo(0f, settle) }
     }
 }
 
