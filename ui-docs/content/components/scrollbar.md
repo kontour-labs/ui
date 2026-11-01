@@ -75,9 +75,11 @@ against the end it has reached and gives up some of its length as the content
 is pulled past it, up to half of it on a long pull, and has it back on the
 theme's spring once let go, as a phone's own scroll indicator does. Where
 nothing overscrolls, a desktop's mouse wheel turned against the end of a list,
-it stays as it is. It is read from the drag the content could not take, so it
-is on the modifier, on the scroller; a `Scrollbar` beside its content does not
-see it.
+it stays as it is. It is read from the scroller's own overscroll, which
+`KontourTheme` keeps an account of — how far the stretch or the bounce has taken
+the content — so it is on the modifier, on the scroller, under the theme; a
+`Scrollbar` beside its content does not see it. A pull that moves a sheet rather
+than its list leaves the thumb whole.
 
 A list with an [`IndexScroller`](index-scroller.md) down its edge has no
 scrollbar: the index is its position control, and the bar draws nothing while
