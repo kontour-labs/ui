@@ -823,15 +823,19 @@ jobs:
       # grew, and whether unused components and icons are still being left out.
       # See `probes/README.md`. Only the compile and Binaryen run, not webpack:
       # what is weighed is each probe's own `.wasm`.
+      #
+      # In a fresh Kotlin daemon, as the reference below is, and for the same
+      # reason: see there.
       - name: Build the probes
         if: steps.bundle.outputs.cache-hit != 'true'
-        run: >-
-          ./gradlew --no-daemon
-          :probes:empty:compileProductionExecutableKotlinWasmJsOptimize
-          :probes:theme:compileProductionExecutableKotlinWasmJsOptimize
-          :probes:button:compileProductionExecutableKotlinWasmJsOptimize
-          :probes:icon:compileProductionExecutableKotlinWasmJsOptimize
-          :probes:icons:compileProductionExecutableKotlinWasmJsOptimize
+        run: |
+          pkill -f '[K]otlinCompileDaemon' || true
+          ./gradlew --no-daemon \
+            :probes:empty:compileProductionExecutableKotlinWasmJsOptimize \
+            :probes:theme:compileProductionExecutableKotlinWasmJsOptimize \
+            :probes:button:compileProductionExecutableKotlinWasmJsOptimize \
+            :probes:icon:compileProductionExecutableKotlinWasmJsOptimize \
+            :probes:icons:compileProductionExecutableKotlinWasmJsOptimize
 
       - name: Check the probes
         if: steps.bundle.outputs.cache-hit != 'true'
@@ -855,14 +859,25 @@ jobs:
       # `[Link]` to a symbol that no longer exists fails the build. That is a
       # class of KDoc defect nothing else here can see.
       #
-      # **In a Kotlin daemon of its own.** The site's and the probes' builds
-      # leave theirs running, holding what it read of every library, and the
-      # reference compiles `:ui` for JS in it while Kotlin/Native compiles
-      # beside it. On 0.5.2's merge that daemon crashed reading a library's
-      # metadata, an internal compiler error on a file the change never
-      # touched, while the same JS compile passed in `targets` and here on the
-      # same commit. Stopped first, as `test` stops its own between compiling
-      # and testing, and the memory it held goes to Dokka.
+      # **In a fresh Kotlin daemon.** `--no-daemon` gives each step a Gradle
+      # of its own, but not a Kotlin compiler: the daemon the site's build
+      # starts outlives it, and without this the probes and the reference
+      # compile in it too, one JVM through the whole Wasm site, five Wasm
+      # apps and then `:ui` for JS beside Kotlin/Native.
+      #
+      # On 0.5.2's merge (run 41269944170) that JVM failed in a way no code can
+      # cause. `:ui:compileKotlinJs` stopped with "Cannot read the array length
+      # because this.elementData is null" in `ArrayList.addAll`, at
+      # `deprecationUtils.kt:550` in Kotlin 2.4.10, on Temurin 21.0.13. Read
+      # from the compiler's bytecode, that list is the `ArrayList()` the same
+      # method allocates a few instructions earlier, on the same thread, and
+      # never lets go of. A constructed `ArrayList` always has an
+      # `elementData`, so the JVM's own state had gone wrong: a JIT miscompile
+      # or a corrupted heap, in a process many builds old. Not our source, not
+      # the compiler's logic, and not a race. The same commit's JS compile
+      # passed in `targets`, in a fresh daemon. So each step that compiles
+      # starts one, which costs a few seconds, and the memory the old one held
+      # goes to Dokka.
       - name: Build the API reference
         run: |
           pkill -f '[K]otlinCompileDaemon' || true
