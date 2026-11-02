@@ -57,6 +57,17 @@ On `main`, and in the next release.
   control that decides its drag by direction: a `WheelSelect`'s wheels, a
   `DatePicker`'s and an `EventCalendar`'s swipes between pages, and a `NavBar`'s
   marker.
+- **Back never stops working after a swipe is interrupted.** Every back in an
+  app goes through one processor, which runs one gesture at a time and drops
+  every other back, from a button, a key, the edge or the system, until it
+  ends. A swipe back could be left unended two ways: a dialog, menu or modal
+  sheet opening while it was held or still springing home, as the overlay host
+  turns the page's back off under it, or the page being taken away mid-swipe,
+  closed or replaced. The page was left a little way across, and from then on
+  its back button and every other back did nothing for the rest of the session.
+  Either way the swipe is now cancelled while back can still hear it, and the
+  page springs back. An app that went round it by doing its own back when
+  `pageBack()` seemed to do nothing can drop that.
 
 ### Breaking
 
