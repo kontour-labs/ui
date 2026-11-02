@@ -1225,6 +1225,33 @@ public final class io/kontour/ui/components/display/StatesKt {
 	public static final fun StateSwitcher (Ljava/lang/Object;Landroidx/compose/ui/Modifier;Landroidx/compose/ui/Alignment;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
 }
 
+public final class io/kontour/ui/components/display/TagGroupDefaults {
+	public static final field $stable I
+	public static final field INSTANCE Lio/kontour/ui/components/display/TagGroupDefaults;
+	public final fun getGap-D9Ej5fM ()F
+	public final fun getInnerCorner-D9Ej5fM ()F
+	public final fun getSeam-D9Ej5fM ()F
+	public final fun getSlant-D9Ej5fM ()F
+}
+
+public final class io/kontour/ui/components/display/TagGroupKt {
+	public static final fun TagGroup-jIwJxvA (Landroidx/compose/ui/Modifier;ZLio/kontour/ui/components/display/TagJoin;FLandroidx/compose/foundation/shape/CornerBasedShape;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)V
+}
+
+public final class io/kontour/ui/components/display/TagGroupScope {
+	public static final field $stable I
+	public final fun item-sW7UJKQ (Lio/kontour/ui/theme/Tone;JLkotlin/jvm/functions/Function0;ZLjava/lang/String;Landroidx/compose/foundation/interaction/MutableInteractionSource;Lkotlin/jvm/functions/Function3;)V
+	public static synthetic fun item-sW7UJKQ$default (Lio/kontour/ui/components/display/TagGroupScope;Lio/kontour/ui/theme/Tone;JLkotlin/jvm/functions/Function0;ZLjava/lang/String;Landroidx/compose/foundation/interaction/MutableInteractionSource;Lkotlin/jvm/functions/Function3;ILjava/lang/Object;)V
+}
+
+public final class io/kontour/ui/components/display/TagJoin : java/lang/Enum {
+	public static final field Diagonal Lio/kontour/ui/components/display/TagJoin;
+	public static final field Straight Lio/kontour/ui/components/display/TagJoin;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/kontour/ui/components/display/TagJoin;
+	public static fun values ()[Lio/kontour/ui/components/display/TagJoin;
+}
+
 public final class io/kontour/ui/components/display/TagKt {
 	public static final fun Badge-jB83MbM (Landroidx/compose/ui/Modifier;Ljava/lang/Integer;IJJLjava/lang/String;Landroidx/compose/runtime/Composer;II)V
 	public static final fun BadgedBox (Lkotlin/jvm/functions/Function2;Landroidx/compose/ui/Modifier;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)V

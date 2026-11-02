@@ -3,6 +3,9 @@ package io.kontour.ui.samples
 import io.kontour.icons.tabler.outline.Walk
 import io.kontour.icons.tabler.outline.Flag2
 import io.kontour.ui.components.display.ErrorState
+import io.kontour.ui.components.display.TagGroup
+import io.kontour.ui.components.display.TagGroupDefaults
+import io.kontour.ui.components.display.TagJoin
 import io.kontour.ui.components.display.LoadingState
 import io.kontour.ui.components.display.StateSwitcher
 import kotlin.math.roundToInt
@@ -552,6 +555,25 @@ fun TagBasics() {
         // Not a `Chip`: a tag is a label the reader cannot press. A status that
         // filters the list behind it is a `FilterChip`.
         Tag(tone = Tone.Neutral) { +"Platform 2" }
+    }
+}
+
+@Composable
+fun TagGroupBasics() {
+    // A line and where it goes: one tag in two colours, cut on a slant.
+    TagGroup(join = TagJoin.Diagonal) {
+        item(containerColour = routeColour) { +"T1" }
+        item { +"Fremantle" }
+    }
+}
+
+@Composable
+fun TagGroupApart() {
+    // Separate tags standing together, with tight corners where they meet.
+    TagGroup(spacing = TagGroupDefaults.Gap) {
+        item(tone = Tone.Accent) { +"Bus" }
+        item { +"Route 960" }
+        item(tone = Tone.Success) { +"Live" }
     }
 }
 

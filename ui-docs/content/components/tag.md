@@ -31,6 +31,9 @@ Tag(onClick = { openRoute(960) }) { +"960" }
 On a touch screen a clickable tag reserves the platform's touch target around
 itself, as every control does, so it takes more room in a row than a plain one.
 
+**Tags that belong together join into one** in a [`TagGroup`](tag-group.md): a
+route and where it goes, cut square across or on a slant.
+
 **Reach for a [`Chip`](chip.md) instead** when the thing is a choice or an action
 among others. A tag is a label that may lead somewhere; a chip is a control.
 

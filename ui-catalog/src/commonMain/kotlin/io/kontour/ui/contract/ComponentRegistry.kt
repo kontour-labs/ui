@@ -24,6 +24,9 @@ import io.kontour.ui.components.display.ErrorState
 import io.kontour.ui.components.display.LoadingState
 import io.kontour.ui.components.display.Skeleton
 import io.kontour.ui.components.display.Tag
+import io.kontour.ui.components.display.TagGroup
+import io.kontour.ui.components.display.TagGroupDefaults
+import io.kontour.ui.components.display.TagJoin
 import io.kontour.ui.components.selection.ColourSwatchPicker
 import io.kontour.ui.components.selection.Knob
 import io.kontour.ui.components.datetime.ActivityCalendar
@@ -3252,6 +3255,30 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 Tag(tone = Tone.Success) { +"On time" }
                 Tag(tone = Tone.Warning) { +"Delayed" }
                 Tag(tone = Tone.Neutral) { +"Platform 2" }
+            }
+        }
+    )
+
+    add(
+        // Drawn joined both ways and stood apart, and with no part to press:
+        // a group of labels is one merged node, which is what the contract's
+        // text rules read. `TagGroupTest` covers a part that can be pressed.
+        ComponentSpec("TagGroup", role = null, underContract = false) { modifier, _, _ ->
+            Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                TagGroup {
+                    item(containerColour = Color(0xFF1B5E20)) { +"T1" }
+                    item { +"Fremantle" }
+                }
+                TagGroup(join = TagJoin.Diagonal) {
+                    item(tone = Tone.Danger) { +"950" }
+                    item(tone = Tone.Success) { +"On time" }
+                    item(tone = Tone.Info) { +"Platform 2" }
+                }
+                TagGroup(join = TagJoin.Diagonal, spacing = TagGroupDefaults.Gap) {
+                    item(tone = Tone.Accent) { +"Bus" }
+                    item { +"Route 960" }
+                    item(tone = Tone.Success) { +"Live" }
+                }
             }
         }
     )

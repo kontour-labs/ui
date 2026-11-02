@@ -25,7 +25,16 @@ The version an app is on is the `kontour` entry in its version catalog. See
 
 ## Unreleased
 
-On `main`, and in the next release. Nothing yet.
+On `main`, and in the next release.
+
+### Added
+
+- **`TagGroup`, tags joined into one.** A route and where it goes, a version and
+  its state: each part takes what a `Tag` takes, its own tone or colour and its
+  own `onClick`, and the group rounds only the outside corners. Parts meet square
+  across or, with `join = TagJoin.Diagonal`, on a slant. `spacing` stands them
+  apart as separate tags in a group, and two parts of one colour keep a hairline
+  between them. A group of plain labels is read as one announcement.
 
 ---
 
