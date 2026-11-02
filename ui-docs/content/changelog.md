@@ -45,6 +45,19 @@ On `main`, and in the next release.
   reduced motion it stops as a looping one does. Looping stays the default,
   drawn as it was. The gallery's marquee demo has a *Travel* knob.
 
+### Fixed
+
+- **A swipe row in a bottom sheet takes a thumb's swipe.** A row decided which
+  way a finger was going on its first few pixels and gave the gesture away for
+  good if they were steep, and a thumb lands steeply before it flattens into a
+  swipe. In a sheet, which waits longer than a list before it takes a finger,
+  the sheet moved instead. A row now keeps watching until something else has
+  taken the gesture, so a swipe that turns sideways opens it, and a drag that
+  is really the sheet's or the list's is still theirs. The same goes for every
+  control that decides its drag by direction: a `WheelSelect`'s wheels, a
+  `DatePicker`'s and an `EventCalendar`'s swipes between pages, and a `NavBar`'s
+  marker.
+
 ### Breaking
 
 - **`Modifier.marquee` has a new parameter**, `travel`, defaulted and last, so
