@@ -83,6 +83,7 @@ import io.kontour.ui.components.list.ListItem
 import io.kontour.ui.foundation.Redacted
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.motion.PageTransition
+import io.kontour.ui.motion.MarqueeTravel
 import io.kontour.ui.motion.marquee
 import io.kontour.ui.motion.sharedBounds
 import io.kontour.ui.theme.Theme
@@ -360,6 +361,15 @@ fun MarqueeDraggable(stop: Stop) {
         text = stop.name,
         maxLines = 1,
         modifier = Modifier.marquee(draggable = true),
+    )
+}
+
+@Composable
+fun MarqueeBackAndForth(stop: Stop) {
+    Text(
+        text = stop.name,
+        maxLines = 1,
+        modifier = Modifier.marquee(travel = MarqueeTravel.BackAndForth),
     )
 }
 

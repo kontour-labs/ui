@@ -15,6 +15,18 @@ from the version the app is on.
 
 ---
 
+## 0.5.2 to 0.5.3
+
+A marquee can go back and forth. Nothing an app has written changes.
+
+### Rebuild a library that calls `Modifier.marquee`
+
+`Modifier.marquee` takes `travel`, defaulted and last. Source compiles as it
+is, but a library compiled against 0.5.2 that calls it has to be compiled
+again against 0.5.3 rather than having the jar swapped under it.
+
+---
+
 ## 0.5.1 to 0.5.2
 
 A theme reaches every corner the library draws now, and the default theme draws

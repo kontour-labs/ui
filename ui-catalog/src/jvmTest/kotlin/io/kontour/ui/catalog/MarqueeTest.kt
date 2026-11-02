@@ -12,6 +12,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.motion.MarqueeDefaults
+import io.kontour.ui.motion.MarqueeTravel
 import io.kontour.ui.motion.marquee
 import io.kontour.ui.theme.KontourTheme
 import io.kontour.ui.theme.Theme
@@ -38,20 +39,24 @@ class MarqueeTest {
 
     @Test
     fun textTooWideForItsBoxScrolls() {
-        assertTrue(
-            movesOverTime(TooWide, reduceMotion = false),
-            "a label wider than its box never moved — the marquee is not running, " +
-                "so the end of the text can never be read",
-        )
+        for (travel in MarqueeTravel.entries) {
+            assertTrue(
+                movesOverTime(TooWide, reduceMotion = false, travel = travel),
+                "a label wider than its box never moved ($travel) — the marquee is not " +
+                    "running, so the end of the text can never be read",
+            )
+        }
     }
 
     @Test
     fun textThatFitsStaysStill() {
-        assertTrue(
-            !movesOverTime(Fits, reduceMotion = false),
-            "a label that fits its box is scrolling anyway — the modifier is safe " +
-                "to apply unconditionally only if it does nothing in the common case",
-        )
+        for (travel in MarqueeTravel.entries) {
+            assertTrue(
+                !movesOverTime(Fits, reduceMotion = false, travel = travel),
+                "a label that fits its box is scrolling anyway ($travel) — the modifier is " +
+                    "safe to apply unconditionally only if it does nothing in the common case",
+            )
+        }
     }
 
     /**
@@ -60,14 +65,17 @@ class MarqueeTest {
      * Everything else degrades — a spring becomes a tween, a slide becomes a
      * fade. This one stops, because there is no gentler version of "forever",
      * and perpetual movement at the edge of vision is the specific thing that
-     * preference exists to stop.
+     * preference exists to stop. Back and forth is no gentler a "forever"
+     * than round and round, so it stops too.
      */
     @Test
     fun reducedMotionStopsItEntirely() {
-        assertTrue(
-            !movesOverTime(TooWide, reduceMotion = true),
-            "the label is still scrolling under reduced motion",
-        )
+        for (travel in MarqueeTravel.entries) {
+            assertTrue(
+                !movesOverTime(TooWide, reduceMotion = true, travel = travel),
+                "the label is still scrolling under reduced motion ($travel)",
+            )
+        }
     }
 
     /**
@@ -130,18 +138,20 @@ class MarqueeTest {
     @Test
     fun underReducedMotionItDragsButNeverSetsOffByItself() {
         val plain = scene(TooWide, reduceMotion = true, draggable = null).use { it.frames(2) }
-        scene(TooWide, reduceMotion = true, draggable = true).use { scene ->
-            val before = scene.frames(2)
-            assertTrue(
-                plain.sameAs(before),
-                "under reduced motion, a draggable marquee at rest does not look like the " +
-                    "plain truncated text",
-            )
-            scene.drag(from = Grab, to = Grab - Pull, steps = 10)
-            val letGo = scene.frames(framesFor(Coast))
-            assertTrue(!before.sameAs(letGo), "under reduced motion, a pulled marquee did not move")
-            val later = scene.frames(framesFor(MarqueeDefaults.Pause.inWholeMilliseconds.toInt() + Travel))
-            assertTrue(letGo.sameAs(later), "under reduced motion, a marquee let go set off by itself")
+        for (travel in MarqueeTravel.entries) {
+            scene(TooWide, reduceMotion = true, draggable = true, travel = travel).use { scene ->
+                val before = scene.frames(2)
+                assertTrue(
+                    plain.sameAs(before),
+                    "under reduced motion, a draggable marquee ($travel) at rest does not look " +
+                        "like the plain truncated text",
+                )
+                scene.drag(from = Grab, to = Grab - Pull, steps = 10)
+                val letGo = scene.frames(framesFor(Coast))
+                assertTrue(!before.sameAs(letGo), "under reduced motion, a pulled marquee ($travel) did not move")
+                val later = scene.frames(framesFor(MarqueeDefaults.Pause.inWholeMilliseconds.toInt() + Travel))
+                assertTrue(letGo.sameAs(later), "under reduced motion, a marquee ($travel) let go set off by itself")
+            }
         }
     }
 
@@ -184,8 +194,8 @@ class MarqueeTest {
     }
 
     /** Whether the strip of pixels under the label changes between two samples. */
-    private fun movesOverTime(text: String, reduceMotion: Boolean): Boolean {
-        scene(text, reduceMotion, draggable = false).use { scene ->
+    private fun movesOverTime(text: String, reduceMotion: Boolean, travel: MarqueeTravel): Boolean {
+        scene(text, reduceMotion, draggable = false, travel = travel).use { scene ->
             // Past the initial pause, so the first sample is taken while it is
             // already under way — sampling from rest would report "still" for a
             // marquee that simply had not set off yet.
@@ -195,13 +205,14 @@ class MarqueeTest {
         }
     }
 
-    /** The label in a box, with the marquee, a draggable one, or with `null` none at all. */
+    /** The label in a box, with the marquee, a draggable one, or with `null` none at all, travelling as [travel] says. */
     private fun scene(
         text: String,
         reduceMotion: Boolean,
         draggable: Boolean?,
         iterations: Int = 3,
         velocity: Dp = MarqueeDefaults.Velocity,
+        travel: MarqueeTravel = MarqueeTravel.Loop,
     ): Scene = Scene(
         width = Width,
         height = Height,
@@ -219,7 +230,12 @@ class MarqueeTest {
                     modifier = if (draggable == null) {
                         Modifier
                     } else {
-                        Modifier.marquee(iterations = iterations, velocity = velocity, draggable = draggable)
+                        Modifier.marquee(
+                            iterations = iterations,
+                            velocity = velocity,
+                            draggable = draggable,
+                            travel = travel,
+                        )
                     },
                 )
             }

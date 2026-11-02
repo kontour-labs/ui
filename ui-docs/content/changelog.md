@@ -35,6 +35,21 @@ On `main`, and in the next release.
   across or, with `join = TagJoin.Diagonal`, on a slant. `spacing` stands them
   apart as separate tags in a group, and two parts of one colour keep a hairline
   between them. A group of plain labels is read as one announcement.
+- **A marquee that goes back and forth.**
+  `Modifier.marquee(travel = MarqueeTravel.BackAndForth)` glides the text until
+  its end reaches the box's end edge, waits, and glides back to its start,
+  rather than looping a second copy round behind it. It suits a now-playing
+  line or a long stop name, where a wrap-around would put the end of the text
+  beside its start. A pass is there and back, so it always settles at its
+  start. With `draggable = true` it pulls only as far as either end, and under
+  reduced motion it stops as a looping one does. Looping stays the default,
+  drawn as it was. The gallery's marquee demo has a *Travel* knob.
+
+### Breaking
+
+- **`Modifier.marquee` has a new parameter**, `travel`, defaulted and last, so
+  anything built against 0.5.2 recompiles; every call site still compiles as it
+  is.
 
 ---
 

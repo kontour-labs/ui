@@ -46,7 +46,8 @@ import kotlin.time.Duration.Companion.milliseconds
 object MarqueeDefaults {
 
     /**
-     * How long it waits before setting off, and between passes.
+     * How long it waits before setting off, and between passes. Back and forth,
+     * it waits this long at each end.
      *
      * Long enough to read the beginning standing still. A label that starts
      * moving the moment it appears is one the eye never gets a fixed look at,
@@ -61,6 +62,26 @@ object MarqueeDefaults {
     /** The gap between the end of one pass and the start of the next. */
     val Gap: Dp
         @Composable @ReadOnlyComposable get() = Theme.componentDefaults.marqueeGap
+}
+
+/**
+ * How a [Modifier.marquee] travels through text too wide for its box.
+ */
+enum class MarqueeTravel {
+
+    /**
+     * Round and round: the text scrolls off its start, and a second copy
+     * follows it in a gap behind, so every pass sets off the same way. The
+     * default, and foundation's `basicMarquee`.
+     */
+    Loop,
+
+    /**
+     * Out and back: the text glides until its end reaches the box's end edge,
+     * waits, and glides back to its start. Only one copy is ever drawn, and it
+     * goes no further than it has to.
+     */
+    BackAndForth,
 }
 
 /**
@@ -92,6 +113,29 @@ object MarqueeDefaults {
  * there is no gentler version of "forever". The text truncates instead, which is
  * what it would have done without this modifier at all.
  *
+ * ### Back and forth
+ *
+ * With `travel = MarqueeTravel.BackAndForth` the text does not loop. It waits
+ * [pause] at its start, glides until its end reaches the box's end edge, waits
+ * again, and glides back. It travels only as far as the text overflows, and
+ * there is no gap and no second copy.
+ *
+ * Reach for it where seeing the start and the end matters, and a wrap-around
+ * would split the text: a now-playing line, or a long stop name. A loop brings
+ * the start back in a gap behind the end, so for a moment the box shows the
+ * last words of one copy beside the first words of the next — "Stand E
+ * Elizabeth Quay" — which reads as a stop that does not exist. Back and forth,
+ * the box only ever shows one stretch of the text, in order. A loop suits a
+ * ticker better, where the text is a stream and the wrap is the point.
+ *
+ * ```
+ * Text(
+ *     text = stop.name,
+ *     maxLines = 1,
+ *     modifier = Modifier.marquee(travel = MarqueeTravel.BackAndForth),
+ * )
+ * ```
+ *
  * ### Why it wraps foundation's rather than replacing it
  *
  * `basicMarquee` already measures, already stops when the content fits, already
@@ -101,10 +145,10 @@ object MarqueeDefaults {
  * they are both a handful of lines — reimplementing the rest would be a second
  * copy of a solved problem, to be kept in step with the first.
  *
- * The one exception is [draggable]. Pulling the text needs the offset, which
- * `basicMarquee` keeps to itself, so a draggable marquee measures, scrolls and
- * draws on its own. It is opt-in, so every marquee that does not ask for it is
- * still foundation's.
+ * The exceptions are [draggable] and [MarqueeTravel.BackAndForth]. Pulling the
+ * text needs the offset, which `basicMarquee` keeps to itself, and it only ever
+ * loops. So either of them measures, scrolls and draws on its own. Both are
+ * opt-in, so every marquee that asks for neither is still foundation's.
  *
  * ### Dragging it
  *
@@ -114,6 +158,11 @@ object MarqueeDefaults {
  * was left and finishes the pass it was in. With no passes left it goes back
  * the shorter way to its start, so it never settles part-way through the text.
  *
+ * Back and forth, it pulls only as far as either end of the text, and it does
+ * not wrap round. Let go, it finishes the way it was going: on its way out, out
+ * to the end and home again; on its way home, home. With no passes left it
+ * goes straight home.
+ *
  * Under reduced motion it still drags, because motion the user makes is not
  * motion done to them, but it never sets off by itself. Until it is first
  * pulled, the text is truncated as it would be without the modifier.
@@ -122,12 +171,17 @@ object MarqueeDefaults {
  * label, it wins over anything around it that also swipes sideways, such as a
  * pager or a row's swipe actions. That is why it is off by default.
  *
- * @param iterations How many passes before it settles. `Int.MAX_VALUE` for a
+ * @param iterations How many passes before it settles. Back and forth, a pass
+ *   is there and back, so it always settles at its start. `Int.MAX_VALUE` for a
  *   ticker that never stops — appropriate for a live status line, and not for a
  *   list of labels, where a dozen rows all scrolling at once is a screen nobody
  *   can read.
+ * @param gap How far behind the text its next copy follows. Back and forth
+ *   there is no next copy, and it is not used.
  * @param draggable Whether the text can be pulled sideways to read it by hand.
  *   See **Dragging it**.
+ * @param travel Whether the text loops round or goes back and forth. See
+ *   **Back and forth**.
  */
 @Composable
 fun Modifier.marquee(
@@ -136,8 +190,12 @@ fun Modifier.marquee(
     velocity: Dp = MarqueeDefaults.Velocity,
     gap: Dp = MarqueeDefaults.Gap,
     draggable: Boolean = false,
-): Modifier = if (draggable) {
-    this.draggableMarquee(iterations, pause, velocity, gap, runs = !Theme.motion.reduceMotion)
+    travel: MarqueeTravel = MarqueeTravel.Loop,
+): Modifier = if (draggable || travel == MarqueeTravel.BackAndForth && !Theme.motion.reduceMotion) {
+    // A new strip for a new travel: an offset part-way round a loop means
+    // nothing to one going back and forth, and the other way round.
+    val strip = remember(travel) { MarqueeStrip(bounces = travel == MarqueeTravel.BackAndForth) }
+    this.scrollingMarquee(strip, iterations, pause, velocity, gap, draggable, runs = !Theme.motion.reduceMotion)
 } else if (Theme.motion.reduceMotion) {
     this
 } else {
@@ -153,16 +211,21 @@ fun Modifier.marquee(
 }
 
 /**
- * Where a draggable marquee is: how wide its text and its box are, and how far
- * through a pass it has got.
+ * Where a marquee that scrolls on its own is: how wide its text and its box
+ * are, and how far along it has got.
  *
  * [offset] runs from 0, the text's start against the box's start edge, to
- * [cycle], where the next copy has arrived there. It is measured in the
- * reading direction, so the same number means the same place in either layout
- * direction.
+ * [reach]. It is measured in the reading direction, so the same number means
+ * the same place in either layout direction.
+ *
+ * Internal rather than private so a test can read where the text is, which a
+ * still cannot say and a moving picture says only roughly.
  */
 @Stable
-private class MarqueeStrip {
+internal class MarqueeStrip(
+    /** Whether it goes back and forth, rather than looping round. */
+    val bounces: Boolean,
+) {
     var content by mutableIntStateOf(0)
     var container by mutableIntStateOf(0)
     var gap by mutableIntStateOf(0)
@@ -177,15 +240,42 @@ private class MarqueeStrip {
      */
     var moved by mutableStateOf(false)
 
+    /**
+     * Whether, going back and forth, it is on its way out or waiting at its
+     * start to set off, rather than on its way home. It is what a let-go
+     * carries on with, so it is only ever changed at an end.
+     */
+    var outbound = true
+
     /** The velocity it was let go at, spent by the next run of the effect. */
     var thrown = 0f
 
-    /** One whole pass, or 0 when the text fits and nothing moves. */
-    val cycle: Int get() = if (content > container) content + gap else 0
+    /**
+     * How far it goes, or 0 when the text fits and nothing moves. Looping, one
+     * whole pass, to where the next copy has arrived at the start. Back and
+     * forth, only until the text's end reaches the box's end edge.
+     */
+    val reach: Int
+        get() = when {
+            content <= container -> 0
+            bounces -> content - container
+            else -> content + gap
+        }
 
-    fun moveBy(px: Float) {
-        val cycle = cycle.toFloat()
-        if (cycle > 0f) offset = (offset + px).mod(cycle)
+    /**
+     * Moves it [px] further along, and says whether an end stopped it short.
+     * Looping, there is no end: past a whole pass it is the next copy's start.
+     */
+    fun moveBy(px: Float): Boolean {
+        val reach = reach.toFloat()
+        if (reach == 0f) return true
+        if (!bounces) {
+            offset = (offset + px).mod(reach)
+            return false
+        }
+        val to = offset + px
+        offset = to.coerceIn(0f, reach)
+        return offset != to
     }
 
     /**
@@ -198,20 +288,80 @@ private class MarqueeStrip {
         val millis = (abs(to - offset) / pxPerSecond * 1000).roundToInt()
         val spec = tween<Float>(millis, delayMillis = pause.inWholeMilliseconds.toInt(), easing = LinearEasing)
         animate(offset, to, animationSpec = spec) { value, _ ->
-            offset = value
+            // Grabbed, it is the finger's. The effect hears of it a frame
+            // later, and a frame of the glide in between would put the text
+            // back where the glide had it, under the finger's first move.
+            if (!held) offset = value
+        }
+    }
+
+    /**
+     * Loops round until [passesLeft] runs out. Let go part-way with passes
+     * left, it finishes the one it is in. With none it goes home the shorter
+     * way, rather than reading the whole text again for the sake of a nudge.
+     */
+    suspend fun loop(passesLeft: MutableIntState, pxPerSecond: Float, pause: Duration) {
+        val reach = reach.toFloat()
+        if (offset != 0f) {
+            val forward = passesLeft.intValue > 0 || offset > reach / 2f
+            glide(to = if (forward) reach else 0f, pxPerSecond, pause)
+            offset = 0f
+            if (forward) passesLeft.intValue = (passesLeft.intValue - 1).coerceAtLeast(0)
+        }
+        moved = false
+        while (passesLeft.intValue > 0) {
+            glide(to = reach, pxPerSecond, pause)
+            offset = 0f
+            passesLeft.intValue--
+        }
+    }
+
+    /**
+     * Goes out and back until [passesLeft] runs out, a pass being there and
+     * back, so it always settles at its start.
+     *
+     * Let go part-way, it finishes the way it was going: on its way out, out
+     * to the end and home again; on its way home, home. With no passes left it
+     * goes straight home, since the end is not where it is meant to rest.
+     */
+    suspend fun bounce(passesLeft: MutableIntState, pxPerSecond: Float, pause: Duration) {
+        val reach = reach.toFloat()
+        if (offset != 0f || !outbound) {
+            if (outbound && passesLeft.intValue > 0) {
+                glide(to = reach, pxPerSecond, pause)
+                outbound = false
+            }
+            // Pulled all the way home on its way there, it has finished the
+            // pass already, and waiting here as well would be a second pause.
+            if (offset != 0f) glide(to = 0f, pxPerSecond, pause)
+            outbound = true
+            passesLeft.intValue = (passesLeft.intValue - 1).coerceAtLeast(0)
+        }
+        moved = false
+        while (passesLeft.intValue > 0) {
+            glide(to = reach, pxPerSecond, pause)
+            outbound = false
+            glide(to = 0f, pxPerSecond, pause)
+            outbound = true
+            passesLeft.intValue--
         }
     }
 }
 
+/**
+ * A marquee that measures, scrolls and draws on its own, because it can be
+ * pulled, goes back and forth, or both. [strip] holds where it is.
+ */
 @Composable
-private fun Modifier.draggableMarquee(
+internal fun Modifier.scrollingMarquee(
+    strip: MarqueeStrip,
     iterations: Int,
     pause: Duration,
     velocity: Dp,
     gap: Dp,
+    draggable: Boolean,
     runs: Boolean,
 ): Modifier {
-    val strip = remember { MarqueeStrip() }
     val density = LocalDensity.current
     strip.gap = with(density) { gap.roundToPx() }
     val pxPerSecond = with(density) { velocity.toPx() }
@@ -219,45 +369,38 @@ private fun Modifier.draggableMarquee(
     // towards the left, so a pass moves the other way.
     val sign = if (LocalLayoutDirection.current == LayoutDirection.Rtl) -1f else 1f
     val decay = rememberSplineBasedDecay<Float>()
-    val cycle = strip.cycle
+    val reach = strip.reach
     // A new text or a new count starts again from the beginning, as
     // foundation's does when its parameters change.
-    val passesLeft: MutableIntState = remember(iterations, cycle) { mutableIntStateOf(iterations) }
+    val passesLeft: MutableIntState = remember(iterations, reach) { mutableIntStateOf(iterations) }
 
     // At a fixed pace, as foundation's marquee runs, whatever the system's
     // animation scale: at a scale of 0 every pause and every pass would take
     // a frame, and an endless marquee would flicker through passes forever.
-    LaunchedEffect(strip, cycle, passesLeft, strip.held, runs, pause, pxPerSecond) {
+    LaunchedEffect(strip, reach, passesLeft, strip.held, runs, pause, pxPerSecond) {
         withContext(FixedPace) {
-            if (cycle == 0 || strip.offset > cycle) {
+            if (reach == 0 || strip.offset > reach) {
                 strip.offset = 0f
+                strip.outbound = true
                 strip.moved = false
             }
-            if (cycle == 0 || strip.held) return@withContext
+            if (reach == 0 || strip.held) return@withContext
             val thrown = strip.thrown
             strip.thrown = 0f
             if (thrown != 0f) {
                 var last = 0f
                 AnimationState(initialValue = 0f, initialVelocity = thrown).animateDecay(decay) {
-                    strip.moveBy(value - last)
+                    // Thrown against an end, it stops there rather than
+                    // pressing on it for the rest of the coast.
+                    if (strip.moveBy(value - last)) cancelAnimation()
                     last = value
                 }
             }
             if (!runs) return@withContext
-            if (strip.offset != 0f) {
-                // With passes left it finishes the one it is in. With none it goes
-                // home the shorter way, rather than reading the whole text again
-                // for the sake of a nudge.
-                val forward = passesLeft.intValue > 0 || strip.offset > cycle / 2f
-                strip.glide(to = if (forward) cycle.toFloat() else 0f, pxPerSecond, pause)
-                strip.offset = 0f
-                if (forward) passesLeft.intValue = (passesLeft.intValue - 1).coerceAtLeast(0)
-            }
-            strip.moved = false
-            while (passesLeft.intValue > 0) {
-                strip.glide(to = cycle.toFloat(), pxPerSecond, pause)
-                strip.offset = 0f
-                passesLeft.intValue--
+            if (strip.bounces) {
+                strip.bounce(passesLeft, pxPerSecond, pause)
+            } else {
+                strip.loop(passesLeft, pxPerSecond, pause)
             }
         }
     }
@@ -266,8 +409,9 @@ private fun Modifier.draggableMarquee(
         .draggable(
             state = rememberDraggableState { delta -> strip.moveBy(-delta * sign) },
             orientation = Orientation.Horizontal,
-            // Text that fits takes no drag from what it sits in.
-            enabled = cycle > 0,
+            // Text that fits takes no drag from what it sits in, and nor does
+            // a marquee that was not asked to be pulled.
+            enabled = draggable && reach > 0,
             onDragStarted = {
                 strip.held = true
                 strip.moved = true
@@ -278,9 +422,9 @@ private fun Modifier.draggableMarquee(
             },
         )
         .drawWithContent {
-            val pass = strip.cycle
+            val far = strip.reach
             // Fits, or truncated in its box until pulled: drawn where it is.
-            if (pass == 0 || !runs && !strip.moved) {
+            if (far == 0 || !runs && !strip.moved) {
                 drawContent()
                 return@drawWithContent
             }
@@ -290,7 +434,9 @@ private fun Modifier.draggableMarquee(
             // line keeps its ink.
             clipRect(left = 0f, top = -size.height, right = size.width, bottom = size.height * 2) {
                 translate(left = at) { this@drawWithContent.drawContent() }
-                translate(left = at + pass * sign) { this@drawWithContent.drawContent() }
+                // Looping, the next copy follows a gap behind. Back and forth
+                // there is only ever the one.
+                if (!strip.bounces) translate(left = at + far * sign) { this@drawWithContent.drawContent() }
             }
         }
         .layout { measurable, constraints ->

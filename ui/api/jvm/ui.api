@@ -3224,7 +3224,15 @@ public final class io/kontour/ui/motion/MarqueeDefaults {
 }
 
 public final class io/kontour/ui/motion/MarqueeKt {
-	public static final fun marquee-IrxUgcA (Landroidx/compose/ui/Modifier;IJFFZLandroidx/compose/runtime/Composer;II)Landroidx/compose/ui/Modifier;
+	public static final fun marquee-t2qfsmI (Landroidx/compose/ui/Modifier;IJFFZLio/kontour/ui/motion/MarqueeTravel;Landroidx/compose/runtime/Composer;II)Landroidx/compose/ui/Modifier;
+}
+
+public final class io/kontour/ui/motion/MarqueeTravel : java/lang/Enum {
+	public static final field BackAndForth Lio/kontour/ui/motion/MarqueeTravel;
+	public static final field Loop Lio/kontour/ui/motion/MarqueeTravel;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/kontour/ui/motion/MarqueeTravel;
+	public static fun values ()[Lio/kontour/ui/motion/MarqueeTravel;
 }
 
 public final class io/kontour/ui/motion/MotionAxis : java/lang/Enum {

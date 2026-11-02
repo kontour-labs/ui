@@ -124,6 +124,7 @@ import io.kontour.ui.components.display.ScaleColours
 import io.kontour.ui.components.display.GaugeIndicator
 import io.kontour.ui.components.display.GaugeDefaults
 import io.kontour.ui.components.display.Gauge
+import io.kontour.ui.motion.MarqueeTravel
 import io.kontour.ui.motion.marquee
 import io.kontour.ui.components.display.TagGroup
 import io.kontour.ui.components.display.TagGroupDefaults
@@ -924,7 +925,14 @@ private val marqueeDraggable = Knob.Flag("Draggable", initial = false)
 /** A ticker that never stops, rather than the default three passes. */
 private val marqueeEndless = Knob.Flag("Endless", initial = false)
 
-internal val MarqueeDemo = ComponentDemo(slug = "modifier-marquee", knobs = listOf(marqueeDraggable, marqueeEndless)) {
+/** Round and round, or out to the end of the text and back again. */
+private val marqueeTravel = Knob.Choice("Travel", MarqueeTravel.entries.toList())
+
+internal val MarqueeDemo = ComponentDemo(
+    slug = "modifier-marquee",
+    knobs = listOf(marqueeTravel, marqueeDraggable, marqueeEndless),
+) {
+    val travel = this[marqueeTravel]
     val draggable = this[marqueeDraggable]
     val iterations = if (this[marqueeEndless]) Int.MAX_VALUE else 3
     Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm)) {
@@ -933,7 +941,7 @@ internal val MarqueeDemo = ComponentDemo(slug = "modifier-marquee", knobs = list
                 text = "Elizabeth Quay Bus Station, Stand E",
                 maxLines = 1,
                 style = Theme.typography.bodyMedium,
-                modifier = Modifier.marquee(iterations = iterations, draggable = draggable),
+                modifier = Modifier.marquee(iterations = iterations, draggable = draggable, travel = travel),
             )
         }
         Box(Modifier.width(180.dp)) {
@@ -943,7 +951,7 @@ internal val MarqueeDemo = ComponentDemo(slug = "modifier-marquee", knobs = list
                 text = "Perth",
                 maxLines = 1,
                 style = Theme.typography.bodyMedium,
-                modifier = Modifier.marquee(iterations = iterations, draggable = draggable),
+                modifier = Modifier.marquee(iterations = iterations, draggable = draggable, travel = travel),
             )
         }
     }
