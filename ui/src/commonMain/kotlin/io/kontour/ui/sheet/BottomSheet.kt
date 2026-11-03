@@ -689,6 +689,13 @@ fun BottomSheet(
     // library, which is also why it costs nothing against the haptics ceiling:
     // the ceiling counts direct `perform` calls and the ticker is one of them
     // for the whole library.
+    //
+    // **As the sheet gets there, not half way.** It ticked as the detent a
+    // release would land on changed, which is half way between two: mid-drag,
+    // with nothing under the finger, and felt off. Reported from Anyways, which
+    // dropped the library's tick round its sheets and played its own on
+    // arrival. Now it is the same: under a drag, as the sheet comes within
+    // [ArrivedShare] of a detent; after a throw, as it lands.
     val ticker = rememberDetentTicker(FeedbackIntent.Snap)
     // Hidden is not a resting place but a dismissal, and a sheet dragged to where
     // letting go closes it reports what a toast swiped to its dismiss point does:
@@ -709,12 +716,25 @@ fun BottomSheet(
         // sheet flicked open from its peek says so, where it used to be silent
         // because the finger had lifted first. Opened in code, it arms nothing.
         var settle: Job? = null
-        snapshotFlow { state.draggedByHand to state.targetDetent }
-            .collect { (dragging, detent) ->
+        var wasDragging = false
+        // Where it has got to only while a finger is on it: read always, the
+        // offset re-ran this on every frame of a sheet opening in code.
+        snapshotFlow {
+            val dragging = state.draggedByHand
+            Triple(dragging, state.targetDetent, if (dragging) state.detentArrivedAt() else null)
+        }
+            .collect { (dragging, detent, arrived) ->
                 if (dragging) {
                     settle?.cancel()
                     settle = null
-                    report(detent)
+                    // Letting go here closes it: said where that changes,
+                    // which is the point of a threshold.
+                    dismiss.at(if (detent == SheetDetent.Hidden) 1 else 0)
+                    // Caught between two, the drag starts from where it was
+                    // headed: arriving anywhere else is a new detent.
+                    val here = arrived ?: detent.takeIf { !wasDragging }
+                    if (here != null && here != SheetDetent.Hidden) ticker.at(state.detents.indexOf(here))
+                    wasDragging = true
                 } else if (settle == null) {
                     settle = launch {
                         withFrameNanos { }
@@ -722,6 +742,7 @@ fun BottomSheet(
                         report(state.currentDetent)
                         ticker.reset()
                         dismiss.reset()
+                        wasDragging = false
                         settle = null
                     }
                 }

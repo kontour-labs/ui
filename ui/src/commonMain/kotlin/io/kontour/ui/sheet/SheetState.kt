@@ -251,6 +251,46 @@ class SheetState internal constructor(
     private fun lowestAnchored(detents: List<SheetDetent>): Float =
         extremeAnchored(detents, highest = false)
 
+    /**
+     * The resting detent the sheet is at, or as good as at, or null between two.
+     *
+     * At means within [ArrivedShare] of the way from the nearest other anchor:
+     * a few pixels short of it, where a drag is taken to have got there.
+     * [SheetDetent.Hidden] is never one: going there is a dismissal, which has a
+     * threshold of its own rather than a place to arrive at.
+     */
+    internal fun detentArrivedAt(): SheetDetent? {
+        val at = anchoredState.offset
+        if (at.isNaN()) return null
+        val anchors = anchoredState.anchors
+        var nearest: SheetDetent? = null
+        var nearestGap = Float.POSITIVE_INFINITY
+        for (detent in detentList) {
+            val position = anchors.positionOf(detent)
+            if (position.isNaN()) continue
+            val gap = abs(position - at)
+            if (gap < nearestGap) {
+                nearest = detent
+                nearestGap = gap
+            }
+        }
+        val here = nearest ?: return null
+        if (here == SheetDetent.Hidden) return null
+        val herePosition = anchors.positionOf(here)
+        // The distance to the next anchor on the side the sheet is, or on
+        // either side where it sits exactly on this one.
+        var span = Float.POSITIVE_INFINITY
+        for (detent in detentList) {
+            if (detent == here) continue
+            val position = anchors.positionOf(detent)
+            if (position.isNaN() || position == herePosition) continue
+            val sameSide = at == herePosition || (position - herePosition) * (at - herePosition) > 0f
+            if (sameSide) span = minOf(span, abs(position - herePosition))
+        }
+        if (span == Float.POSITIVE_INFINITY) return here
+        return here.takeIf { nearestGap <= span * ArrivedShare }
+    }
+
     private fun extremeAnchored(detents: List<SheetDetent>, highest: Boolean): Float {
         val anchors = anchoredState.anchors
         var found = Float.NaN
@@ -2117,6 +2157,13 @@ internal val SheetOrientation = Orientation.Vertical
  * and the gap reads as a detent the sheet forgot to settle at.
  */
 private const val OvershootShare = 1f / 12f
+
+/**
+ * How close to a detent, as a share of the way from the anchor before it, a
+ * sheet dragged by hand counts as there: where its tick plays. See
+ * [SheetState.detentArrivedAt].
+ */
+internal const val ArrivedShare = 0.03f
 
 /**
  * What both an empty [SheetState] and an emptied one say.

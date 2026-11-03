@@ -57,6 +57,12 @@ On `main`, and in the next release.
   control that decides its drag by direction: a `WheelSelect`'s wheels, a
   `DatePicker`'s and an `EventCalendar`'s swipes between pages, and a `NavBar`'s
   marker.
+- **A sheet's tick plays as it gets to a detent.** Dragged by hand, it ticked
+  as the detent a release would land on changed, which is half way between
+  two, with nothing under the finger. It now ticks as the sheet arrives, within
+  a few pixels of the detent; a throw still ticks as it lands, and the
+  threshold for dragging a sheet away is still felt where letting go would
+  close it.
 - **A sheet goes to a detent it was given after it was made.** `SheetState`
   read the detents it was created with for the whole of its life, so a detent
   assigned later, or passed to `rememberSheetState` on a later composition, had
