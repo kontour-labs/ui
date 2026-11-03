@@ -77,6 +77,15 @@ Being values rather than an enum is what lets a screen define its own. The map's
 stop sheet rests at the height of its own header; the trip planner rests at
 360dp. Neither is a case the library could have enumerated in advance.
 
+**The list can change while the sheet is in use.** Which detents apply depends
+on what is in the sheet, so `SheetState.detents` is reassignable, and
+`rememberSheetState` takes the list it is given on every composition. A detent
+added is somewhere the sheet can be dragged or sent; one taken away is somewhere
+it no longer rests, and a sheet resting there moves to the nearest that is left.
+Before 0.5.3 a detent added after the state was made was refused, and apps made
+their sheets with every detent they might ever need to get round it; that is no
+longer necessary.
+
 **Identity is the `id`, not the lambda.** Two `peek(140.dp)` calls make two
 objects with two different resolvers, and if they were not equal, a recomposition
 that rebuilt the detent list would re-anchor and snap the sheet shut on every
@@ -267,6 +276,19 @@ A sheet with `draggable = false` is the exception, and for the reason the
 nested-scroll connection has the same exception: nothing would answer a list that
 has reached its top, and a list that stops dead is a boundary the finger cannot
 feel.
+
+**The sheet ticks as it arrives.** Dragged by hand, it plays its `Snap` as it
+comes within a few pixels of a detent, and after a throw as it lands there: the
+tick is the sheet getting somewhere, so it comes when it has. It used to play
+half way between two detents, where a release would change which one it landed
+on — mid-drag, with nothing under the finger. Dragged towards hidden, the
+threshold where letting go would put it away is still felt at that line, in and
+back out. A sheet moved in code is quiet.
+
+**A list can scroll where it is.** By default dragging a sheet's list up opens
+the sheet first, as UIKit's do. `BottomSheet(scrollExpands = false)` scrolls the
+list instead above the sheet's lowest size, keeping a map above it in view: see
+[`BottomSheet`](bottom-sheet.md#scrollexpands--a-list-that-scrolls-where-it-is).
 
 **A flick goes where it would carry the sheet, so it has to be meant.** A
 release lands at the detent nearest where the throw would have carried the sheet

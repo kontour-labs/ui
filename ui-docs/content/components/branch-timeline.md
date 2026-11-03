@@ -108,7 +108,8 @@ still and there is no band, and arrows stand where they are.
 `LazyColumn`, keyed by `id`. The lanes are laid out for the whole list up front,
 because a row cannot know which lanes pass it without every commit above it. The
 rows themselves stay lazy. **Leave the column's `verticalArrangement` alone**:
-the lanes are unbroken because the rows touch.
+the lanes are unbroken because the rows touch. The rows move into place as the
+history changes, keyed by `id`, as a `timelineList`'s do.
 
 The graph is only as wide as the most lanes any one row uses, and every row
 leaves that much room, so the rows' text lines up. A history that needs many

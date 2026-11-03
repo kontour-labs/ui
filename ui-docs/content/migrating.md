@@ -17,44 +17,113 @@ from the version the app is on.
 
 ## 0.5.2 to 0.5.3
 
-A marquee can go back and forth, a pressable can be an option, a toast can
-stay, and a sheet's list can scroll where it is. Nothing an app has written by
-name changes.
+Back keeps working after a swipe is interrupted, and an app that went round
+that can take its way round it out. A marquee can go back and forth, a
+pressable can be an option, a toast can stay, the toast stack can be sent away
+whole, and a sheet's list can scroll where it is. Four signatures grow a
+parameter, which only a call passing its arguments by position notices. The
+rest compiles as it is and behaves differently, under **Check**: a sheet that
+changes its detents now goes to the new ones, a sheet's tick moves to where it
+arrives, a timeline's rows animate, and a swipe row and the toast stack answer
+gestures they did not.
 
-### Rebuild a library that calls `Modifier.marquee`, `Modifier.pressable`, `BottomSheet` or `ToastHostState.show`
+### Name the arguments after `draggable` on a `BottomSheet`
 
-`Modifier.marquee` takes `travel`, defaulted and last. Source compiles as it
-is, but a library compiled against 0.5.2 that calls it has to be compiled
-again against 0.5.3 rather than having the jar swapped under it.
-
-`Modifier.pressable` takes `selected`, defaulted, just before
-`interactionSource`, the library's place for it. A call that names
-`interactionSource`, as every call in the docs does, compiles as it is; one
-that passes it by position, after eleven others, names it:
-
-```diff
-- Modifier.pressable(open, shape, true, Role.Button, null, null, null, null, 1f, true, interactions)
-+ Modifier.pressable(open, shape, true, Role.Button, null, null, null, null, 1f, true, interactionSource = interactions)
-```
-
-It fails to compile rather than meaning something else. A library compiled
-against 0.5.2 that calls it is compiled again, as for the marquee.
-
-`BottomSheet` takes `scrollExpands`, defaulted, after `draggable`. A call that
-names its arguments, as the docs' do, compiles as it is; one passing
-`fadeUnder` or anything after it by position names it:
+`BottomSheet` takes `scrollExpands`, defaulted, straight after `draggable`. A
+call that names its arguments, as every call in the docs does, needs nothing;
+one passing `fadeUnder` or anything after it by position names it:
 
 ```diff
 - BottomSheet(sheet, Modifier, SheetPresentation.Edge, …, true, false) { … }
 + BottomSheet(sheet, Modifier, SheetPresentation.Edge, …, true, fadeUnder = false) { … }
 ```
 
-`ToastHostState.show` takes `dismissible`, defaulted and last, and `Strings`
-has `dismissAll` and `toastCount` at its end: source compiles as it is, and a
-library built against 0.5.2 is compiled again. An app that bridges its own
-resources with `Strings.from` gets their English until it adds
-`kontour_dismissAll` and `kontour_toastCount` (`%1$s notification`,
-`%1$s notifications`).
+It fails to compile rather than meaning something else. `ModalBottomSheet` is
+unchanged.
+
+### Name `interactionSource` on a `Modifier.pressable`
+
+`Modifier.pressable` takes `selected`, defaulted, just before
+`interactionSource`, the library's place for it. A call that names
+`interactionSource` needs nothing; one that passes it by position, after
+eleven others, names it:
+
+```diff
+- Modifier.pressable(open, shape, true, Role.Button, null, null, null, null, 1f, true, interactions)
++ Modifier.pressable(open, shape, true, Role.Button, null, null, null, null, 1f, true, interactionSource = interactions)
+```
+
+### Add two strings to a `Strings.from` bridge
+
+`Strings` has `dismissAll` and `toastCount` at its end, so a `Strings(…)` built
+by name or by position, or a `copy(…)`, needs nothing. An app that bridges its
+own resources with `Strings.from` gets their English until it adds
+`kontour_dismissAll` ("Dismiss all") and the plural `kontour_toastCount`
+(`%1$s notification`, `%1$s notifications`); `docs/export-strings.py` writes
+them out with the rest.
+
+### Rebuild a library that calls any of them
+
+`Modifier.marquee` takes `travel`, defaulted and last, and
+`ToastHostState.show` takes `dismissible`, defaulted and last: source compiles
+as it is. But a library compiled against 0.5.2 that calls either of those,
+`BottomSheet`, `Modifier.pressable` or builds a `Strings`, has to be compiled
+again against 0.5.3 rather than having the jar swapped under it.
+
+### Take out a way round back that did nothing
+
+A swipe back that a dialog, menu or modal sheet cut short, or whose page was
+closed mid-swipe, was never ended, and from then on every back in the app —
+`pageBack()`, the edge, the system's — was dropped for the rest of the session.
+An app that worked round it, by checking whether a back button's dispatch was
+taken and going back itself when it was not, can drop that: the dispatch is
+taken now. Left in, it does no harm, since it only acts when nothing took the
+back.
+
+### Take out what 0.5.3 does itself
+
+Each of these was written round the library, and each is now the library's:
+
+| Written round it | Now |
+|---|---|
+| A tick of its own as a sheet arrives at a detent, with the library's `Snap` taken out round the sheet | The sheet's own tick plays on arrival |
+| Every sheet made with every detent it might ever need, because one assigned later was refused | Assign `detents`, or pass a new list to `rememberSheetState`, when it changes |
+| A `LazyListScope` wrapper putting `animateItem` on a `timelineList`'s rows | The rows animate themselves; with both, they animate twice |
+| A pressable of its own to say a drawn option is selected | `Modifier.pressable(selected = …)` |
+| A drag of its own over a sheet's list so it scrolls where it is | `BottomSheet(scrollExpands = false)`, with the content's `padding` on the list |
+| Every drag over the toast stack consumed to keep one toast up | `show(…, dismissible = false)` |
+| The platform's overscroll put back at the far end of a sheet's list | The library has done this since 0.5.1 |
+
+### Check
+
+- **A sheet whose detents change goes to the new ones.** `SheetState` read the
+  detents it was made with for the whole of its life, so a `detents` assigned
+  later, or a different list passed to `rememberSheetState` on a later
+  composition, was ignored. It is taken now: a detent added is one the sheet
+  can be dragged or animated to, and one taken away is one it can no longer
+  rest at. A screen that passed a list that changed by accident — built afresh
+  from state each composition, filtering out a detent it meant to keep —
+  finds the sheet doing what the list says.
+- **A sheet's tick comes as it arrives.** Dragged by hand, the `Snap` played
+  half way between two detents; it plays within a few pixels of the one the
+  sheet gets to, and a throw still ticks as it lands. A test that counted the
+  tick at half way counts it later.
+- **A `timelineList`'s and a `branchTimeline`'s rows animate** as stops come
+  and go, keyed rows sliding into place as a `listSection`'s do, with no slide
+  under reduced motion. Rows given no `key` move as before.
+- **A swipe row in a bottom sheet takes a swipe that starts steep.** A thumb's
+  swipe that turns sideways opens the row where the sheet used to move; a drag
+  that stays up or down is still the sheet's or the list's. The same for a
+  `WheelSelect`, a `DatePicker`'s and an `EventCalendar`'s page swipes and a
+  `NavBar`'s marker.
+- **The front toast answers a long press.** Held still with another toast
+  behind it that can be dismissed, it gathers the stack into one pill to be
+  dragged away, and its action or close is not pressed as the finger lifts. A
+  tap, a swipe and a drag that stops are as they were, and a toast on its own
+  is held as it always was.
+- **A swipe back cut short springs back** rather than being left part of the
+  way across, and a page closed in code as its swipe springs away goes alone,
+  where it used to take the page under it as well.
 
 ---
 

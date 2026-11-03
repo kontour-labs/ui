@@ -257,6 +257,17 @@ side it has no actions on, where it gives under the finger and comes back rather
 than letting the page go. The catalog's Back page has a two-sided row, a
 one-sided row, a slider and a carousel on its second page to try this on.
 
+**A swipe cut short ends.** Every back in an app goes through one processor that
+runs one gesture at a time, and drops every other back until the one under way
+ends — so one that never ended was back gone for good: the back button, the
+edge and the system's back all did nothing for the rest of the session. Two
+things used to leave a swipe that way, and both now cancel it and spring the
+page back. A dialog, menu or modal sheet opening while the swipe is held or still
+springing home: the overlay host turns the page's back off for as long as it is
+open, and the swipe is ended first. And the page going mid-swipe, closed or
+replaced in code: a page closed as its released swipe still carries it off goes
+alone, rather than finishing the swipe and taking the page under it too.
+
 **On iOS the library tracks the swipe itself** — the edge swipe as well as the
 pan from the content — through the outermost `OverlayHost`, so that letting go
 carries on at the finger's speed. The page goes the rest of the way on a spring

@@ -50,15 +50,19 @@ On `main`, and in the next release.
   the sheet up, and down past the list's top is still the sheet's. The padding
   handed to the content grows at its foot by what is under the screen, so a
   list's last rows come up. UIKit's `prefersScrollingExpandsWhenScrolledToEdge`.
-  An app had built it round the sheet with a drag of its own. The gallery's
-  bottom sheet has a *List scrolls in place* knob.
+  An app had built it round the sheet with a drag of its own. `BottomSheet`
+  only; a modal sheet covers what it would keep in view. The gallery's bottom
+  sheet has a *List scrolls in place* knob, and
+  [the bottom sheet's page](components/bottom-sheet.md) has the rest.
 - **Hold the toast stack to send it all away.** A finger resting still on the
   front toast for a long press gathers every toast that can be dismissed into one
   pill saying how many, which goes as one when dragged past the line and comes
   apart again when let go short of it. A drag that stops is never a hold; a hold
-  started on the action does not press it; a toast arriving mid-hold waits. A
-  screen reader gets **Dismiss all**. `Strings` gains `dismissAll` and
-  `toastCount`.
+  started on the action does not press it; a toast arriving mid-hold waits
+  until it is let go; a toast that cannot be dismissed stays; the clocks stay
+  stopped throughout. Under reduced motion the pill forms at once. A screen
+  reader gets **Dismiss all** on the front toast. `Strings` gains `dismissAll`
+  and `toastCount`.
 - **A toast that stays until the app takes it down.**
   `ToastHostState.show(dismissible = false)`: no close control, a swipe springs
   back, and holding the stack leaves it. For a state of the whole app with no
@@ -68,10 +72,32 @@ On `main`, and in the next release.
 - **A pressable that is an option.** `Modifier.pressable(selected = …)` makes
   something drawn by hand, a tab, a chip, a choice, one of a set: it is
   reported as selected or not, keeps its long press, and takes the role of the
-  kind of option it is. Null, the default, is an action, as before.
+  kind of option it is. Null, the default, is an action, as before. Its page
+  now also says that `minimumTouchTarget = false` keeps a touch's reach, by the
+  platform's own reach for a small target, without the room round it.
 
 ### Fixed
 
+- **Back never stops working after a swipe is interrupted.** Every back in an
+  app goes through one processor, which runs one gesture at a time and drops
+  every other back — a page's back button, a key, the iOS edge, Android's
+  system back — until that gesture ends. A swipe back was left unended two
+  ways. A dialog, menu or modal sheet opened while it was held or still
+  springing home, and the overlay host turned the page's back off under it,
+  which drops a gesture's end without a word. Or the page was taken away
+  mid-swipe, closed or replaced, which removed its input without ending what
+  it had begun. The page was left a little way across, and from then on its
+  back button, the edge and the system's back did nothing for the rest of the
+  session: reported from an app as a back button that did nothing however
+  often it was tapped. Either way the swipe is now cancelled while
+  back can still hear it, and the page springs back. An app that went round it
+  by going back itself when `pageBack()` seemed to take nothing can drop that;
+  see [Migrating](migrating.md).
+- **A page closed as its swipe springs away goes alone.** Closed in code while
+  a released swipe was still carrying it off — a close button tapped as it slid
+  — the page finished its swipe as well, and the stack popped the page under it
+  too: one swipe and one close went back twice. The swipe is cancelled once the
+  stack under it changes.
 - **A swipe row in a bottom sheet takes a thumb's swipe.** A row decided which
   way a finger was going on its first few pixels and gave the gesture away for
   good if they were steep, and a thumb lands steeply before it flattens into a
@@ -98,22 +124,14 @@ On `main`, and in the next release.
 - **A sheet goes to a detent it was given after it was made.** `SheetState`
   read the detents it was created with for the whole of its life, so a detent
   assigned later, or passed to `rememberSheetState` on a later composition, had
-  no anchor, and the sheet would not go there by code or by hand. It does now.
-- **Back never stops working after a swipe is interrupted.** Every back in an
-  app goes through one processor, which runs one gesture at a time and drops
-  every other back, from a button, a key, the edge or the system, until it
-  ends. A swipe back could be left unended two ways: a dialog, menu or modal
-  sheet opening while it was held or still springing home, as the overlay host
-  turns the page's back off under it, or the page being taken away mid-swipe,
-  closed or replaced. The page was left a little way across, and from then on
-  its back button and every other back did nothing for the rest of the session.
-  Either way the swipe is now cancelled while back can still hear it, and the
-  page springs back. And a page closed in code as its swipe was still springing
-  it away, a close button tapped as it slid off, no longer takes the page under
-  it with it: one swipe and one close went back twice. An app that went round it by doing its own back when
-  `pageBack()` seemed to do nothing can drop that.
-
+  no anchor, and the sheet would not go there by code or by hand. It does now,
+  as `detents`' own docs always said; a screen whose list changes finds the
+  sheet doing what it says, which [Migrating](migrating.md) lists under
+  **Check**.
 ### Breaking
+
+[Migrating](migrating.md) has the before and after for each, and the
+behaviour that changed while still compiling under **Check**.
 
 - **`Modifier.marquee` has a new parameter**, `travel`, defaulted and last, so
   anything built against 0.5.2 recompiles; every call site still compiles as it

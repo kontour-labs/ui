@@ -287,6 +287,15 @@ private class StackGather {
  * on screen at once, newest in front, older ones scaled and offset behind — and
  * each carries its own timer, so a long one and a short one expire when they
  * were each told to.
+ *
+ * ### The reader sends them away
+ *
+ * A swipe takes the front one, and so do its close and its action. **Held**
+ * still on the front one for a long press, every toast the reader can dismiss
+ * gathers into one pill saying how many, and dragged past the same line they all
+ * go, the ones queued off screen too; a screen reader has **Dismiss all** for it.
+ * A toast shown with `dismissible = false` stays through all of it, until the
+ * app takes it down. See [show].
  */
 @Stable
 class ToastHostState {
