@@ -57,6 +57,13 @@ On `main`, and in the next release.
   control that decides its drag by direction: a `WheelSelect`'s wheels, a
   `DatePicker`'s and an `EventCalendar`'s swipes between pages, and a `NavBar`'s
   marker.
+- **A timeline's stops move into place.** `timelineList` and `branchTimeline`
+  rows jumped when the list changed, a fold opened or a stop gone, where a
+  `listSection`'s rows slide and fade: `animateItem` has to be on an item's
+  root, which only the builder holds, and an app wrapped the whole
+  `LazyListScope` to reach it. Keyed rows now move as a section's do, without
+  the slide under reduced motion. `listGroup`, whose item holds several rows,
+  is unchanged.
 - **A sheet's tick plays as it gets to a detent.** Dragged by hand, it ticked
   as the detent a release would land on changed, which is half way between
   two, with nothing under the finger. It now ticks as the sheet arrives, within

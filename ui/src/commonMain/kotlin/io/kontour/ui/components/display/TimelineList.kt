@@ -1,5 +1,6 @@
 package io.kontour.ui.components.display
 
+import io.kontour.ui.components.list.placedAsTheListChanges
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.LayoutScopeMarker
@@ -343,13 +344,13 @@ fun <T> LazyListScope.timelineList(
         item(key = key?.invoke(element), contentType = "timelineListRow") {
             val resolved = colours ?: TimelineDefaults.colours()
             val ground = containerColour.takeOrElse { Theme.colours.surfaceSunken }
-            if (mine.size == 1) {
-                TimelineListRow(mine[0], enabled, style, progress, progressMotion, progressReversed, resolved, ground, nodeSize, gutterWidth)
-            } else {
-                Column {
-                    mine.forEach {
-                        TimelineListRow(it, enabled, style, progress, progressMotion, progressReversed, resolved, ground, nodeSize, gutterWidth)
-                    }
+            // In, out and into place as the stops change — a fold opened, a
+            // stop gone — as a section's rows do. Only the builder holds the
+            // item's root, which is where `animateItem` has to be: an app
+            // wrapped the whole `LazyListScope` to reach it. Keyed rows only.
+            Column(placedAsTheListChanges()) {
+                mine.forEach {
+                    TimelineListRow(it, enabled, style, progress, progressMotion, progressReversed, resolved, ground, nodeSize, gutterWidth)
                 }
             }
         }

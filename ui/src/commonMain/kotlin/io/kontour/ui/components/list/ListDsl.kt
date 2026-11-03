@@ -401,7 +401,7 @@ fun <T> LazyListScope.listSection(
     if (header) {
         item(key = sectionKey?.let { sectionPartKey(it, "header") }, contentType = "listSectionHeader") {
             SectionHeader(
-                modifier = sectionItem(),
+                modifier = placedAsTheListChanges(),
                 supporting = supporting,
                 action = action,
                 title = title ?: {},
@@ -416,13 +416,13 @@ fun <T> LazyListScope.listSection(
             index > 0 || header -> spacing.orListSpacing()
             else -> Theme.spacing.md
         }
-        Box(sectionItem().fillMaxWidth().padding(top = above)) {
+        Box(placedAsTheListChanges().fillMaxWidth().padding(top = above)) {
             content(items[index], GroupPosition.of(index, items.size))
         }
     }
     if (footer != null) {
         item(key = sectionKey?.let { sectionPartKey(it, "footer") }, contentType = "listSectionFooter") {
-            SectionFooter(sectionItem().padding(top = spacing.orListSpacing()), content = footer)
+            SectionFooter(placedAsTheListChanges().padding(top = spacing.orListSpacing()), content = footer)
         }
     }
 }
@@ -444,7 +444,11 @@ private const val SectionKeyPrefix = "kontour.listSection"
 @Composable
 private fun Dp.orListSpacing(): Dp = if (isSpecified) this else ListItemDefaults.Spacing
 
-/** Placed with `animateItem`, without the slide under reduced motion. */
+/**
+ * Placed with `animateItem`, without the slide under reduced motion: for the
+ * root of each item a builder adds — a section's rows, a timeline's — which only
+ * the builder owns, so only the builder can animate. See [listSection].
+ */
 @Composable
-private fun LazyItemScope.sectionItem(): Modifier =
+internal fun LazyItemScope.placedAsTheListChanges(): Modifier =
     if (Theme.motion.reduceMotion) Modifier.animateItem(placementSpec = null) else Modifier.animateItem()
