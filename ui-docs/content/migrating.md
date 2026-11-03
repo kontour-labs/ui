@@ -17,13 +17,27 @@ from the version the app is on.
 
 ## 0.5.2 to 0.5.3
 
-A marquee can go back and forth. Nothing an app has written changes.
+A marquee can go back and forth, and a pressable can be an option. Nothing an
+app has written by name changes.
 
-### Rebuild a library that calls `Modifier.marquee`
+### Rebuild a library that calls `Modifier.marquee` or `Modifier.pressable`
 
 `Modifier.marquee` takes `travel`, defaulted and last. Source compiles as it
 is, but a library compiled against 0.5.2 that calls it has to be compiled
 again against 0.5.3 rather than having the jar swapped under it.
+
+`Modifier.pressable` takes `selected`, defaulted, just before
+`interactionSource`, the library's place for it. A call that names
+`interactionSource`, as every call in the docs does, compiles as it is; one
+that passes it by position, after eleven others, names it:
+
+```diff
+- Modifier.pressable(open, shape, true, Role.Button, null, null, null, null, 1f, true, interactions)
++ Modifier.pressable(open, shape, true, Role.Button, null, null, null, null, 1f, true, interactionSource = interactions)
+```
+
+It fails to compile rather than meaning something else. A library compiled
+against 0.5.2 that calls it is compiled again, as for the marquee.
 
 ---
 

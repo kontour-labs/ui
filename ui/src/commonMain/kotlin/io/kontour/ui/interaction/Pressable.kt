@@ -7,6 +7,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
@@ -64,7 +66,14 @@ import io.kontour.ui.theme.Theme
  * @param pressScale How far it shrinks under a press. `1f` for anything large —
  *   a card, a whole row — where the surface moving reads as a flinch.
  * @param minimumTouchTarget Whether it reserves the 48dp target. Off only where
- *   something around it already does.
+ *   something around it already does, or where reserved room would stand small
+ *   things apart by gaps nobody drew — chips in a wrapping row. Off, a touch
+ *   near it still reaches it, by the platform's own reach for a small target,
+ *   which shares a contested touch between neighbours by which is nearer.
+ * @param selected Makes it one of a set of options rather than an action — a
+ *   tab, a chip, a choice drawn by hand — reported as selected or not. Null, the
+ *   default, for an action. Give [role] as the kind of option it is:
+ *   `Role.Tab`, `Role.RadioButton`. A long press still works on one.
  */
 @Composable
 fun Modifier.pressable(
@@ -78,6 +87,7 @@ fun Modifier.pressable(
     onDoubleClick: (() -> Unit)? = null,
     pressScale: Float = IndicationDefaults.PressScale,
     minimumTouchTarget: Boolean = true,
+    selected: Boolean? = null,
     interactionSource: MutableInteractionSource? = null,
 ): Modifier {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
@@ -106,4 +116,9 @@ fun Modifier.pressable(
             hapticFeedbackEnabled = false,
             onClick = onClick,
         )
+        // An option, said on the same node as its click: `selectable` would do
+        // it too, but has no long press, and an option held for more — a route's
+        // chip held for its menu — needs one. Reported from an app that kept a
+        // pressable of its own for this.
+        .then(if (selected != null) Modifier.semantics { this.selected = selected } else Modifier)
 }

@@ -44,6 +44,10 @@ On `main`, and in the next release.
   start. With `draggable = true` it pulls only as far as either end, and under
   reduced motion it stops as a looping one does. Looping stays the default,
   drawn as it was. The gallery's marquee demo has a *Travel* knob.
+- **A pressable that is an option.** `Modifier.pressable(selected = …)` makes
+  something drawn by hand, a tab, a chip, a choice, one of a set: it is
+  reported as selected or not, keeps its long press, and takes the role of the
+  kind of option it is. Null, the default, is an action, as before.
 
 ### Fixed
 
@@ -93,6 +97,9 @@ On `main`, and in the next release.
 - **`Modifier.marquee` has a new parameter**, `travel`, defaulted and last, so
   anything built against 0.5.2 recompiles; every call site still compiles as it
   is.
+- **`Modifier.pressable` has a new parameter**, `selected`, defaulted, before
+  `interactionSource`, so anything built against 0.5.2 recompiles, and a call
+  passing `interactionSource` by position names it.
 
 ---
 

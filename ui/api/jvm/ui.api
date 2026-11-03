@@ -2890,7 +2890,7 @@ public final class io/kontour/ui/interaction/KontourIndication : androidx/compos
 }
 
 public final class io/kontour/ui/interaction/PressableKt {
-	public static final fun pressable--JlUKpU (Landroidx/compose/ui/Modifier;Lkotlin/jvm/functions/Function0;Landroidx/compose/ui/graphics/Shape;ZLandroidx/compose/ui/semantics/Role;Ljava/lang/String;Lkotlin/jvm/functions/Function0;Ljava/lang/String;Lkotlin/jvm/functions/Function0;FZLandroidx/compose/foundation/interaction/MutableInteractionSource;Landroidx/compose/runtime/Composer;III)Landroidx/compose/ui/Modifier;
+	public static final fun pressable-zXro-P8 (Landroidx/compose/ui/Modifier;Lkotlin/jvm/functions/Function0;Landroidx/compose/ui/graphics/Shape;ZLandroidx/compose/ui/semantics/Role;Ljava/lang/String;Lkotlin/jvm/functions/Function0;Ljava/lang/String;Lkotlin/jvm/functions/Function0;FZLjava/lang/Boolean;Landroidx/compose/foundation/interaction/MutableInteractionSource;Landroidx/compose/runtime/Composer;III)Landroidx/compose/ui/Modifier;
 }
 
 public final class io/kontour/ui/interaction/RowInteractionKt {
