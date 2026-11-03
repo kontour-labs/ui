@@ -295,7 +295,8 @@ private class StackGather {
  * gathers into one pill saying how many, and dragged past the same line they all
  * go, the ones queued off screen too; a screen reader has **Dismiss all** for it.
  * A toast shown with `dismissible = false` stays through all of it, until the
- * app takes it down. See [show].
+ * app takes it down, and while the stack is held it is drawn just behind the
+ * gathered pill, from the queue off screen if it was there. See [show].
  */
 @Stable
 class ToastHostState {
@@ -1130,7 +1131,16 @@ private fun ToastStack(state: ToastHostState, config: ToastHostConfig) {
     val towardEdge = config.position.towardEdge
     val motion = Theme.motion
     val edgeShift = Theme.spacing.md - ToastEdgeGap
-    val visible = state.toasts.takeLast(config.maxVisible)
+    /** The stack held to be sent away whole: see [StackGather]. Its finger stops the clocks too. */
+    val gather = remember { StackGather() }
+    // A gathered stack sent away goes as one pill, and holds one place while it
+    // leaves: the toasts left behind it are counted as if it had gone, so one
+    // that stays, queued off screen behind four that are going, is drawn
+    // behind the pill as it goes rather than appearing once it has.
+    val going = gather.members.isNotEmpty() && !gather.holding
+    fun leavingGathered(toast: Toast) = going && gather.gathers(toast) && !toast.presence.targetState
+    val counted = state.toasts.filterNot(::leavingGathered).takeLast(config.maxVisible)
+    val visible = state.toasts.filter { toast -> leavingGathered(toast) || counted.any { it === toast } }
     val density = LocalDensity.current
     val barLift = rememberBarLift(config.position, LocalOverlayHost.current, density)
 
@@ -1250,12 +1260,40 @@ private fun ToastStack(state: ToastHostState, config: ToastHostConfig) {
      */
     val focused = remember { mutableStateOf(false) }
 
-    /** The stack held to be sent away whole: see [StackGather]. Its finger stops the clocks too. */
-    val gather = remember { StackGather() }
     val stopped = { held.value || hovered.value || focused.value || gather.holding }
 
     // Drawn as it was when the hold began, for as long as it is held.
     val shown = if (gather.holding) gather.frozen else visible
+
+    /**
+     * What is drawn while the stack is held: what was on screen, and behind it
+     * the toasts that will stay, the ones queued off screen too, up to a pill
+     * behind the front for each place there is. Asked for as *"when you long
+     * press the front notifications that can be dismissed, that persistent
+     * toast's pill should become visible again"*: the stack is gathered into
+     * one pill, so there is room behind it, and what stays is what the reader
+     * needs to see is staying.
+     */
+    fun toHold(): List<Toast> {
+        val staying = state.toasts.filter { !it.dismissible && it.presence.targetState }.takeLast(config.maxVisible - 1)
+        return state.toasts.filter { toast -> visible.any { it === toast } || staying.any { it === toast } }
+    }
+
+    /**
+     * How far back the card at [index] of [shown] sits: zero is the front.
+     *
+     * While a gathered stack is held or leaving, it is one pill, and a card
+     * staying behind it counts the whole of it as one place rather than one
+     * for each toast merged into it, so it sits just behind the pill. The
+     * gathered cards keep their own places, which the merge draws in to the
+     * front.
+     */
+    fun depthOf(index: Int): Int {
+        val toast = shown[index]
+        val after = shown.subList(index + 1, shown.size)
+        if (gather.members.isEmpty() || gather.gathers(toast)) return after.size
+        return after.count { !gather.gathers(it) } + if (after.any { gather.gathers(it) }) 1 else 0
+    }
 
     // Merged as the stack is gathered, and apart again as it is let go short of
     // the line. Sent away, the toasts that went stay merged until they have all
@@ -1446,7 +1484,7 @@ private fun ToastStack(state: ToastHostState, config: ToastHostConfig) {
                     state = state,
                     // Zero is the front. The list is oldest first, so the last
                     // one in it is the one on top.
-                    depth = shown.lastIndex - index,
+                    depth = depthOf(index),
                     towardEdge = towardEdge,
                     showClose = config.showClose,
                     closeLabel = config.closeLabel,
@@ -1463,6 +1501,7 @@ private fun ToastStack(state: ToastHostState, config: ToastHostConfig) {
                     scope = stackScope,
                     gather = gather,
                     onScreen = { shown },
+                    toHold = ::toHold,
                     modifier = config.modifier,
                 )
             }
@@ -1517,6 +1556,8 @@ private fun ToastCard(
     gather: StackGather,
     /** What the stack draws now, front last. */
     onScreen: () -> List<Toast>,
+    /** What the stack draws while it is held: see `ToastStack`. */
+    toHold: () -> List<Toast>,
     modifier: Modifier,
 ) {
     val motion = Theme.motion
@@ -1800,7 +1841,7 @@ private fun ToastCard(
                                     settle.stop()
                                     held.value = true
                                     gather.members = gatherable().mapTo(mutableSetOf()) { it.id }
-                                    gather.frozen = onScreen()
+                                    gather.frozen = toHold()
                                     gather.holding = true
                                     longPressed()
                                 },

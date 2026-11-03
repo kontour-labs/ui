@@ -59,7 +59,9 @@ On `main`, and in the next release.
   pill saying how many, which goes as one when dragged past the line and comes
   apart again when let go short of it. A drag that stops is never a hold; a hold
   started on the action does not press it; a toast arriving mid-hold waits
-  until it is let go; a toast that cannot be dismissed stays; the clocks stay
+  until it is let go; a toast that cannot be dismissed stays, and is drawn just behind the
+  gathered pill while it is held, even one queued off screen, so the reader
+  sees what will be left; the clocks stay
   stopped throughout. Under reduced motion the pill forms at once. A screen
   reader gets **Dismiss all** on the front toast. `Strings` gains `dismissAll`
   and `toastCount`.

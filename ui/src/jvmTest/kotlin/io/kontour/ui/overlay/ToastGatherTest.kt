@@ -3,7 +3,9 @@ package io.kontour.ui.overlay
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.onAllNodesWithText
@@ -13,6 +15,7 @@ import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.v2.runComposeUiTest
 import io.kontour.ui.theme.KontourTheme
+import io.kontour.ui.theme.Tone
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -27,7 +30,11 @@ import kotlin.time.Duration
 @OptIn(ExperimentalTestApi::class)
 class ToastGatherTest {
 
-    /** A bottom stack of [messages], oldest first, and its state; [fixed] are shown undismissible. */
+    /**
+     * A bottom stack of [messages], oldest first, and its state; [fixed] are
+     * shown undismissible, and as `Tone.Danger`, which is announced
+     * assertively: a pill shows no words, so that is how one is found.
+     */
     private fun ComposeUiTest.stack(messages: List<String>, fixed: Set<String> = emptySet()): ToastHostState {
         val toasts = ToastHostState()
         mainClock.autoAdvance = false
@@ -38,7 +45,9 @@ class ToastGatherTest {
                 }
             }
         }
-        messages.forEach { toasts.show(it, duration = Duration.INFINITE, dismissible = it !in fixed) }
+        messages.forEach {
+            toasts.show(it, tone = if (it in fixed) Tone.Danger else Tone.Neutral, duration = Duration.INFINITE, dismissible = it !in fixed)
+        }
         settle()
         return toasts
     }
@@ -159,5 +168,54 @@ class ToastGatherTest {
         settle()
         assertEquals(0, undone, "a hold that gathered the stack also pressed the action it started on")
         assertEquals(listOf("Saved", "Removed"), toasts.left(), "a hold let go in place sent toasts away")
+    }
+
+    /** Where the toasts that can be dismissed are drawn, front first. */
+    private fun ComposeUiTest.cards() =
+        onAllNodes(SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Polite), useUnmergedTree = true)
+            .fetchSemanticsNodes().map { it.boundsInRoot }.filter { it.width > 2f }.sortedByDescending { it.bottom }
+
+    /** Where the toasts that cannot be dismissed are drawn: see [stack]. */
+    private fun ComposeUiTest.staying() =
+        onAllNodes(SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Assertive), useUnmergedTree = true)
+            .fetchSemanticsNodes().map { it.boundsInRoot }
+
+    @Test
+    fun aToastThatStaysComesIntoViewBehindTheHeldStackAndStaysThereAsItGoes() = runComposeUiTest {
+        // Four in front of it, so it is queued off screen behind the three pills.
+        val toasts = stack(listOf("Offline", "Two", "Three", "Four", "Five"), fixed = setOf("Offline"))
+        assertEquals(emptyList(), staying(), "the toast that stays was drawn before the stack was held")
+        // The front card and the three pills behind it, front first: the gap
+        // between the front's foot and the first pill's is a pill's place.
+        val places = cards()
+        assertEquals(4, places.size, "not a front card and three pills: $places")
+        val firstPlace = places[0].bottom - places[1].bottom
+        val at = onNodeWithText("Five", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot.center
+        var finger = at
+        onRoot().performTouchInput { down(at) }
+        mainClock.advanceTimeBy(800)
+        settle(30)
+        val held = staying().singleOrNull()
+        assertTrue(held != null, "held, the stack did not bring the toast that stays into view behind it")
+        // Just behind the gathered pill, in the first pill's place: not queued
+        // at the back, where the second and third were.
+        val gathered = cards().first()
+        val behind = gathered.bottom - held.bottom
+        assertTrue(behind > 0f && behind < firstPlace * 1.5f, "it was not just behind the front: $held, behind $gathered, where a first pill is $firstPlace up")
+
+        // Dragged away: it is drawn on every frame as the pill goes, never gone
+        // and back.
+        repeat(12) {
+            finger += Offset(0f, 20f)
+            onRoot().performTouchInput { moveTo(finger) }
+            mainClock.advanceTimeByFrame()
+        }
+        onRoot().performTouchInput { up() }
+        repeat(60) { frame ->
+            mainClock.advanceTimeByFrame()
+            assertEquals(1, staying().size, "the toast that stays was not drawn $frame frames after the stack was sent away")
+        }
+        assertEquals(listOf("Offline"), toasts.left())
+        assertTrue(onAllNodesWithText("Offline", useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty(), "it is not the front card once the rest have gone")
     }
 }

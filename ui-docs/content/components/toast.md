@@ -148,8 +148,10 @@ go rather than being swept away unseen.
 false)`, pinned, for a state of the whole app that lasts as long as it is so —
 the phone offline — and has no screen of its own to put a `Banner` on. It has no
 close control, a swipe stretches it and lets it spring back, and holding the
-stack leaves it where it is. Everything else in the stack can still be swiped
-away around it.
+stack leaves it behind: it comes forward to just behind the gathered pill while
+the stack is held, even from the queue off screen behind three pills, so the
+reader can see what will stay, and it is the front toast once the rest have
+gone. Everything else in the stack can still be swiped away around it.
 
 ```kotlin
 val offline = toasts.show("You're offline", tone = Tone.Warning, duration = Duration.INFINITE, dismissible = false)
