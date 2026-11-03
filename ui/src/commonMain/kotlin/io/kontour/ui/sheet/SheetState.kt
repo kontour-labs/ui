@@ -824,6 +824,16 @@ class SheetState internal constructor(
     internal var throwsInFlight by mutableIntStateOf(0)
 
     /**
+     * Whether the finger now on the sheet, or the last one, caught it moving and
+     * then swiped across instead, to something inside it: see `sheetDrag`,
+     * which sends the sheet on to where it was going once the finger lifts.
+     * What that something flings at the end of the swipe reaches
+     * [nestedScrollConnection] too, which settled a sheet caught between
+     * detents at the nearest one and undid it. Cleared by the next finger.
+     */
+    internal var caughtAcross: Boolean = false
+
+    /**
      * True while a **finger** is moving the sheet, as opposed to code.
      *
      * The signal `FeedbackIntent.DragThreshold`'s own documentation said was
@@ -1006,6 +1016,15 @@ class SheetState internal constructor(
                 if (presence.value != 1f) presence.animateTo(1f, motion.tweenFast())
             }
         }
+    }
+
+    /**
+     * Goes on to [detent], an anchor the sheet was on its way to when a finger
+     * caught it and then swiped across instead: see `sheetDrag`. The nearest
+     * one if the anchors have moved on since.
+     */
+    internal suspend fun carryOn(detent: SheetDetent) {
+        if (anchoredState.anchors.positionOf(detent).isNaN()) restAtNearest() else move(detent)
     }
 
     /** Jumps to [detent] with no animation. For restoring state, not for interaction. */
@@ -1888,6 +1907,9 @@ class SheetState internal constructor(
             override suspend fun onPreFling(available: Velocity): Velocity {
                 // A wheel's or a thumb's: the content's alone, as its scroll was.
                 if (flingsInPlace()) return Velocity.Zero
+                // A swipe across a sheet that was moving: the sheet's own drag
+                // sends it on. See [caughtAcross].
+                if (caughtAcross) return Velocity.Zero
                 // **The sheet was moving under the finger when it let go**, so
                 // the release is the sheet's, whatever the list did earlier in
                 // the gesture. UIKit's rule: once a scroll view at its top has
@@ -1984,6 +2006,7 @@ class SheetState internal constructor(
                 // stopped — so this is the reliable place to forget it.
                 listScrolled = false
                 sheetTookThisGesture = false
+                if (caughtAcross) return Velocity.Zero
                 // A wheel's or a thumb's moved the content and not the sheet:
                 // nothing to settle, and only a stretch, were there one, to let go.
                 if (flingsInPlace()) {

@@ -125,6 +125,14 @@ rebuild and which workarounds to take out.
   control that decides its drag by direction: a `WheelSelect`'s wheels, a
   `DatePicker`'s and an `EventCalendar`'s swipes between pages, and a `NavBar`'s
   marker.
+- **A swipe across a sheet that is still moving is the swipe's.** A finger on
+  a sheet that has not settled — just opened, just let go — catches it, and the
+  catch took the gesture on a few pixels up or down whatever else the finger
+  did, so a carousel or a swipe row in a sheet only answered once the sheet had
+  come to rest. A finger that catches a sheet now goes by the slope a settled
+  sheet does, about sixty degrees: flatter is let go to what is under it, and
+  the sheet, held while the swipe goes on, carries on to the detent it was
+  going to once the finger lifts.
 - **A timeline's stops move into place.** `timelineList` and `branchTimeline`
   rows jumped when the list changed, a fold opened or a stop gone, where a
   `listSection`'s rows slide and fade: `animateItem` has to be on an item's

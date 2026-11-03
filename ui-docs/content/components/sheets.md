@@ -262,6 +262,14 @@ carousel included. The sheet's drag is its own rather than Compose's
 `anchoredDraggable`: a Compose draggable waiting round a carousel takes every
 swipe over thirty degrees from it, however long it would have waited.
 
+The same holds while the sheet is still moving. A finger on a sheet that is
+opening, landing or being thrown catches it at once and holds it where it is;
+from there half a touch slop up or down, at the same sixty degrees, is a drag
+of the sheet, and a swipe flatter than that is let go to whatever is under it.
+The sheet stays where it was caught while the swipe goes on, so the carousel
+does not slide under the finger, and goes on to the detent it was on its way
+to once the finger lifts.
+
 This was reported from an iPhone, as two symptoms of one cause — a flick that had
 to be thrown harder than on Android, and a downward drag that *sometimes* pulled
 the list's content down instead of moving the sheet. Each platform installs a
