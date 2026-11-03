@@ -79,7 +79,10 @@ it stays as it is. It is read from the scroller's own overscroll, which
 `KontourTheme` keeps an account of — how far the stretch or the bounce has taken
 the content — so it is on the modifier, on the scroller, under the theme; a
 `Scrollbar` beside its content does not see it. A pull that moves a sheet rather
-than its list leaves the thumb whole.
+than its list leaves the thumb whole. The account is the drag the scroll did not
+take rather than what the effect says it took: Android's stretch reports the
+pull as left over, and in 0.5.2 the thumb gave nothing there until the finger
+lifted.
 
 A list with an [`IndexScroller`](index-scroller.md) down its edge has no
 scrollbar: the index is its position control, and the bar draws nothing while

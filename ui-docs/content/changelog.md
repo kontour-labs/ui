@@ -128,6 +128,14 @@ On `main`, and in the next release.
   as `detents`' own docs always said; a screen whose list changes finds the
   sheet doing what it says, which [Migrating](migrating.md) lists under
   **Check**.
+- **A scrollbar's thumb gives way on Android while the finger is down.** Since
+  0.5.2, pulled past the end of a list, it kept its length until the finger
+  lifted and then shrank in one go. The thumb read what the overscroll said it
+  had taken, and Android's stretch says it took nothing as it pulls out. It now
+  reads the drag the list did not take, which every platform's overscroll has,
+  so it shrinks frame by frame on Android as it does on iOS, where the first
+  frame past the end was missed in the same way.
+
 ### Breaking
 
 [Migrating](migrating.md) has the before and after for each, and the

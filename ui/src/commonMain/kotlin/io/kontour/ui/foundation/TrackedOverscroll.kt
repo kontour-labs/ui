@@ -36,8 +36,18 @@ import kotlin.math.sign
  * frame of a pull through the scroll, but iOS's bounce, once the content is
  * past its end, takes the drag itself and offers it to nothing, so the parent
  * saw one frame of the pull and the thumb hardly moved. This sits where the
- * drag is decided, so it sees what the effect absorbs on any platform: what it
- * took, less what the scroll took.
+ * drag is decided, so it sees what the effect absorbs on any platform.
+ *
+ * **What the scroll did not take, not what the effect says it took.** 0.5.2
+ * counted the second, and Android's stretch never says it: it reports as
+ * consumed only what it gave back and what the scroll took, and the drag it
+ * pulls the stretch out with is reported left over. So on Android the thumb
+ * gave nothing while the finger was down, and only the fling's bump showed on
+ * release — *"it's not shrinking, until i let it go"*, raised 2026-11-03 for
+ * 0.5.3. iOS's bounce says the same of the frame a pull first goes past the
+ * end, and only counts the frames after it as taken. What both do is the same:
+ * a finger's drag the scroll and the nested scroll above it did not take goes
+ * into the effect, as a pull out or a pull back.
  *
  * It changes nothing the effect does. Every call goes straight through, and
  * its node is the effect's own, delegated, so the stretch or the bounce draws
@@ -70,7 +80,8 @@ internal class TrackedOverscroll(
         var byScroll = Offset.Zero
         val taken = inner.applyToScroll(delta, source) { offered -> performScroll(offered).also { byScroll += it } }
         if (source == NestedScrollSource.UserInput) {
-            val absorbed = taken - byScroll
+            // Whatever the effect reports: see **What the scroll did not take**.
+            val absorbed = delta - byScroll
             // One axis moves; whichever it is.
             val along = if (abs(absorbed.y) >= abs(absorbed.x)) absorbed.y else absorbed.x
             if (along != 0f) {
