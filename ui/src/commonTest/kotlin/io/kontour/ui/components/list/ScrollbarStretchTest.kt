@@ -13,6 +13,8 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.node.DelegatableNode
@@ -207,5 +209,45 @@ class ScrollbarStretchTest {
         mainClock.advanceTimeByFrame()
         assertEquals(before, thumb())
         onNodeWithTag("list").performTouchInput { up() }
+    }
+
+    /** How much of a 100px thumb at the foot of a [span]px track a [pull] takes, at [share]. */
+    private fun given(pull: Float, span: Float, share: Float = 1f): Float {
+        val thumb = Rect(0f, span - 100f, 6f, span)
+        return 100f - thumb.stretched(pull, Size(6f, span), vertical = true, share = share).height
+    }
+
+    /**
+     * The give is the share of the scroller the content has visibly moved, as
+     * UIKit's indicator's is: a pull a third of the scroller takes about a
+     * sixth of the thumb, not the third 0.5.2's fixed 160dp curve took —
+     * *"the scrollbar shrink with the overscroll effect is very strong"*.
+     */
+    @Test
+    fun aPullAThirdOfTheScrollerTakesAboutASixthOfTheThumb() {
+        val give = given(pull = 700f / 3, span = 700f)
+        assertTrue(give in 14f..17f, "a third of the scroller took $give of a 100px thumb")
+    }
+
+    /** *"i don't think it scales with the size of the list"*: the same pull takes more of a short one. */
+    @Test
+    fun theSamePullTakesMoreOfAShortListThanALongOne() {
+        val short = given(pull = 150f, span = 300f)
+        val long = given(pull = 150f, span = 900f)
+        assertTrue(short > long * 1.8f, "150px past the end took $short of a 300px list's thumb and $long of a 900px one's")
+    }
+
+    /** *"it should be stronger on ios"*: Android's stretch moves no content, and its thumb gives less. */
+    @Test
+    fun underAStretchItGivesLessThanUnderABounce() {
+        val bounce = given(pull = 300f, span = 700f, share = 1f)
+        val stretch = given(pull = 300f, span = 700f, share = StretchShare)
+        assertTrue(stretch < bounce * 0.5f && stretch > 0f, "a stretch took $stretch where a bounce took $bounce")
+    }
+
+    /** However far it is pulled, a thumb keeps half its length. */
+    @Test
+    fun aLongPullLeavesHalfTheThumb() {
+        assertEquals(50f, given(pull = 100_000f, span = 300f), 0.01f)
     }
 }
