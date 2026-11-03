@@ -44,6 +44,19 @@ On `main`, and in the next release.
   start. With `draggable = true` it pulls only as far as either end, and under
   reduced motion it stops as a looping one does. Looping stays the default,
   drawn as it was. The gallery's marquee demo has a *Travel* knob.
+- **Hold the toast stack to send it all away.** A finger resting still on the
+  front toast for a long press gathers every toast that can be dismissed into one
+  pill saying how many, which goes as one when dragged past the line and comes
+  apart again when let go short of it. A drag that stops is never a hold; a hold
+  started on the action does not press it; a toast arriving mid-hold waits. A
+  screen reader gets **Dismiss all**. `Strings` gains `dismissAll` and
+  `toastCount`.
+- **A toast that stays until the app takes it down.**
+  `ToastHostState.show(dismissible = false)`: no close control, a swipe springs
+  back, and holding the stack leaves it. For a state of the whole app with no
+  screen of its own for a `Banner`, the phone offline; an app had consumed every
+  drag over its toasts to keep one up, and stopped the rest being swiped away
+  with it. The gallery's toast demo has *One that stays*.
 - **A pressable that is an option.** `Modifier.pressable(selected = …)` makes
   something drawn by hand, a tab, a chip, a choice, one of a set: it is
   reported as selected or not, keeps its long press, and takes the role of the
@@ -97,6 +110,9 @@ On `main`, and in the next release.
 - **`Modifier.marquee` has a new parameter**, `travel`, defaulted and last, so
   anything built against 0.5.2 recompiles; every call site still compiles as it
   is.
+- **`ToastHostState.show` has a new parameter**, `dismissible`, defaulted and
+  last, and **`Strings` has new fields**, `dismissAll` and `toastCount`, at the
+  end: anything built against 0.5.2 recompiles, and every call compiles as it is.
 - **`Modifier.pressable` has a new parameter**, `selected`, defaulted, before
   `interactionSource`, so anything built against 0.5.2 recompiles, and a call
   passing `interactionSource` by position names it.

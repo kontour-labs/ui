@@ -589,8 +589,23 @@ internal val ToastDemo = ComponentDemo(
                 variant = ButtonVariant.Secondary,
                 size = ButtonSize.Small,
             ) { +"With an action" }
+            // One that cannot be sent away, taken down by the second press.
+            var stays by remember { mutableStateOf<Long?>(null) }
+            Button(
+                onClick = {
+                    val id = stays
+                    stays = if (id != null) {
+                        toasts.dismiss(id)
+                        null
+                    } else {
+                        toasts.show("You're offline", tone = Tone.Warning, duration = kotlin.time.Duration.INFINITE, dismissible = false)
+                    }
+                },
+                variant = ButtonVariant.Secondary,
+                size = ButtonSize.Small,
+            ) { +(if (stays == null) "One that stays" else "Take it down") }
             Text(
-                "Four at once is the cap — press faster than they expire.",
+                "Four at once is the cap — press faster than they expire. Hold the front one to send them all away.",
                 style = Theme.typography.labelSmall,
                 colour = Theme.colours.contentMuted,
             )

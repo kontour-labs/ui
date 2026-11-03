@@ -133,6 +133,30 @@ and has two ways out of the way, that is the right trade — and without it a
 sideways swipe inside a vertical list is a race decided by the angle of the first
 few pixels.
 
+**Hold the stack to send it all away.** Rest a finger still on the front toast
+for a long press and every toast the reader can dismiss gathers into one pill,
+saying how many — "3 notifications" — with the long press's haptic. Drag it past
+the same line one toast is swiped past and they all go, the ones queued off
+screen too; let go short of it and it springs back and comes apart. It is a hold
+only from the press: a finger that has moved past the touch slop is dragging the
+front toast, and stopping does not turn that into a hold. A hold that begins on
+the action or the close does not press it as the finger lifts, one toast held is
+one toast, and a toast that arrives while the stack is held waits until it is let
+go rather than being swept away unseen.
+
+**A toast that stays until the app takes it down.** `show(…, dismissible =
+false)`, pinned, for a state of the whole app that lasts as long as it is so —
+the phone offline — and has no screen of its own to put a `Banner` on. It has no
+close control, a swipe stretches it and lets it spring back, and holding the
+stack leaves it where it is. Everything else in the stack can still be swiped
+away around it.
+
+```kotlin
+val offline = toasts.show("You're offline", tone = Tone.Warning, duration = Duration.INFINITE, dismissible = false)
+// … and when the phone is back:
+toasts.dismiss(offline)
+```
+
 **`alignment` puts the stack in a corner.** A toast is capped at
 `ToastDefaults.MaxWidth`, so on a phone it spans the screen less its margins and
 `alignment` changes nothing. On a desktop window the default is a card in the
@@ -178,9 +202,15 @@ window for someone reading at their own pace.
 `showDismiss` adds a close button with `dismissLabel` on it, which is worth turning
 on wherever a toast can carry an action.
 
+With more than one toast to dismiss, the front one offers **Dismiss all** among
+its actions: what holding the stack does, for a reader who cannot hold it.
+
 At high contrast the rims round the pills stacked behind the front toast are
 drawn thicker and in full ink rather than faded, and the action and close
 buttons, which are ghosts, gain an outline in the toast's text colour.
+
+Under reduced motion the stack gathered by a hold is merged at once, with no
+movement in; the rest is as below.
 
 Under reduced motion a toast arrives and leaves by fading where it rests, the
 front card and the pills behind it alike, and a swipe still follows the finger;

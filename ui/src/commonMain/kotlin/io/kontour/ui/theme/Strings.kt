@@ -481,6 +481,11 @@ data class Strings(
      * its "+"'s.
      */
     val moreOptions: String = "More options",
+    /** A stack of toasts' action, sending every one away: "Dismiss all". */
+    val dismissAll: String = "Dismiss all",
+    /** A stack of toasts gathered up to be sent away together: "3 notifications". */
+    val toastCount: (count: Quantity) -> String =
+        { count -> count.select(one = "${count.formatted} notification", other = "${count.formatted} notifications") },
 ) {
     companion object {
         /**
@@ -508,6 +513,7 @@ data class Strings(
          */
         fun from(lookup: StringLookup, fallback: Strings = Strings()): Strings = Strings(
         dismiss = lookup.text("dismiss") ?: fallback.dismiss,
+        dismissAll = lookup.text("dismissAll") ?: fallback.dismissAll,
         close = lookup.text("close") ?: fallback.close,
         back = lookup.text("back") ?: fallback.back,
         cancel = lookup.text("cancel") ?: fallback.cancel,
@@ -556,6 +562,7 @@ data class Strings(
         cappedCount = { cap -> lookup.phrase("cappedCount", cap, cap.formatted) ?: fallback.cappedCount(cap) },
         moreCount = { count -> lookup.phrase("moreCount", count, count.formatted) ?: fallback.moreCount(count) },
         selectedCount = { count -> lookup.phrase("selectedCount", count, count.formatted) ?: fallback.selectedCount(count) },
+        toastCount = { count -> lookup.phrase("toastCount", count, count.formatted) ?: fallback.toastCount(count) },
         peopleCount = { count -> lookup.phrase("peopleCount", count, count.formatted) ?: fallback.peopleCount(count) },
         unknownInitials = lookup.text("unknownInitials") ?: fallback.unknownInitials,
         tourPosition = { position, count -> lookup.phrase("tourPosition", count, position.formatted, count.formatted) ?: fallback.tourPosition(position, count) },
@@ -767,6 +774,7 @@ internal fun fillArguments(template: String, arguments: Array<out String>): Stri
  */
 internal fun Strings.mapped(transform: (String) -> String): Strings = Strings(
     dismiss = transform(dismiss),
+    dismissAll = transform(dismissAll),
     close = transform(close),
     back = transform(back),
     cancel = transform(cancel),
@@ -812,6 +820,7 @@ internal fun Strings.mapped(transform: (String) -> String): Strings = Strings(
     cappedCount = { a0 -> transform(cappedCount(a0)) },
     moreCount = { a0 -> transform(moreCount(a0)) },
     selectedCount = { a0 -> transform(selectedCount(a0)) },
+    toastCount = { a0 -> transform(toastCount(a0)) },
     peopleCount = { a0 -> transform(peopleCount(a0)) },
     unknownInitials = transform(unknownInitials),
     tourPosition = { a0, a1 -> transform(tourPosition(a0, a1)) },

@@ -47,6 +47,7 @@ PHRASES: dict[str, str | dict[str, str]] = {
     "cappedCount": {"one": "%1$s+", "other": "%1$s+"},
     "moreCount": {"one": "+%1$s", "other": "+%1$s"},
     "selectedCount": {"one": "%1$s selected", "other": "%1$s selected"},
+    "toastCount": {"one": "%1$s notification", "other": "%1$s notifications"},
     "peopleCount": {"one": "%1$s person", "other": "%1$s people"},
     "tourPosition": {"one": "%1$s / %2$s", "other": "%1$s / %2$s"},
     "activityOnDay": {"one": "%1$s activity on %2$s", "other": "%1$s activities on %2$s"},

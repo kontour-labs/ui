@@ -17,8 +17,8 @@ from the version the app is on.
 
 ## 0.5.2 to 0.5.3
 
-A marquee can go back and forth, and a pressable can be an option. Nothing an
-app has written by name changes.
+A marquee can go back and forth, a pressable can be an option, and a toast can
+stay. Nothing an app has written by name changes.
 
 ### Rebuild a library that calls `Modifier.marquee` or `Modifier.pressable`
 
@@ -38,6 +38,13 @@ that passes it by position, after eleven others, names it:
 
 It fails to compile rather than meaning something else. A library compiled
 against 0.5.2 that calls it is compiled again, as for the marquee.
+
+`ToastHostState.show` takes `dismissible`, defaulted and last, and `Strings`
+has `dismissAll` and `toastCount` at its end: source compiles as it is, and a
+library built against 0.5.2 is compiled again. An app that bridges its own
+resources with `Strings.from` gets their English until it adds
+`kontour_dismissAll` and `kontour_toastCount` (`%1$s notification`,
+`%1$s notifications`).
 
 ---
 
