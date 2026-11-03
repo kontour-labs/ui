@@ -478,6 +478,13 @@ internal object AnchoredOverlayDefaults {
      * which there is nothing a reader could act on, whether or not it scrolls.
      */
     val MinimumPanel: Dp = 64.dp
+
+    /**
+     * The least of a panel the side it was asked for has to show for the panel
+     * to open there, scrolling the rest, when the side across its anchor would
+     * hold all of it: half. See `AnchoredOverlayLayout`'s *Not cut short*.
+     */
+    const val LeastShown: Float = 0.5f
 }
 
 /** This extent less what the edges take, or [Constraints.Infinity] if it had none. */
@@ -759,35 +766,7 @@ internal fun AnchoredOverlayLayout(
         // The fallbacks are in order of how much they give up: the opposite side, and
         // then nothing at all, which is the container's own bound and the behaviour
         // this has always had.
-        // A floor above the default is a caller asking for *enough to use*, and
-        // enough to use can never be more than the whole panel: a two-item menu
-        // that fits in the room below opens below, whatever the floor says. Read
-        // as an intrinsic, before measuring, because the room it decides is what
-        // the panel is measured against — and only when it can matter, since
-        // intrinsics are a second walk of the content.
-        val floor = if (minimumPanelPx > defaultPanelPx) {
-            val natural = measurables.maxOfOrNull { measurable ->
-                val across = overlayConstraints(container, marginPx, minWidthPx, insets)
-                if (vertical) {
-                    measurable.maxIntrinsicHeight(across.maxWidth)
-                } else {
-                    measurable.maxIntrinsicWidth(across.maxHeight)
-                }
-            } ?: 0
-            minOf(minimumPanelPx, natural).coerceAtLeast(defaultPanelPx)
-        } else {
-            minimumPanelPx
-        }
-        val preferredRoom =
-            roomBeside(anchorInHost, container, preferred, effectiveGap, marginPx, insets)
-        val oppositeRoom =
-            roomBeside(anchorInHost, container, preferred.opposite, effectiveGap, marginPx, insets)
-        val room = when {
-            preferredRoom >= floor -> preferredRoom
-            oppositeRoom >= floor -> oppositeRoom
-            else -> 0
-        }
-
+        //
         // **Leaving from where it was.** Reported on a combobox: it opens above the
         // field when the keyboard leaves no room below, and tapping elsewhere closes
         // the keyboard and the menu together — so for the length of the menu's exit
@@ -797,6 +776,60 @@ internal fun AnchoredOverlayLayout(
         // which may be moving as the keyboard goes.
         val keptSide = if (leaving()) placedSide.side else null
         val across = overlayConstraints(container, marginPx, minWidthPx, insets)
+        val preferredRoom =
+            roomBeside(anchorInHost, container, preferred, effectiveGap, marginPx, insets)
+        val oppositeRoom =
+            roomBeside(anchorInHost, container, preferred.opposite, effectiveGap, marginPx, insets)
+        // How long the whole panel is along the way it opens. Read as an
+        // intrinsic, before measuring, because the room it decides is what the
+        // panel is measured against — and only when it can matter, since
+        // intrinsics are a second walk of the content: for a floor above the
+        // default, and for a flip, which needs more room across the anchor. Null
+        // for content that cannot say, a lazy list among it, which is measured
+        // as it always was.
+        val natural = if (
+            minimumPanelPx > defaultPanelPx ||
+            keptSide == null && !fitWhole && oppositeRoom * AnchoredOverlayDefaults.LeastShown > preferredRoom
+        ) {
+            try {
+                measurables.maxOfOrNull { measurable ->
+                    if (vertical) measurable.maxIntrinsicHeight(across.maxWidth) else measurable.maxIntrinsicWidth(across.maxHeight)
+                }
+            } catch (_: IllegalStateException) {
+                null
+            }
+        } else {
+            null
+        }
+        // A floor above the default is a caller asking for *enough to use*, and
+        // enough to use can never be more than the whole panel: a two-item menu
+        // that fits in the room below opens below, whatever the floor says.
+        val floor = if (minimumPanelPx > defaultPanelPx && natural != null) {
+            minOf(minimumPanelPx, natural).coerceAtLeast(defaultPanelPx)
+        } else {
+            minimumPanelPx
+        }
+        // **Not cut short where the other side holds all of it.** The side asked
+        // for won whenever it had the floor, and the panel was bounded to it and
+        // scrolled, however much more there was across the anchor: a date-time
+        // picker's time chip, low on a phone, opened its wheels below into a
+        // strip a couple of rows high with the whole screen free above it —
+        // *"it decides to open below the field, even though there's plenty of
+        // room above"*, raised 2026-11-03 for 0.5.3: about a third of the panel
+        // showed. A panel the side asked for would show less than half of —
+        // [AnchoredOverlayDefaults.LeastShown] — opens across the anchor, where
+        // that side holds all of it. Short of that the side asked for still
+        // holds and scrolls the rest: the popover a phone put twenty pixels
+        // short below, whose flip was reported as `Bottom` not meaning bottom.
+        val flipped = keptSide == null && !fitWhole && natural != null &&
+            natural * AnchoredOverlayDefaults.LeastShown > preferredRoom && natural <= oppositeRoom
+        val room = when {
+            flipped -> oppositeRoom
+            preferredRoom >= floor -> preferredRoom
+            oppositeRoom >= floor -> oppositeRoom
+            else -> 0
+        }
+
         val whole = if (fitWhole && keptSide == null) {
             sideWhereWhole(measurables, anchorInHost, container, preferred, effectiveGap, marginPx, insets, across, floor)
         } else {
@@ -821,7 +854,7 @@ internal fun AnchoredOverlayLayout(
             margin = marginPx,
             isRtl = isRtl,
             insets = insets,
-            keepSide = keptSide ?: whole?.side,
+            keepSide = keptSide ?: whole?.side ?: preferred.opposite.takeIf { flipped },
         )
         if (keptSide == null) {
             placedSide.side = placement.side

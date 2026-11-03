@@ -155,4 +155,51 @@ class PopoverSideTest {
             )
         }
     }
+
+    /**
+     * But not cut down to a strip when the other side holds all of it. A
+     * date-time picker's time chip, low on a phone, opened its wheels below
+     * into a couple of rows' room with the whole screen free above — *"it
+     * decides to open below the field, even though there's plenty of room
+     * above"*. The same Pixel, a trigger with about 90dp under it, and a panel
+     * twice that.
+     */
+    @Test
+    fun aPopoverTooTallForBelowOpensAboveWhereItFitsWhole() {
+        var anchor = Rect.Zero
+        var panel = Rect.Zero
+        Scene(width = 1080, height = 2400, density = 2.625f, reduceMotion = true) {
+            OverlayHost(Modifier.fillMaxSize()) {
+                Box(Modifier.fillMaxSize().background(Color.White)) {
+                    Box(
+                        Modifier
+                            .align(Alignment.TopCenter)
+                            .offset(y = 780.dp)
+                            .size(44.dp)
+                            .reportBounds { anchor = it }
+                    ) {
+                        Popover(
+                            visible = true,
+                            onDismissRequest = {},
+                            side = OverlaySide.Bottom,
+                            modifier = Modifier.reportBounds { panel = it },
+                        ) {
+                            Box(Modifier.fillMaxWidth().height(180.dp))
+                        }
+                    }
+                }
+            }
+        }.use { scene -> scene.frames(30) }
+
+        assertTrue(
+            panel.bottom <= anchor.top,
+            "a popover too tall for the room below its trigger, with all the room it " +
+                "needs above, was drawn from ${panel.top} to ${panel.bottom} against a " +
+                "trigger from ${anchor.top} to ${anchor.bottom}",
+        )
+        assertTrue(
+            panel.height >= 180 * 2.625f,
+            "the popover above was ${panel.height}px for 180dp of content: it was still cut",
+        )
+    }
 }

@@ -577,7 +577,9 @@ internal fun positionAnchored(
 Two corrections, in order:
 
 1. **Flip.** If the preferred side has no room and the opposite side does, use
-   the opposite side. If neither fits, keep whichever has more room.
+   the opposite side. If neither fits, keep whichever has more room. A panel
+   that would show less than half of itself on the preferred side, and fits
+   whole on the opposite one, opens there.
 2. **Shift.** Slide along the other axis until the whole thing is inside the
    container, keeping `margin` and the window's own insets clear of the edges.
 
