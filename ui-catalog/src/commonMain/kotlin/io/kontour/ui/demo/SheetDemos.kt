@@ -250,9 +250,15 @@ private val sheetSearchBar = Knob.Choice("Search bar", SheetPartPin.entries.toLi
  */
 private val sheetNoFade = Knob.Flag("No fade under it")
 
+/**
+ * The list scrolls where it is above the sheet's lowest size, rather than the
+ * sheet opening first: `scrollExpands = false`.
+ */
+private val sheetScrollsInPlace = Knob.Flag("List scrolls in place")
+
 internal val BottomSheetDemo = ComponentDemo(
     slug = "bottom-sheet",
-    knobs = listOf(sheetPresentation, sheetEdgeMorph, sheetAlignment, sheetControlsAlignment, sheetSearchBar, sheetNoFade),
+    knobs = listOf(sheetPresentation, sheetEdgeMorph, sheetAlignment, sheetControlsAlignment, sheetSearchBar, sheetNoFade, sheetScrollsInPlace),
 ) {
     val presentation = this[sheetPresentation]
     val searchBar = this[sheetSearchBar]
@@ -290,6 +296,7 @@ internal val BottomSheetDemo = ComponentDemo(
                     variant = ButtonVariant.Secondary,
                 )
             },
+            scrollExpands = !this@ComponentDemo[sheetScrollsInPlace],
             fadeUnder = !this@ComponentDemo[sheetNoFade],
         ) { padding ->
             if (search) {

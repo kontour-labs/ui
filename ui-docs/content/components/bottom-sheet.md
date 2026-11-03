@@ -296,6 +296,35 @@ change to parts.
 
 ---
 
+## `scrollExpands` — a list that scrolls where it is
+
+Dragging a sheet's list up opens the sheet first and scrolls the list once it
+is at full height, as UIKit's sheets do. Over a map that is the wrong way round:
+the reader wants the list read with the map still in view. `scrollExpands =
+false` scrolls the list where it is at any size above the sheet's lowest, and the
+sheet stays put, as Apple Maps' does.
+
+```kotlin
+BottomSheet(state = sheet, scrollExpands = false) { padding ->
+    LazyColumn(contentPadding = padding) { items(stops) { StopRow(it) } }
+}
+```
+
+- **Collapsed, the sheet still comes up.** At its lowest size the sheet is all
+  that shows, and dragging it up is how it opens.
+- **Down past the list's top is the sheet's**, the rest of that drag both ways
+  and the throw it ends with, as it always is: a pull down and back up in one
+  gesture brings the sheet back rather than scrolling the list.
+- **Up past the list's end is the end.** The sheet does not open from there.
+- **Give the content its `padding`.** A sheet's content is laid out as tall as
+  the sheet goes and slid down, so at half the foot of a list is under the
+  screen. Off, the padding grows at its foot by as much as is under the screen,
+  measured as the sheet comes to rest, and given to a list's `contentPadding` it
+  lets the last rows come up. It is for a list that fills the sheet.
+
+UIKit's name for it is `prefersScrollingExpandsWhenScrolledToEdge`. The
+gallery's bottom sheet has a *List scrolls in place* knob.
+
 ## `presentation` — a drawer out of the screen, or a panel over it
 
 **`BottomSheet` floats by default.** `SheetPresentation.Floating` lifts the sheet

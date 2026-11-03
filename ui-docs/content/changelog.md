@@ -44,6 +44,14 @@ On `main`, and in the next release.
   start. With `draggable = true` it pulls only as far as either end, and under
   reduced motion it stops as a looping one does. Looping stays the default,
   drawn as it was. The gallery's marquee demo has a *Travel* knob.
+- **A sheet whose list scrolls where it is.** `BottomSheet(scrollExpands =
+  false)`: above its lowest size, dragging the list up scrolls it and the sheet
+  stays put, so a map above it stays in view; collapsed, a drag up still brings
+  the sheet up, and down past the list's top is still the sheet's. The padding
+  handed to the content grows at its foot by what is under the screen, so a
+  list's last rows come up. UIKit's `prefersScrollingExpandsWhenScrolledToEdge`.
+  An app had built it round the sheet with a drag of its own. The gallery's
+  bottom sheet has a *List scrolls in place* knob.
 - **Hold the toast stack to send it all away.** A finger resting still on the
   front toast for a long press gathers every toast that can be dismissed into one
   pill saying how many, which goes as one when dragged past the line and comes
@@ -110,6 +118,9 @@ On `main`, and in the next release.
 - **`Modifier.marquee` has a new parameter**, `travel`, defaulted and last, so
   anything built against 0.5.2 recompiles; every call site still compiles as it
   is.
+- **`BottomSheet` has a new parameter**, `scrollExpands`, defaulted, after
+  `draggable`: anything built against 0.5.2 recompiles, and a call passing the
+  arguments after `draggable` by position names them.
 - **`ToastHostState.show` has a new parameter**, `dismissible`, defaulted and
   last, and **`Strings` has new fields**, `dismissAll` and `toastCount`, at the
   end: anything built against 0.5.2 recompiles, and every call compiles as it is.

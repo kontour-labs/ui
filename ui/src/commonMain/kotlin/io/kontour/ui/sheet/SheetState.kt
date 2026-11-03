@@ -1345,6 +1345,34 @@ class SheetState internal constructor(
     private var releasedBySheet: Boolean = false
 
     /**
+     * Whether a drag of the content expands the sheet before the content
+     * scrolls, as UIKit's sheets do by default. Set by the sheet drawing this
+     * state, from `BottomSheet`'s `scrollExpands`.
+     */
+    internal var scrollExpands: Boolean = true
+
+    /**
+     * Whether the sheet has moved under the gesture now under way: from then on
+     * it has the rest of the drag, both ways, as it always did. A pull down past
+     * a list's top, carried on back up, is the sheet's coming back, not the list
+     * scrolling. Cleared with the gesture's other notes.
+     */
+    private var sheetTookThisGesture: Boolean = false
+
+    /**
+     * Whether a drag of the content up scrolls it where it is, the sheet staying
+     * put: off [scrollExpands], above the sheet's lowest open detent — collapsed,
+     * the sheet is all that shows, and dragging it up is how it comes up — and
+     * only until the sheet has taken some of the gesture.
+     */
+    private fun scrollsWhereItIs(): Boolean {
+        if (scrollExpands || sheetTookThisGesture) return false
+        val lowest = lowestAnchored(allowedDetents)
+        val at = anchoredState.offset
+        return !lowest.isNaN() && !at.isNaN() && at < lowest - 0.5f
+    }
+
+    /**
      * The finger on the sheet, for a release the platform reports as no throw at
      * all (see [SheetFinger]), and for whether one is on it at all.
      *
@@ -1359,6 +1387,7 @@ class SheetState internal constructor(
     internal val finger = SheetFinger(onDown = {
         listScrolled = false
         releasedBySheet = false
+        sheetTookThisGesture = false
     })
 
     /**
@@ -1813,8 +1842,10 @@ class SheetState internal constructor(
                 // A stretch the finger opened closes before anything else moves.
                 val paid = payBackOvershoot(delta)
                 val offered = delta - paid
-                // Dragging up, sheet not yet expanded: the sheet takes it first.
-                val taken = if (offered < 0f) anchoredState.dispatchRawDelta(offered) else 0f
+                // Dragging up, sheet not yet expanded: the sheet takes it first —
+                // unless the content scrolls where it is (see [scrollExpands]).
+                val taken = if (offered < 0f && !scrollsWhereItIs()) anchoredState.dispatchRawDelta(offered) else 0f
+                if (taken != 0f) sheetTookThisGesture = true
                 // What the child is about to be offered, remembered so the
                 // callback below can tell how much of it the child wanted. The
                 // two are one dispatch, so nothing can arrive in between.
@@ -1839,11 +1870,16 @@ class SheetState internal constructor(
                 // was offered and what it declined, which is how the sheet knows
                 // whose gesture this is when the fling arrives. See `onPostFling`.
                 if (offeredToChild != offered) listScrolled = true
+                // Up past the end of a list scrolling where it is: the end, not
+                // the sheet's. It stays put, as UIKit's does with the same
+                // setting. See [scrollExpands].
+                if (offered < 0f && scrollsWhereItIs()) return Offset.Zero
                 // ...as far as it is allowed to go, and no further. A sheet with
                 // a form in it is dragged by its content as often as by its
                 // handle, so the floor has to hold here too.
                 val toSheet = roomBeforeFloor(offered)
                 val taken = anchoredState.dispatchRawDelta(toSheet)
+                if (taken != 0f) sheetTookThisGesture = true
                 val leftOver = offered - taken
                 val stretched = if (leftOver > 0f) stretchDown(leftOver) else 0f
                 return (taken + stretched).toOffset()
@@ -1894,6 +1930,8 @@ class SheetState internal constructor(
                     ?: Float.NaN
                 return if (
                     available.y < 0 &&
+                    // A list scrolling where it is flings where it is.
+                    !scrollsWhereItIs() &&
                     !offset.isNaN() &&
                     !expandedOffset.isNaN() &&
                     offset > expandedOffset
@@ -1945,6 +1983,7 @@ class SheetState internal constructor(
                 // reaches here — with a zero velocity if the finger simply
                 // stopped — so this is the reliable place to forget it.
                 listScrolled = false
+                sheetTookThisGesture = false
                 // A wheel's or a thumb's moved the content and not the sheet:
                 // nothing to settle, and only a stretch, were there one, to let go.
                 if (flingsInPlace()) {

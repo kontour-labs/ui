@@ -17,10 +17,11 @@ from the version the app is on.
 
 ## 0.5.2 to 0.5.3
 
-A marquee can go back and forth, a pressable can be an option, and a toast can
-stay. Nothing an app has written by name changes.
+A marquee can go back and forth, a pressable can be an option, a toast can
+stay, and a sheet's list can scroll where it is. Nothing an app has written by
+name changes.
 
-### Rebuild a library that calls `Modifier.marquee` or `Modifier.pressable`
+### Rebuild a library that calls `Modifier.marquee`, `Modifier.pressable`, `BottomSheet` or `ToastHostState.show`
 
 `Modifier.marquee` takes `travel`, defaulted and last. Source compiles as it
 is, but a library compiled against 0.5.2 that calls it has to be compiled
@@ -38,6 +39,15 @@ that passes it by position, after eleven others, names it:
 
 It fails to compile rather than meaning something else. A library compiled
 against 0.5.2 that calls it is compiled again, as for the marquee.
+
+`BottomSheet` takes `scrollExpands`, defaulted, after `draggable`. A call that
+names its arguments, as the docs' do, compiles as it is; one passing
+`fadeUnder` or anything after it by position names it:
+
+```diff
+- BottomSheet(sheet, Modifier, SheetPresentation.Edge, …, true, false) { … }
++ BottomSheet(sheet, Modifier, SheetPresentation.Edge, …, true, fadeUnder = false) { … }
+```
 
 `ToastHostState.show` takes `dismissible`, defaulted and last, and `Strings`
 has `dismissAll` and `toastCount` at its end: source compiles as it is, and a
