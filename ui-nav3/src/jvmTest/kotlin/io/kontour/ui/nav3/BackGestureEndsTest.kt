@@ -196,4 +196,32 @@ class BackGestureEndsTest {
         waitForIdle()
         assertEquals(1, completed.intValue, "the back button did nothing")
     }
+
+    /**
+     * Closed in code while its swipe was still springing it away — a close
+     * button tapped as the page slid off — the page is still on screen for its
+     * exit and its swipe still finishing: completed, it took the page under it
+     * away too. One swipe and one close went back twice.
+     */
+    @Test
+    fun aPageClosedAsItsSwipeSpringsAwayGoesOnce() = runDesktopComposeUiTest(width = 400, height = 800) {
+        val backStack = mutableStateListOf<Any>(Route, Trip, Vehicle)
+        setContent { Display(backStack) }
+        waitForIdle()
+        mainClock.autoAdvance = false
+        pan(steps = 12, step = 20f)
+        onRoot().performTouchInput { up() }
+        mainClock.advanceTimeByFrame()
+        mainClock.advanceTimeByFrame()
+        // Close, as the page springs away under the finger that let it go.
+        backStack.removeAt(backStack.lastIndex)
+        mainClock.autoAdvance = true
+        waitForIdle()
+
+        assertEquals(listOf<Any>(Route, Trip), backStack.toList(), "a swipe and a close went back twice")
+        assertIs<NavigationEventTransitionState.Idle>(owner.navigationEventDispatcher.transitionState.value, "the swipe was left under way")
+        onAllNodesWithTag("trip-back", useUnmergedTree = true)[0].performClick()
+        waitForIdle()
+        assertEquals(listOf<Any>(Route), backStack.toList(), "the back button did nothing")
+    }
 }

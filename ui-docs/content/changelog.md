@@ -70,7 +70,9 @@ On `main`, and in the next release.
   closed or replaced. The page was left a little way across, and from then on
   its back button and every other back did nothing for the rest of the session.
   Either way the swipe is now cancelled while back can still hear it, and the
-  page springs back. An app that went round it by doing its own back when
+  page springs back. And a page closed in code as its swipe was still springing
+  it away, a close button tapped as it slid off, no longer takes the page under
+  it with it: one swipe and one close went back twice. An app that went round it by doing its own back when
   `pageBack()` seemed to do nothing can drop that.
 
 ### Breaking

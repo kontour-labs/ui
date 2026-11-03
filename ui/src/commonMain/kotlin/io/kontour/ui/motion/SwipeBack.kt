@@ -30,6 +30,8 @@ import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.navigationevent.NavigationEvent
 import androidx.navigationevent.NavigationEventDispatcher
+import androidx.navigationevent.NavigationEventHistory
+import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.NavigationEventInput
 import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
 import io.kontour.ui.interaction.DirectionDecisionShare
@@ -172,6 +174,32 @@ internal class SwipeBackInput(
      */
     private var interrupted = false
 
+    /**
+     * Where back stands now, as the dispatcher last said: the info of what back
+     * would leave. See [goingFrom].
+     */
+    private var current: NavigationEventInfo? = null
+
+    /**
+     * What the gesture under way is taking away, as it started: what back would
+     * leave then.
+     *
+     * **Moved under it, it is cancelled.** A page closed in code while its swipe
+     * was still springing away — a close button tapped as the page slid off — is
+     * still on screen for its exit, so this input is still there to finish the
+     * gesture, and the stack's back handler, answering a completed back with
+     * whatever is on top by then, took a second page away: one swipe and one
+     * close went back twice. While a gesture is under way, what back would
+     * leave is the info of the handler it went to, and only that handler's own
+     * stack changing changes it; other handlers turning on or off do not.
+     */
+    private var goingFrom: NavigationEventInfo? = null
+
+    override fun onHistoryChanged(history: NavigationEventHistory) {
+        current = history.mergedHistory.getOrNull(history.currentIndex)
+        if (underWay && goingFrom != null && current != goingFrom) interrupt()
+    }
+
     private var added = false
 
     /** The dispatcher this was added to, to tell whether it has been turned off. */
@@ -213,6 +241,7 @@ internal class SwipeBackInput(
     /** The gesture is over, however it went: not under way, nor watched for. */
     private fun ended() {
         underWay = false
+        goingFrom = null
         GesturesUnderWay.inputs -= this
     }
 
@@ -246,7 +275,9 @@ internal class SwipeBackInput(
         interrupted = false
         underWay = true
         GesturesUnderWay.inputs += this
+        goingFrom = null
         dispatchOnBackStarted(NavigationEvent(edge, 0f, at.x, at.y))
+        goingFrom = current
     }
 
     /**
