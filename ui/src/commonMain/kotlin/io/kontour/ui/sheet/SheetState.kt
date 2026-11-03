@@ -129,7 +129,13 @@ class SheetState internal constructor(
      */
     internal val allowedDetents: List<SheetDetent> by derivedStateOf {
         val settled = anchoredState.settledValue
-        detents.filter { it == settled || confirmDetentChange(it) }
+        // **[detentList], not `detents`.** In an initialiser `detents` is the
+        // constructor's parameter, which shadows the property, so this read the
+        // list the state was made with for the whole of its life: a detent
+        // assigned later never had an anchor, and the sheet would not go there
+        // by code or by hand. Reported from an app that had made every sheet
+        // with every detent it might need, since 0.4.3, to get round it.
+        detentList.filter { it == settled || confirmDetentChange(it) }
     }
 
     /** Container height in pixels. Set by the sheet's layout. */

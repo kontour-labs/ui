@@ -57,6 +57,10 @@ On `main`, and in the next release.
   control that decides its drag by direction: a `WheelSelect`'s wheels, a
   `DatePicker`'s and an `EventCalendar`'s swipes between pages, and a `NavBar`'s
   marker.
+- **A sheet goes to a detent it was given after it was made.** `SheetState`
+  read the detents it was created with for the whole of its life, so a detent
+  assigned later, or passed to `rememberSheetState` on a later composition, had
+  no anchor, and the sheet would not go there by code or by hand. It does now.
 - **Back never stops working after a swipe is interrupted.** Every back in an
   app goes through one processor, which runs one gesture at a time and drops
   every other back, from a button, a key, the edge or the system, until it
