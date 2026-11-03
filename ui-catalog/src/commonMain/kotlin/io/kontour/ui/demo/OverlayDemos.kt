@@ -22,6 +22,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.Dp
@@ -566,8 +567,11 @@ internal val ToastDemo = ComponentDemo(
             showDismiss = true,
             countdown = this@ComponentDemo[toastCountdown],
         )
+        // Held off the stage's edges, as a phone's width leaves the hint
+        // running from one to the other and the buttons against the left.
         Column(
-            modifier = Modifier.align(Alignment.Center),
+            modifier = Modifier.align(Alignment.Center).padding(horizontal = Theme.spacing.lg),
+            horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
         ) {
             Button(
@@ -608,6 +612,7 @@ internal val ToastDemo = ComponentDemo(
                 "Four at once is the cap — press faster than they expire. Hold the front one to send them all away.",
                 style = Theme.typography.labelSmall,
                 colour = Theme.colours.contentMuted,
+                textAlign = TextAlign.Center,
             )
         }
     }
