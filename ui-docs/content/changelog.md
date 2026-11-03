@@ -25,7 +25,22 @@ The version an app is on is the `kontour` entry in its version catalog. See
 
 ## Unreleased
 
-On `main`, and in the next release.
+On `main`, and in the next release. Nothing yet.
+
+---
+
+## 0.5.3 — 3 November 2026
+
+Back that keeps working: a swipe back cut short by a dialog, a sheet or its page
+going is cancelled rather than left holding back for good, and a page closed
+while its swipe springs away goes alone. A sheet goes to detents given after it
+was made, ticks as it gets to one, and can let its list scroll where it is. The
+toast stack can be held and sent away whole, around a toast that stays until
+the app takes it down. Tags join into a `TagGroup`, a marquee can go back and
+forth, a pressable can be an option, a timeline's stops move into place, and a
+scrollbar's thumb gives way on Android while the finger is still down. Four
+signatures grew a defaulted parameter: [Migrating](migrating.md) has what to
+rebuild and which workarounds to take out.
 
 ### Added
 
