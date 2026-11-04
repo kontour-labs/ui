@@ -24,8 +24,9 @@ whole, and a sheet's list can scroll where it is. Four signatures grow a
 parameter, which only a call passing its arguments by position notices. The
 rest compiles as it is and behaves differently, under **Check**: a sheet that
 changes its detents now goes to the new ones, a sheet's tick moves to where it
-arrives, a timeline's rows animate, and a swipe row and the toast stack answer
-gestures they did not.
+arrives, a timeline's rows animate, a swipe row, a moving sheet and the toast
+stack answer gestures they did not, a popover or a menu may open on the other
+side of its anchor, and a tooltip's icon moves out from under its words.
 
 ### Name the arguments after `draggable` on a `BottomSheet`
 
@@ -116,6 +117,20 @@ Each of these was written round the library, and each is now the library's:
   that stays up or down is still the sheet's or the list's. The same for a
   `WheelSelect`, a `DatePicker`'s and an `EventCalendar`'s page swipes and a
   `NavBar`'s marker.
+- **A swipe across a sheet that is still moving goes to what is under it.** A
+  finger on a sheet that is opening or landing caught it on a few pixels up or
+  down; it now goes by the sheet's sixty degrees, so a carousel or a swipe row
+  in it answers a flatter swipe, and the sheet carries on to its detent once
+  the finger lifts. A test that dragged a moving sheet on a shallow slope finds
+  the sheet no longer follows.
+- **A popover or a menu can open on the other side of its anchor.** One that
+  did not fit whole on the side asked for opened there anyway, bounded and
+  scrolling, while the other side had room for all of it. It opens on the
+  other side now. A screen that relied on it opening below, a screenshot of it
+  included, finds it above where it would have been cut short. One that fits
+  whole on neither side is as it was.
+- **A tooltip's icon is beside its words**, where it was drawn over them, so a
+  tooltip with an icon is wider by the icon and a small gap.
 - **The front toast answers a long press.** Held still with another toast
   behind it that can be dismissed, it gathers the stack into one pill to be
   dragged away, and its action or close is not pressed as the finger lifts. A

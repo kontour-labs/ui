@@ -29,18 +29,21 @@ On `main`, and in the next release. Nothing yet.
 
 ---
 
-## 0.5.3 — 3 November 2026
+## 0.5.3 — 4 November 2026
 
 Back that keeps working: a swipe back cut short by a dialog, a sheet or its page
 going is cancelled rather than left holding back for good, and a page closed
 while its swipe springs away goes alone. A sheet goes to detents given after it
-was made, ticks as it gets to one, and can let its list scroll where it is. The
-toast stack can be held and sent away whole, around a toast that stays until
-the app takes it down. Tags join into a `TagGroup`, a marquee can go back and
-forth, a pressable can be an option, a timeline's stops move into place, and a
-scrollbar's thumb gives way on Android while the finger is still down. Four
-signatures grew a defaulted parameter: [Migrating](migrating.md) has what to
-rebuild and which workarounds to take out.
+was made, ticks as it gets to one, can let its list scroll where it is, and
+lets a swipe across it reach a carousel while it is still moving. A popover or
+a menu opens where all of it fits, and a tooltip's icon is beside its words
+rather than over them. The toast stack can be held and sent away whole, around
+a toast that stays until the app takes it down. Tags join into a `TagGroup`, a
+marquee can go back and forth, a pressable can be an option, a timeline's stops
+move into place, and a scrollbar's thumb gives way on Android while the finger
+is still down. Four signatures grew a defaulted parameter:
+[Migrating](migrating.md) has what to rebuild and which workarounds to take
+out.
 
 ### Added
 
@@ -74,10 +77,10 @@ rebuild and which workarounds to take out.
   pill saying how many, which goes as one when dragged past the line and comes
   apart again when let go short of it. A drag that stops is never a hold; a hold
   started on the action does not press it; a toast arriving mid-hold waits
-  until it is let go; a toast that cannot be dismissed stays, and is drawn just behind the
-  gathered pill while it is held, even one queued off screen, so the reader
-  sees what will be left; the clocks stay
-  stopped throughout. Under reduced motion the pill forms at once. A screen
+  until it is let go; a toast that cannot be dismissed stays, and is drawn just
+  behind the gathered pill while it is held, even one queued off screen, so the
+  reader sees what will be left; the clocks stay stopped throughout. Under
+  reduced motion the pill forms at once. A screen
   reader gets **Dismiss all** on the front toast. `Strings` gains `dismissAll`
   and `toastCount`.
 - **A toast that stays until the app takes it down.**
@@ -140,6 +143,12 @@ rebuild and which workarounds to take out.
   them showing and the screen free above. One that does not fit whole on the
   side asked for, and does on the other, opens there. One that fits whole on
   neither still opens where it was asked and scrolls.
+- **A tooltip's icon is beside its words.** A `Tooltip`'s slots and
+  `Modifier.tooltip { … }`'s are documented as text with an icon beside it,
+  and since 0.5.0, when the bubble took slots, they had no layout of their own:
+  an icon and the words were drawn one over the other, in the gallery's own
+  tooltip demo too. They are a row now, the icon at the bubble's small size and
+  a small gap from the words.
 - **A timeline's stops move into place.** `timelineList` and `branchTimeline`
   rows jumped when the list changed, a fold opened or a stop gone, where a
   `listSection`'s rows slide and fade: `animateItem` has to be on an item's
