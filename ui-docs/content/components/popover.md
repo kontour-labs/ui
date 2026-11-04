@@ -36,15 +36,14 @@ keyboard traversal and the roles a menu owes a screen reader.
 **`side` is honoured, and `alignment` is a preference.** The popover is measured
 against the room on the side you asked for and opens there, scrolling whatever does
 not fit; it flips to the other side only when the side you asked for has no usable
-room at all, or would show less than half of it while the other side holds all of
-it. `alignment` still gives way — a popover aligned to the start of a
+room at all, or cannot hold all of it while the other side can. `alignment` still gives way — a popover aligned to the start of a
 button in the far corner slides until it is on screen. Both are described for every
 anchored overlay under [anchoring](../overlays.md#anchoring).
 
 The second half came later, from a date-time picker's time chip low on a phone: its
 wheels opened below into a couple of rows' room, about a third of them, with the
-whole screen free above. A popover a little short of room below still opens below
-and scrolls the rest.
+whole screen free above. A popover that fits whole on neither side still opens on
+the side you asked for and scrolls the rest.
 
 That used to be the other way round for `side` as well, and it was reported from a
 phone: a trigger 130dp from the bottom edge of a Pixel leaves about 90dp under it,

@@ -467,8 +467,11 @@ internal object AnchoredOverlayDefaults {
      * flipped, for the sake of twenty pixels, and was reported as `Bottom` not
      * meaning bottom.
      *
-     * With the panel bounded to its side and able to scroll, that case opens below
-     * and scrolls the last sliver, which is what was asked for. What the floor is
+     * With the panel bounded to its side and able to scroll, that case opened below
+     * and scrolled the last sliver. Since 0.5.3 a panel that fits whole across its
+     * anchor opens there instead — *"we should be aiming for 100% if the space
+     * allows for it"* — and one that fits whole on neither side still opens on its
+     * own, bounded and scrolling. What the floor is
      * still for is the case where there is no side at all: a `DropdownMenu` declared
      * inside a `Box(Modifier.fillMaxSize().padding(24.dp))` leaves *twelve pixels*
      * beside it, and a panel bounded to twelve pixels is a strip with its rows
@@ -478,13 +481,6 @@ internal object AnchoredOverlayDefaults {
      * which there is nothing a reader could act on, whether or not it scrolls.
      */
     val MinimumPanel: Dp = 64.dp
-
-    /**
-     * The least of a panel the side it was asked for has to show for the panel
-     * to open there, scrolling the rest, when the side across its anchor would
-     * hold all of it: half. See `AnchoredOverlayLayout`'s *Not cut short*.
-     */
-    const val LeastShown: Float = 0.5f
 }
 
 /** This extent less what the edges take, or [Constraints.Infinity] if it had none. */
@@ -789,7 +785,7 @@ internal fun AnchoredOverlayLayout(
         // as it always was.
         val natural = if (
             minimumPanelPx > defaultPanelPx ||
-            keptSide == null && !fitWhole && oppositeRoom * AnchoredOverlayDefaults.LeastShown > preferredRoom
+            keptSide == null && !fitWhole && oppositeRoom > preferredRoom
         ) {
             try {
                 measurables.maxOfOrNull { measurable ->
@@ -816,13 +812,16 @@ internal fun AnchoredOverlayLayout(
         // strip a couple of rows high with the whole screen free above it —
         // *"it decides to open below the field, even though there's plenty of
         // room above"*, raised 2026-11-03 for 0.5.3: about a third of the panel
-        // showed. A panel the side asked for would show less than half of —
-        // [AnchoredOverlayDefaults.LeastShown] — opens across the anchor, where
-        // that side holds all of it. Short of that the side asked for still
-        // holds and scrolls the rest: the popover a phone put twenty pixels
-        // short below, whose flip was reported as `Bottom` not meaning bottom.
+        // showed. A panel that does not fit whole on the side asked for, and
+        // does across the anchor, opens across it. Raised that day as letting
+        // the side asked for keep anything over half: *"we should be aiming
+        // for 100% if the space allows for it"*, with the wheels still cut
+        // short at 58%. Where neither side holds it whole, the side asked for
+        // still has it, bounded and scrolling, as `side` has meant since a
+        // popover flipped for twenty pixels and was reported as `Bottom` not
+        // meaning bottom.
         val flipped = keptSide == null && !fitWhole && natural != null &&
-            natural * AnchoredOverlayDefaults.LeastShown > preferredRoom && natural <= oppositeRoom
+            natural > preferredRoom && natural <= oppositeRoom
         val room = when {
             flipped -> oppositeRoom
             preferredRoom >= floor -> preferredRoom

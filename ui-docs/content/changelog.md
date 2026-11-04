@@ -137,9 +137,9 @@ rebuild and which workarounds to take out.
   was asked for whenever that side had a line's room, bounded to it and
   scrolling, however much more there was across its anchor: a date-time
   picker's time chip, low on a phone, opened its wheels below with a third of
-  them showing and the screen free above. One that would show less than half of
-  itself on the side asked for, and fits whole on the other, opens there. A
-  popover a little short of room still opens where it was asked and scrolls.
+  them showing and the screen free above. One that does not fit whole on the
+  side asked for, and does on the other, opens there. One that fits whole on
+  neither still opens where it was asked and scrolls.
 - **A timeline's stops move into place.** `timelineList` and `branchTimeline`
   rows jumped when the list changed, a fold opened or a stop gone, where a
   `listSection`'s rows slide and fade: `animateItem` has to be on an item's
