@@ -43,7 +43,7 @@ import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.foundation.ContentScope
-import io.kontour.ui.foundation.ContentSlot
+import io.kontour.ui.foundation.RowContentScopeImpl
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.PassThroughSurface
@@ -483,8 +483,19 @@ private fun TooltipBubble(content: @Composable ContentScope.() -> Unit, modifier
                     vertical = if (card) Theme.spacing.xs else Theme.spacing.xxs,
                 )
         ) {
+            // A row, so an icon is beside the words as the slots promise. It was
+            // a slot with no layout of its own from 0.5.0, when the bubble took
+            // slots, to 0.5.3, and `+icon` and `+"…"` were drawn one on top of
+            // the other: *"in the tooltip, the icons overlay the text"*, from the
+            // gallery's own demo. Not `contentScope`, which is a control's
+            // label's: what a tooltip says is read, not pressed.
             ProvideTextStyle(Theme.typography.labelMedium) {
-                ContentSlot(iconSize = Theme.sizing.iconSmall, content = content)
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    RowContentScopeImpl(this, iconSize = Theme.sizing.iconSmall).content()
+                }
             }
         }
     }
