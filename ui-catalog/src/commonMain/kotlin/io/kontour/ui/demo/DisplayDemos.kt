@@ -124,7 +124,11 @@ import io.kontour.ui.components.display.ScaleColours
 import io.kontour.ui.components.display.GaugeIndicator
 import io.kontour.ui.components.display.GaugeDefaults
 import io.kontour.ui.components.display.Gauge
+import io.kontour.ui.motion.MarqueeTravel
 import io.kontour.ui.motion.marquee
+import io.kontour.ui.components.display.TagGroup
+import io.kontour.ui.components.display.TagGroupDefaults
+import io.kontour.ui.components.display.TagJoin
 import io.kontour.ui.theme.Theme
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -189,6 +193,52 @@ internal val TagDemo = ComponentDemo(slug = "tag", knobs = listOf(tagTone, tagCl
             Tag(containerColour = Color(0xFF1B5E20)) { +"960" }
             Tag(containerColour = Color(0xFFFFD54F)) { +"SPT" }
             Tag(containerColour = Color(0xFFB3261E)) { +"RED" }
+        }
+    }
+}
+
+private val tagGroupJoin = Knob.Choice("Join", TagJoin.entries.toList())
+
+/** Joined into one tag, or standing apart as a group of them. */
+private val tagGroupApart = Knob.Flag("Apart", initial = false)
+
+/** Whether the route part leads to its route. */
+private val tagGroupClickable = Knob.Flag("Clickable", initial = false)
+
+private val tagGroupEnabled = Knob.Flag("Enabled", initial = true)
+
+internal val TagGroupDemo = ComponentDemo(
+    slug = "tag-group",
+    knobs = listOf(tagGroupJoin, tagGroupApart, tagGroupClickable, tagGroupEnabled),
+) {
+    val join = this[tagGroupJoin]
+    val spacing = if (this[tagGroupApart]) TagGroupDefaults.Gap else 0.dp
+    val clickable = this[tagGroupClickable]
+    val enabled = this[tagGroupEnabled]
+    Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm)) {
+        TagGroup(join = join, spacing = spacing, enabled = enabled) {
+            item(
+                containerColour = Color(0xFF1B5E20),
+                onClick = if (clickable) ({ echo("Opened the Fremantle line") }) else null,
+            ) { +"T1" }
+            item { +"Fremantle" }
+        }
+        TagGroup(join = join, spacing = spacing, enabled = enabled) {
+            item(containerColour = Color(0xFFB3261E)) {
+                +Tabler.Outline.Bus
+                +"950"
+            }
+            item(tone = Tone.Success) { +"On time" }
+            item(tone = Tone.Info) { +"Platform 2" }
+        }
+        Text(
+            "Two parts of one colour keep a hairline between them, so they read as two:",
+            style = Theme.typography.bodySmall,
+            colour = Theme.colours.contentMuted,
+        )
+        TagGroup(join = join, spacing = spacing, enabled = enabled) {
+            item { +"v0.5.3" }
+            item { +"stable" }
         }
     }
 }
@@ -875,7 +925,14 @@ private val marqueeDraggable = Knob.Flag("Draggable", initial = false)
 /** A ticker that never stops, rather than the default three passes. */
 private val marqueeEndless = Knob.Flag("Endless", initial = false)
 
-internal val MarqueeDemo = ComponentDemo(slug = "modifier-marquee", knobs = listOf(marqueeDraggable, marqueeEndless)) {
+/** Round and round, or out to the end of the text and back again. */
+private val marqueeTravel = Knob.Choice("Travel", MarqueeTravel.entries.toList())
+
+internal val MarqueeDemo = ComponentDemo(
+    slug = "modifier-marquee",
+    knobs = listOf(marqueeTravel, marqueeDraggable, marqueeEndless),
+) {
+    val travel = this[marqueeTravel]
     val draggable = this[marqueeDraggable]
     val iterations = if (this[marqueeEndless]) Int.MAX_VALUE else 3
     Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm)) {
@@ -884,7 +941,7 @@ internal val MarqueeDemo = ComponentDemo(slug = "modifier-marquee", knobs = list
                 text = "Elizabeth Quay Bus Station, Stand E",
                 maxLines = 1,
                 style = Theme.typography.bodyMedium,
-                modifier = Modifier.marquee(iterations = iterations, draggable = draggable),
+                modifier = Modifier.marquee(iterations = iterations, draggable = draggable, travel = travel),
             )
         }
         Box(Modifier.width(180.dp)) {
@@ -894,7 +951,7 @@ internal val MarqueeDemo = ComponentDemo(slug = "modifier-marquee", knobs = list
                 text = "Perth",
                 maxLines = 1,
                 style = Theme.typography.bodyMedium,
-                modifier = Modifier.marquee(iterations = iterations, draggable = draggable),
+                modifier = Modifier.marquee(iterations = iterations, draggable = draggable, travel = travel),
             )
         }
     }
@@ -1501,6 +1558,7 @@ internal val DropZoneDemo = ComponentDemo(slug = "drop-zone", knobs = listOf(zon
 internal val displayDemos = listOf(
     CardDemo,
     TagDemo,
+    TagGroupDemo,
     BadgeDemo,
     AvatarDemo,
     ProgressDemo,

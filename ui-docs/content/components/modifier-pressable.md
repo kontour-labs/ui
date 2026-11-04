@@ -60,12 +60,24 @@ a flinch rather than a press.
 `onDoubleClick` is there too. A double tap delays every single tap by the time
 it waits for the second, so give one only where the double tap is worth that.
 
+**An option rather than an action.** `selected` makes it one of a set — a tab,
+a chip, a choice you draw yourself — reported as selected or not, with its
+long press kept. Give `role` as the kind of option: `Role.Tab`,
+`Role.RadioButton`. Leave it null for an action.
+
+**Room, or only reach.** `minimumTouchTarget = false` stops it reserving the
+48dp, for small things that sit close on purpose — chips in a wrapping row,
+rows inside a card — where the reserved room would stand them apart by gaps
+nobody drew. A touch near one still reaches it, by the platform's own reach for
+a small target, which gives a touch between two to the nearer.
+
 ---
 
 ## Accessibility
 
 It is a button to a screen reader unless you pass another `role`, or `null`
-where the content already says what it is. `onClickLabel` names what a press
+where the content already says what it is. With `selected`, it is announced as
+selected or not, as the library's own tabs and chips are. `onClickLabel` names what a press
 does where the content does not; `onLongClickLabel` names the long press, which
 is otherwise announced as a bare "long press" action. A long press is always
 reachable from the accessibility actions, so it can never be the only way to

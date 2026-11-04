@@ -30,6 +30,8 @@ import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.navigationevent.NavigationEvent
 import androidx.navigationevent.NavigationEventDispatcher
+import androidx.navigationevent.NavigationEventHistory
+import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.NavigationEventInput
 import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
 import io.kontour.ui.interaction.DirectionDecisionShare
@@ -40,6 +42,7 @@ import kotlin.time.TimeMark
 import kotlin.time.TimeSource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.launch
 
 /**
@@ -136,7 +139,71 @@ internal class SwipeBackInput(
     var releasing = false
         private set
 
+    /**
+     * A gesture this started has not ended yet: neither completed nor
+     * cancelled, held or carrying on after the finger let go.
+     *
+     * **It must always end, and end here.** The back dispatchers of one app
+     * share one processor, which takes one gesture at a time and drops every
+     * other back, from any input — a button, a key, the edge, the system's —
+     * until the one under way ends. One that never ends is back gone for the
+     * rest of the session. Two ways it never ended, both reported from a phone
+     * as a back button that did nothing at all, then every back after it:
+     *
+     * - **Its dispatcher was turned off under it.** An overlay host turns the
+     *   page's dispatcher off when a dialog, a menu or a modal sheet opens, and
+     *   a disabled dispatcher drops the cancel or the completion without a word.
+     *   A swipe still springing home as a prompt came up was never ended. See
+     *   [endGesturesCutOffBy].
+     * - **It was taken out mid-gesture.** A page the app took away while a swipe
+     *   was under way — closed, or replaced by a live update — removed its input
+     *   from the dispatcher, which does not end the gesture the input had begun.
+     *   See [rememberSwipeBackInput].
+     *
+     * Either way [interrupt] cancels it while the dispatcher can still hear it.
+     */
+    var underWay = false
+        private set
+
+    /** The release carrying the gesture on, to stop at an [interrupt]. */
+    private var releaseJob: Job? = null
+
+    /**
+     * The gesture was ended by an [interrupt]: a release asked for after it —
+     * launched as the finger lifted, and not yet run — must not go back.
+     */
+    private var interrupted = false
+
+    /**
+     * Where back stands now, as the dispatcher last said: the info of what back
+     * would leave. See [goingFrom].
+     */
+    private var current: NavigationEventInfo? = null
+
+    /**
+     * What the gesture under way is taking away, as it started: what back would
+     * leave then.
+     *
+     * **Moved under it, it is cancelled.** A page closed in code while its swipe
+     * was still springing away — a close button tapped as the page slid off — is
+     * still on screen for its exit, so this input is still there to finish the
+     * gesture, and the stack's back handler, answering a completed back with
+     * whatever is on top by then, took a second page away: one swipe and one
+     * close went back twice. While a gesture is under way, what back would
+     * leave is the info of the handler it went to, and only that handler's own
+     * stack changing changes it; other handlers turning on or off do not.
+     */
+    private var goingFrom: NavigationEventInfo? = null
+
+    override fun onHistoryChanged(history: NavigationEventHistory) {
+        current = history.mergedHistory.getOrNull(history.currentIndex)
+        if (underWay && goingFrom != null && current != goingFrom) interrupt()
+    }
+
     private var added = false
+
+    /** The dispatcher this was added to, to tell whether it has been turned off. */
+    private var dispatcher: NavigationEventDispatcher? = null
     private var edge = NavigationEvent.EDGE_LEFT
     private var at = Offset.Zero
     private var progress = 0f
@@ -156,12 +223,41 @@ internal class SwipeBackInput(
 
     override fun onAdded(dispatcher: NavigationEventDispatcher) {
         added = true
+        this.dispatcher = dispatcher
     }
 
     override fun onRemoved() {
         added = false
+        dispatcher = null
         armed = false
+        ended()
         onArmedChanged?.invoke(false)
+    }
+
+    /** Whether the dispatcher this was added to has been turned off, by itself or by one above it. */
+    internal val cutOff: Boolean
+        get() = dispatcher?.isEnabled == false
+
+    /** The gesture is over, however it went: not under way, nor watched for. */
+    private fun ended() {
+        underWay = false
+        goingFrom = null
+        GesturesUnderWay.inputs -= this
+    }
+
+    /**
+     * Ends the gesture under way at once, as cancelled — the page springs back
+     * where it was — and stops any release still carrying it on, so it cannot
+     * complete later and take a page away. Nothing if no gesture is under way.
+     */
+    fun interrupt() {
+        releaseJob?.cancel()
+        releaseJob = null
+        stopFollowing()
+        if (!underWay) return
+        interrupted = true
+        ended()
+        if (added) dispatchOnBackCancelled()
     }
 
     override fun onHasEnabledHandlersChanged(hasEnabledHandlers: Boolean) {
@@ -176,7 +272,12 @@ internal class SwipeBackInput(
         progress = 0f
         lastFrame = Long.MIN_VALUE
         framePeriod = 0L
+        interrupted = false
+        underWay = true
+        GesturesUnderWay.inputs += this
+        goingFrom = null
         dispatchOnBackStarted(NavigationEvent(edge, 0f, at.x, at.y))
+        goingFrom = current
     }
 
     /**
@@ -233,7 +334,7 @@ internal class SwipeBackInput(
     }
 
     fun move(progress: Float, at: Offset) {
-        if (!added) return
+        if (!added || !underWay) return
         this.progress = progress
         this.at = at
         dispatchOnBackProgressed(NavigationEvent(edge, progress, at.x, at.y))
@@ -247,8 +348,9 @@ internal class SwipeBackInput(
      *   positive towards going back.
      */
     suspend fun release(commit: Boolean, velocity: Float) {
-        if (!added) return
+        if (!added || interrupted) return
         releasing = true
+        releaseJob = currentCoroutineContext()[Job]
         try {
             val target = if (commit) 1f else 0f
             // Timed from the last frame the gesture was drawn on, rather than
@@ -276,14 +378,25 @@ internal class SwipeBackInput(
                     finished
                 }
             }
-            if (added) {
+            // Ended before it is said to be, so a completion that takes this
+            // page away, and with it this input, finds nothing left to cancel.
+            if (added && underWay) {
+                ended()
                 if (commit) dispatchOnBackCompleted() else dispatchOnBackCancelled()
+            } else if (added && commit && !interrupted) {
+                // A second gesture that began before the first had finished
+                // was carried along in it; let go, it is a back of its own.
+                dispatchOnBackCompleted()
             }
         } catch (e: CancellationException) {
-            if (added) dispatchOnBackCancelled()
+            if (added && underWay) {
+                ended()
+                dispatchOnBackCancelled()
+            }
             throw e
         } finally {
             releasing = false
+            releaseJob = null
         }
     }
 
@@ -354,7 +467,9 @@ internal class SwipeBackInput(
 
     /** Ends a gesture whose finger went away without lifting — another gesture took it. */
     fun abandon() {
-        if (added) dispatchOnBackCancelled()
+        if (!added || !underWay) return
+        ended()
+        dispatchOnBackCancelled()
     }
 
     /** Back with no gesture at all — a key, a button: completed at once. */
@@ -372,9 +487,41 @@ internal fun rememberSwipeBackInput(
     val input = remember(pacedAtLeast) { SwipeBackInput(pacedAtLeast) }
     DisposableEffect(dispatcher, input) {
         dispatcher.addInput(input)
-        onDispose { dispatcher.removeInput(input) }
+        onDispose {
+            // Ended first, while the dispatcher still hears it: removed, an
+            // input's gesture is left under way for good. See [SwipeBackInput.underWay].
+            input.interrupt()
+            dispatcher.removeInput(input)
+        }
     }
     return input
+}
+
+/**
+ * The library's back gestures under way, for [endGesturesCutOffBy]. Rarely
+ * more than one: the dispatchers they are on share one processor, which runs
+ * one gesture at a time.
+ */
+internal object GesturesUnderWay {
+    val inputs = mutableSetOf<SwipeBackInput>()
+}
+
+/**
+ * Ends, as cancelled, every gesture under way that turning [dispatcher] off is
+ * about to cut off: one on it, or on a dispatcher under it. Called just before
+ * it is turned off — after, it would drop the cancel. See
+ * [SwipeBackInput.underWay].
+ *
+ * Which are under it is found by turning it off and asking each, since a
+ * dispatcher does not say who its parent is; it is turned back on to cancel
+ * them, and the caller turns it off for good.
+ */
+internal fun endGesturesCutOffBy(dispatcher: NavigationEventDispatcher) {
+    if (GesturesUnderWay.inputs.isEmpty() || !dispatcher.isEnabled) return
+    dispatcher.isEnabled = false
+    val cut = GesturesUnderWay.inputs.filter { it.cutOff }
+    dispatcher.isEnabled = true
+    cut.forEach { it.interrupt() }
 }
 
 /** Where a pan becomes back, and which way it has to go. */
@@ -580,6 +727,9 @@ private suspend fun androidx.compose.ui.input.pointer.PointerInputScope.trackBac
                     }
                 }
                 if (!claimed) continue
+                // Ended under the finger — a dialog opened, the page taken
+                // away: the page has sprung back, and this pan is over.
+                if (!input.underWay) break
                 change.consume()
                 val span = (travel?.invoke() ?: size.width.toFloat()).coerceAtLeast(1f)
                 // From where the finger went down, not from where the pan was

@@ -83,6 +83,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.highContrast
 import io.kontour.ui.input.Cursor
+import io.kontour.ui.platform.platformOverscrollMovesContent
 import io.kontour.ui.input.InputModality
 import io.kontour.ui.input.LocalInputModality
 import io.kontour.ui.input.pointerCursor
@@ -496,7 +497,9 @@ fun Modifier.scrollbar(
     // keeps an account of. See `TrackedOverscroll` for why not the drag the
     // list declined, which was what this first read.
     val overscroll = remember { OverscrollProbe() }
-    val stretchSoftness = with(density) { StretchSoftness.toPx() }
+    // Under iOS's bounce the thumb gives what the content has visibly moved;
+    // under Android's stretch, which moves nothing, a share of it.
+    val stretchShare = if (platformOverscrollMovesContent) 1f else StretchShare
     val direction = LocalLayoutDirection.current
     val clear = trackClearance(contentPadding, orientation, direction, density)
     track.update(orientation, direction, margin, strip, minThumb, corner, clear)
@@ -564,7 +567,7 @@ fun Modifier.scrollbar(
             if (alpha <= 0f) return@drawWithContent
             if (!geometry.isUseful) return@drawWithContent
             val whole = track.thumb(size, layoutDirection, geometry, look.width.value.toPx()) ?: return@drawWithContent
-            val thumb = whole.stretched(overscroll.pull(), stretchSoftness, size, orientation == Orientation.Vertical)
+            val thumb = whole.stretched(overscroll.pull(), size, orientation == Orientation.Vertical, stretchShare)
             drawRoundRect(
                 color = colour.copy(alpha = colour.alpha * alpha),
                 topLeft = thumb.topLeft,
@@ -1628,19 +1631,36 @@ internal class RowSizes {
 }
 
 /**
- * This thumb, given up [pull]'s share of its length at the end away from the
+ * This thumb, given up some of its length to [pull] at the end away from the
  * edge it is pressed against, as a scroll indicator does at the end of a list
  * pulled past it: it keeps its place at the edge and shortens from the other
- * end. A diminishing share — half its length at most, half of that by
- * [softness] of pull — so a long pull is not a thumb shrunk to nothing.
+ * end.
+ *
+ * **As UIKit's indicator does, by how far the content has visibly moved.**
+ * iOS draws a pull of `x` past the end as a rubber band, the content moving
+ * `d·(1 − 1/(0.55·x/d + 1))` across a scroller `d` long, and its indicator
+ * loses the same share of its length as the scroller has been left empty. So
+ * the give is that share of the thumb, times [share]: all of it on iOS, and
+ * [StretchShare] of it under Android's stretch, which moves no content and
+ * is a much quieter thing to echo. Half the thumb at most.
+ *
+ * 0.5.2 gave up to half the thumb, half of that by 160dp of pull, whatever
+ * the scroller's length: *"the scrollbar shrink with the overscroll effect is
+ * very strong (i.e. it shrinks a lot), and i don't think it scales with the
+ * size of the list. also, it should be stronger on ios"*. A pull a third of a
+ * phone's screen now takes about a sixth of the thumb on iOS, where it took
+ * nearly a third, and the same pull on a short list takes more of it, as the
+ * band it draws does.
  */
-private fun Rect.stretched(pull: Float, softness: Float, track: Size, vertical: Boolean): Rect {
+internal fun Rect.stretched(pull: Float, track: Size, vertical: Boolean, share: Float): Rect {
     if (pull == 0f) return this
-    val reach = abs(pull)
+    val span = if (vertical) track.height else track.width
+    if (span <= 0f) return this
     val length = if (vertical) height else width
     val thickness = if (vertical) width else height
+    val moved = 1f - 1f / (abs(pull) * RubberBand / span + 1f)
     val most = (length * StretchMostShare).coerceAtMost((length - thickness).coerceAtLeast(0f))
-    val give = most * reach / (reach + softness)
+    val give = (length * moved * share).coerceAtMost(most)
     if (give <= 0f) return this
     return if (vertical) {
         // Pressed against whichever end it is nearer.
@@ -1653,5 +1673,12 @@ private fun Rect.stretched(pull: Float, softness: Float, track: Size, vertical: 
 /** The most of its length a thumb gives up to a pull past the end. */
 private const val StretchMostShare = 0.5f
 
-/** The pull at which a thumb has given up half the most it will. */
-private val StretchSoftness: Dp = 160.dp
+/** UIKit's rubber band, which iOS's bounce draws a pull with. */
+private const val RubberBand = 0.55f
+
+/**
+ * The share of the content's visible move a thumb gives under an overscroll
+ * that moves no content: Android's stretch, which is far less obvious than
+ * iOS's bounce and asks for a quieter thumb beside it.
+ */
+internal const val StretchShare = 0.4f

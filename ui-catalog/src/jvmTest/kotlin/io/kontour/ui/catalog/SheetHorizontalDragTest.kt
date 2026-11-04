@@ -11,8 +11,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.overlay.OverlayHost
@@ -42,19 +44,22 @@ class SheetHorizontalDragTest {
     private class Probe {
         var row: LazyListState? = null
         var sheet: SheetState? = null
+        var rowBounds: Rect? = null
     }
 
-    private fun scene(probe: Probe) = Scene(width = 600, height = 900) {
-        KontourTheme(reduceMotion = true) {
+    /** With [rising], the sheet sets off from half to full height as the scene starts, at full motion. */
+    private fun scene(probe: Probe, rising: Boolean = false) = Scene(width = 600, height = 900) {
+        KontourTheme(reduceMotion = !rising) {
             val state = rememberSheetState(detents = listOf(SheetDetent.Hidden, SheetDetent.Half, SheetDetent.Expanded), initialDetent = SheetDetent.Half)
             probe.sheet = state
+            if (rising) LaunchedEffect(Unit) { state.animateTo(SheetDetent.Expanded) }
             OverlayHost(Modifier.fillMaxSize()) {
                 Box(Modifier.fillMaxSize().background(Color(0xFF3355AA)))
                 BottomSheet(state = state, windowInsets = WindowInsets(0.dp, 0.dp, 0.dp, 0.dp)) {
                     Column {
                         val row = rememberLazyListState()
                         probe.row = row
-                        LazyRow(Modifier.fillMaxWidth().height(160.dp), state = row) {
+                        LazyRow(Modifier.fillMaxWidth().height(160.dp).reportBounds { probe.rowBounds = it }, state = row) {
                             items(30) { Box(Modifier.width(140.dp).height(160.dp).background(Color(0xFF11CC55 + it * 0x101))) }
                         }
                         Box(Modifier.fillMaxWidth().height(1200.dp))
@@ -93,5 +98,43 @@ class SheetHorizontalDragTest {
         val (scrolled, detent) = swipe(degrees = 80.0)
         assertEquals(SheetDetent.Expanded, detent, "a swipe up, eighty degrees from across, over the carousel did not move the sheet")
         assertEquals(0, scrolled, "a swipe mostly up scrolled the carousel")
+    }
+
+    /**
+     * The same swipes across a sheet that has not settled: caught on its way
+     * up, a few frames after it set off. A finger on a moving sheet catches it,
+     * and the catch took the gesture on half a touch slop up or down whatever
+     * the finger's slope — *"if a sheet hasn't fully settled, horizontal
+     * swiping actions are still a bit difficult"*.
+     */
+    private fun swipeWhileRising(degrees: Double): Pair<Int, SheetDetent> {
+        val probe = Probe()
+        return scene(probe, rising = true).use { scene ->
+            scene.frames(4)
+            assertTrue(probe.sheet!!.isMoving, "the sheet had already settled, so nothing caught it")
+            val from = probe.rowBounds!!.alongX(0.66f)
+            val length = 160f
+            val rad = Math.toRadians(degrees)
+            val to = from + Offset(-(length * cos(rad)).toFloat(), -(length * sin(rad)).toFloat())
+            scene.drag(from = from, to = to, steps = 16)
+            scene.frames(60)
+            val row = probe.row!!
+            (row.firstVisibleItemIndex * 1000 + row.firstVisibleItemScrollOffset) to probe.sheet!!.currentDetent
+        }
+    }
+
+    /** And the sheet, let go, goes on to where it was going. */
+    @Test
+    fun aSwipeAcrossASheetStillMovingIsTheCarousels() {
+        val (scrolled, detent) = swipeWhileRising(degrees = 50.0)
+        assertTrue(scrolled > 0, "a swipe fifty degrees from across a sheet still moving did not scroll the carousel")
+        assertEquals(SheetDetent.Expanded, detent, "the sheet, let go to the carousel, did not go on to where it was going")
+    }
+
+    @Test
+    fun aSwipeUpASheetStillMovingStillCatchesIt() {
+        val (scrolled, detent) = swipeWhileRising(degrees = 80.0)
+        assertEquals(0, scrolled, "a swipe mostly up a sheet still moving scrolled the carousel")
+        assertEquals(SheetDetent.Expanded, detent, "a swipe up a sheet still moving did not carry it up")
     }
 }

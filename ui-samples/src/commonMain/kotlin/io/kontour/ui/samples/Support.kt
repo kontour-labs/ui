@@ -50,6 +50,8 @@ internal fun forgot() = Unit
 
 /** A colour the app is holding for something the reader named. */
 internal var label: Color = Color(0xFF43A047)
+/** A line's colour, as a transit feed hands it over. */
+internal val routeColour: Color = Color(0xFF1B5E20)
 internal fun explain() = Unit
 internal fun replacements() = Unit
 

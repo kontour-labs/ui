@@ -29,6 +29,179 @@ On `main`, and in the next release. Nothing yet.
 
 ---
 
+## 0.5.3 — 4 November 2026
+
+Back that keeps working: a swipe back cut short by a dialog, a sheet or its page
+going is cancelled rather than left holding back for good, and a page closed
+while its swipe springs away goes alone. A sheet goes to detents given after it
+was made, ticks as it gets to one, can let its list scroll where it is, and
+lets a swipe across it reach a carousel while it is still moving. A popover or
+a menu opens where all of it fits, and a tooltip's icon is beside its words
+rather than over them. The toast stack can be held and sent away whole, around
+a toast that stays until the app takes it down. Tags join into a `TagGroup`, a
+marquee can go back and forth, a pressable can be an option, a timeline's stops
+move into place, and a scrollbar's thumb gives way on Android while the finger
+is still down. Four signatures grew a defaulted parameter:
+[Migrating](migrating.md) has what to rebuild and which workarounds to take
+out.
+
+### Added
+
+- **`TagGroup`, tags joined into one.** A route and where it goes, a version and
+  its state: each part takes what a `Tag` takes, its own tone or colour and its
+  own `onClick`, and the group rounds only the outside corners. Parts meet square
+  across or, with `join = TagJoin.Diagonal`, on a slant. `spacing` stands them
+  apart as separate tags in a group, and two parts of one colour keep a hairline
+  between them. A group of plain labels is read as one announcement.
+- **A marquee that goes back and forth.**
+  `Modifier.marquee(travel = MarqueeTravel.BackAndForth)` glides the text until
+  its end reaches the box's end edge, waits, and glides back to its start,
+  rather than looping a second copy round behind it. It suits a now-playing
+  line or a long stop name, where a wrap-around would put the end of the text
+  beside its start. A pass is there and back, so it always settles at its
+  start. With `draggable = true` it pulls only as far as either end, and under
+  reduced motion it stops as a looping one does. Looping stays the default,
+  drawn as it was. The gallery's marquee demo has a *Travel* knob.
+- **A sheet whose list scrolls where it is.** `BottomSheet(scrollExpands =
+  false)`: above its lowest size, dragging the list up scrolls it and the sheet
+  stays put, so a map above it stays in view; collapsed, a drag up still brings
+  the sheet up, and down past the list's top is still the sheet's. The padding
+  handed to the content grows at its foot by what is under the screen, so a
+  list's last rows come up. UIKit's `prefersScrollingExpandsWhenScrolledToEdge`.
+  An app had built it round the sheet with a drag of its own. `BottomSheet`
+  only; a modal sheet covers what it would keep in view. The gallery's bottom
+  sheet has a *List scrolls in place* knob, and
+  [the bottom sheet's page](components/bottom-sheet.md) has the rest.
+- **Hold the toast stack to send it all away.** A finger resting still on the
+  front toast for a long press gathers every toast that can be dismissed into one
+  pill saying how many, which goes as one when dragged past the line and comes
+  apart again when let go short of it. A drag that stops is never a hold; a hold
+  started on the action does not press it; a toast arriving mid-hold waits
+  until it is let go; a toast that cannot be dismissed stays, and is drawn just
+  behind the gathered pill while it is held, even one queued off screen, so the
+  reader sees what will be left; the clocks stay stopped throughout. Under
+  reduced motion the pill forms at once. A screen
+  reader gets **Dismiss all** on the front toast. `Strings` gains `dismissAll`
+  and `toastCount`.
+- **A toast that stays until the app takes it down.**
+  `ToastHostState.show(dismissible = false)`: no close control, a swipe springs
+  back, and holding the stack leaves it. For a state of the whole app with no
+  screen of its own for a `Banner`, the phone offline; an app had consumed every
+  drag over its toasts to keep one up, and stopped the rest being swiped away
+  with it. The gallery's toast demo has *One that stays*.
+- **A pressable that is an option.** `Modifier.pressable(selected = …)` makes
+  something drawn by hand, a tab, a chip, a choice, one of a set: it is
+  reported as selected or not, keeps its long press, and takes the role of the
+  kind of option it is. Null, the default, is an action, as before. Its page
+  now also says that `minimumTouchTarget = false` keeps a touch's reach, by the
+  platform's own reach for a small target, without the room round it.
+
+### Fixed
+
+- **Back never stops working after a swipe is interrupted.** Every back in an
+  app goes through one processor, which runs one gesture at a time and drops
+  every other back — a page's back button, a key, the iOS edge, Android's
+  system back — until that gesture ends. A swipe back was left unended two
+  ways. A dialog, menu or modal sheet opened while it was held or still
+  springing home, and the overlay host turned the page's back off under it,
+  which drops a gesture's end without a word. Or the page was taken away
+  mid-swipe, closed or replaced, which removed its input without ending what
+  it had begun. The page was left a little way across, and from then on its
+  back button, the edge and the system's back did nothing for the rest of the
+  session: reported from an app as a back button that did nothing however
+  often it was tapped. Either way the swipe is now cancelled while
+  back can still hear it, and the page springs back. An app that went round it
+  by going back itself when `pageBack()` seemed to take nothing can drop that;
+  see [Migrating](migrating.md).
+- **A page closed as its swipe springs away goes alone.** Closed in code while
+  a released swipe was still carrying it off — a close button tapped as it slid
+  — the page finished its swipe as well, and the stack popped the page under it
+  too: one swipe and one close went back twice. The swipe is cancelled once the
+  stack under it changes.
+- **A swipe row in a bottom sheet takes a thumb's swipe.** A row decided which
+  way a finger was going on its first few pixels and gave the gesture away for
+  good if they were steep, and a thumb lands steeply before it flattens into a
+  swipe. In a sheet, which waits longer than a list before it takes a finger,
+  the sheet moved instead. A row now keeps watching until something else has
+  taken the gesture, so a swipe that turns sideways opens it, and a drag that
+  is really the sheet's or the list's is still theirs. The same goes for every
+  control that decides its drag by direction: a `WheelSelect`'s wheels, a
+  `DatePicker`'s and an `EventCalendar`'s swipes between pages, and a `NavBar`'s
+  marker.
+- **A swipe across a sheet that is still moving is the swipe's.** A finger on
+  a sheet that has not settled — just opened, just let go — catches it, and the
+  catch took the gesture on a few pixels up or down whatever else the finger
+  did, so a carousel or a swipe row in a sheet only answered once the sheet had
+  come to rest. A finger that catches a sheet now goes by the slope a settled
+  sheet does, about sixty degrees: flatter is let go to what is under it, and
+  the sheet, held while the swipe goes on, carries on to the detent it was
+  going to once the finger lifts.
+- **A popover or a menu opens where all of it fits.** It opened on the side it
+  was asked for whenever that side had a line's room, bounded to it and
+  scrolling, however much more there was across its anchor: a date-time
+  picker's time chip, low on a phone, opened its wheels below with a third of
+  them showing and the screen free above. One that does not fit whole on the
+  side asked for, and does on the other, opens there. One that fits whole on
+  neither still opens where it was asked and scrolls.
+- **A tooltip's icon is beside its words.** A `Tooltip`'s slots and
+  `Modifier.tooltip { … }`'s are documented as text with an icon beside it,
+  and since 0.5.0, when the bubble took slots, they had no layout of their own:
+  an icon and the words were drawn one over the other, in the gallery's own
+  tooltip demo too. They are a row now, the icon at the bubble's small size and
+  a small gap from the words.
+- **A timeline's stops move into place.** `timelineList` and `branchTimeline`
+  rows jumped when the list changed, a fold opened or a stop gone, where a
+  `listSection`'s rows slide and fade: `animateItem` has to be on an item's
+  root, which only the builder holds, and an app wrapped the whole
+  `LazyListScope` to reach it. Keyed rows now move as a section's do, without
+  the slide under reduced motion. `listGroup`, whose item holds several rows,
+  is unchanged.
+- **A sheet's tick plays as it gets to a detent.** Dragged by hand, it ticked
+  as the detent a release would land on changed, which is half way between
+  two, with nothing under the finger. It now ticks as the sheet arrives, within
+  a few pixels of the detent; a throw still ticks as it lands, and the
+  threshold for dragging a sheet away is still felt where letting go would
+  close it.
+- **A sheet goes to a detent it was given after it was made.** `SheetState`
+  read the detents it was created with for the whole of its life, so a detent
+  assigned later, or passed to `rememberSheetState` on a later composition, had
+  no anchor, and the sheet would not go there by code or by hand. It does now,
+  as `detents`' own docs always said; a screen whose list changes finds the
+  sheet doing what it says, which [Migrating](migrating.md) lists under
+  **Check**.
+- **A scrollbar's thumb gives way on Android while the finger is down, and by
+  as much as the list has moved.** Since 0.5.2, pulled past the end of a list,
+  it kept its length until the finger lifted and then shrank in one go. The
+  thumb read what the overscroll said it had taken, and Android's stretch says
+  it took nothing as it pulls out. It now reads the drag the list did not
+  take, which every platform's overscroll has, so it shrinks frame by frame on
+  Android as it does on iOS, where the first frame past the end was missed in
+  the same way. It also gave too much, the same for every length of list: it
+  now gives what iOS's own indicator does, the share of the scroller the
+  bounce has left empty, about a sixth of the thumb for a pull a third of the
+  list's height where it took nearly a third, and under Android's stretch,
+  which moves nothing, less than half of that.
+
+### Breaking
+
+[Migrating](migrating.md) has the before and after for each, and the
+behaviour that changed while still compiling under **Check**.
+
+- **`Modifier.marquee` has a new parameter**, `travel`, defaulted and last, so
+  anything built against 0.5.2 recompiles; every call site still compiles as it
+  is.
+- **`BottomSheet` has a new parameter**, `scrollExpands`, defaulted, after
+  `draggable`: anything built against 0.5.2 recompiles, and a call passing the
+  arguments after `draggable` by position names them.
+- **`ToastHostState.show` has a new parameter**, `dismissible`, defaulted and
+  last, and **`Strings` has new fields**, `dismissAll` and `toastCount`, at the
+  end: anything built against 0.5.2 recompiles, and every call compiles as it is.
+- **`Modifier.pressable` has a new parameter**, `selected`, defaulted, before
+  `interactionSource`, so anything built against 0.5.2 recompiles, and a call
+  passing `interactionSource` by position names it.
+
+---
+
 ## 0.5.2 — 1 November 2026
 
 A theme that reaches every corner the library draws, at rest and in motion,

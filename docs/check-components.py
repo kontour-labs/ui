@@ -1115,7 +1115,13 @@ MAX_SILENT_FOCUS_TRAPS = 0
 # the 0.6 of a pixel a swipe row moves for each pixel of a trackpad's pan, which
 # had been 1 and was reported as "really sensitive". A fact about how the row
 # reads a trackpad, beside its `ScrollStep`, rather than a dial a brand turns.
-MAX_DEFAULTS_LITERALS = 108
+#
+# **110**, raised 2026-11-02 for 0.5.3: `TagGroupDefaults.Gap`, the 2dp that
+# stands a group's tags apart rather than joining them, and `Slant`, how far a
+# diagonal join leans across a tag's height. Facts about how the group is cut
+# rather than dials a brand turns. Its seam and its inner corner are a button
+# group's, and read from there rather than written again.
+MAX_DEFAULTS_LITERALS = 110
 
 # Every field on `ComponentDefaults` is read by something.
 #

@@ -1,5 +1,7 @@
 package io.kontour.ui.components.display
 
+import androidx.compose.foundation.layout.Box
+import io.kontour.ui.components.list.placedAsTheListChanges
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.LayoutScopeMarker
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -199,10 +201,13 @@ fun <T> LazyListScope.branchTimeline(
     val stops = branchStops(items, parents, content)
     items.forEachIndexed { index, item ->
         item(key = key(item), contentType = "branchTimelineRow") {
-            BranchRow(
-                shape, stops, index, enabled, progressMotion, colours ?: BranchTimelineDefaults.colours(),
-                nodeSize, laneWidth, gutterWidth,
-            )
+            // In, out and into place as the history changes: see `timelineList`.
+            Box(placedAsTheListChanges()) {
+                BranchRow(
+                    shape, stops, index, enabled, progressMotion, colours ?: BranchTimelineDefaults.colours(),
+                    nodeSize, laneWidth, gutterWidth,
+                )
+            }
         }
     }
 }

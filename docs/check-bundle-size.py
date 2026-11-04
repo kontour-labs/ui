@@ -259,10 +259,31 @@ import sys
 #   gallery    +219   −30    the energy app's hour tooltip, the sheets' panes
 #
 # `app` through `--update`'s rule by hand, over CI's figure.
+#
+# Raised 2026-11-03 for 0.5.3, from a full distribution measured here, on a
+# Mac, at af72515e: `./gradlew :ui-docs:wasmJsBrowserDistribution` and this
+# script. `app` is 4,185,594: +29,223 gzip on 0.5.2's 4,156,371 (CI's run
+# 41275634551, c8542e71), and over its ceiling by 5,594. `total` is 7,969,851,
+# inside its ceiling, and stays, as do `skiko` (3,324,678), `js` (103,316),
+# `fonts` (352,932) and `other` (3,331). About 16 gzip bytes a net line, inside
+# the rate above. Read by source, lines added and removed since c8542e71:
+#
+#   :ui        +1,391 −115   back that survives a swipe cut short, the toast
+#                            stack held and sent away, a toast that stays, a
+#                            sheet's list scrolling in place and its tick on
+#                            arrival, TagGroup, the marquee's back and forth,
+#                            a pressable option, a swipe row taking a thumb's
+#                            swipe in a sheet, the scrollbar's give
+#   the site   +505   −14    lines of pages: TagGroup, the toast, sheet and
+#                            scrollbar pages, the changelog and migrating
+#   gallery    +118   −6     the toast and sheet demos' new buttons and knob,
+#                            TagGroup's and the marquee's
+#
+# `app` through `--update`'s rule by hand, over this figure.
 
 CEILINGS = {
     "skiko": 3_430_000,
-    "app": 4_180_000,
+    "app": 4_320_000,
     "js": 110_000,
     "fonts": 370_000,
     "other": 10_000,

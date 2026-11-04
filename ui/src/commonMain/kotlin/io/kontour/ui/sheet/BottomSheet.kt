@@ -513,6 +513,30 @@ fun BottomSheet(
      */
     draggable: Boolean = true,
     /**
+     * Whether dragging the content up opens the sheet further before the
+     * content scrolls — UIKit's default, and this one's.
+     *
+     * `false` leaves the sheet where it is and scrolls the content instead,
+     * at any open size above its lowest: a sheet at half over a map keeps the
+     * map in view while its list is read, as Apple Maps' does. Collapsed to
+     * its lowest, dragging it up still brings it up, since the sheet is all
+     * that shows; and pulled down past the list's top, the rest of the drag
+     * and the throw are the sheet's, both ways, as they always are. UIKit's
+     * `prefersScrollingExpandsWhenScrolledToEdge = false`.
+     *
+     * A sheet's content is laid out as tall as the sheet goes and slid down,
+     * so at half the foot of a list is under the screen with nothing more to
+     * scroll. So off, the padding handed to the content grows at its foot by
+     * as much as is under the screen, measured as the sheet comes to rest:
+     * give it to the list's `contentPadding` and its last rows come up. It is
+     * for a list that fills the sheet; the room is only there while the
+     * content runs on below what the sheet shows.
+     *
+     * Asked for by an app that had built it round the sheet itself, with a
+     * drag of its own that took the list's scrolling over.
+     */
+    scrollExpands: Boolean = true,
+    /**
      * Whether the content fades out under a part pinned to the top or the
      * bottom — see [SheetContentScope.part] — as a page does under a
      * [TopBar][io.kontour.ui.nav.TopBar] or a floating navigation bar: the
@@ -689,6 +713,13 @@ fun BottomSheet(
     // library, which is also why it costs nothing against the haptics ceiling:
     // the ceiling counts direct `perform` calls and the ticker is one of them
     // for the whole library.
+    //
+    // **As the sheet gets there, not half way.** It ticked as the detent a
+    // release would land on changed, which is half way between two: mid-drag,
+    // with nothing under the finger, and felt off. Reported from Anyways, which
+    // dropped the library's tick round its sheets and played its own on
+    // arrival. Now it is the same: under a drag, as the sheet comes within
+    // [ArrivedShare] of a detent; after a throw, as it lands.
     val ticker = rememberDetentTicker(FeedbackIntent.Snap)
     // Hidden is not a resting place but a dismissal, and a sheet dragged to where
     // letting go closes it reports what a toast swiped to its dismiss point does:
@@ -709,12 +740,25 @@ fun BottomSheet(
         // sheet flicked open from its peek says so, where it used to be silent
         // because the finger had lifted first. Opened in code, it arms nothing.
         var settle: Job? = null
-        snapshotFlow { state.draggedByHand to state.targetDetent }
-            .collect { (dragging, detent) ->
+        var wasDragging = false
+        // Where it has got to only while a finger is on it: read always, the
+        // offset re-ran this on every frame of a sheet opening in code.
+        snapshotFlow {
+            val dragging = state.draggedByHand
+            Triple(dragging, state.targetDetent, if (dragging) state.detentArrivedAt() else null)
+        }
+            .collect { (dragging, detent, arrived) ->
                 if (dragging) {
                     settle?.cancel()
                     settle = null
-                    report(detent)
+                    // Letting go here closes it: said where that changes,
+                    // which is the point of a threshold.
+                    dismiss.at(if (detent == SheetDetent.Hidden) 1 else 0)
+                    // Caught between two, the drag starts from where it was
+                    // headed: arriving anywhere else is a new detent.
+                    val here = arrived ?: detent.takeIf { !wasDragging }
+                    if (here != null && here != SheetDetent.Hidden) ticker.at(state.detents.indexOf(here))
+                    wasDragging = true
                 } else if (settle == null) {
                     settle = launch {
                         withFrameNanos { }
@@ -722,6 +766,7 @@ fun BottomSheet(
                         report(state.currentDetent)
                         ticker.reset()
                         dismiss.reset()
+                        wasDragging = false
                         settle = null
                     }
                 }
@@ -737,6 +782,19 @@ fun BottomSheet(
     val scrollConnection = remember(state, settleSpec, flickVelocity, minThrow) {
         state.nestedScrollConnection(settleSpec, flickVelocity, minThrow)
     }
+    SideEffect { state.scrollExpands = scrollExpands }
+    // How much of the content is under the screen, as the sheet last rested:
+    // read only at rest, so a drag does not lay the content out again on
+    // every frame. See `scrollExpands`.
+    var restingBelow by remember(state) { mutableFloatStateOf(0f) }
+    if (!scrollExpands) {
+        LaunchedEffect(state) {
+            snapshotFlow {
+                if (state.isMoving || state.draggedByHand) null else (state.sheetHeight - state.visibleHeight).coerceAtLeast(0f)
+            }.collect { below -> if (below != null) restingBelow = below }
+        }
+    }
+    val roomBelow = if (scrollExpands) 0.dp else with(density) { restingBelow.toDp() }
 
     // **Where it was thrown.** A throw of the sheet itself lands at the detent
     // nearest where it would carry the sheet (see `SheetProjectionSeconds`), and
@@ -926,7 +984,7 @@ fun BottomSheet(
                     CompositionLocalProvider(
                         LocalOverscrollFactory provides childOverscroll,
                     ) {
-                        content(padding)
+                        content(if (roomBelow > 0.dp) padding.withRoomBelow(roomBelow) else padding)
                     }
                 },
             )
@@ -3143,3 +3201,14 @@ internal fun edgeSheetShape(sheet: CornerBasedShape, device: DeviceCorners?, dir
  * keeps it.
  */
 internal val EdgeSheetCornerCap: Dp = 40.dp
+
+/** [this], with [room] more at its foot: see `BottomSheet`'s `scrollExpands`. */
+private fun PaddingValues.withRoomBelow(room: Dp): PaddingValues {
+    val sides = this
+    return object : PaddingValues {
+        override fun calculateLeftPadding(layoutDirection: LayoutDirection) = sides.calculateLeftPadding(layoutDirection)
+        override fun calculateTopPadding() = sides.calculateTopPadding()
+        override fun calculateRightPadding(layoutDirection: LayoutDirection) = sides.calculateRightPadding(layoutDirection)
+        override fun calculateBottomPadding() = sides.calculateBottomPadding() + room
+    }
+}

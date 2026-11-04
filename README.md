@@ -3,7 +3,7 @@
 A Compose Multiplatform design system, built on **Foundation** — no Material.
 
 Android, iOS, desktop and the web from one source set.
-<!--counts-->175 public components across 134 pages<!--/counts-->, every one with
+<!--counts-->176 public components across 135 pages<!--/counts-->, every one with
 a demo you can operate, a compiled example and a generated parameter table.
 
 ```kotlin
@@ -47,7 +47,7 @@ dependencyResolutionManagement {
 ```toml
 # gradle/libs.versions.toml
 [versions]
-kontour = "0.5.2"
+kontour = "0.5.3"
 
 [libraries]
 kontour-ui = { module = "io.kontour:ui", version.ref = "kontour" }

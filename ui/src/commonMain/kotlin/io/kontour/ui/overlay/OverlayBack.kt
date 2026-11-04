@@ -20,6 +20,7 @@ import androidx.navigationevent.NavigationEventHandler
 import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.NavigationEventInput
 import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
+import io.kontour.ui.motion.endGesturesCutOffBy
 import io.kontour.ui.platform.libraryRelaysSystemBack
 import io.kontour.ui.platform.libraryTracksBackSwipe
 
@@ -224,7 +225,14 @@ internal fun rememberChildBackDispatcher(
             }
         }
     }
-    SideEffect { owner?.navigationEventDispatcher?.isEnabled = enabled }
+    SideEffect {
+        val dispatcher = owner?.navigationEventDispatcher ?: return@SideEffect
+        // A swipe under way on the page as a dialog opens is ended first: a
+        // dispatcher turned off drops the end of a gesture, and one never
+        // ended takes every back after it. See `SwipeBackInput.underWay`.
+        if (!enabled) endGesturesCutOffBy(dispatcher)
+        dispatcher.isEnabled = enabled
+    }
     DisposableEffect(owner) {
         onDispose { owner?.navigationEventDispatcher?.dispose() }
     }

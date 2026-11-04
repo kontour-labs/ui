@@ -106,13 +106,16 @@ class PopoverSideTest {
      * seem to make it not show on the top side"* is what that looks like from a
      * phone.
      *
-     * Bounded to its own side and able to scroll, it opens below and the last sliver
-     * scrolls. Measured here at 130% type as well, because a larger type size is the
-     * difference between a phone that flips and one that does not — and is the most
-     * likely reason this showed up on Android against an iPhone that behaved.
+     * Bounded to its own side and able to scroll, it opened below and the last
+     * sliver scrolled. Since 0.5.3 a panel short of room below that fits whole
+     * above opens above — *"we should be aiming for 100% if the space allows for
+     * it"* — so the trigger here is 80dp higher, where the panel fits below whole
+     * with little to spare, and below is still where it goes. Measured at 130% type
+     * as well, because a larger type size is the difference between a phone that
+     * flips and one that does not.
      */
     @Test
-    fun aPopoverNearTheBottomEdgeStillOpensBelow() {
+    fun aPopoverThatFitsNearTheBottomEdgeOpensBelow() {
         for (scale in listOf(1f, 1.3f)) {
             var anchor = Rect.Zero
             var panel = Rect.Zero
@@ -123,7 +126,7 @@ class PopoverSideTest {
                         Box(
                             Modifier
                                 .align(Alignment.TopCenter)
-                                .offset(y = 780.dp)
+                                .offset(y = 700.dp)
                                 .size(44.dp)
                                 .reportBounds { anchor = it }
                         ) {
@@ -149,10 +152,59 @@ class PopoverSideTest {
 
             assertTrue(
                 panel.top >= anchor.bottom,
-                "at ${(scale * 100).toInt()}% type a popover 130dp from the bottom " +
+                "at ${(scale * 100).toInt()}% type a popover 210dp from the bottom " +
                     "edge was asked for `Bottom` and drawn at ${panel.top}, above " +
                     "the anchor's bottom edge at ${anchor.bottom}",
             )
         }
+    }
+
+    /**
+     * But not cut down to a strip when the other side holds all of it. A
+     * date-time picker's time chip, low on a phone, opened its wheels below
+     * into a couple of rows' room with the whole screen free above — *"it
+     * decides to open below the field, even though there's plenty of room
+     * above"* — and then, at the half this first let the side asked for keep,
+     * *"we should be aiming for 100% if the space allows for it"*. The same
+     * Pixel, a trigger with about 70dp of room under it, and a panel a little
+     * taller than that: two thirds of it would have fitted below.
+     */
+    @Test
+    fun aPopoverTooTallForBelowOpensAboveWhereItFitsWhole() {
+        var anchor = Rect.Zero
+        var panel = Rect.Zero
+        Scene(width = 1080, height = 2400, density = 2.625f, reduceMotion = true) {
+            OverlayHost(Modifier.fillMaxSize()) {
+                Box(Modifier.fillMaxSize().background(Color.White)) {
+                    Box(
+                        Modifier
+                            .align(Alignment.TopCenter)
+                            .offset(y = 780.dp)
+                            .size(44.dp)
+                            .reportBounds { anchor = it }
+                    ) {
+                        Popover(
+                            visible = true,
+                            onDismissRequest = {},
+                            side = OverlaySide.Bottom,
+                            modifier = Modifier.reportBounds { panel = it },
+                        ) {
+                            Box(Modifier.fillMaxWidth().height(64.dp))
+                        }
+                    }
+                }
+            }
+        }.use { scene -> scene.frames(30) }
+
+        assertTrue(
+            panel.bottom <= anchor.top,
+            "a popover too tall for the room below its trigger, with all the room it " +
+                "needs above, was drawn from ${panel.top} to ${panel.bottom} against a " +
+                "trigger from ${anchor.top} to ${anchor.bottom}",
+        )
+        assertTrue(
+            panel.height >= 96 * 2.625f,
+            "the popover above was ${panel.height}px for 96dp of panel: it was still cut",
+        )
     }
 }

@@ -145,6 +145,13 @@ themselves stay lazy. **Leave the column's `verticalArrangement` alone**: the
 rail is unbroken because the rows touch, and spacing between them leaves gaps in
 it. Grouped rows keep their gap inside themselves, and the rail crosses it.
 
+**Give it `key` and the stops move.** Keyed rows fade in and out and slide into
+place as the list changes — a fold opened, a stop gone — as a `listSection`'s
+rows do, without the slide under reduced motion. `animateItem` has to be on an
+item's root, which only the builder holds, so there is nothing to add round it;
+an app that put it on the rows itself, through a `LazyListScope` of its own, has
+them animate twice and can take that out.
+
 ## Not a `Timeline`
 
 `Timeline` takes arbitrary content beside a rail: a map, a ticket, two lines of

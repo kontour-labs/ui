@@ -117,6 +117,7 @@ internal fun Modifier.sheetDrag(
         }
         awaitEachGesture {
             val down = awaitFirstDown(requireUnconsumed = false)
+            state.caughtAcross = false
             val slop = viewConfiguration.touchSlop * if (down.type == PointerType.Mouse) MouseSlopRatio else SheetDragSlop
             // How far the pointer has gone, up or down, since it went down: the
             // throw is read from all of it, the slop included, as Compose's own
@@ -148,11 +149,26 @@ internal fun Modifier.sheetDrag(
             // The catch is the down's, and a still press and release is left to
             // whatever is under it. A finger that travels [CatchSlop] up or down
             // is a drag of the sheet, and from there it is the sheet's.
+            //
+            // **And let go to a swipe across.** Taken on half a touch slop up or
+            // down whatever else the finger did, a caught sheet beat every
+            // carousel and every swipeable row in it to a swipe with any slope
+            // at all, so swiping across in a sheet that had not quite settled —
+            // just opened, just let go — was a fight: *"if a sheet hasn't fully
+            // settled, horizontal swiping actions are still a bit difficult"*,
+            // raised 2026-11-03 for 0.5.3. A caught finger is now judged by the
+            // slope a settled sheet's is, [SheetDragSlop]: steeper is the
+            // sheet's, flatter is let go before anything inside has reached its
+            // own slop. The sheet stays where the finger stopped it, so what is
+            // being swiped does not slide under the finger, and once the finger
+            // lifts it goes on to the detent it was on its way to.
             val caught = state.isMoving
+            val aimed = if (caught) anchored.targetValue else null
             val pass = if (caught) PointerEventPass.Initial else PointerEventPass.Main
             val catchSlop = viewConfiguration.touchSlop * if (down.type == PointerType.Mouse) MouseSlopRatio else CatchSlop
             var taken = !caught
-            var held = 0f
+            var letGo = false
+            var held = Offset.Zero
             if (caught) {
                 down.consume()
             } else {
@@ -244,10 +260,21 @@ internal fun Modifier.sheetDrag(
                         }
                         break
                     }
-                    val dy = change.positionChange().y
+                    // Someone else's swipe: the sheet only waits for the lift.
+                    if (letGo) continue
+                    val moved = change.positionChange()
+                    val dy = moved.y
                     if (!taken) {
-                        held += dy
-                        taken = abs(held) >= catchSlop
+                        held += moved
+                        val steep = abs(held.y) >= abs(held.x) * SheetDragSlop
+                        if (steep && abs(held.y) >= catchSlop) {
+                            taken = true
+                        } else if (!steep && abs(held.x) >= catchSlop) {
+                            letGo = true
+                            state.caughtAcross = true
+                            interactions.tryEmit(DragInteraction.Cancel(start))
+                            continue
+                        }
                     }
                     if (taken) change.consume()
                     if (dy != 0f) {
@@ -266,7 +293,7 @@ internal fun Modifier.sheetDrag(
             deltas.close()
             val most = viewConfiguration.maximumFlingVelocity
             val velocity = if (lifted && stoppedFor <= StoppedMillis) tracker.calculateVelocity().y.coerceIn(-most, most) else 0f
-            interactions.tryEmit(if (lifted) DragInteraction.Stop(start) else DragInteraction.Cancel(start))
+            if (!letGo) interactions.tryEmit(if (lifted) DragInteraction.Stop(start) else DragInteraction.Cancel(start))
             scope.launch {
                 try {
                     dragging.join()
@@ -274,7 +301,11 @@ internal fun Modifier.sheetDrag(
                     // sheet, closing it say — so the release is not a throw:
                     // throwing it would undo what the app did.
                     if (dragging.isCancelled) return@launch
-                    if (overscroll == null) {
+                    if (letGo && aimed != null) {
+                        // Never the sheet's: on to where it was going, as if
+                        // nothing had touched it.
+                        state.carryOn(aimed)
+                    } else if (overscroll == null) {
                         throwBy(velocity)
                     } else {
                         overscroll.applyToFling(Velocity(0f, velocity)) { available ->
@@ -324,7 +355,8 @@ private fun VelocityTracker.addHistory(change: PointerInputChange, before: Float
  * How much further than the platform's touch slop a finger goes up or down
  * before it moves the sheet: see [sheetDrag]. About sixty degrees from across,
  * rather than forty-five, is where a swipe over a carousel stops being the
- * carousel's and starts being the sheet's.
+ * carousel's and starts being the sheet's — and, as a slope, where a finger
+ * that caught a moving sheet stops being let go.
  */
 internal const val SheetDragSlop = 1.75f
 

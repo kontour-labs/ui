@@ -129,7 +129,13 @@ class SheetState internal constructor(
      */
     internal val allowedDetents: List<SheetDetent> by derivedStateOf {
         val settled = anchoredState.settledValue
-        detents.filter { it == settled || confirmDetentChange(it) }
+        // **[detentList], not `detents`.** In an initialiser `detents` is the
+        // constructor's parameter, which shadows the property, so this read the
+        // list the state was made with for the whole of its life: a detent
+        // assigned later never had an anchor, and the sheet would not go there
+        // by code or by hand. Reported from an app that had made every sheet
+        // with every detent it might need, since 0.4.3, to get round it.
+        detentList.filter { it == settled || confirmDetentChange(it) }
     }
 
     /** Container height in pixels. Set by the sheet's layout. */
@@ -244,6 +250,46 @@ class SheetState internal constructor(
     /** See [highestAnchored]. The largest offset, which is the lowest on screen. */
     private fun lowestAnchored(detents: List<SheetDetent>): Float =
         extremeAnchored(detents, highest = false)
+
+    /**
+     * The resting detent the sheet is at, or as good as at, or null between two.
+     *
+     * At means within [ArrivedShare] of the way from the nearest other anchor:
+     * a few pixels short of it, where a drag is taken to have got there.
+     * [SheetDetent.Hidden] is never one: going there is a dismissal, which has a
+     * threshold of its own rather than a place to arrive at.
+     */
+    internal fun detentArrivedAt(): SheetDetent? {
+        val at = anchoredState.offset
+        if (at.isNaN()) return null
+        val anchors = anchoredState.anchors
+        var nearest: SheetDetent? = null
+        var nearestGap = Float.POSITIVE_INFINITY
+        for (detent in detentList) {
+            val position = anchors.positionOf(detent)
+            if (position.isNaN()) continue
+            val gap = abs(position - at)
+            if (gap < nearestGap) {
+                nearest = detent
+                nearestGap = gap
+            }
+        }
+        val here = nearest ?: return null
+        if (here == SheetDetent.Hidden) return null
+        val herePosition = anchors.positionOf(here)
+        // The distance to the next anchor on the side the sheet is, or on
+        // either side where it sits exactly on this one.
+        var span = Float.POSITIVE_INFINITY
+        for (detent in detentList) {
+            if (detent == here) continue
+            val position = anchors.positionOf(detent)
+            if (position.isNaN() || position == herePosition) continue
+            val sameSide = at == herePosition || (position - herePosition) * (at - herePosition) > 0f
+            if (sameSide) span = minOf(span, abs(position - herePosition))
+        }
+        if (span == Float.POSITIVE_INFINITY) return here
+        return here.takeIf { nearestGap <= span * ArrivedShare }
+    }
 
     private fun extremeAnchored(detents: List<SheetDetent>, highest: Boolean): Float {
         val anchors = anchoredState.anchors
@@ -778,6 +824,16 @@ class SheetState internal constructor(
     internal var throwsInFlight by mutableIntStateOf(0)
 
     /**
+     * Whether the finger now on the sheet, or the last one, caught it moving and
+     * then swiped across instead, to something inside it: see `sheetDrag`,
+     * which sends the sheet on to where it was going once the finger lifts.
+     * What that something flings at the end of the swipe reaches
+     * [nestedScrollConnection] too, which settled a sheet caught between
+     * detents at the nearest one and undid it. Cleared by the next finger.
+     */
+    internal var caughtAcross: Boolean = false
+
+    /**
      * True while a **finger** is moving the sheet, as opposed to code.
      *
      * The signal `FeedbackIntent.DragThreshold`'s own documentation said was
@@ -960,6 +1016,15 @@ class SheetState internal constructor(
                 if (presence.value != 1f) presence.animateTo(1f, motion.tweenFast())
             }
         }
+    }
+
+    /**
+     * Goes on to [detent], an anchor the sheet was on its way to when a finger
+     * caught it and then swiped across instead: see `sheetDrag`. The nearest
+     * one if the anchors have moved on since.
+     */
+    internal suspend fun carryOn(detent: SheetDetent) {
+        if (anchoredState.anchors.positionOf(detent).isNaN()) restAtNearest() else move(detent)
     }
 
     /** Jumps to [detent] with no animation. For restoring state, not for interaction. */
@@ -1299,6 +1364,34 @@ class SheetState internal constructor(
     private var releasedBySheet: Boolean = false
 
     /**
+     * Whether a drag of the content expands the sheet before the content
+     * scrolls, as UIKit's sheets do by default. Set by the sheet drawing this
+     * state, from `BottomSheet`'s `scrollExpands`.
+     */
+    internal var scrollExpands: Boolean = true
+
+    /**
+     * Whether the sheet has moved under the gesture now under way: from then on
+     * it has the rest of the drag, both ways, as it always did. A pull down past
+     * a list's top, carried on back up, is the sheet's coming back, not the list
+     * scrolling. Cleared with the gesture's other notes.
+     */
+    private var sheetTookThisGesture: Boolean = false
+
+    /**
+     * Whether a drag of the content up scrolls it where it is, the sheet staying
+     * put: off [scrollExpands], above the sheet's lowest open detent — collapsed,
+     * the sheet is all that shows, and dragging it up is how it comes up — and
+     * only until the sheet has taken some of the gesture.
+     */
+    private fun scrollsWhereItIs(): Boolean {
+        if (scrollExpands || sheetTookThisGesture) return false
+        val lowest = lowestAnchored(allowedDetents)
+        val at = anchoredState.offset
+        return !lowest.isNaN() && !at.isNaN() && at < lowest - 0.5f
+    }
+
+    /**
      * The finger on the sheet, for a release the platform reports as no throw at
      * all (see [SheetFinger]), and for whether one is on it at all.
      *
@@ -1313,6 +1406,7 @@ class SheetState internal constructor(
     internal val finger = SheetFinger(onDown = {
         listScrolled = false
         releasedBySheet = false
+        sheetTookThisGesture = false
     })
 
     /**
@@ -1767,8 +1861,10 @@ class SheetState internal constructor(
                 // A stretch the finger opened closes before anything else moves.
                 val paid = payBackOvershoot(delta)
                 val offered = delta - paid
-                // Dragging up, sheet not yet expanded: the sheet takes it first.
-                val taken = if (offered < 0f) anchoredState.dispatchRawDelta(offered) else 0f
+                // Dragging up, sheet not yet expanded: the sheet takes it first —
+                // unless the content scrolls where it is (see [scrollExpands]).
+                val taken = if (offered < 0f && !scrollsWhereItIs()) anchoredState.dispatchRawDelta(offered) else 0f
+                if (taken != 0f) sheetTookThisGesture = true
                 // What the child is about to be offered, remembered so the
                 // callback below can tell how much of it the child wanted. The
                 // two are one dispatch, so nothing can arrive in between.
@@ -1793,11 +1889,16 @@ class SheetState internal constructor(
                 // was offered and what it declined, which is how the sheet knows
                 // whose gesture this is when the fling arrives. See `onPostFling`.
                 if (offeredToChild != offered) listScrolled = true
+                // Up past the end of a list scrolling where it is: the end, not
+                // the sheet's. It stays put, as UIKit's does with the same
+                // setting. See [scrollExpands].
+                if (offered < 0f && scrollsWhereItIs()) return Offset.Zero
                 // ...as far as it is allowed to go, and no further. A sheet with
                 // a form in it is dragged by its content as often as by its
                 // handle, so the floor has to hold here too.
                 val toSheet = roomBeforeFloor(offered)
                 val taken = anchoredState.dispatchRawDelta(toSheet)
+                if (taken != 0f) sheetTookThisGesture = true
                 val leftOver = offered - taken
                 val stretched = if (leftOver > 0f) stretchDown(leftOver) else 0f
                 return (taken + stretched).toOffset()
@@ -1806,6 +1907,9 @@ class SheetState internal constructor(
             override suspend fun onPreFling(available: Velocity): Velocity {
                 // A wheel's or a thumb's: the content's alone, as its scroll was.
                 if (flingsInPlace()) return Velocity.Zero
+                // A swipe across a sheet that was moving: the sheet's own drag
+                // sends it on. See [caughtAcross].
+                if (caughtAcross) return Velocity.Zero
                 // **The sheet was moving under the finger when it let go**, so
                 // the release is the sheet's, whatever the list did earlier in
                 // the gesture. UIKit's rule: once a scroll view at its top has
@@ -1848,6 +1952,8 @@ class SheetState internal constructor(
                     ?: Float.NaN
                 return if (
                     available.y < 0 &&
+                    // A list scrolling where it is flings where it is.
+                    !scrollsWhereItIs() &&
                     !offset.isNaN() &&
                     !expandedOffset.isNaN() &&
                     offset > expandedOffset
@@ -1899,6 +2005,8 @@ class SheetState internal constructor(
                 // reaches here — with a zero velocity if the finger simply
                 // stopped — so this is the reliable place to forget it.
                 listScrolled = false
+                sheetTookThisGesture = false
+                if (caughtAcross) return Velocity.Zero
                 // A wheel's or a thumb's moved the content and not the sheet:
                 // nothing to settle, and only a stretch, were there one, to let go.
                 if (flingsInPlace()) {
@@ -2111,6 +2219,13 @@ internal val SheetOrientation = Orientation.Vertical
  * and the gap reads as a detent the sheet forgot to settle at.
  */
 private const val OvershootShare = 1f / 12f
+
+/**
+ * How close to a detent, as a share of the way from the anchor before it, a
+ * sheet dragged by hand counts as there: where its tick plays. See
+ * [SheetState.detentArrivedAt].
+ */
+internal const val ArrivedShare = 0.03f
 
 /**
  * What both an empty [SheetState] and an emptied one say.

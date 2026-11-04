@@ -1,5 +1,12 @@
 package io.kontour.ui.overlay
 
+import androidx.compose.ui.input.pointer.positionChangeIgnoreConsumed
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitEachGesture
+import io.kontour.ui.interaction.rememberLongPressFeedback
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.util.lerp
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.PointerType
 import androidx.compose.ui.input.pointer.PointerEventType
@@ -137,6 +144,8 @@ internal class Toast(
     val actionLabel: String?,
     val onAction: (() -> Unit)?,
     val durationMillis: Long,
+    /** Whether the reader can send it away: see [ToastHostState.show]. */
+    val dismissible: Boolean = true,
 ) {
     /**
      * Whether this toast is on screen, and whether it has finished arriving or
@@ -220,6 +229,37 @@ private class PullSettle(
 }
 
 /**
+ * The stack gathered up to be sent away whole: held still on the front card for
+ * a long press, every toast the reader can dismiss merges into one pill showing
+ * how many, which is dragged away as one. Asked for as being able to *"drag the
+ * entire thing away, not just the top one"*, with the merge there *"so it's
+ * obvious that you're dragging the whole stack"*.
+ */
+@Stable
+private class StackGather {
+    /** Whether a finger holds the stack gathered up now. */
+    var holding by mutableStateOf(false)
+
+    /**
+     * The toasts gathered, by id: the dismissible ones there were as the hold
+     * began, the queue off screen included. Empty when nothing is gathered.
+     * One that arrives after is news nobody has seen, and is not swept away.
+     */
+    var members by mutableStateOf(emptySet<Long>())
+
+    /**
+     * What was on screen as the hold began, drawn unchanged until it ends: a
+     * toast arriving mid-drag would take the front, and the drag with it.
+     */
+    var frozen by mutableStateOf(emptyList<Toast>())
+
+    /** How far merged, 0 to 1: the pills drawn in under the front, which shows the count. */
+    val merge = Animatable(0f)
+
+    fun gathers(toast: Toast): Boolean = toast.id in members
+}
+
+/**
  * Shows short confirmations of things the user just did.
  *
  * ```
@@ -247,6 +287,16 @@ private class PullSettle(
  * on screen at once, newest in front, older ones scaled and offset behind — and
  * each carries its own timer, so a long one and a short one expire when they
  * were each told to.
+ *
+ * ### The reader sends them away
+ *
+ * A swipe takes the front one, and so do its close and its action. **Held**
+ * still on the front one for a long press, every toast the reader can dismiss
+ * gathers into one pill saying how many, and dragged past the same line they all
+ * go, the ones queued off screen too; a screen reader has **Dismiss all** for it.
+ * A toast shown with `dismissible = false` stays through all of it, until the
+ * app takes it down, and while the stack is held it is drawn just behind the
+ * gathered pill, from the queue off screen if it was there. See [show].
  */
 @Stable
 class ToastHostState {
@@ -268,6 +318,17 @@ class ToastHostState {
      *   [io.kontour.ui.components.display.Banner] is the component for that. A
      *   pinned toast no longer blocks the ones behind it, but it does hold a
      *   place in the stack.
+     * @param dismissible Whether the reader can send it away. False is for a
+     *   toast that says how things *are* for as long as they are so — the phone
+     *   offline — pinned and taken down by the app when that changes: it has no
+     *   close control, a swipe stretches it and lets it spring back, and holding
+     *   the stack to send it all away leaves it where it is. Pin it too; one
+     *   that runs out of time still goes. Rarer still than a pinned toast: a
+     *   state that matters to the screen is a
+     *   [io.kontour.ui.components.display.Banner]'s, and this is for a state of
+     *   the whole app with no screen of its own to put one on. An app had
+     *   consumed every drag over its toasts to keep one up, which stopped the
+     *   rest being swiped away as well.
      */
     fun show(
         message: String,
@@ -277,6 +338,7 @@ class ToastHostState {
         onAction: (() -> Unit)? = null,
         duration: Duration =
             if (actionLabel != null) ToastDefaults.DisplayDurationWithAction else ToastDefaults.DisplayDuration,
+        dismissible: Boolean = true,
     ): Long {
         val id = nextId++
         toasts.add(
@@ -294,6 +356,7 @@ class ToastHostState {
                 } else {
                     duration.inWholeMilliseconds
                 },
+                dismissible = dismissible,
             )
         )
         return id
@@ -1066,8 +1129,18 @@ private fun ToastStack(state: ToastHostState, config: ToastHostConfig) {
     // The stack grows away from the edge it is anchored to: a bottom-anchored
     // stack recedes upward, a top-anchored one downward.
     val towardEdge = config.position.towardEdge
+    val motion = Theme.motion
     val edgeShift = Theme.spacing.md - ToastEdgeGap
-    val visible = state.toasts.takeLast(config.maxVisible)
+    /** The stack held to be sent away whole: see [StackGather]. Its finger stops the clocks too. */
+    val gather = remember { StackGather() }
+    // A gathered stack sent away goes as one pill, and holds one place while it
+    // leaves: the toasts left behind it are counted as if it had gone, so one
+    // that stays, queued off screen behind four that are going, is drawn
+    // behind the pill as it goes rather than appearing once it has.
+    val going = gather.members.isNotEmpty() && !gather.holding
+    fun leavingGathered(toast: Toast) = going && gather.gathers(toast) && !toast.presence.targetState
+    val counted = state.toasts.filterNot(::leavingGathered).takeLast(config.maxVisible)
+    val visible = state.toasts.filter { toast -> leavingGathered(toast) || counted.any { it === toast } }
     val density = LocalDensity.current
     val barLift = rememberBarLift(config.position, LocalOverlayHost.current, density)
 
@@ -1186,7 +1259,63 @@ private fun ToastStack(state: ToastHostState, config: ToastHostConfig) {
      * what it gets instead is the longer time below.
      */
     val focused = remember { mutableStateOf(false) }
-    val stopped = { held.value || hovered.value || focused.value }
+
+    val stopped = { held.value || hovered.value || focused.value || gather.holding }
+
+    // Drawn as it was when the hold began, for as long as it is held.
+    val shown = if (gather.holding) gather.frozen else visible
+
+    /**
+     * What is drawn while the stack is held: what was on screen, and behind it
+     * the toasts that will stay, the ones queued off screen too, up to a pill
+     * behind the front for each place there is. Asked for as *"when you long
+     * press the front notifications that can be dismissed, that persistent
+     * toast's pill should become visible again"*: the stack is gathered into
+     * one pill, so there is room behind it, and what stays is what the reader
+     * needs to see is staying.
+     */
+    fun toHold(): List<Toast> {
+        val staying = state.toasts.filter { !it.dismissible && it.presence.targetState }.takeLast(config.maxVisible - 1)
+        return state.toasts.filter { toast -> visible.any { it === toast } || staying.any { it === toast } }
+    }
+
+    /**
+     * How far back the card at [index] of [shown] sits: zero is the front.
+     *
+     * While a gathered stack is held or leaving, it is one pill, and a card
+     * staying behind it counts the whole of it as one place rather than one
+     * for each toast merged into it, so it sits just behind the pill. The
+     * gathered cards keep their own places, which the merge draws in to the
+     * front.
+     */
+    fun depthOf(index: Int): Int {
+        val toast = shown[index]
+        val after = shown.subList(index + 1, shown.size)
+        if (gather.members.isEmpty() || gather.gathers(toast)) return after.size
+        return after.count { !gather.gathers(it) } + if (after.any { gather.gathers(it) }) 1 else 0
+    }
+
+    // Merged as the stack is gathered, and apart again as it is let go short of
+    // the line. Sent away, the toasts that went stay merged until they have all
+    // gone, so they leave as the one pill they were dragged as.
+    LaunchedEffect(gather.holding) {
+        if (gather.holding) {
+            if (motion.reduceMotion) gather.merge.snapTo(1f) else gather.merge.animateTo(1f, motion.springOrTween(motion.springDefault))
+            return@LaunchedEffect
+        }
+        if (gather.members.isEmpty()) return@LaunchedEffect
+        val leaving = state.toasts.any { gather.gathers(it) && !it.presence.targetState }
+        if (leaving) {
+            snapshotFlow { state.toasts.none { gather.gathers(it) } }.first { it }
+            gather.merge.snapTo(0f)
+        } else if (motion.reduceMotion) {
+            gather.merge.snapTo(0f)
+        } else {
+            gather.merge.animateTo(0f, motion.springOrTween(motion.springDefault))
+        }
+        gather.members = emptySet()
+        gather.frozen = emptyList()
+    }
 
     // The time a reader has asked for, where the platform knows it: Android's
     // "Time to take action", which a reader using TalkBack or switch access
@@ -1194,7 +1323,7 @@ private fun ToastStack(state: ToastHostState, config: ToastHostConfig) {
     // the manager hands back the time it was given.
     val accessibility = LocalAccessibilityManager.current
 
-    val frontId = visible.lastOrNull()?.id
+    val frontId = shown.lastOrNull()?.id
     val settle = remember(stackScope, pull) { PullSettle(stackScope, pull) }
     LaunchedEffect(frontId) {
         // A spring already on its way home finishes there; cutting it short to
@@ -1348,14 +1477,14 @@ private fun ToastStack(state: ToastHostState, config: ToastHostConfig) {
             .overlappingInsetsPadding(config.windowInsets.union(WindowInsets(bottom = barLift.value.roundToInt())))
             .standingOffItsEdge(towardEdge, edgeShift),
     ) {
-        visible.forEachIndexed { index, toast ->
+        shown.forEachIndexed { index, toast ->
             key(toast.id) {
                 ToastCard(
                     toast = toast,
                     state = state,
                     // Zero is the front. The list is oldest first, so the last
                     // one in it is the one on top.
-                    depth = visible.lastIndex - index,
+                    depth = depthOf(index),
                     towardEdge = towardEdge,
                     showClose = config.showClose,
                     closeLabel = config.closeLabel,
@@ -1370,6 +1499,9 @@ private fun ToastStack(state: ToastHostState, config: ToastHostConfig) {
                     focused = focused,
                     countdown = config.countdown,
                     scope = stackScope,
+                    gather = gather,
+                    onScreen = { shown },
+                    toHold = ::toHold,
                     modifier = config.modifier,
                 )
             }
@@ -1420,6 +1552,12 @@ private fun ToastCard(
     countdown: ToastCountdown,
     /** The stack's scope — see the settle in the gesture below. */
     scope: CoroutineScope,
+    /** The stack held to be sent away whole: see [StackGather]. */
+    gather: StackGather,
+    /** What the stack draws now, front last. */
+    onScreen: () -> List<Toast>,
+    /** What the stack draws while it is held: see `ToastStack`. */
+    toHold: () -> List<Toast>,
     modifier: Modifier,
 ) {
     val motion = Theme.motion
@@ -1466,6 +1604,8 @@ private fun ToastCard(
      * release reads the same latch, so it still decides what the hand was told.
      */
     fun dismissesOnRelease(): Boolean {
+        // One the reader cannot send away stretches and comes back.
+        if (!toast.dismissible) return false
         val travelled = pull.value
         val line = height * ToastDefaults.SwipeAway
         pastLine.value = !refusesToLeave(travelled, towardEdge) &&
@@ -1515,6 +1655,35 @@ private fun ToastCard(
         label = "toastDepthScale",
     )
 
+    // **Gathering the stack.** See [StackGather] and [gathersOnHold].
+    val longPressed = rememberLongPressFeedback()
+    val strings = Theme.strings
+    fun gatherable(): List<Toast> = state.toasts.filter { it.dismissible && it.presence.targetState }
+    // Only from a front card that can go itself, and only with another to go
+    // with it: one toast held is one toast.
+    fun canGather(): Boolean = toast.dismissible && gatherable().size >= 2
+
+    /**
+     * Sends [ids] away by hand: those on screen leave from [from], where the
+     * finger let them go, and those queued behind them, which have nothing to
+     * be seen leaving, are taken off the list.
+     */
+    fun sendAway(ids: Set<Long>, from: Offset?) {
+        val showing = onScreen()
+        state.toasts.filter { it.id in ids }.forEach { each ->
+            if (showing.any { it === each }) {
+                if (from != null) {
+                    each.leftFrom = from
+                    each.swipedAway = true
+                }
+                state.dismissByHand(each.id)
+            } else {
+                state.remove(each)
+            }
+        }
+    }
+    val merged = depth == 0 && gather.gathers(toast) && (gather.holding || toast.swipedAway)
+
 
     AnimatedVisibility(
         visibleState = toast.presence,
@@ -1553,8 +1722,10 @@ private fun ToastCard(
                     fadeOut(motion.tweenExit()) +
                     scaleOut(motion.tweenExit(), targetScale = 0.94f),
             )
-        } else if (depth == 0) {
-            // **Swiped away: it shrinks where the finger left it.**
+        } else if (toast.swipedAway) {
+            // **Swiped away: it shrinks where the finger left it.** A card or,
+            // sent away with a gathered stack, a pill: every one of them was
+            // where the finger had them, merged under the front.
             //
             // Reported: *"if I drag it away but not off the screen, it should
             // shrink out in place rather than just disappearing"*. It used to take
@@ -1625,7 +1796,8 @@ private fun ToastCard(
         ToastSurface(
             toast = toast,
             depth = depth,
-            showClose = showClose && depth == 0,
+            showClose = showClose && depth == 0 && toast.dismissible,
+            gatheredCount = if (merged) gather.members.size else null,
             closeLabel = closeLabel,
             closeIcon = closeIcon,
             countdown = countdown,
@@ -1634,6 +1806,21 @@ private fun ToastCard(
                 .then(if (depth == 0) Modifier.pointerHovers(hovered) else Modifier)
                 // And so does keyboard focus on its action or its close.
                 .then(if (depth == 0) Modifier.onFocusChanged { focused.value = it.hasFocus } else Modifier)
+                // What holding the stack does, for a reader who cannot hold it.
+                .then(
+                    if (depth == 0 && canGather()) {
+                        Modifier.semantics {
+                            customActions = listOf(
+                                CustomAccessibilityAction(strings.dismissAll) {
+                                    sendAway(gatherable().mapTo(mutableSetOf()) { it.id }, from = null)
+                                    true
+                                },
+                            )
+                        }
+                    } else {
+                        Modifier
+                    }
+                )
                 // The gesture is the outermost thing, above the padding — and
                 // that is the point. Below it the swipe area was exactly the
                 // visible pill and the 16dp ring around it was dead space, on a
@@ -1644,7 +1831,35 @@ private fun ToastCard(
                 // cannot be reached.
                 .then(
                     if (depth == 0) {
-                        Modifier.freeDragOwning(
+                        Modifier
+                            // Before the drag, so it sees each event first:
+                            // gathered, it takes them, and the drag below,
+                            // finding them taken, lets go.
+                            .gathersOnHold(
+                                canGather = ::canGather,
+                                onGather = {
+                                    settle.stop()
+                                    held.value = true
+                                    gather.members = gatherable().mapTo(mutableSetOf()) { it.id }
+                                    gather.frozen = toHold()
+                                    gather.holding = true
+                                    longPressed()
+                                },
+                                onPull = { delta ->
+                                    pull.value += delta
+                                    threshold.at(if (dismissesOnRelease()) 1 else 0)
+                                },
+                                onRelease = { lifted ->
+                                    threshold.reset()
+                                    val leaving = lifted && dismissesOnRelease()
+                                    pastLine.value = false
+                                    if (leaving) sendAway(gather.members, swipe())
+                                    gather.holding = false
+                                    held.value = false
+                                    settle.start(motion.springOrTween(motion.springSnappy))
+                                },
+                            )
+                            .freeDragOwning(
                             enabled = true,
                             interactionSource = null,
                             scope = scope,
@@ -1686,7 +1901,14 @@ private fun ToastCard(
                                 // never drops it.
                                 threshold.at(if (dismissesOnRelease()) 1 else 0)
                             },
-                            onEnd = {
+                            onEnd = onEnd@{
+                                // Taken from under it by the stack being
+                                // gathered, which has the drag from here.
+                                if (gather.holding) {
+                                    threshold.reset()
+                                    pastLine.value = false
+                                    return@onEnd
+                                }
                                 // Read from the accumulator, not from `swipe`.
                                 //
                                 // `swipe` is this composable's *parameter* — the
@@ -1760,10 +1982,13 @@ private fun ToastCard(
                     // go a card that does not dismiss returns one thing rather than
                     // four, and swiping one away leaves the others where the eye
                     // already had them.
-                    val lean = if (depth == 0) 1f else PillLean
+                    // Gathered, each card is drawn in under the front and goes
+                    // with the finger whole, as one: see [StackGather].
+                    val merge = if (gather.gathers(toast)) gather.merge.value else 0f
+                    val lean = lerp(if (depth == 0) 1f else PillLean, 1f, merge)
                     val swiped = if (toast.swipedAway) toast.leftFrom else swipe()
                     translationX = swiped.x * lean
-                    translationY = depthOffset.toPx() + swiped.y * lean
+                    translationY = depthOffset.toPx() * (1f - merge) + swiped.y * lean
                     scaleX = swipedShrink
                     scaleY = swipedShrink
                     // One for the whole of the card's life except a swiped exit,
@@ -1795,8 +2020,9 @@ private fun ToastCard(
                 // movement they have to follow. `check-settings.py`'s rule M
                 // names this function for that reason.
                 .graphicsLayer {
-                    scaleX = depthScale
-                    scaleY = depthScale
+                    val merge = if (gather.gathers(toast)) gather.merge.value else 0f
+                    scaleX = lerp(depthScale, 1f, merge)
+                    scaleY = lerp(depthScale, 1f, merge)
                     // No alpha. Fading the ones behind made them *translucent*
                     // rather than distant: the card in front showed through the
                     // card behind it, and the text of all three overlapped into
@@ -1822,6 +2048,8 @@ private fun ToastSurface(
     countdown: ToastCountdown,
     /** Zero is the front one. Anything behind it is drawn as a bare pill. */
     depth: Int,
+    /** How many are gathered under it, where the stack is held to go whole; null otherwise. */
+    gatheredCount: Int?,
     modifier: Modifier,
     onAction: () -> Unit,
     onClose: () -> Unit,
@@ -1893,7 +2121,11 @@ private fun ToastSurface(
         // Nothing is readable behind the front toast now, which is the point.
         // Dismiss the one in front to see the next.
         AnimatedContent(
-            targetState = depth == 0,
+            targetState = when {
+                depth != 0 -> ToastLook.Pill
+                gatheredCount != null -> ToastLook.Gathered
+                else -> ToastLook.Card
+            },
             transitionSpec = {
                 (fadeIn(motion.springOrTween(motion.springDefault)) togetherWith
                     fadeOut(motion.tweenFast()))
@@ -1905,9 +2137,19 @@ private fun ToastSurface(
                     .using(SizeTransform(clip = false) { _, _ -> motion.sizeSpec() })
             },
             label = "toastPresentation",
-        ) { front ->
-        if (!front) {
+        ) { look ->
+        if (look == ToastLook.Pill) {
             Box(Modifier.size(ToastDefaults.PillWidth, ToastDefaults.PillHeight))
+            return@AnimatedContent
+        }
+        if (look == ToastLook.Gathered) {
+            // The stack gathered into one pill: how many are going, in the
+            // front card's own colour, so what is being dragged says what it is.
+            Text(
+                Theme.strings.toastCount(Theme.formats.quantity(gatheredCount ?: 0)),
+                style = Theme.typography.labelLarge,
+                modifier = Modifier.padding(horizontal = Theme.spacing.lg, vertical = Theme.spacing.sm),
+            )
             return@AnimatedContent
         }
         // The toast reserves its controls' target itself, once, rather than
@@ -2008,6 +2250,85 @@ private fun ToastSurface(
             }
         }
         }
+        }
+    }
+}
+
+/** What a toast is drawn as: the card in front, a pill behind it, or the stack gathered up. */
+private enum class ToastLook { Card, Pill, Gathered }
+
+/**
+ * The front card held still to gather the stack up: [onGather] once the finger
+ * has rested for a long press, then every move to [onPull] and the end to
+ * [onRelease] — lifted, or taken away.
+ *
+ * **Held means still, from the press.** A finger that has really moved — past
+ * the touch slop, which a resting fingertip's roll does not travel — is a drag
+ * of the front card, and stopping later makes it nothing else: the hold is only
+ * ever timed from the press, and movement ends the wait for good. Asked for in
+ * as many words: a drag that stops *"doesn't start counting as a long press"*.
+ * A second finger ends it too.
+ *
+ * Gathered, it takes every change before anything under it sees one: the front
+ * card's own drag, which may have set off on the first pixel of the roll, finds
+ * them taken and lets go, and an action or the close pressed to start the hold
+ * does not fire as the finger lifts.
+ *
+ * However the gesture ends, the stack is let go: a card taken away mid-hold
+ * would otherwise leave every clock in the stack stopped.
+ */
+@Composable
+private fun Modifier.gathersOnHold(
+    canGather: () -> Boolean,
+    onGather: () -> Unit,
+    onPull: (Offset) -> Unit,
+    onRelease: (lifted: Boolean) -> Unit,
+): Modifier {
+    // Read live: the handler outlives the composition that built it.
+    val can by rememberUpdatedState(canGather)
+    val gathered by rememberUpdatedState(onGather)
+    val pulled by rememberUpdatedState(onPull)
+    val released by rememberUpdatedState(onRelease)
+    return pointerInput(Unit) {
+        awaitEachGesture {
+            val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+            if (!can()) return@awaitEachGesture
+            val slop = viewConfiguration.touchSlop
+            var wander = Offset.Zero
+            var over = false
+            withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
+                while (!over) {
+                    val event = awaitPointerEvent(PointerEventPass.Initial)
+                    val change = event.changes.firstOrNull { it.id == down.id }
+                    wander += change?.positionChangeIgnoreConsumed() ?: Offset.Zero
+                    over = change == null || !change.pressed ||
+                        event.changes.count { it.pressed } > 1 ||
+                        wander.getDistance() > slop
+                }
+            }
+            if (over || !can()) return@awaitEachGesture
+            gathered()
+            var ended = false
+            try {
+                while (!ended) {
+                    val event = awaitPointerEvent(PointerEventPass.Initial)
+                    val change = event.changes.firstOrNull { it.id == down.id }
+                    event.changes.forEach { it.consume() }
+                    when {
+                        change == null -> {
+                            ended = true
+                            released(false)
+                        }
+                        !change.pressed -> {
+                            ended = true
+                            released(true)
+                        }
+                        else -> change.positionChangeIgnoreConsumed().let { if (it != Offset.Zero) pulled(it) }
+                    }
+                }
+            } finally {
+                if (!ended) released(false)
+            }
         }
     }
 }

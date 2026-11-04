@@ -10,6 +10,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerId
 import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.pointerInput
@@ -67,8 +68,13 @@ internal enum class DragClaim {
      * This decides early and by direction. Movement is gathered, unconsumed, until
      * it is [DirectionDecisionShare] of the touch slop — well before the list can
      * claim — and then the gesture is the control's if it is within 45° of the
-     * control's axis, and the list's if it is not. The travel gathered while
-     * deciding is handed on with the claim, so none of it is lost.
+     * control's axis. If it is not, nothing is decided yet: it keeps watching,
+     * unclaimed, and the gesture is the list's once the list takes it, or once
+     * the finger has gone [DirectionWatchSlop] touch slops without turning. A
+     * thumb lands steeply and flattens into a swipe, and a sheet waits longer
+     * than a list before it claims, so in a sheet that difference was every
+     * such swipe. The travel gathered while deciding is handed on with the
+     * claim, so none of it is lost.
      */
     Direction,
 }
@@ -528,8 +534,35 @@ private fun Modifier.ownedDrag(
                                 Axis.Vertical -> abs(gathered.y) >= abs(gathered.x)
                                 Axis.Both -> true
                             }
-                            // The other way: the scroller's, all of it.
-                            if (!mostlyAlong) return@awaitEachGesture
+                            if (!mostlyAlong) {
+                                // **Not yet, rather than never.** It used to give the
+                                // gesture away here, on its first few pixels, and a
+                                // thumb lands steeply before it flattens into a swipe:
+                                // in a sheet, which waits longer than a list before
+                                // it takes a finger, the row let go of every such
+                                // swipe and the sheet moved instead. Reported for
+                                // 0.5.3 as swipe actions in a bottom sheet being
+                                // hard to drag sideways, *"because the sheet often
+                                // just takes over"*.
+                                //
+                                // So it keeps watching, claiming nothing, while the
+                                // thing running the other way still has its own slop
+                                // to travel, and claims if the finger turns along its
+                                // axis first. What does run the other way takes the
+                                // gesture by consuming it on the main pass, after
+                                // this has seen it, so this looks again once every
+                                // node has had the event, as Compose's own slop does.
+                                // Past [DirectionWatchSlop] with nobody claiming, the
+                                // finger's way is plain and it is not this one.
+                                if (gathered.getDistance() >= viewConfiguration.touchSlop * DirectionWatchSlop) {
+                                    return@awaitEachGesture
+                                }
+                                val after = awaitPointerEvent(PointerEventPass.Final)
+                                if (after.changes.firstOrNull { it.id == down.id }?.isConsumed != false) {
+                                    return@awaitEachGesture
+                                }
+                                continue
+                            }
                             // Ours, including the travel spent deciding.
                             delta = gathered
                         }
@@ -600,6 +633,14 @@ private fun Modifier.ownedDrag(
  * settling onto the glass.
  */
 internal const val DirectionDecisionShare = 0.4f
+
+/**
+ * How far, in touch slops, a [DragClaim.Direction] that has not yet seen the
+ * finger go its way keeps watching before it lets the gesture go. Past a list's
+ * slop, one, and a sheet's, 1.75, so whichever of them is under it has had its
+ * chance to take a drag that really is theirs.
+ */
+internal const val DirectionWatchSlop = 2f
 
 /**
  * Where a dragging node is, for turning its local pointer positions into the

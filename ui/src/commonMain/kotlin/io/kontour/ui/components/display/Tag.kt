@@ -34,6 +34,7 @@ import androidx.compose.ui.layout.AlignmentLine
 import androidx.compose.ui.layout.LastBaseline
 import androidx.compose.ui.layout.FirstBaseline
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.contentColourFor
 import io.kontour.ui.a11y.highContrast
@@ -109,7 +110,55 @@ fun Tag(
     interactionSource: MutableInteractionSource? = null,
     content: @Composable RowContentScope.() -> Unit
 ) {
-    val container = if (containerColour != Color.Unspecified) containerColour else toneColours(tone).container
+    TagBody(
+        modifier = modifier,
+        enabled = enabled,
+        tone = tone,
+        containerColour = containerColour,
+        shape = shape,
+        onClick = onClick,
+        contentDescription = contentDescription,
+        interactionSource = interactionSource,
+        content = content,
+    )
+}
+
+/**
+ * The background a tag draws: [containerColour] if it has one, else its
+ * [tone]'s. Read by a [TagGroup] too, to tell when two neighbours would run
+ * together.
+ */
+@Composable
+@ReadOnlyComposable
+internal fun tagContainer(tone: Tone, containerColour: Color): Color =
+    if (containerColour != Color.Unspecified) containerColour else toneColours(tone).container
+
+/**
+ * A tag, as [Tag] draws one and as each part of a [TagGroup] does.
+ *
+ * @param startPadding,endPadding The room either side of the content. A
+ *   group's diagonal join takes some of a part's width at one corner, and
+ *   gives it back here.
+ * @param merge Whether the tag merges its content into one announcement. A
+ *   group of plain tags merges them all into one instead, and a node that
+ *   merges itself is one its parent cannot merge.
+ */
+@Composable
+internal fun TagBody(
+    modifier: Modifier,
+    enabled: Boolean,
+    tone: Tone,
+    containerColour: Color,
+    shape: Shape,
+    onClick: (() -> Unit)?,
+    contentDescription: String?,
+    interactionSource: MutableInteractionSource?,
+    startPadding: Dp = TagPadding,
+    endPadding: Dp = TagPadding,
+    merge: Boolean = true,
+    content: @Composable RowContentScope.() -> Unit,
+) {
+    val container = tagContainer(tone, containerColour)
     val clickable = onClick != null
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val contentColour = if (clickable && !enabled) {
@@ -136,7 +185,7 @@ fun Tag(
             // `contentDescription` from its `label`, and with the label in a slot
             // there is no string to build one from. Merging is the better answer
             // anyway — whatever the content is, that is what it announces.
-            .semantics(mergeDescendants = true) {
+            .semantics(mergeDescendants = merge) {
                 if (contentDescription != null) this.contentDescription = contentDescription
             }
             .clip(shape.clipProxy())
@@ -163,7 +212,7 @@ fun Tag(
                     Modifier
                 }
             )
-            .padding(horizontal = 8.dp, vertical = 3.dp),
+            .padding(start = startPadding, end = endPadding, top = 3.dp, bottom = 3.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -181,6 +230,9 @@ fun Tag(
         }
     }
 }
+
+/** The room either side of a tag's content. */
+internal val TagPadding: Dp = 8.dp
 
 /** Smaller than `iconSmall`: a tag is a label, not a control. */
 private val TagIconSize = 12.dp

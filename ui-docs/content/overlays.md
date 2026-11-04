@@ -577,7 +577,9 @@ internal fun positionAnchored(
 Two corrections, in order:
 
 1. **Flip.** If the preferred side has no room and the opposite side does, use
-   the opposite side. If neither fits, keep whichever has more room.
+   the opposite side. If neither fits, keep whichever has more room. A panel
+   that does not fit whole on the preferred side, and does on the opposite
+   one, opens there.
 2. **Shift.** Slide along the other axis until the whole thing is inside the
    container, keeping `margin` and the window's own insets clear of the edges.
 
@@ -595,14 +597,21 @@ a side. A combobox that opened above the field because the keyboard took the roo
 below closes as the keyboard does — and while choosing, it flipped back under the
 field for the length of its exit.
 
-**The flip is rarer than it reads**, because the content is measured against the
-room on the preferred side *before* it is measured at all. A panel bounded to its
-own side fits there by construction, so the flip is left for the case it is
-actually for: a side with no usable room. `AnchoredOverlayDefaults.MinimumPanel` —
-64dp, a panel's padding and a line of text — is where that line is drawn, and below
-it the overlay gets the container's bound and overlaps its anchor rather than
-becoming a strip. An anchor can be nearly as big as the window: a menu declared
-inside a `Box(Modifier.fillMaxSize().padding(24.dp))` has twelve pixels beside it.
+**The flip is decided by the panel's own size, before it is bounded.** A panel
+bounded to its own side fits there by construction, so the size it would have
+unbounded is read first. If the preferred side cannot hold all of it and the
+opposite side can, it opens there whole. Otherwise it is bounded to the
+preferred side and scrolls, unless that side has no usable room at all:
+`AnchoredOverlayDefaults.MinimumPanel` — 64dp, a panel's padding and a line of
+text — is where that line is drawn, and below it the overlay gets the
+container's bound and overlaps its anchor rather than becoming a strip. Until
+0.5.3 only that last case flipped, and a date-time picker's time chip low on a
+phone opened its wheels below with a third of them showing and the screen free
+above. The size is read only where it can change the answer — the opposite
+side has more room, or a menu's taller floor needs it — so most panels are
+measured once. An anchor can be nearly as big as the window: a menu declared
+inside a `Box(Modifier.fillMaxSize().padding(24.dp))` has twelve pixels beside
+it.
 
 **Every anchored panel scrolls**, which is what makes that bound safe rather than
 lossy. `MenuPanel` always did; `PopoverPanel`, the tooltip bubble and the coach mark

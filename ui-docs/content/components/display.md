@@ -6,6 +6,7 @@ Things that show rather than take input.
 |---|---|---|
 | [`Card`](card.md) | A bounded block of related content | A `Surface`, when there is no grouping to express |
 | [`Tag`](tag.md) | A status label, or a colour out of a feed | A `Chip`, which is interactive |
+| [`TagGroup`](tag-group.md) | Tags that belong together, joined into one or standing as a group | A row of `Tag`s, when they only happen to sit together |
 | [`Badge`](badge.md) | A count or a dot over something | — |
 | [`Avatar`](avatar.md) | A person or a place | — |
 | [`LinearProgress`](progress.md) | A known fraction | `Spinner`, when you do not know it |
