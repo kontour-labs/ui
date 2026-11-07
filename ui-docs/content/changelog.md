@@ -28,6 +28,7 @@ The version an app is on is the `kontour` entry in its version catalog. See
 On `main`, and in the next release.
 
 ### Fixed
+
 - **`SwipeActions` no longer crashes when a row is dragged as it appears.** A
   row gets its anchors from its measured width, set from an effect on the frame
   after it first appears, and until then it has no offset. A finger already
@@ -95,6 +96,13 @@ On `main`, and in the next release.
   shadows on the web are now drawn with Skia's own blur, the same blur for the
   same tokens, and the heap stays where it is. Android, iOS and the desktop still
   use `dropShadow`.
+- **The first sheet opened on the web stutters less.** The GPU programs a sheet
+  draws with, its squircle and shadow, the scrim and the page drawn smaller
+  behind it, were compiled as it slid in, and on a Pixel its first opening had
+  frames of 107ms and 86ms. The overlay host now draws each of them once, out of
+  sight, as the app appears, and that opening's worst frames are about 70ms and
+  50ms. Later openings were already smooth. Android, iOS and the desktop are as
+  they were.
 - **The page round the canvas is the theme's background, in every browser.** On
   a phone that is what shows behind the status bar and the address bar, and it
   was plain white or black. The page's background and its `theme-color` now

@@ -1154,6 +1154,8 @@ fun OverlayHost(
                 .reportsScrolls()
                 .then(if (ownBack != null && tracksSwipe) Modifier.edgeSwipeBack(ownBack.navigationEventDispatcher) else Modifier),
         ) {
+            // Under the app, and only for its first few frames. See [OverlayRehearsal].
+            OverlayRehearsal()
             Box(
                 Modifier
                     .fillMaxSize()
