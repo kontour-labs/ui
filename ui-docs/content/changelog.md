@@ -25,7 +25,16 @@ The version an app is on is the `kontour` entry in its version catalog. See
 
 ## Unreleased
 
-On `main`, and in the next release. Nothing yet.
+On `main`, and in the next release.
+
+### Fixed
+- **`SwipeActions` no longer crashes when a row is dragged as it appears.** A
+  row gets its anchors from its measured width, set from an effect on the frame
+  after it first appears, and until then it has no offset. A finger already
+  moving when a row scrolled into view landed in that frame, and the drag threw
+  `IllegalStateException: The offset was read before being initialized`. Seen
+  on Android. A drag or a sideways scroll in that frame now moves nothing, and
+  the row follows the finger from the next.
 
 ---
 

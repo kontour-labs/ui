@@ -190,6 +190,19 @@ class SwipeActionsState internal constructor(
     internal var pending: SwipeValue? = null
         private set
 
+    /**
+     * Whether the row has anchors, and so an offset to move.
+     *
+     * Not until the frame after it first appears: the anchors come from the
+     * row's measured width, set from an effect. A finger already moving when a
+     * row scrolls into view lands in that frame, and `dispatchRawDelta` read the
+     * offset that was not there yet and threw *"The offset was read before being
+     * initialized"*, reported from an Android app in November 2026. A drag or
+     * a scroll in that frame now moves nothing, and the row follows the finger
+     * from the next.
+     */
+    internal val hasAnchors: Boolean get() = !anchoredState.offset.isNaN()
+
     /** Slides back to rest. */
     suspend fun reset() = animateTo(SwipeValue.Resting)
 
@@ -873,7 +886,9 @@ fun SwipeActions(
                     // news: a row that was open starts with its actions dealt.
                     dealt.arm(state.anchoredState.offset, actionWidthPx, start.size, end.size, hysteresisPx)
                 },
-                onDelta = { delta ->
+                onDelta = onDelta@{ delta ->
+                    // Nothing to move yet: see `hasAnchors`.
+                    if (!state.hasAnchors) return@onDelta
                     // Physical to logical, once, here.
                     val logical = if (isRtl) -delta else delta
                     // An open give is closed first, at full rate, so a finger
@@ -991,6 +1006,8 @@ fun SwipeActions(
                         val panVelocity = VelocityTracker1D(isDataDifferential = false)
 
                         fun move(physical: Float) {
+                            // Nothing to move yet: see `hasAnchors`.
+                            if (!state.hasAnchors) return
                             settling?.cancel()
                             waiting?.cancel()
                             state.anchoredState.dispatchRawDelta(if (isRtl) -physical else physical)
