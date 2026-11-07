@@ -101,8 +101,10 @@ On `main`, and in the next release.
   behind it, were compiled as it slid in, and on a Pixel its first opening had
   frames of 107ms and 86ms. The overlay host now draws each of them once, out of
   sight, as the app appears, and that opening's worst frames are about 70ms and
-  50ms. Later openings were already smooth. Android, iOS and the desktop are as
-  they were.
+  50ms. Later openings were already smooth. Only on a phone's or a tablet's
+  browser: on a Mac's Chrome, drawing them all at once cost a first visit
+  nearly a second, and a desktop browser compiles them as they are first drawn,
+  as before. Android, iOS and the desktop apps are as they were.
 - **The page round the canvas is the theme's background, in every browser.** On
   a phone that is what shows behind the status bar and the address bar, and it
   was plain white or black. The page's background and its `theme-color` now

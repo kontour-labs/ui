@@ -45,7 +45,10 @@ import io.kontour.ui.theme.Theme
  * cheaper and whose first opening is mostly its code running for the first
  * time, was the same before and after. A dialog's blur was drawn here too at
  * first and was taken out: it cost the iPhone frames of 418ms and 643ms as the
- * page appeared, more than a dialog's first opening does.
+ * page appeared, more than a dialog's first opening does. And a desktop's
+ * browser does not do it at all: a Mac's Chrome compiles through Metal, and all
+ * of it at once was a frame of 843–968ms on a first visit. See the web's
+ * [platformRehearsesOverlays].
  *
  * Composed only where [platformRehearsesOverlays] says so, and gone for good
  * after it, so it is nothing in a screenshot test, the accessibility tree or the
