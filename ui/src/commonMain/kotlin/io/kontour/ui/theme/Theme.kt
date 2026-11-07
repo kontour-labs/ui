@@ -400,7 +400,7 @@ fun KontourTheme(
     // Guarded by the same question the modality tracker asks. A nested theme —
     // a screen forcing dark over a light app — re-provides tokens for its
     // subtree and has no business repainting the window.
-    if (!alreadyTracking) platformReportAppearance(colours.isDark)
+    if (!alreadyTracking) platformReportAppearance(colours.isDark, colours.background)
 
     // A browser on an iPhone opens the keyboard only for an input focused on the
     // tap itself, which Compose's text input never is: see `opensKeyboard`. Once

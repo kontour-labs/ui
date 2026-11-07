@@ -1,6 +1,7 @@
 package io.kontour.ui.platform
 
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.LaunchedEffect
 import platform.UIKit.UIApplication
 import platform.UIKit.UIScreen
@@ -48,7 +49,7 @@ import platform.UIKit.UIWindow
  * been keyed this way.
  */
 @Composable
-internal actual fun platformReportAppearance(dark: Boolean) {
+internal actual fun platformReportAppearance(dark: Boolean, background: Color) {
     val device = platformSystemDark()
     LaunchedEffect(dark, device) {
         val style = when {

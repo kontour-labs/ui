@@ -50,6 +50,10 @@ On `main`, and in the next release.
   shadows on the web are now drawn with Skia's own blur, the same blur for the
   same tokens, and the heap stays where it is. Android, iOS and the desktop still
   use `dropShadow`.
+- **The page round the canvas is the theme's background, in every browser.** On
+  a phone that is what shows behind the status bar and the address bar, and it
+  was plain white or black. The page's background and its `theme-color` now
+  follow the theme, dark mode included.
 
 ---
 
