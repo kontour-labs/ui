@@ -43,6 +43,13 @@ On `main`, and in the next release.
   calling Skia through a plain JavaScript function: the docs site's page now has
   the script that does it, and an app's page needs it too. **Add the script in
   [Safari on iOS](installing.md#safari-on-ios) to your app's `index.html`.**
+- **A shadow on the web is blurred onto the canvas, with no bitmap.** Compose's
+  `dropShadow` made a bitmap the size of the element for every layer, again each
+  time the element was composed, and Safari freed them long after Chrome would:
+  an iPhone's Skia heap grew by about 4 MB every time a side sheet opened. Kontour's
+  shadows on the web are now drawn with Skia's own blur, the same blur for the
+  same tokens, and the heap stays where it is. Android, iOS and the desktop still
+  use `dropShadow`.
 
 ---
 

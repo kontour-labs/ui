@@ -11,8 +11,6 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.dropShadow
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
@@ -20,6 +18,7 @@ import androidx.compose.ui.input.pointer.changedToDown
 import androidx.compose.ui.input.pointer.changedToUp
 import androidx.compose.ui.input.pointer.pointerInput
 import io.kontour.ui.a11y.contentColourFor
+import io.kontour.ui.platform.shadowLayer
 import io.kontour.ui.theme.Shadow
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.clipProxy
@@ -276,15 +275,7 @@ internal fun Modifier.keepsPresses(): Modifier = pointerInput(Unit) {
 fun Modifier.elevation(shadow: Shadow, shape: Shape): Modifier {
     if (shadow.layers.isEmpty()) return this
     return shadow.layers.fold(this) { acc, spec ->
-        acc.dropShadow(shape) {
-            // DropShadowScope works in pixels and is itself a Density, so the
-            // dp-based tokens convert here rather than at authoring time.
-            radius = spec.blurRadius.toPx()
-            spread = spec.spread.toPx()
-            offset = Offset(spec.offsetX.toPx(), spec.offsetY.toPx())
-            color = spec.colour
-            alpha = spec.alpha
-        }
+        acc.shadowLayer(shape, spec)
     }
 }
 
