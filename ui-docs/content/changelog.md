@@ -88,7 +88,7 @@ On `main`, and in the next release.
   nullptr` on every frame and text measured to nothing. A WebKit bug, avoided by
   calling Skia through a plain JavaScript function: the docs site's page now has
   the script that does it, and an app's page needs it too. **Add the script in
-  [Safari on iOS](installing.md#safari-on-ios) to your app's `index.html`.**
+  [The page's script](installing.md#the-pages-script) to your app's `index.html`.**
 - **A shadow on the web is blurred onto the canvas, with no bitmap.** Compose's
   `dropShadow` made a bitmap the size of the element for every layer, again each
   time the element was composed, and Safari freed them long after Chrome would:
@@ -105,6 +105,14 @@ On `main`, and in the next release.
   browser: on a Mac's Chrome, drawing them all at once cost a first visit
   nearly a second, and a desktop browser compiles them as they are first drawn,
   as before. Android, iOS and the desktop apps are as they were.
+- **Resizing a browser window is about three times cheaper, and no longer grows
+  Skia's memory.** Compose web makes a new Skia context every time the window
+  changes size, and Skia rebuilt its GPU programs, its glyph atlas and its paths
+  for each one: 15–21ms a step of a window being dragged in Chrome on a Mac, and
+  Skia's heap from 18MB to 54MB over a hundred steps. The page's script now keeps
+  one context for each canvas: 0–8ms a step, and 18MB throughout. **If your app's
+  page has the script from [The page's script](installing.md#the-pages-script),
+  replace it with the new one.**
 - **The page round the canvas is the theme's background, in every browser.** On
   a phone that is what shows behind the status bar and the address bar, and it
   was plain white or black. The page's background and its `theme-color` now

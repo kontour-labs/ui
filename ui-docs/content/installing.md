@@ -297,21 +297,21 @@ not so they get it at the same speed.
 
 ---
 
-## Safari on iOS
+## The page's script
 
-**An app's page needs one script, for Safari on iOS 27.2.** There, a Kotlin/Wasm
-app's calls into Skia, which Compose draws with, start arriving with their
-floating-point arguments wrong after a few hundred of them: a shadow's blur
-fails with `RuntimeException: Can't wrap nullptr`, text measures to nothing, and
-the screen's controls pile up in its top left corner. Found in November 2026 on
-an iPhone, and only there. Chrome, Firefox and Safari on a Mac do not do it.
-The calls go wrong only when they pass straight from the app's WebAssembly
-module into Skia's, so the script puts a plain JavaScript call in between. Put
-it in the page's `<head>`, before the app's own script:
+**An app's page needs one script**, in its `<head>` before the app's own script,
+for two things Compose's web build does not do for itself:
 
 ```html
 <script>
     (function () {
+        // Skia's drawing context, one for each canvas, for the life of the page.
+        var contexts = new Map(), kept = new Set(), lastCanvas = null;
+        var getContext = HTMLCanvasElement.prototype.getContext;
+        HTMLCanvasElement.prototype.getContext = function (type) {
+            if (type === "webgl2" || type === "webgl") lastCanvas = this;
+            return getContext.apply(this, arguments);
+        };
         function viaJs(imports) {
             if (!imports || typeof imports !== "object") return imports;
             var out = {}, changed = false;
@@ -323,6 +323,21 @@ it in the page's `<head>`, before the app's own script:
                     var f = module[key];
                     wrapped[key] = typeof f === "function" ? function () { return f.apply(null, arguments); } : f;
                 });
+                var make = module.org_jetbrains_skia_DirectContext__1nMakeGL;
+                var finalize = module.org_jetbrains_skia_impl_Managed__invokeFinalizer;
+                if (typeof make === "function" && typeof finalize === "function") {
+                    wrapped.org_jetbrains_skia_DirectContext__1nMakeGL = function () {
+                        var canvas = lastCanvas, context = canvas && contexts.get(canvas);
+                        if (context) return context;
+                        context = make.apply(null, arguments);
+                        if (canvas && context) { contexts.set(canvas, context); kept.add(context); }
+                        return context;
+                    };
+                    wrapped.org_jetbrains_skia_impl_Managed__invokeFinalizer = function (finalizer, pointer) {
+                        if (kept.has(pointer)) return;
+                        return finalize.apply(null, arguments);
+                    };
+                }
                 out[name] = wrapped;
                 changed = true;
             });
@@ -336,10 +351,27 @@ it in the page's `<head>`, before the app's own script:
 </script>
 ```
 
-It runs in every browser, rather than only the one that needs it, so there is
-nothing to detect. The library cannot do this for itself: by the time any Kotlin
-runs, the module is already linked. This site's own page has it, and it can
-come out once Safari no longer needs it.
+**Safari on iOS 27.2 needs it to draw at all.** There, a Kotlin/Wasm app's calls
+into Skia, which Compose draws with, start arriving with their floating-point
+arguments wrong after a few hundred of them: a shadow's blur fails with
+`RuntimeException: Can't wrap nullptr`, text measures to nothing, and the
+screen's controls pile up in its top left corner. Found in November 2026 on an
+iPhone, and only there. Chrome, Firefox and Safari on a Mac do not do it. The
+calls go wrong only when they pass straight from the app's WebAssembly module
+into Skia's, so the script puts a plain JavaScript call in between.
+
+**Every browser resizes faster with it.** Compose web makes a new Skia context
+each time the window changes size and leaves the old one to the garbage
+collector, and with it everything Skia had built: its compiled GPU programs, its
+glyph atlas, its cached paths. In Chrome on a Mac, a step of a window being
+dragged wider cost 15–21ms, and Skia's memory went from 18MB to 54MB over a
+hundred of them. The script keeps one context for each canvas instead: 0–8ms a
+step, and the memory stays where it was.
+
+It runs in every browser, rather than only the ones that need it, so there is
+nothing to detect. The library cannot do either for itself: by the time any
+Kotlin runs, the module is already linked. This site's own page has it, and each
+part can come out once Compose or Safari no longer needs it.
 
 **Test on an iPhone over HTTPS.** Safari on iOS 27 runs a page served over plain
 HTTP, a development server on the local network included, without its

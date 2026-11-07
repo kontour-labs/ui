@@ -7,22 +7,37 @@
     <meta name="description" content="A Compose Multiplatform design system.">
     <link type="text/css" rel="stylesheet" href="styles.css">
     <!--
-      Skia's functions reach the app through a plain JavaScript call, not
-      straight from one WebAssembly module into the other.
+      Two things the page does for Skia, which Compose draws with, before the
+      app is instantiated. installing.md, "The page's script", has the same
+      script for an app's own page.
 
-      Safari on iOS 27.2 links a Kotlin/Wasm module's imports from Skia's module
-      directly, and after a few hundred calls the floating-point arguments
-      arrive wrong: a blur of sigma 10.9 came back from Skia as nothing, and
-      text measured to nothing, so a screen's controls piled up in its top left
-      corner. Found on an iPhone in November 2026, and only there; Chrome,
-      Firefox and Safari on a Mac never did it. A call through JavaScript in
-      between never goes wrong, so each of Skia's imports is wrapped in one
-      before the app is instantiated, in every browser rather than only the one
-      that needs it. installing.md, "Safari on iOS", has the same script for an
-      app's own page.
+      Skia's functions reach the app through a plain JavaScript call, not
+      straight from one WebAssembly module into the other. Safari on iOS 27.2
+      links a Kotlin/Wasm module's imports from Skia's module directly, and
+      after a few hundred calls the floating-point arguments arrive wrong: a
+      blur of sigma 10.9 came back from Skia as nothing, and text measured to
+      nothing, so a screen's controls piled up in its top left corner. Found on
+      an iPhone in November 2026, and only there; Chrome, Firefox and Safari on
+      a Mac never did it. A call through JavaScript in between never goes wrong,
+      so each of Skia's imports is wrapped in one, in every browser.
+
+      And each canvas keeps one Skia context. Compose web makes a new one every
+      time the window changes size and leaves the old to the garbage collector,
+      and with it everything Skia had built: its compiled GPU programs, its
+      glyph atlas, its cached paths. Measured in Chrome on a Mac in November
+      2026, a resize step cost 15-21ms, and Skia's heap went from 18MB to 54MB
+      over a hundred of them; with one context kept, 0-8ms and 18MB. The old
+      context's finalizer is skipped for the one that is kept.
     -->
     <script>
         (function () {
+            // Skia's drawing context, one for each canvas, for the life of the page.
+            var contexts = new Map(), kept = new Set(), lastCanvas = null;
+            var getContext = HTMLCanvasElement.prototype.getContext;
+            HTMLCanvasElement.prototype.getContext = function (type) {
+                if (type === "webgl2" || type === "webgl") lastCanvas = this;
+                return getContext.apply(this, arguments);
+            };
             function viaJs(imports) {
                 if (!imports || typeof imports !== "object") return imports;
                 var out = {}, changed = false;
@@ -34,6 +49,21 @@
                         var f = module[key];
                         wrapped[key] = typeof f === "function" ? function () { return f.apply(null, arguments); } : f;
                     });
+                    var make = module.org_jetbrains_skia_DirectContext__1nMakeGL;
+                    var finalize = module.org_jetbrains_skia_impl_Managed__invokeFinalizer;
+                    if (typeof make === "function" && typeof finalize === "function") {
+                        wrapped.org_jetbrains_skia_DirectContext__1nMakeGL = function () {
+                            var canvas = lastCanvas, context = canvas && contexts.get(canvas);
+                            if (context) return context;
+                            context = make.apply(null, arguments);
+                            if (canvas && context) { contexts.set(canvas, context); kept.add(context); }
+                            return context;
+                        };
+                        wrapped.org_jetbrains_skia_impl_Managed__invokeFinalizer = function (finalizer, pointer) {
+                            if (kept.has(pointer)) return;
+                            return finalize.apply(null, arguments);
+                        };
+                    }
                     out[name] = wrapped;
                     changed = true;
                 });
