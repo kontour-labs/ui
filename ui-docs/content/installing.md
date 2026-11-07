@@ -251,6 +251,52 @@ haptics.play(HapticEffect.Selection(fine = true))
 
 ---
 
+## Older browsers
+
+Kotlin/Wasm needs a browser with WebAssembly garbage collection: Safari 18.2,
+Chrome and Edge 119, Firefox 120, or newer. Anything older shows the loading
+page and goes no further. That includes every iPhone and iPad below iOS 18.2,
+which is every iPhone 8 and X, and a Mac that cannot update past Monterey.
+
+**An app that has to reach them builds in compatibility mode**, which
+Compose Multiplatform has had since 1.9: the app is compiled for both `js` and
+`wasmJs`, and the page loads the Wasm build where the browser can run it and
+the JavaScript build where it cannot.
+
+```kotlin
+// The web app's build.gradle.kts
+kotlin {
+    js {
+        browser()
+        binaries.executable()
+    }
+    wasmJs {
+        browser()
+        binaries.executable()
+    }
+}
+```
+
+```sh
+./gradlew :webApp:composeCompatibilityBrowserDistribution
+```
+
+The page to deploy is in `webApp/build/dist/composeWebCompatibility/productionExecutable`.
+Each browser downloads only the build it runs.
+
+Every library the app uses has to be published for `js` as well as `wasmJs`.
+Kontour's modules are, and will stay so for exactly this reason: an app on a
+library without them cannot use compatibility mode at all. Kept, too, for 0.5.4,
+after dropping it was weighed in November 2026: it costs the library a second
+compile, and without it a Kontour app had no way to open on an older iPhone.
+
+**The JavaScript build is the slower of the two**, noticeably so for an
+interface drawn on a canvas, and it runs on the devices that are already the
+slowest. It is there so those readers get the app rather than a blank page,
+not so they get it at the same speed.
+
+---
+
 ## The size of an app
 
 The library is large, and an app ships only the part of it that it uses.
