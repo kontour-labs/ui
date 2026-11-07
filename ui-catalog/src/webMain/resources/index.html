@@ -5,6 +5,45 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kontour UI Catalog</title>
     <link type="text/css" rel="stylesheet" href="styles.css">
+    <!--
+      Skia's functions reach the app through a plain JavaScript call, not
+      straight from one WebAssembly module into the other.
+
+      Safari on iOS 27.2 links a Kotlin/Wasm module's imports from Skia's module
+      directly, and after a few hundred calls the floating-point arguments
+      arrive wrong: a blur of sigma 10.9 came back from Skia as nothing, and
+      text measured to nothing, so a screen's controls piled up in its top left
+      corner. Found on an iPhone in November 2026, and only there; Chrome,
+      Firefox and Safari on a Mac never did it. A call through JavaScript in
+      between never goes wrong, so each of Skia's imports is wrapped in one
+      before the app is instantiated, in every browser rather than only the one
+      that needs it. installing.md, "Safari on iOS", has the same script for an
+      app's own page.
+    -->
+    <script>
+        (function () {
+            function viaJs(imports) {
+                if (!imports || typeof imports !== "object") return imports;
+                var out = {}, changed = false;
+                Object.keys(imports).forEach(function (name) {
+                    var module = imports[name];
+                    if (name.indexOf("skiko") < 0 || !module || typeof module !== "object") { out[name] = module; return; }
+                    var wrapped = {};
+                    Object.keys(module).forEach(function (key) {
+                        var f = module[key];
+                        wrapped[key] = typeof f === "function" ? function () { return f.apply(null, arguments); } : f;
+                    });
+                    out[name] = wrapped;
+                    changed = true;
+                });
+                return changed ? out : imports;
+            }
+            var instantiate = WebAssembly.instantiate;
+            WebAssembly.instantiate = function (source, imports) { return instantiate.call(WebAssembly, source, viaJs(imports)); };
+            var streaming = WebAssembly.instantiateStreaming;
+            if (streaming) WebAssembly.instantiateStreaming = function (source, imports) { return streaming.call(WebAssembly, source, viaJs(imports)); };
+        })();
+    </script>
 </head>
 <body>
     <script type="application/javascript" src="ui-catalog.js"></script>

@@ -35,6 +35,14 @@ On `main`, and in the next release.
   `IllegalStateException: The offset was read before being initialized`. Seen
   on Android. A drag or a sideways scroll in that frame now moves nothing, and
   the row follows the finger from the next.
+- **Safari on iOS no longer piles a screen's controls into its top left
+  corner.** On iOS 27.2, a Kotlin/Wasm app's calls into Skia start arriving
+  with their floating-point arguments wrong after a few hundred of them, and
+  from then on a shadow's blur failed with `RuntimeException: Can't wrap
+  nullptr` on every frame and text measured to nothing. A WebKit bug, avoided by
+  calling Skia through a plain JavaScript function: the docs site's page now has
+  the script that does it, and an app's page needs it too. **Add the script in
+  [Safari on iOS](installing.md#safari-on-ios) to your app's `index.html`.**
 
 ---
 

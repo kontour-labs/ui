@@ -297,6 +297,57 @@ not so they get it at the same speed.
 
 ---
 
+## Safari on iOS
+
+**An app's page needs one script, for Safari on iOS 27.2.** There, a Kotlin/Wasm
+app's calls into Skia, which Compose draws with, start arriving with their
+floating-point arguments wrong after a few hundred of them: a shadow's blur
+fails with `RuntimeException: Can't wrap nullptr`, text measures to nothing, and
+the screen's controls pile up in its top left corner. Found in November 2026 on
+an iPhone, and only there. Chrome, Firefox and Safari on a Mac do not do it.
+The calls go wrong only when they pass straight from the app's WebAssembly
+module into Skia's, so the script puts a plain JavaScript call in between. Put
+it in the page's `<head>`, before the app's own script:
+
+```html
+<script>
+    (function () {
+        function viaJs(imports) {
+            if (!imports || typeof imports !== "object") return imports;
+            var out = {}, changed = false;
+            Object.keys(imports).forEach(function (name) {
+                var module = imports[name];
+                if (name.indexOf("skiko") < 0 || !module || typeof module !== "object") { out[name] = module; return; }
+                var wrapped = {};
+                Object.keys(module).forEach(function (key) {
+                    var f = module[key];
+                    wrapped[key] = typeof f === "function" ? function () { return f.apply(null, arguments); } : f;
+                });
+                out[name] = wrapped;
+                changed = true;
+            });
+            return changed ? out : imports;
+        }
+        var instantiate = WebAssembly.instantiate;
+        WebAssembly.instantiate = function (source, imports) { return instantiate.call(WebAssembly, source, viaJs(imports)); };
+        var streaming = WebAssembly.instantiateStreaming;
+        if (streaming) WebAssembly.instantiateStreaming = function (source, imports) { return streaming.call(WebAssembly, source, viaJs(imports)); };
+    })();
+</script>
+```
+
+It runs in every browser, rather than only the one that needs it, so there is
+nothing to detect. The library cannot do this for itself: by the time any Kotlin
+runs, the module is already linked. This site's own page has it, and it can
+come out once Safari no longer needs it.
+
+**Test on an iPhone over HTTPS.** Safari on iOS 27 runs a page served over plain
+HTTP, a development server on the local network included, without its
+JavaScript and WebAssembly compiler, which makes it some thirty times slower.
+Timings from a `http://` page say nothing about the app.
+
+---
+
 ## The size of an app
 
 The library is large, and an app ships only the part of it that it uses.
