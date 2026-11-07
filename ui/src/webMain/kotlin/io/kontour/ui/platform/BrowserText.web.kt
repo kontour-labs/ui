@@ -118,13 +118,21 @@ private class BrowserTextNode(var text: BrowserText) :
         BrowserTextOverlay.claim(
             node = this,
             geometry = TextGeometry(
-                left = origin.x / scale - if (single) scrolled else 0f,
-                textTop = origin.y / scale - if (single) 0f else scrolled,
+                left = origin.x / scale,
+                textTop = origin.y / scale,
                 firstBaseline = layout.firstBaseline / scale,
-                // As wide as the text, so the browser never scrolls it on its
-                // own: where it is scrolled to is Compose's to say.
-                width = if (single) max(at.size.width / scale + scrolled, layout.size.width / scale + fontSize) else at.size.width / scale,
-                height = if (single) lineHeight else max(layout.size.height / scale, at.size.height / scale + scrolled),
+                // The field's own box, scrolled inside as Compose scrolls it.
+                // It was once as wide as the text and moved by the scroll, with
+                // the part outside the field clipped off, so that the browser
+                // would never scroll it on its own. But an iPhone's space-bar
+                // trackpad aims at points across the input's whole box, and
+                // where the box was clipped away it hit nothing and put the
+                // caret at the start: dragging along a line longer than its
+                // field jumped to the beginning as the caret passed either edge,
+                // reported in November 2026 and fixed in 0.5.4.
+                width = at.size.width / scale,
+                height = if (single) lineHeight else at.size.height / scale,
+                scroll = scrolled,
                 shown = Rect(shown.left / scale, shown.top / scale, shown.right / scale, shown.bottom / scale),
                 fontSize = fontSize,
                 lineHeight = lineHeight,
@@ -132,7 +140,6 @@ private class BrowserTextNode(var text: BrowserText) :
                 weight = (style.fontWeight ?: FontWeight.Normal).weight,
                 face = text.face,
                 rtl = currentValueOf(LocalLayoutDirection) == LayoutDirection.Rtl,
-                caret = text.caret,
                 selection = text.selection,
                 singleLine = single,
                 masked = text.masked,
@@ -178,6 +185,8 @@ private class TextGeometry(
     val firstBaseline: Float,
     val width: Float,
     val height: Float,
+    /** How far Compose has scrolled the text: across for one line, down for more. */
+    val scroll: Float,
     /** The part of the field on screen. */
     val shown: Rect,
     val fontSize: Float,
@@ -186,7 +195,6 @@ private class TextGeometry(
     val weight: Int,
     val face: BrowserFace?,
     val rtl: Boolean,
-    val caret: Color,
     val selection: Color,
     val singleLine: Boolean,
     val masked: Boolean,
@@ -215,6 +223,8 @@ private object BrowserTextOverlay {
             )
             installStyle(found)
             installEdits(found) { kind, inserted, start, end -> owner?.edit(kind, inserted, start, end) }
+            relaySelectionChanges(found, TypingQuiet)
+            tapsPlaceComposeCaret(found)
         } ?: return
         owner = node
         val family = when (geometry.face) {
@@ -229,6 +239,7 @@ private object BrowserTextOverlay {
             baseline = geometry.firstBaseline.toDouble(),
             width = geometry.width.toDouble(),
             height = geometry.height.toDouble(),
+            scroll = geometry.scroll.toDouble(),
             shownLeft = geometry.shown.left.toDouble(),
             shownTop = geometry.shown.top.toDouble(),
             shownRight = geometry.shown.right.toDouble(),
@@ -239,7 +250,6 @@ private object BrowserTextOverlay {
             weight = geometry.weight,
             family = family,
             rtl = geometry.rtl,
-            caret = cssColour(geometry.caret),
             selection = cssColour(geometry.selection),
             multiline = !geometry.singleLine,
             masked = geometry.masked,
@@ -303,9 +313,10 @@ private fun installFaces(
  * on the host's `data-kontour-text`, so with no field claimed, Compose's input is
  * exactly as Compose left it.
  *
- * Its text is drawn in nothing: Compose draws the field's text, and the browser
- * draws its caret, its selection and its handles where its own letters are,
- * which, in the same face at the same size, is over Compose's.
+ * Its text is drawn in nothing: Compose draws the field's text and its caret,
+ * and the browser draws its selection and its handles where its own letters
+ * are, which, in the same face at the same size, is over Compose's or within a
+ * pixel or two of it. Not the caret: see `drawnByBrowser` in `TextField`.
  */
 private fun installStyle(host: JsAny): Unit = js(
     """{
@@ -324,7 +335,7 @@ private fun installStyle(host: JsAny): Unit = js(
                 'font-family:var(--kt-family)!important;font-size:var(--kt-size)!important;' +
                 'font-weight:var(--kt-weight)!important;line-height:var(--kt-line)!important;' +
                 'letter-spacing:var(--kt-spacing)!important;font-feature-settings:normal;' +
-                'color:transparent!important;-webkit-text-fill-color:transparent;caret-color:var(--kt-caret)!important;' +
+                'color:transparent!important;-webkit-text-fill-color:transparent;caret-color:transparent!important;' +
                 '-webkit-user-select:text!important;user-select:text!important;-webkit-touch-callout:default!important;' +
                 'white-space:pre!important;overflow:hidden!important;padding:0!important;margin:0!important;border:0!important;' +
                 'align-content:start!important;text-align:start;direction:var(--kt-dir);' +
@@ -372,6 +383,201 @@ private fun listenForEdits(host: JsAny, onEdit: (String, String, Int, Int) -> Un
 )
 
 /**
+ * **Where the browser puts the caret, told to Compose.** A tap in the field
+ * places the browser's caret under the finger, and so does dragging on an
+ * iPhone's space bar, and Compose follows it by listening for `selectionchange`
+ * on the document. Safari 27, on a Mac and on an iPhone, fires that event at
+ * the input instead, and it is not composed, so it stops at the shadow root the
+ * input is in and the document never hears it. Compose's caret stayed where it
+ * was, the reader's typing went in there, and the browser drew its caret where
+ * the finger had been. Found on an iPhone on 27.2 in November 2026 and fixed in
+ * 0.5.4.
+ *
+ * Passed on to the document for Compose's own listener to read the input's
+ * selection. Safari and Firefox fire it at the input, which is what is heard
+ * here; Chrome fires it at the document instead when the input is in a shadow
+ * root, so there it is not heard here and not passed on twice.
+ *
+ * **Not while the reader types.** Every letter typed moves the browser's caret
+ * too, and the event for it can arrive before Compose has taken the letter in:
+ * passed on then, Compose was moved to a caret past the end of its own text and
+ * dropped what came next. Typing "and keeps on running" quickly into a field
+ * on an iPhone gave "andrunning". A key, an edit or a composition in the last
+ * [TypingQuiet] milliseconds holds the relay off, and Compose places its own
+ * caret as it types, as it always has. A tap or a drag on the space bar is
+ * nowhere near a keystroke, and goes through.
+ */
+private fun relaySelectionChanges(host: JsAny, quiet: Int): Unit = js(
+    """{
+        var root = host.shadowRoot;
+        var lastEdit = -Infinity;
+        function isField(t) { return t && t.classList && t.classList.contains('compose-backing-field'); }
+        ['keydown', 'beforeinput', 'input', 'compositionstart', 'compositionupdate', 'compositionend'].forEach(function (type) {
+            root.addEventListener(type, function (e) { if (isField(e.target)) lastEdit = performance.now(); }, true);
+        });
+        root.addEventListener('selectionchange', function (e) {
+            var input = e.target;
+            if (!isField(input)) return;
+            if (performance.now() - lastEdit < quiet) return;
+            // Just after a tap Compose has placed the caret itself (see
+            // tapsPlaceComposeCaret), and the browser's own move from the same
+            // tap is undone rather than passed on.
+            var hold = host.__kontourTapHold;
+            if (hold && performance.now() < hold.until) {
+                var want = input.__kontourComposeSelection;
+                if (want && (input.selectionStart !== want[0] || input.selectionEnd !== want[1])) {
+                    input.__kontourRestoring = true;
+                    input.setSelectionRange(want[0], want[1]);
+                    input.__kontourRestoring = false;
+                }
+                return;
+            }
+            document.dispatchEvent(new Event('selectionchange'));
+        }, true);
+        // What Compose last set the input's selection to: the selection a tap's
+        // own browser move is undone back to. And, just after a double tap,
+        // nothing Compose sets that differs from the browser's: see
+        // `tapsPlaceComposeCaret`.
+        if (!window.__kontourSelectionWatch) {
+            window.__kontourSelectionWatch = true;
+            var original = HTMLInputElement.prototype.setSelectionRange;
+            HTMLInputElement.prototype.setSelectionRange = function (a, b) {
+                if (!this.__kontourRestoring && this.classList && this.classList.contains('compose-backing-field')) {
+                    this.__kontourComposeSelection = [a, b];
+                    if (this.__kontourBrowserSelects > performance.now() && (a !== this.selectionStart || b !== this.selectionEnd)) return;
+                }
+                return original.apply(this, arguments);
+            };
+            var area = HTMLTextAreaElement.prototype.setSelectionRange;
+            HTMLTextAreaElement.prototype.setSelectionRange = function (a, b) {
+                if (!this.__kontourRestoring && this.classList && this.classList.contains('compose-backing-field')) {
+                    this.__kontourComposeSelection = [a, b];
+                    if (this.__kontourBrowserSelects > performance.now() && (a !== this.selectionStart || b !== this.selectionEnd)) return;
+                }
+                return area.apply(this, arguments);
+            };
+        }
+    }"""
+)
+
+/**
+ * **A tap on the focused field puts Compose's caret where the finger was, not the
+ * browser's.** The input lies over the field so its selection, handles and menu
+ * are the browser's, and a tap on it used to be the browser's too. On an iPhone
+ * on iOS 27.2, in November 2026, the browser put the caret about a word past the
+ * finger: tapping on "quick" in "hello the quick brown fox" put it after "brown",
+ * and the further along the line, the further off. Compose has the field's own
+ * layout and places it exactly (see `tapPlacesCaret`), so a tap is sent on to the
+ * canvas for Compose, and the browser's own handling of that one tap is
+ * cancelled at its touchend, so it cannot move the caret again afterwards.
+ *
+ * Only a tap, and only once it is one. The press and the release go to Compose
+ * together as the finger lifts, quick and where it went down; a finger held
+ * still is a long press, for the browser's loupe, word and menu, and a finger
+ * that moves is a drag along the selection, and Compose sees neither. Sent on
+ * from the moment the finger went down, as they were at first, Compose took a
+ * long press for its own, selected the word as the browser did, and put its
+ * caret down again as the finger lifted: on an iPhone and on an Android phone
+ * in November 2026 no text in a field could be selected at all. A second tap
+ * straight after the first is the browser's too, so its double tap selects the
+ * word.
+ */
+private fun tapsPlaceComposeCaret(host: JsAny): Unit = js(
+    """{
+        var root = host.shadowRoot;
+        var start = null;
+        var lastTap = null;
+        // Whether the on-screen keyboard is up: on a phone it shrinks the
+        // visual viewport, and nothing else on the page says so.
+        if (!window.__kontourKeyboardUp) window.__kontourKeyboardUp = function () {
+            var v = window.visualViewport;
+            return !v || window.innerHeight - v.height * v.scale > 120;
+        };
+        function isField(t) { return t && t.classList && t.classList.contains('compose-backing-field'); }
+        function canvas() { return root.querySelector('canvas'); }
+        function moved(e) { return Math.abs(e.clientX - start.x) > 10 || Math.abs(e.clientY - start.y) > 10; }
+        function send(type, e, x, y) {
+            var c = canvas();
+            if (!c) return;
+            c.dispatchEvent(new PointerEvent(type, {
+                bubbles: true, cancelable: true, composed: true,
+                pointerId: e.pointerId, pointerType: 'touch', isPrimary: true,
+                clientX: x, clientY: y, screenX: e.screenX, screenY: e.screenY,
+                button: 0, buttons: type === 'pointerdown' ? 1 : 0, pressure: type === 'pointerdown' ? 0.5 : 0,
+                width: e.width, height: e.height
+            }));
+        }
+        ['pointerdown', 'pointermove', 'pointerup', 'pointercancel'].forEach(function (type) {
+            root.addEventListener(type, function (e) {
+                if (!isField(e.target) || !host.hasAttribute('data-kontour-text') || e.pointerType !== 'touch') return;
+                if (type === 'pointerdown') {
+                    var now = performance.now();
+                    var second = lastTap && now - lastTap.at < 350 && Math.abs(e.clientX - lastTap.x) < 25 && Math.abs(e.clientY - lastTap.y) < 25;
+                    start = { x: e.clientX, y: e.clientY, t: e.timeStamp, id: e.pointerId, second: second };
+                    if (second) {
+                        // The browser's double tap selects the word. Compose is
+                        // still placing the first tap's caret, a frame behind,
+                        // and that put down over the browser's selection took
+                        // its handles and its menu with it: Compose's moves are
+                        // let go for a moment, until the word has reached it.
+                        host.__kontourTapHold = null;
+                        e.target.__kontourBrowserSelects = now + 600;
+                    }
+                    return;
+                }
+                if (!start || start.id !== e.pointerId) return;
+                if (type === 'pointermove' && moved(e)) start.dragged = true;
+                if (type === 'pointercancel') start.dragged = true;
+                if (type !== 'pointerup' || start.dragged || start.second || moved(e) || e.timeStamp - start.t >= 450) return;
+                start.tap = true;
+                host.__kontourTapHold = { until: performance.now() + 350 };
+                send('pointerdown', e, start.x, start.y);
+                send('pointerup', e, e.clientX, e.clientY);
+            }, true);
+        });
+        // The browser's own move from the tap reaches Compose by the document as
+        // well as by the input: stopped on the window, ahead of Compose's own
+        // listener on the document, and the input put back to Compose's caret.
+        window.addEventListener('selectionchange', function (e) {
+            var hold = host.__kontourTapHold;
+            if (!hold || performance.now() >= hold.until) return;
+            var input = root.activeElement;
+            if (!isField(input)) return;
+            e.stopImmediatePropagation();
+            var want = input.__kontourComposeSelection;
+            if (want && (input.selectionStart !== want[0] || input.selectionEnd !== want[1])) {
+                input.__kontourRestoring = true;
+                input.setSelectionRange(want[0], want[1]);
+                input.__kontourRestoring = false;
+            }
+        }, true);
+        root.addEventListener('touchend', function (e) {
+            if (!isField(e.target) || !host.hasAttribute('data-kontour-text') || !start) return;
+            var tap = start.tap;
+            lastTap = tap ? { at: performance.now(), x: start.x, y: start.y } : null;
+            start = null;
+            if (tap) {
+                host.__kontourTapHold = { until: performance.now() + 350 };
+                // Cancelled only while the input has the focus and the keyboard
+                // is up. Otherwise the browser's own tap is what focuses the
+                // input and opens the keyboard: after a tap beside the field
+                // closed it, or when Compose focused the field itself. The hold
+                // above still puts Compose's caret back after it.
+                if (e.cancelable && root.activeElement === e.target && window.__kontourKeyboardUp()) e.preventDefault();
+            } else {
+                host.__kontourTapHold = null;
+            }
+        }, true);
+    }"""
+)
+
+/**
+ * How long after the last keystroke a move of the browser's caret is taken to
+ * be the typing's own, in milliseconds: see [relaySelectionChanges].
+ */
+private const val TypingQuiet = 200
+
+/**
  * Lays the input out over the field: where its text is, in its face and size,
  * clipped to the part of the field on screen. The baseline is matched rather
  * than the top, as the browser and Compose lay a line's leading out differently,
@@ -388,6 +594,7 @@ private fun place(
     baseline: Double,
     width: Double,
     height: Double,
+    scroll: Double,
     shownLeft: Double,
     shownTop: Double,
     shownRight: Double,
@@ -398,7 +605,6 @@ private fun place(
     weight: Int,
     family: String,
     rtl: Boolean,
-    caret: String,
     selection: String,
     multiline: Boolean,
     masked: Boolean,
@@ -437,6 +643,38 @@ private fun place(
             var descent = (m.fontBoundingBoxDescent !== undefined ? m.fontBoundingBoxDescent : m.actualBoundingBoxDescent * 1.1) * k;
             inBox = (line - (ascent + descent)) / 2 + ascent;
         }
+        // **A masked field's dots, as wide as Compose's.** The browser hides a
+        // masked field's letters behind its own dot, and on an iPhone that dot
+        // is the system's, 9.7px at 16px in any face, where Compose draws the
+        // mask's bullet in the field's face: 5.3px in Outfit. Every letter
+        // typed put the caret another 4.4px past the last of Compose's dots,
+        // which is the "padding that grows every time you type" reported in
+        // November 2026 and fixed in 0.5.4. A Mac's Safari draws the face's own bullet, which is why it
+        // was not seen there. The difference goes on each letter's spacing,
+        // as measured: a hidden line of the browser's dots against the canvas's
+        // bullets, kept once the face has loaded.
+        var maskSpacing = 0;
+        if (masked) {
+            var font = weight + ' ' + cssSize + 'px ' + family;
+            var widths = window.__kontourMaskSpacing || (window.__kontourMaskSpacing = {});
+            maskSpacing = widths[font];
+            if (maskSpacing === undefined) {
+                var dots = window.__kontourDots;
+                if (!dots) {
+                    dots = document.createElement('span');
+                    dots.setAttribute('aria-hidden', 'true');
+                    dots.style.cssText = 'position:fixed;left:-10000px;top:0;visibility:hidden;white-space:pre;letter-spacing:0;padding:0;margin:0;border:0;-webkit-text-security:disc';
+                    dots.textContent = 'xxxxxxxxxx';
+                    document.body.appendChild(dots);
+                    window.__kontourDots = dots;
+                }
+                dots.style.font = font;
+                var bullets = window.__kontourPen || (window.__kontourPen = document.createElement('canvas').getContext('2d'));
+                bullets.font = font;
+                maskSpacing = (bullets.measureText('••••••••••').width - dots.getBoundingClientRect().width) / 10;
+                if (!document.fonts || document.fonts.check(font)) widths[font] = maskSpacing;
+            }
+        }
         var top = textTop + baseline - inBox;
         var h = multiline ? height + (top < textTop ? textTop - top : 0) : line;
         // Clipped to the field on screen, a line's leading spare above and below.
@@ -454,15 +692,27 @@ private fun place(
         s.setProperty('--kt-clip', (clipTop / k) + 'px ' + (clipRight / k) + 'px ' + (clipBottom / k) + 'px ' + (clipLeft / k) + 'px');
         s.setProperty('--kt-size', cssSize + 'px');
         s.setProperty('--kt-line', (line / k) + 'px');
-        s.setProperty('--kt-spacing', (spacing / k) + 'px');
+        s.setProperty('--kt-spacing', (spacing / k + maskSpacing) + 'px');
         s.setProperty('--kt-weight', String(weight));
         s.setProperty('--kt-family', family);
         s.setProperty('--kt-dir', rtl ? 'rtl' : 'ltr');
-        s.setProperty('--kt-caret', caret);
         s.setProperty('--kt-selection', selection);
         if (multiline) host.setAttribute('data-kontour-multiline', ''); else host.removeAttribute('data-kontour-multiline');
         if (masked) host.setAttribute('data-kontour-masked', ''); else host.removeAttribute('data-kontour-masked');
         host.setAttribute('data-kontour-text', '');
+        // Scrolled where Compose has scrolled its text, once the box above is
+        // the input's. Right to left, the browser counts from the right end
+        // towards zero and below, where Compose counts from the left.
+        var input = host.shadowRoot && host.shadowRoot.querySelector('.compose-backing-field');
+        if (input) {
+            if (multiline) {
+                input.scrollTop = scroll / k;
+            } else if (rtl) {
+                input.scrollLeft = scroll / k - (input.scrollWidth - input.clientWidth);
+            } else {
+                input.scrollLeft = scroll / k;
+            }
+        }
     }"""
 )
 

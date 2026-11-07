@@ -27,8 +27,27 @@ import kotlin.time.Duration.Companion.milliseconds
  *
  * Only in a browser on iOS or iPadOS, every one of which is WebKit. Nothing
  * anywhere else, where a field's focus already opens the keyboard.
+ *
+ * **With [standIn], a real input lies over the region before it is touched**,
+ * which is what a text field needs: see the web actual. Not for anything a
+ * finger drags, as a knob is, whose drag the input would take.
  */
-internal expect fun Modifier.opensKeyboard(enabled: Boolean = true): Modifier
+internal expect fun Modifier.opensKeyboard(enabled: Boolean = true, standIn: Boolean = false): Modifier
+
+/**
+ * Cuts this element out of any [opensKeyboard] region it sits in: a button in a
+ * field, whose tap does what the button does and puts no caret anywhere.
+ *
+ * Found on an iPhone in November 2026 as the password field's eye: tapped while
+ * the field was not focused, it was inside the field's region, so the primer
+ * took the focus and the keyboard opened; no field took it over, and after
+ * [KeyboardPrimerHandover.Hold] the primer let go and the keyboard went away
+ * again. Every icon button marks itself, so a field's clear button, its eye and
+ * an app's own button in a field's trailing slot are all left out.
+ *
+ * Nothing anywhere [opensKeyboard] is nothing.
+ */
+internal expect fun Modifier.keepsKeyboardClosed(): Modifier
 
 /**
  * The hidden input [opensKeyboard] focuses, and the listener that decides when.
@@ -66,21 +85,47 @@ private val TouchDevice = listOf("Android", "Mobi")
  */
 internal class KeyboardPrimerRegions {
     private val regions = LinkedHashMap<Any, Rect>()
+    private val holes = LinkedHashMap<Any, Rect>()
 
     fun put(key: Any, bounds: Rect) {
         regions[key] = bounds
     }
 
+    /** Marks [bounds] as cut out of every region: see [keepsKeyboardClosed]. */
+    fun putHole(key: Any, bounds: Rect) {
+        holes[key] = bounds
+    }
+
     fun remove(key: Any) {
         regions.remove(key)
+        holes.remove(key)
     }
 
-    /** Whether ([x], [y]) is inside a marked region, edges included. */
-    fun contains(x: Float, y: Float): Boolean = regions.values.any {
-        x >= it.left && x <= it.right && y >= it.top && y <= it.bottom
-    }
+    /** Whether ([x], [y]) is inside a marked region and outside every hole, edges included. */
+    fun contains(x: Float, y: Float): Boolean =
+        regions.values.any { it.has(x, y) } && holes.values.none { it.has(x, y) }
+
+    private fun Rect.has(x: Float, y: Float) = x >= left && x <= right && y >= top && y <= bottom
 
     val isEmpty: Boolean get() = regions.isEmpty()
+
+    /**
+     * The part of [key]'s region a stand-in input may cover: the region with every
+     * hole across its height cut off the side it is on. A field's buttons sit at
+     * its ends, the eye or the clear button at the trailing one, and a rectangle
+     * can only lose a strip, not a hole in its middle; one in the middle takes
+     * the side its centre is nearer. Null for an unknown key or nothing left.
+     */
+    fun tapArea(key: Any): Rect? {
+        val region = regions[key] ?: return null
+        var left = region.left
+        var right = region.right
+        for (hole in holes.values) {
+            if (hole.bottom <= region.top || hole.top >= region.bottom || hole.right <= left || hole.left >= right) continue
+            if (hole.center.x >= region.center.x) right = minOf(right, hole.left) else left = maxOf(left, hole.right)
+        }
+        return if (right > left) Rect(left, region.top, right, region.bottom) else null
+    }
 }
 
 /**

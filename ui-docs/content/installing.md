@@ -188,8 +188,8 @@ and figures, both bundled; there is nothing to add unless you reskin, which
   its handles and its menu are the browser's own**: Copy, Paste, Look Up and
   the rest, where the reader expects them. Compose's input is laid over the
   field's text while it has the focus, in the same face at the same size, and
-  takes the touches on it; Compose still draws the text, and the browser draws
-  its caret and selection over it. A field whose text is drawn as something
+  takes the touches on it; Compose still draws the text and the caret, and the
+  browser draws its selection over it. A field whose text is drawn as something
   else — a phone number grouped as it is typed — keeps Compose's selection and
   menu, as the browser's letters would not be under Compose's. The faces are
   the library's Outfit and JetBrains Mono; a theme in a face of its own has the

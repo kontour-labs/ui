@@ -35,6 +35,51 @@ On `main`, and in the next release.
   `IllegalStateException: The offset was read before being initialized`. Seen
   on Android. A drag or a sideways scroll in that frame now moves nothing, and
   the row follows the finger from the next.
+- **On a phone's browser, a field's caret stays on its text.** While a field is
+  focused, the browser's own input lies over it so taps, the selection, its
+  handles and its menu are the browser's. A tap or a drag on an iPhone's space
+  bar moved the browser's caret, but Safari tells only the input it moved, not
+  the page Compose listens on, so Compose kept typing where its caret had been.
+  It now hears each move that is not the typing's own, which Compose already
+  places. The caret is also Compose's own again, drawn at the
+  letter the next one goes in after: the browser's was drawn where Safari's
+  layout of the letters ended, a fraction of a pixel a letter narrower than
+  Compose's, and drifted further from the text the more was typed.
+- **A password's caret is where its last dot is, on an iPhone.** Safari draws a
+  hidden password in its own dots, 9.7 to 14.5px wide at 16px depending on the
+  fonts asked for, where Compose's are 5.3px in Outfit; every letter put the
+  browser's caret and selection further past the dots. The input's letter
+  spacing now makes up the difference, measured in the browser.
+- **A field's first tap opens the keyboard on an iPhone.** iOS 27.2 opens the
+  keyboard only for a tap that starts on an input, and the keyboard primer's
+  hand-over of focus no longer counted, so a field took a second tap. While
+  nothing is being typed in, each text field now has a transparent input of the
+  browser's over it, which the tap lands on and which hands the keyboard to the
+  field. Its touches go on to Compose too, so a drag that starts on a field
+  still scrolls the page, and its buttons are left out of it. The same goes for
+  tapping back into a field after tapping beside it closed the keyboard.
+- **A tap on a focused field puts the caret where it landed, on an iPhone.** The
+  keyboard primer blurred and refocused the field's input on every tap, which
+  lost the caret and now and then let the field go. And once that was left to
+  the browser, Safari moved its own caret after Compose had placed one, to the
+  end of the word, and Compose followed it: the caret went in about a word late.
+  Compose places it from the tap, and the browser's move straight after is put
+  back.
+- **Text in a field can be selected again on a phone's browser.** A touch on a
+  focused field went to Compose from the moment the finger went down, so a long
+  press or a double tap selected the word and Compose then put its caret back
+  down as the finger lifted, or a frame later. Only a tap goes to Compose now,
+  once it is one: a long press, a double tap and a drag along the text are the
+  browser's, with its handles and its menu, on an iPhone and on Android.
+- **Dragging the caret with an iPhone's space bar no longer jumps to the
+  start.** On a line longer than its field, the caret went to the beginning as
+  it passed either edge. The browser's input was as wide as the text and clipped
+  to the field, and the space bar's trackpad aimed into the part clipped away.
+  The input is now the field's size and scrolls with it.
+- **A button in a field no longer opens the keyboard on an iPhone and closes it
+  again.** A field opens the keyboard during the tap, for iOS to allow it, and
+  its eye, its clear button and any icon button in its trailing slot were part
+  of that area. Icon buttons are now left out of it.
 - **Safari on iOS no longer piles a screen's controls into its top left
   corner.** On iOS 27.2, a Kotlin/Wasm app's calls into Skia start arriving
   with their floating-point arguments wrong after a few hundred of them, and

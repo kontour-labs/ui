@@ -288,14 +288,22 @@ internal fun TextFieldImpl(
             jetBrainsMono -> BrowserFace.Mono
             else -> null
         }
-        browser.caret = colours.cursor
         browser.selection = colours.selectionBackground
         browser.scroll = scroll
     } else {
         browser.focused = false
     }
-    // The browser draws them over a focused field, so Compose's would be a second
-    // caret and a second selection a hair away from the first.
+    // The browser draws the selection over a focused field, so Compose's would
+    // be a second one a hair away from the first.
+    //
+    // **The caret is Compose's, though.** The browser drew that too until
+    // November 2026, where its own letters ended, and on an iPhone those are
+    // not quite where Compose's are: Safari lays a line out a little narrower,
+    // a fraction of a pixel a letter, and the caret drifted further from the
+    // text the more was typed. Compose's caret is at the letter the next one
+    // goes in after, in every browser, and the browser's still moves it: a tap
+    // or a drag on the space bar moves the browser's, which Compose follows
+    // (see `relaySelectionChanges`).
     val drawnByBrowser = routed && focused
     val selectionColours = remember(colours, drawnByBrowser) {
         TextSelectionColors(
@@ -356,7 +364,7 @@ internal fun TextFieldImpl(
             // A tap here puts a caret in the field, and in a browser on an
             // iPhone that has to open the keyboard during the tap: see
             // `opensKeyboard`.
-            .opensKeyboard(enabled = enabled && !readOnly)
+            .opensKeyboard(enabled = enabled && !readOnly, standIn = true)
             // On the frame, not the input, and that placement is the mechanism:
             // the Initial pointer pass runs parent to child, so a secondary
             // press is consumed here before the text input's own detector can
@@ -466,7 +474,7 @@ internal fun TextFieldImpl(
                     lineLimits = lineLimits,
                     inputTransformation = inputTransformation,
                     outputTransformation = outputTransformation,
-                    cursorBrush = SolidColor(if (drawnByBrowser) Color.Transparent else colours.cursor),
+                    cursorBrush = SolidColor(colours.cursor),
                     interactionSource = interactions,
                     scrollState = scroll,
                     onTextLayout = { result ->

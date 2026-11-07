@@ -191,7 +191,7 @@ fun TextFieldListItem(
             // The whole row is the field's frame: a caret over all of it, and a
             // press anywhere on it puts the caret in. See `TextFieldImpl`.
             .pointerCursor(Cursor.Text, enabled = editable)
-            .opensKeyboard(enabled = editable)
+            .opensKeyboard(enabled = editable, standIn = true)
             .then(if (enabled) Modifier.frameTap(spot, focusOnTap) else Modifier)
             .padding(start = ListItemDefaults.ContentInset, end = Theme.spacing.md)
             .padding(vertical = Theme.spacing.xs),
