@@ -251,6 +251,8 @@ docs, in November 2026:
   palette's panel was a Tab stop of its own, with no ring and nothing to do,
   and stepping back from it went out of the palette. It takes no focus now;
   the field and the commands do.
+- **A `DisclosureListItem`'s header shows the focus ring**, just inside it. The
+  card clips the header to its shape, and cut away the ring drawn round it.
 
 ---
 

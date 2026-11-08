@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -136,27 +137,33 @@ fun DisclosureListItem(
             // together, rather than one round the header alone.
             .optionalBorder(contrastEdge(), card),
     ) {
-        ListItemImpl(
-            modifier = Modifier.semantics {
-                stateDescription = if (expanded) expandedLabel else collapsedLabel
-            },
-            enabled = enabled,
-            onClick = {
-                tap()
-                onExpandedChange(!expanded)
-            },
-            selected = false,
-            role = Role.Button,
-            shape = headerShape(position, openness),
-            containerColour = Color.Transparent,
-            selectedContainerColour = Color.Transparent,
-            contentColour = colours.content,
-            minHeight = Dp.Unspecified,
-            interactionSource = interactionSource,
-            slots = slots,
-            edged = false,
-            disabledContainerColour = Color.Transparent,
-        )
+        // Its ring just inside the header, as a swiped row's is: the card clips
+        // the header to its own shape, and the ring a row draws round itself
+        // was cut away whole, so a header the keyboard had reached showed
+        // nothing. Found in the November 2026 audit by `KeyboardSweepTest`.
+        CompositionLocalProvider(LocalRingInside provides true) {
+            ListItemImpl(
+                modifier = Modifier.semantics {
+                    stateDescription = if (expanded) expandedLabel else collapsedLabel
+                },
+                enabled = enabled,
+                onClick = {
+                    tap()
+                    onExpandedChange(!expanded)
+                },
+                selected = false,
+                role = Role.Button,
+                shape = headerShape(position, openness),
+                containerColour = Color.Transparent,
+                selectedContainerColour = Color.Transparent,
+                contentColour = colours.content,
+                minHeight = Dp.Unspecified,
+                interactionSource = interactionSource,
+                slots = slots,
+                edged = false,
+                disabledContainerColour = Color.Transparent,
+            )
+        }
         AnimatedVisibility(
             visible = expanded,
             // Under reduced motion the body takes its room at once and fades.
