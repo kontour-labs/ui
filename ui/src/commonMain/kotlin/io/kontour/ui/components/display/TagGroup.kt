@@ -380,6 +380,15 @@ private class DiagonalPartShape(
 }
 
 /**
+ * How much of each edge of a flow's point the rounding of its tip takes, from
+ * the tip back. Asked for the day the join was made, November 2026: *"can we
+ * make the "point" on the arrow in the tag group a bit more rounded"*. A third
+ * of the way back takes the needle off a 22dp tag's point and leaves it plainly
+ * an arrow.
+ */
+private const val FlowTipRounding = 0.35f
+
+/**
  * A part of a group joined by [TagJoin.Flow]: [outer], its outside corners,
  * with each joined side cut to a point or notched to take one.
  *
@@ -412,13 +421,24 @@ private class FlowPartShape(
         val startMiddle = if (!joinsBefore) 0f else if (forward) depth else 0f
         val endCorner = if (!joinsAfter) w else if (forward) w - depth else w
         val endMiddle = if (!joinsAfter) w else if (forward) w else w - depth
+        //
+        // The middle of each side is rounded, so a point is a blunt arrow
+        // rather than a needle: the side turns through a curve that starts
+        // [FlowTipRounding] of the way back along each edge. The notch it sits
+        // in is rounded by the same curve, the same lines either side of the
+        // same corner, so a point still fills its notch exactly. A side that
+        // joins nothing is straight down its middle, and the curve is too.
         val cut = Path().apply {
+            fun turn(fromX: Float, fromY: Float, atX: Float, atY: Float, toX: Float, toY: Float) {
+                lineTo(x(atX + (fromX - atX) * FlowTipRounding), atY + (fromY - atY) * FlowTipRounding)
+                quadraticTo(x(atX), atY, x(atX + (toX - atX) * FlowTipRounding), atY + (toY - atY) * FlowTipRounding)
+            }
             moveTo(x(startCorner), 0f)
             lineTo(x(endCorner), 0f)
-            lineTo(x(endMiddle), h / 2)
+            turn(endCorner, 0f, endMiddle, h / 2, endCorner, h)
             lineTo(x(endCorner), h)
             lineTo(x(startCorner), h)
-            lineTo(x(startMiddle), h / 2)
+            turn(startCorner, h, startMiddle, h / 2, startCorner, 0f)
             close()
         }
         val whole = Path().apply { addOutline(outer.createOutline(size, layoutDirection, density)) }
