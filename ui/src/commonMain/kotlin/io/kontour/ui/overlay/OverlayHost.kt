@@ -1,5 +1,12 @@
 package io.kontour.ui.overlay
 
+import androidx.compose.ui.focus.FocusDirection
+import io.kontour.ui.input.LocalInputModality
+import androidx.compose.runtime.withFrameNanos
+import androidx.compose.foundation.focusGroup
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.FocusEnterExitScope
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -722,20 +729,39 @@ private fun EntryHost(
         )
     }
 
+    val requester = remember { FocusRequester() }
+    DisposableEffect(entry.key, requester) {
+        opened.requesters[entry.key] = requester
+        onDispose { if (opened.requesters[entry.key] === requester) opened.requesters.remove(entry.key) }
+    }
     Box(
         Modifier
             .semantics {
                 isTraversalGroup = true
                 traversalIndex = (index + 1).toFloat()
             }
-            // Softened with the page by whatever above it blurs what is behind
-            // it: a dialog over a sheet blurs the sheet too, not only the strip
-            // of page beside it. See [blurredBehind].
-            .then(if (blurredBy.isNotEmpty()) Modifier.blurredBehind(state, blurredBy) else Modifier)
+            // A group of its own, which the host sends the keyboard into, and
+            // which turns it away while a modal above it holds it: a dialog
+            // over a sheet left the sheet's controls a Tab away. Read when
+            // focus moves, so it follows the stack as it changes.
+            // Above the group, so it hears the group's focus, which is any
+            // focus inside the entry.
             .onFocusChanged { focus ->
                 focused.value = focus.hasFocus
                 if (focus.hasFocus) opened.focusIn = entry.key else if (opened.focusIn == entry.key) opened.focusIn = null
             }
+            .focusProperties {
+                onEnter = {
+                    val top = opened.trapTop
+                    if (top != null && top != entry.key) with(opened) { backIntoTheTop() }
+                }
+            }
+            .focusRequester(requester)
+            .focusGroup()
+            // Softened with the page by whatever above it blurs what is behind
+            // it: a dialog over a sheet blurs the sheet too, not only the strip
+            // of page beside it. See [blurredBehind].
+            .then(if (blurredBy.isNotEmpty()) Modifier.blurredBehind(state, blurredBy) else Modifier)
             // A field in the overlay asking to be seen never moves the window. See [endsBringIntoView].
             .endsBringIntoView()
     ) {
@@ -1044,6 +1070,7 @@ fun OverlayHost(
     // Only what is actually still here traps focus — an overlay fading out must
     // hand focus back before it finishes, not after.
     val trapping = state.visible.any { it.trapFocus }
+    val trapTop = state.visible.lastOrNull { it.trapFocus }?.key
 
     // Computed here rather than beside the loop below, because the content
     // sibling needs them too — it is the node the backdrop is applied to.
@@ -1084,13 +1111,39 @@ fun OverlayHost(
     // the page's is taken away, not before.
     val focusManager = LocalFocusManager.current
     val opened = remember { OpenedModals() }
+    val keyboard = LocalInputModality.current.showsFocusRing
     SideEffect {
         val top = shutBy?.key
-        if (top != null && top != opened.top && top !in opened.dimmed && opened.focusIn != top) {
+        // Under the keyboard the focus is moved into the modal below rather
+        // than cleared here, so the page's restorer remembers where it was.
+        if (top != null && top != opened.top && top !in opened.dimmed && opened.focusIn != top && !keyboard) {
             focusManager.clearFocus(force = true)
         }
+        // Where the keyboard goes when the last modal has gone is the app's to
+        // say, from its `onDismissRequest`: Compose's restorer remembers only a
+        // group's own focused child, and between this box and the control that
+        // opened the modal there is nearly always another, a scrolling list or
+        // the text menu's host, which takes no focus itself. Tried for the
+        // November 2026 audit; overlays.md says what an app does.
+        opened.trapTop = trapTop
         opened.top = top
         opened.dimmed = state.visible.filter { it.scrim == ScrimStyle.Dimmed }.mapTo(HashSet()) { it.key }
+    }
+    // And a modal opened from the keyboard takes it, at its first control,
+    // once its content is there, unless it has put the focus somewhere in
+    // itself already: a command palette's field. Only one that dims, a dialog
+    // or a modal sheet: a menu or a list under a field places focus itself, and
+    // a combobox keeps it in its field while its list is open.
+    val modalTop = shutBy?.takeIf { it.trapFocus }?.key
+    LaunchedEffect(modalTop, keyboard) {
+        if (modalTop == null || !keyboard) return@LaunchedEffect
+        withFrameNanos { }
+        withFrameNanos { }
+        if (opened.focusIn != modalTop && opened.requesters[modalTop]?.requestFocus() != true) {
+            // Nothing in it takes focus: let go of the page's, as a pointer's
+            // modal does at once.
+            focusManager.clearFocus(force = true)
+        }
     }
 
     // A window that pans for the keyboard lifts a sheet twice, and only the app
@@ -1178,7 +1231,20 @@ fun OverlayHost(
                         traversalIndex = 0f
                     }
                     // Focus cannot enter content that is behind a modal overlay.
-                    .focusProperties { canFocus = !trapping }
+                    //
+                    // **A group that turns focus away at its edge**, not only
+                    // `canFocus = false` on this box: focus properties reach
+                    // only as far as the nearest focus target under them, and a
+                    // scrolling list is one, so every control in a page that
+                    // scrolls could still take focus, and Tab walked out of a
+                    // dialog into the page. Focus heading in now goes back into
+                    // the top modal, at the end it was heading for. Found in
+                    // the November 2026 audit; see `ModalKeepsFocusTest`.
+                    .focusProperties {
+                        canFocus = !trapping
+                        if (trapping) onEnter = { with(opened) { backIntoTheTop() } }
+                    }
+                    .focusGroup()
                     // Neither can a screen reader, which is the same sentence
                     // in the one traversal order the line above does not cover.
                     //
@@ -1271,6 +1337,36 @@ private class OpenedModals {
     var top: Any? = null
     var dimmed: Set<Any> = emptySet()
     var focusIn: Any? = null
+
+    /** The topmost entry that keeps the keyboard in, or null. */
+    var trapTop: Any? = null
+
+    /** Each entry's focus group, to send the keyboard back into. */
+    val requesters = HashMap<Any, FocusRequester>()
+
+    /**
+     * Focus that set off into something behind [trapTop], sent into [trapTop]
+     * instead, at the end it was heading for: Tab off a dialog's last control
+     * comes round to its first, and Shift+Tab off its first to its last.
+     * Cancelled where the modal has nothing to take it.
+     */
+    fun FocusEnterExitScope.backIntoTheTop() {
+        // Only the keyboard's own moves, Tab and the arrows. A request made in
+        // code is a component placing focus on purpose, often as it closes
+        // and before the host has heard: a select gives its field the focus
+        // back as Escape shuts its list, and was turned away.
+        if (requestedFocusDirection == FocusDirection.Enter || requestedFocusDirection == FocusDirection.Exit) return
+        val into = trapTop?.let { requesters[it] }
+        // A request takes an entry or a direction across the screen, not Tab's
+        // order: Tab comes in from the modal's top, Shift+Tab from its foot.
+        val way = when (requestedFocusDirection) {
+            FocusDirection.Next -> FocusDirection.Down
+            FocusDirection.Previous -> FocusDirection.Up
+            FocusDirection.Left, FocusDirection.Right, FocusDirection.Up, FocusDirection.Down -> requestedFocusDirection
+            else -> FocusDirection.Enter
+        }
+        if (into == null || !into.requestFocus(way)) cancelFocusChange()
+    }
 }
 
 /**
