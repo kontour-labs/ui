@@ -245,6 +245,10 @@ docs, in November 2026:
   taller than the plot**, or over it at the start, as a `SectorChart`'s does.
   It was held to the plot's height, and at 200% type its entries ran on over
   whatever was under the chart.
+- **A `Dialog`'s buttons scroll with its content when they would take more than
+  half its room.** At 200% type in a short window with the keyboard up, the
+  pinned row was taller than the dialog had, and the content had no room left
+  to scroll in.
 
 ---
 

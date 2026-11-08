@@ -58,6 +58,11 @@ Anything else written in the row — a second confirm, a button of your own — 
 drawn too, leading the top row so the confirm keeps the trailing edge. Nothing
 written there is dropped.
 
+The row stays under the content while the content scrolls, as long as it takes
+half the dialog's room or less. Past that, at large type in a short window with
+the keyboard up, it goes at the end of the content and scrolls with it, so the
+content is never left without room.
+
 **A `destructive` confirm warns as the dialog arrives**: one `Warn`, the
 platform's own warning, as a destructive [`AlertDialog`](alert-dialog.md) gives —
 it is the same question asked with a form. Once per showing, not again while it
