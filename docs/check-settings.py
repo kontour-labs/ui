@@ -333,7 +333,7 @@ MOVEMENT = re.compile(
 GATED = re.compile(r"reduceMotion|enterOrFade\(|exitOrFade\(|scrollSpec\(|sizeSpec\(|scrollToItem\([^)]*motion")
 
 MOVEMENT_ALLOWED = {
-    "OverlayRehearsal.kt:OverlayRehearsal": "draws text through a scale once, out of sight, "
+    "OverlayRehearsal.kt:Rehearse": "draws text through a scale once, out of sight, "
     "so the GPU has the program a receding page needs; nothing moves",
     # Not movement: geometry drawn at a value.
     "DialDrawing.kt:dialArcs": "rotates the canvas to draw an arc at its angle; nothing animates",

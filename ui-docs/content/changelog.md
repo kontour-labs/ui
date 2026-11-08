@@ -101,10 +101,21 @@ On `main`, and in the next release.
   behind it, were compiled as it slid in, and on a Pixel its first opening had
   frames of 107ms and 86ms. The overlay host now draws each of them once, out of
   sight, as the app appears, and that opening's worst frames are about 70ms and
-  50ms. Later openings were already smooth. Only on a phone's or a tablet's
-  browser: on a Mac's Chrome, drawing them all at once cost a first visit
-  nearly a second, and a desktop browser compiles them as they are first drawn,
-  as before. Android, iOS and the desktop apps are as they were.
+  50ms. Later openings were already smooth. Android, iOS and the desktop apps
+  are as they were.
+- **A first visit on a desktop's browser stops less as it is read.** Chrome on
+  a Mac compiles each kind of drawing through Metal the first time it is
+  asked for, at 30–50ms each and far more for a large shadow's blur, and a
+  first visit to the docs site stopped for 54–484ms at a time as it was read:
+  the first hover, the first scroll, the component pages and the icons, about
+  a second in all. A desktop's browser now draws the commoner pieces once,
+  out of sight, one at a time while the browser is idle and the reader has
+  left the page alone for a moment: text and icons through rounded corners,
+  the controls, the panels and their shadows. Measured again, nothing the
+  reader did stopped for more than 111ms. Chrome keeps what it compiles, so a
+  later visit pays for none of it. On a phone's browser the overlay's pieces
+  are drawn at once as the app appears, as above: drawn that way on a Mac, they
+  were a frame of nearly a second.
 - **Resizing a browser window is about three times cheaper, and no longer grows
   Skia's memory.** Compose web makes a new Skia context every time the window
   changes size, and Skia rebuilt its GPU programs, its glyph atlas and its paths
