@@ -1,5 +1,8 @@
 package io.kontour.ui.overlay
 
+import kotlinx.coroutines.withTimeoutOrNull
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitEachGesture
 import io.kontour.ui.theme.clipProxy
 import io.kontour.ui.platform.webRole
 import io.kontour.ui.platform.WebRole
@@ -1531,12 +1534,32 @@ fun ContextMenuArea(
             }
             .pointerInput(enabled, modality) {
                 if (!enabled || !modality.needsLargeTargets) return@pointerInput
-                detectTapGestures(
-                    onLongPress = { position ->
-                        longPressed()
-                        openAt(position)
-                    },
-                )
+                // Watched in the initial pass, ahead of the content and taking
+                // nothing from it, as a tooltip's long press is: the main pass
+                // waits for a press nobody has taken, and a `clickable` inside
+                // takes it first, so over a row or a card that can be pressed
+                // the long press never came. Found in the November 2026 audit;
+                // the tooltip found the same for 0.5.1.
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                    val slop = viewConfiguration.touchSlop
+                    val ended = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
+                        while (true) {
+                            val change = awaitPointerEvent(PointerEventPass.Initial).changes.firstOrNull { it.id == down.id }
+                            if (change == null || !change.pressed || (change.position - down.position).getDistance() > slop) break
+                        }
+                    }
+                    if (ended != null) return@awaitEachGesture
+                    longPressed()
+                    openAt(down.position)
+                    // The rest of the press is the menu's: taken, so the
+                    // content under it does not also click as the finger lifts.
+                    while (true) {
+                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                        event.changes.forEach { it.consume() }
+                        if (event.changes.none { it.pressed }) break
+                    }
+                }
             }
     ) {
         content()
