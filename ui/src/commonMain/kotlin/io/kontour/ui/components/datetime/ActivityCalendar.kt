@@ -1,6 +1,7 @@
 package io.kontour.ui.components.datetime
 
 import androidx.compose.foundation.shape.CornerBasedShape
+import io.kontour.ui.locale.bidiIsolated
 import io.kontour.ui.theme.drawDot
 import io.kontour.ui.locale.NameWidth
 import io.kontour.ui.locale.LocaleFormats
@@ -398,7 +399,8 @@ fun ActivityCalendar(
                     combineMarks(
                         marksFor(date, activity[date] ?: 0),
                         joined = { formats.list(it) },
-                        more = { strings.moreCount(formats.quantity(it.toLong())) },
+                        // Isolated, so "+3" does not read "3+" right to left.
+                        more = { bidiIsolated(strings.moreCount(formats.quantity(it.toLong()))) },
                     )
                 }
             }

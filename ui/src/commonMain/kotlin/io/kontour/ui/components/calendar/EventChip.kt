@@ -1,5 +1,6 @@
 package io.kontour.ui.components.calendar
 
+import io.kontour.ui.locale.bidiIsolated
 import io.kontour.ui.foundation.FillPattern
 import io.kontour.ui.foundation.fillPattern
 import io.kontour.ui.theme.clipProxy
@@ -772,7 +773,8 @@ internal fun eventTimes(start: LocalDateTime, end: LocalDateTime, formats: Local
     val at = if (found < 0) range.length else found + to.length
     return buildAnnotatedString {
         append(range, 0, at)
-        withStyle(DayOffsetStyle) { append(strings.endDayOffset(formats.quantity(days))) }
+        // Isolated, so "+2" keeps its sign in front right to left.
+        withStyle(DayOffsetStyle) { append(bidiIsolated(strings.endDayOffset(formats.quantity(days)))) }
         append(range, at, range.length)
     }
 }
