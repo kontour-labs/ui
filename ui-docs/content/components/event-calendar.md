@@ -224,7 +224,9 @@ still be pressed.
 `header` replaces the default `EventCalendarDefaults.Header`, or is null for
 none — an app with its own top bar drives the state from there instead.
 **Too narrow for every view side by side — six on a phone — the header offers
-them in a menu by itself**, rather than stack segments in a column. A menu opens
+them in a menu by itself**, rather than stack segments in a column. Too narrow
+is measured, from the words at the size the type is, so large type on a wide
+window gets the menu too. A menu opens
 in an `OverlayHost`; a calendar without one keeps its segments.
 `EventCalendarDefaults.Header(state, switcher = CalendarSwitcher.Dropdown)` offers
 the views as a button naming the one on show, which opens a menu of them with that

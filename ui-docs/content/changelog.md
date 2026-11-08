@@ -223,6 +223,10 @@ docs, in November 2026:
   seam is one too: Left and Right move it a fiftieth of the width, mirrored
   right to left, Page Up and Page Down a tenth, and Home and End to the panes'
   minimums.
+- **An event calendar's views are a menu whenever their words don't fit in a
+  row.** The header chose from a word's width at the default type, so at 200%
+  its six segments were kept in 480dp and stacked into a column. It now asks the
+  segmented control's own measurement, at the width the segments would have.
 
 ---
 
