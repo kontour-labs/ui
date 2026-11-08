@@ -381,7 +381,7 @@ fun CalendarMonth(
     val capRingAlpha = if (highContrast()) 1f else CapRingAlpha
         val insetPx = with(LocalDensity.current) { CalendarMonthDefaults.CellInset.toPx() }
         Column(Modifier.fillMaxWidth()) {
-        WeekdayInitials(weekFormats)
+        WeekdayInitials(weekFormats, enabled)
 
         val cells = leadingBlanks + daysInMonth
         // At least as many weeks as the picker round it asks for — six, so every
@@ -516,9 +516,12 @@ fun CalendarMonth(
     }
 }
 
-/** The weekday initials over a month's columns. */
+/**
+ * The weekday initials over a month's columns, in the disabled grey over a
+ * month that is disabled, with the days they head.
+ */
 @Composable
-private fun WeekdayInitials(weekFormats: LocaleFormats) {
+private fun WeekdayInitials(weekFormats: LocaleFormats, enabled: Boolean) {
     // Normal weight, which `labelSmall` is not. It was reported that the
     // initials need to be smaller than the dates, and by *size* they already
     // were — 12sp against `bodyMedium`'s 15. What they were not is lighter:
@@ -545,7 +548,7 @@ private fun WeekdayInitials(weekFormats: LocaleFormats) {
                 Text(
                     text = initial,
                     style = weekdayStyle,
-                    colour = Theme.colours.contentMuted,
+                    colour = if (enabled) Theme.colours.contentMuted else Theme.colours.contentDisabled,
                     modifier = Modifier.padding(vertical = Theme.spacing.xxs),
                 )
             }
@@ -688,7 +691,15 @@ private fun DayCell(
      */
     val arriving = filled || inRange
 
+    // Disabled, the chosen day and its range are in the disabled grey, as a
+    // checked box's ground is. They kept the primary fill and the accent band,
+    // so a disabled calendar's strongest mark was a near-black disc with a
+    // grey number on it: the switch's old thumb again. Found in the November
+    // 2026 audit by `DisabledQuietnessTest`, once the contract suite took the
+    // calendars in.
     val containerTarget = when {
+        filled && !enabled -> colours.contentDisabled
+        inRange && !enabled -> colours.surfaceSunken
         filled -> colours.primary
         inRange -> colours.accent.container
         // The day's own colour, under the selection: the selection is what
@@ -730,6 +741,8 @@ private fun DayCell(
     // Kept in the band of a range: a circle of the day's own colour on it.
     val keptOnBand = keep && containerColour != null && inRange && !filled
     val labelTarget = when {
+        // On the grey disc, the ink a checked box's tick is.
+        filled && !enabled -> colours.onPrimary
         !enabled -> colours.contentDisabled
         filled -> colours.onPrimary
         // The ink that reads on the day's own colour, as a surface's would.
@@ -889,7 +902,10 @@ private fun DayCell(
             Box(
                 Modifier
                     .then(circleSize)
-                    .border(Theme.sizing.borderWidth, colours.outlineStrong, todayRing)
+                    // In the disabled grey on a day that cannot be chosen, with
+                    // its number: `outlineStrong` was the one dark thing left on
+                    // a disabled month.
+                    .border(Theme.sizing.borderWidth, if (enabled) colours.outlineStrong else colours.contentDisabled, todayRing)
             )
         }
 

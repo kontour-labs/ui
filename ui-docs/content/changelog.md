@@ -230,6 +230,10 @@ docs, in November 2026:
   accent's, and its ellipses are in the disabled grey with the pages.
 - **A disabled menu item's or command's shortcut is in the disabled grey**, as
   its label is. The key cap was the one dark thing on the row.
+- **A disabled calendar's chosen day is in the disabled grey**, as a checked
+  box's ground is, and so are its range, today's ring and the weekday initials,
+  in `CalendarMonth` and the date pickers built on it. The chosen day kept its
+  near-black fill, with a grey number on it.
 
 ---
 
