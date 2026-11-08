@@ -216,6 +216,7 @@ import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.overlay.OverlayAlignment
 import io.kontour.ui.a11y.contrastEdge
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.foundation.layout.BoxScope
 import io.kontour.ui.sheet.SideSheet
@@ -1935,6 +1936,9 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 Text(
                     text = "Elizabeth Quay Bus Station",
                     maxLines = 1,
+                    // As the KDoc says to: under reduced motion it truncates,
+                    // and without an ellipsis it ended at "Elizabeth Quay".
+                    overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.marquee(),
                 )
             }

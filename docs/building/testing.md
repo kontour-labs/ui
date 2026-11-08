@@ -41,6 +41,7 @@ The golden-orphan check still runs on the everyday run, and skips only
 | Gate | Asks |
 |---|---|
 | [The contract suite](#the-contract-suite) | Is every component operable, named and reachable? |
+| [`LargeTypeSweepTest`](#nothing-is-cut-at-200-type) | Does any specimen cut its text at 200% type? |
 | [`checkNoMaterial`](#checknomaterial) | Did anything pull Material in? |
 | [`checkApiConventions`](#checkapiconventions) | Do the signatures follow the house order? |
 | [`checkKotlinAbi`](#checkkotlinabi) | Has the public API changed from the dump checked in? |
@@ -259,6 +260,31 @@ reviewed by eye, in every scheme, in a screenshot. It failed on its first run:
 - **No text field or select carried its label.** Compose has no `labelledBy`, so
   the label sat beside the control as an unrelated node: the user heard "Origin",
   moved on, and landed in an unnamed edit box.
+
+## Nothing is cut at 200% type
+
+accessibility.md says components "must lay out correctly at **200%**". The
+contract suite puts every specimen at 200% in a 320dp window and asks only that
+it stays inside the window, which a label cut to half its height in a row of a
+fixed height passes, and `PseudoLocaleSweepTest` reads the text at one and a
+half times. Neither could see the half of the promise a reader sees.
+
+`LargeTypeSweepTest` draws every specimen at 200% in that window, with Android's
+48dp target, and reads every text layout it exposes. A text fails that is taller
+than its room (`didOverflowHeight` that is not an ellipsis at its `maxLines`),
+that drops lines past its `maxLines` under `TextOverflow.Clip`, or that is wider
+than its box under `Clip`. An ellipsis is a choice and shows, so it passes; so
+does a fade, an event's title or a document tab's, which is told from a hard cut
+by its pixels: a cut leaves ink at the box's end edge and a fade erases it. Its
+three controls are a label in a fixed height, a word cut mid-letter and an
+ellipsis that must not fail.
+
+It runs in a few seconds and is in the everyday run. Added in November 2026, it
+found every calendar's day number cut at the top and bottom, and two-digit days
+wrapped; an event calendar's dates clipped to their first digit; every slot
+with a line limit, a list row's label and a top bar's title among them, cut with
+no ellipsis; and the marquee's own example truncating mid-name under reduced
+motion.
 
 ---
 
