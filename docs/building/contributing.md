@@ -373,15 +373,21 @@ add(
 ```
 
 The defaults assume the common case: the tagged node is the control, a tap
-operates it, and it owns its own touch target. Four parameters relax that where
+operates it, and it owns its own touch target. Five parameters relax that where
 a component genuinely differs:
 
 | | |
 |---|---|
-| `expectsMinimumTarget = false` | The component sits *inside* something that owns the target — a control in a `SelectionRow` — or sizes itself from content, like a text field |
+| `expectsMinimumTarget = false` | The component sits *inside* something that owns the target — a control in a `SelectionRow`, a sheet's handle — or sizes itself from content, like a text field |
 | `activatedByClick = false` | A tap does not operate it: a slider is dragged, a field is typed into. Skips the callback half of rule 2, keeps the rest |
-| `control = hasClickAction()` | The tagged node is a container and the control is inside it. An `Accordion` is a header plus a panel, and merging the panel into the header would swallow the whole disclosed body into its announcement |
+| `control = ControlLocator.Clickable` | The tagged node is a container and the control is inside it. An `Accordion` is a header plus a panel, and merging the panel into the header would swallow the whole disclosed body into its announcement. `ClickableLabelled("Route")` picks one of several, a group's first button or a calendar's day, to stand for the rest; `SelectedOption` the chosen one of a set; `Described("Hue")` a control that is dragged rather than pressed |
+| `reportsDisabled = false` | There is no control of its own to say it is disabled: it has no `enabled` (a toast, a breadcrumb trail), or its `enabled` switches off a gesture over the caller's content (a pull, a swipe, a carry). Skips rule 2, keeps the rest |
 | `accessibleName = "Origin"` | Rendered here with a visible label, so rule 4 applies |
+
+`underContract = false` is for a specimen that is only drawn — a key cap, a
+progress bar, a callout — and not for a control that is awkward to check. Up to
+November 2026 the registry used it for both, and 73 of its specimens were out,
+among them a rating, a table, the date pickers, the menus and a toast.
 
 Reach for these only when the component really is that shape. Every one of them
 narrows what is checked, and the six bugs the suite found on its first run were

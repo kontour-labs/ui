@@ -202,8 +202,8 @@ for a much smaller saving than the two above.
 ## The contract suite
 
 `ComponentContractTest` runs seven assertions over every entry in
-`componentRegistry` that is under contract — 32 of its 42 specimens. Every
-component in the system must:
+`componentRegistry` that is under contract — 86 of its 124 specimens, every one
+that can be operated. Every component in the system must:
 
 1. take `modifier: Modifier = Modifier` as its first optional parameter, and
    apply it to the outermost node;
@@ -220,11 +220,21 @@ which is why adding one there is part of adding a component — see
 
 ### One list, two consumers
 
-The registry lives in `ui-catalog/src/commonTest/…/contract/`, and the same list
-drives the [per-component renders](#screenshot-goldens). The other ten specimens
+The registry lives in `ui-catalog/src/commonMain/…/contract/`, and the same list
+drives the [per-component renders](#screenshot-goldens). The other 38 specimens
 are there only to be drawn: `underContract = false` says so, and it is what lets
 a `Kbd` — which has no role, no disabled state and no touch target — have a
 picture without being asked to pass assertions about being operable.
+
+It is for that and nothing else. Until November 2026 it was also how a control
+the rules were awkward to ask of stayed out: 73 specimens were drawn only, a
+rating, a table, a carousel, the date pickers, a menu and a toast among them,
+and the audit that month found the defects in them that the suite was written
+to find. Every one that can be operated is under contract now, with the
+opt-outs in [`contributing.md`](contributing.md#registering-a-component) where
+it needs them; putting them in found a pickable `ActivityCalendar` that did not
+say when it was disabled, and through `DisabledQuietnessTest`, which reads the
+same set, five disabled controls drawn as if they could be used.
 
 One omission is therefore visible twice. A component nobody adds here is a
 component nothing checks *and* nothing draws.

@@ -40,6 +40,7 @@ import io.kontour.ui.charts.ChartStacking
 import io.kontour.ui.charts.LinePattern
 import io.kontour.ui.charts.SeriesStyle
 import io.kontour.ui.charts.SectorChart
+import io.kontour.ui.charts.rememberChartSelectionState
 import io.kontour.ui.charts.Sparkline
 import io.kontour.ui.components.table.Table
 import io.kontour.ui.components.table.TableSort
@@ -89,6 +90,9 @@ import io.kontour.icons.tabler.Tabler
 import io.kontour.icons.tabler.outline.AlertTriangle
 import io.kontour.icons.tabler.outline.Bookmark
 import io.kontour.icons.tabler.outline.Bus
+import io.kontour.icons.tabler.outline.Copy
+import io.kontour.icons.tabler.outline.Pencil
+import io.kontour.icons.tabler.outline.Share
 import io.kontour.icons.tabler.outline.DotsVertical
 import io.kontour.icons.tabler.outline.FileUpload
 import io.kontour.icons.tabler.outline.ChevronDown
@@ -222,6 +226,9 @@ import io.kontour.ui.overlay.Tooltip
 import io.kontour.ui.overlay.Popover
 import io.kontour.ui.overlay.LocalOverlayQueue
 import io.kontour.ui.overlay.DropdownMenu
+import io.kontour.ui.overlay.MenuActionRow
+import io.kontour.ui.overlay.MenuItem
+import io.kontour.ui.overlay.SubMenu
 import io.kontour.ui.overlay.CommandPalette
 import io.kontour.ui.overlay.Command
 import io.kontour.ui.overlay.AlertDialog
@@ -323,6 +330,28 @@ class ComponentSpec(
     val activatedByClick: Boolean = true,
     val control: ControlLocator? = null,
     val accessibleName: String? = null,
+    /**
+     * False where there is no control of the component's own to say it is
+     * disabled, for one of two reasons.
+     *
+     * It has no `enabled`, because there is no whole of it a caller could
+     * switch off: a toast's action lives and goes with the toast, a breadcrumb
+     * with nowhere to go is a crumb without an `onClick`, and a sheet's handle
+     * is as draggable as its sheet.
+     *
+     * Or its `enabled` switches off a gesture over the caller's content rather
+     * than a control: a pull, a swipe, a carry. Disabled, `PullToRefresh`,
+     * `SwipeToDismiss` and `ReorderableItem` withdraw the gesture and the
+     * actions a screen reader reaches it by, and their outermost node is the
+     * caller's list or row, which marked disabled would say so over content
+     * that is not.
+     *
+     * The disabled rule is skipped for these and every other rule still
+     * applies. Added in November 2026, when the audit put every interactive
+     * specimen under contract and these six had been kept out only because
+     * the disabled rule could not be asked of them.
+     */
+    val reportsDisabled: Boolean = true,
     /**
      * False for a specimen that exists only to be **drawn**.
      *
@@ -439,13 +468,27 @@ sealed interface ControlLocator {
     data object SelectedOption : ControlLocator
 
     /**
-     * The clickable node carrying this text.
+     * The clickable node carrying this text, as its text or its description.
      *
      * For a component that is two controls: a `SplitButton` is a labelled half
      * and a chevron half, and the rules about role and disabled belong to the
-     * half that carries the default action.
+     * half that carries the default action. And for a group of them — a
+     * `ButtonGroup`'s icon buttons, a toolbar's, a calendar's days — where
+     * "the clickable one" would be several, and the one named here stands for
+     * the rest.
      */
     data class ClickableLabelled(val text: String) : ControlLocator
+
+    /**
+     * The node whose description holds this, clickable or not.
+     *
+     * For a control a tap does not operate, inside a container: a wheel's drum,
+     * a carousel's pages, a picker's hue track. Each is named by its
+     * description, and that is the one thing they share. Matched as part of
+     * the description, so a week of a calendar can be found by its first words
+     * without the count of everything in it.
+     */
+    data class Described(val text: String) : ControlLocator
 }
 
 /**
@@ -1139,21 +1182,23 @@ val componentRegistry: List<ComponentSpec> = buildList {
 
     add(
         // A month with a trip across it and a busy day; the views, the taps
-        // and the "+N" are `EventCalendarTest`'s.
+        // and the "+N" are `EventCalendarTest`'s. Its days are its controls,
+        // and the first of the month stands for the rest.
         ComponentSpec(
             "EventCalendar",
-            role = null,
-            activatedByClick = false,
-            expectsMinimumTarget = false,
-            underContract = false,
+            role = Role.Button,
+            control = ControlLocator.ClickableLabelled("Monday, 28 September 2026"),
+            accessibleName = "Monday, 28 September 2026",
             // A header and six weeks of boxes, each with room for an event.
             renderHeight = 520,
-        ) { modifier, _, _ ->
+        ) { modifier, enabled, onActivate ->
             val today = LocalDate(2026, 10, 14)
             EventCalendar(
                 state = rememberEventCalendarState(initialDate = today),
                 events = remember { demoCalendarEvents(today) },
                 now = LocalDateTime(2026, 10, 14, 11, 20),
+                enabled = enabled,
+                onDateClick = { onActivate() },
                 // A size of its own: a calendar fills whatever it is given,
                 // and a specimen is given nothing.
                 modifier = modifier.width(260.dp).height(480.dp),
@@ -1164,17 +1209,19 @@ val componentRegistry: List<ComponentSpec> = buildList {
     add(
         // A year of shades. Ten weeks here, so the specimen reads at the
         // shared width, and two marks; the tap, the scrub, the tooltip and the
-        // week nodes are `ActivityCalendarTest`'s.
+        // week nodes are `ActivityCalendarTest`'s. Pressable, because a
+        // calendar that answers a tap is the one with rules to keep, and its
+        // days are reached through their weeks, the first standing for the
+        // rest.
         ComponentSpec(
             "ActivityCalendar",
             role = null,
             activatedByClick = false,
-            expectsMinimumTarget = false,
-            underContract = false,
+            control = ControlLocator.Described("Week of 30 Mar 2026"),
             // Seven rows of cells as large as they grow, the month names above
             // and the legend below.
             renderHeight = 250,
-        ) { modifier, _, _ ->
+        ) { modifier, enabled, onActivate ->
             val end = LocalDate(2026, 6, 5)
             val holiday = LocalDate(2026, 6, 1)
             val warning = Theme.colours.warning.solid
@@ -1185,7 +1232,9 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 },
                 end = end,
                 modifier = modifier,
+                enabled = enabled,
                 weeks = 10,
+                onDayClick = { onActivate() },
                 today = end,
                 marksFor = { date, _ ->
                     when (date) {
@@ -1199,24 +1248,25 @@ val componentRegistry: List<ComponentSpec> = buildList {
     )
 
     add(
-        // A table's rows are its controls, and each is under test in
-        // `TableSemanticsTest`; the specimen is here for its render and the
-        // width sweep, which squeezes its columns until they scroll.
+        // A table's rows are under test in `TableSemanticsTest`, and the width
+        // sweep squeezes its columns until they scroll. Under contract by its
+        // sortable headers, which are what a reader presses: the first stands
+        // for the other.
         ComponentSpec(
             "Table",
-            role = null,
-            activatedByClick = false,
-            expectsMinimumTarget = false,
-            underContract = false,
+            role = Role.Button,
+            control = ControlLocator.ClickableLabelled("Route"),
+            accessibleName = "Route",
             renderHeight = 200,
-        ) { modifier, _, _ ->
+        ) { modifier, enabled, onActivate ->
             Table(
                 items = listOf("950" to "Elizabeth Quay", "T1" to "Fremantle", "103" to "Joondalup"),
                 modifier = modifier,
+                enabled = enabled,
                 stickyColumns = 1,
                 striped = true,
                 sort = TableSort("Route"),
-                onSortChange = {},
+                onSortChange = { onActivate() },
             ) {
                 column("Route", width = 72.dp) { +it.first }
                 column("Destination", weight = 1f) { +it.second }
@@ -1226,14 +1276,18 @@ val componentRegistry: List<ComponentSpec> = buildList {
 
     // Charts: pictures with descriptions, here for their renders at every tier
     // and the width, reduced-motion and pseudo-locale sweeps. Their selection is
-    // under test in the charts module's own tests.
+    // under test in the charts module's own tests, and under contract here
+    // through a selection state of their own: a chart with one is a control
+    // the keys and a pointer move through, and a chart given none is a
+    // picture, which is the one thing these specimens are not.
     add(
         ComponentSpec(
             "Chart",
             role = null,
             activatedByClick = false,
-            expectsMinimumTarget = false,
-            underContract = false,
+            // Its places are its controls, each said and selected; the first
+            // stands for the rest.
+            control = ControlLocator.Described("Jul: Route 950"),
             renderHeight = 240,
             sizesToCanvas = true,
             states = listOf(
@@ -1392,13 +1446,15 @@ val componentRegistry: List<ComponentSpec> = buildList {
                     }
                 },
             ),
-        ) { modifier, _, _ ->
+        ) { modifier, enabled, _ ->
             val months = listOf("Jul", "Aug", "Sep", "Oct")
             val riders = listOf(620, 710, 680, 790)
             Chart(
                 xAxis = ChartAxis.category(months),
                 yAxis = ChartAxis.number(title = "Riders"),
                 modifier = modifier.fillMaxWidth().height(220.dp),
+                enabled = enabled,
+                selection = rememberChartSelectionState(),
                 contentDescription = "Riders by month",
                 animateData = false,
             ) {
@@ -1413,14 +1469,15 @@ val componentRegistry: List<ComponentSpec> = buildList {
             "SectorChart",
             role = null,
             activatedByClick = false,
-            expectsMinimumTarget = false,
-            underContract = false,
+            control = ControlLocator.Described("Rent"),
             renderHeight = 200,
             sizesToCanvas = true,
-        ) { modifier, _, _ ->
+        ) { modifier, enabled, _ ->
             val parts = listOf("Rent" to 45, "Food" to 30, "Travel" to 25)
             SectorChart(
                 modifier = modifier.fillMaxWidth().height(180.dp),
+                enabled = enabled,
+                selection = rememberChartSelectionState(),
                 innerRadius = 0.6f,
                 contentDescription = "Spending in September",
                 animateData = false,
@@ -1513,14 +1570,14 @@ val componentRegistry: List<ComponentSpec> = buildList {
     add(
         // The group is a container; its buttons are the controls. The outermost
         // node is a traversal group with no role and nothing to press, so the
-        // click and touch-target rules apply to the buttons inside rather than
-        // to it. `ButtonGroupTest` is what covers those.
+        // role, name and disabled rules are asked of its first button, which
+        // stands for the others. The target is the group's, three buttons'
+        // worth.
         ComponentSpec(
             "ButtonGroup",
-            role = null,
-            activatedByClick = false,
-            expectsMinimumTarget = false,
-            underContract = false,
+            role = Role.Button,
+            control = ControlLocator.ClickableLabelled("Zoom out"),
+            accessibleName = "Zoom out",
         ) { modifier, enabled, onActivate ->
             ButtonGroup(modifier, enabled = enabled) {
                 item(onClick = onActivate, contentDescription = "Zoom out", icon = Tabler.Outline.Minus)
@@ -1531,12 +1588,14 @@ val componentRegistry: List<ComponentSpec> = buildList {
     )
 
     add(
+        // A bar with no `enabled` of its own: what is in it is switched off one
+        // control at a time, so the specimen hands its `enabled` to each and
+        // the rules are asked of the one at its end.
         ComponentSpec(
             "Toolbar",
-            role = null,
-            activatedByClick = false,
-            expectsMinimumTarget = false,
-            underContract = false,
+            role = Role.Button,
+            control = ControlLocator.ClickableLabelled("Map layers"),
+            accessibleName = "Map layers",
         ) { modifier, enabled, onActivate ->
             Toolbar(modifier) {
                 ButtonGroup(enabled = enabled) {
@@ -1590,10 +1649,9 @@ val componentRegistry: List<ComponentSpec> = buildList {
     add(
         ComponentSpec(
             "VerticalToolbar",
-            role = null,
-            activatedByClick = false,
-            expectsMinimumTarget = false,
-            underContract = false,
+            role = Role.Button,
+            control = ControlLocator.ClickableLabelled("Map layers"),
+            accessibleName = "Map layers",
             // Three targets and a rule, stacked. The default card is 120dp
             // tall and this is not — the first golden recorded it with the
             // divider and the third button cropped off the bottom, which is a
@@ -1627,15 +1685,14 @@ val componentRegistry: List<ComponentSpec> = buildList {
 
     add(
         // The interactive one. Each mark is a `Role.RadioButton` inside a
-        // `selectableGroup`, so the roles and targets belong to the marks; the
-        // row is the group. `RatingTest` covers the read-only half, which is a
+        // `selectableGroup`, so the role and the disabled state are asked of
+        // the chosen mark; the row is the group, and its target is theirs
+        // together. `RatingTest` covers the read-only half, which is a
         // different component wearing the same name.
         ComponentSpec(
             "Rating",
-            role = null,
-            activatedByClick = false,
-            expectsMinimumTarget = false,
-            underContract = false,
+            role = Role.RadioButton,
+            control = ControlLocator.SelectedOption,
         ) { modifier, enabled, onActivate ->
             Rating(
                 value = 3f,
@@ -1648,15 +1705,14 @@ val componentRegistry: List<ComponentSpec> = buildList {
     )
 
     add(
-        // Its own node is a scrollable group carrying custom actions, not a
-        // control. `CarouselTest` covers the routes; this exists for the render
-        // and for the layout rules.
+        // Its own node is a scrollable group carrying custom actions rather
+        // than a role, swiped rather than pressed: it is found by its name and
+        // asked to say when it is disabled. `CarouselTest` covers the routes.
         ComponentSpec(
             "Carousel",
             role = null,
             activatedByClick = false,
-            expectsMinimumTarget = false,
-            underContract = false,
+            control = ControlLocator.Described("Stop photos"),
             renderHeight = 160,
             states = listOf(
                 // The worm, which the default render cannot show: the dots
@@ -2307,13 +2363,13 @@ val componentRegistry: List<ComponentSpec> = buildList {
         //
         // No role: the operable parts are inside it — an area, two tracks and a
         // field, each with its own semantics — and there is no one node that is
-        // "the picker" to give a role to.
+        // "the picker" to give a role to. The hue track stands for them: it is
+        // dragged, not pressed, and has to say when it is disabled.
         ComponentSpec(
             name = "ColourPicker",
             role = null,
-            expectsMinimumTarget = false,
             activatedByClick = false,
-            underContract = false,
+            control = ControlLocator.Described("Hue"),
             // Tall, and earned: a spectrum area, a hue track, an opacity track,
             // a swatch row and a value field stacked is 412dp of structure
             // against the standard card's 120.
@@ -2427,12 +2483,15 @@ val componentRegistry: List<ComponentSpec> = buildList {
         }
     )
 
-    // --- Drawn, not operated ---------------------------------------------
+    // --- Drawn, and the rest of the library ---------------------------------
     //
-    // Everything below is here so it has a picture. None of it is a control:
-    // the contract's seven assertions ask for a role, a disabled state and a
-    // touch target, and a key cap has none of those and is not failing anything
-    // by not having them.
+    // Everything below began here so it had a picture, and the parts of it that
+    // are not controls stay out of contract: the seven assertions ask for a
+    // role, a disabled state and a touch target, and a key cap has none of
+    // those and is not failing anything by not having them. The parts that are
+    // controls — the overlays' buttons, the date pickers, a toast's action, a
+    // pager — had been kept out with them until November 2026, and are under
+    // contract now with the opt-outs each needs.
     //
     // Three components are still missing even from here, and deliberately.
     // `ConfirmHost` draws nothing until something asks it a question and
@@ -2466,7 +2525,19 @@ val componentRegistry: List<ComponentSpec> = buildList {
     )
 
     add(
-        ComponentSpec("DragHandle", role = null, underContract = false) { modifier, _, _ ->
+        // Drawn rather than pressed, and with no `enabled`: its sheet is what
+        // is dragged, from anywhere on it, and the handle carries the sheet's
+        // actions for a screen reader. The sheet owns the target, so the
+        // handle's 24dp is the part that widens under a finger and not what a
+        // finger has to find; a 48dp handle would push every sheet's content
+        // down for a press that consumes nothing.
+        ComponentSpec(
+            "DragHandle",
+            role = null,
+            expectsMinimumTarget = false,
+            activatedByClick = false,
+            reportsDisabled = false,
+        ) { modifier, _, _ ->
             // No `LocalSheetState`, so it is the resting pill rather than the
             // interactive one — which is what a reader wants to see of it.
             DragHandle(modifier = modifier, state = null)
@@ -2577,8 +2648,12 @@ val componentRegistry: List<ComponentSpec> = buildList {
     add(
         ComponentSpec(
             name = "Toast",
-            role = null,
-            underContract = false,
+            // Its action is the control, and has no `enabled`: it lives and
+            // goes with the toast.
+            role = Role.Button,
+            control = ControlLocator.ClickableLabelled("Undo"),
+            accessibleName = "Undo",
+            reportsDisabled = false,
             sizesToCanvas = true,
             // **No `minWidth`, and that is the finding.**
             //
@@ -2596,7 +2671,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
             // it, and 260 was the number that skipped the widths where that
             // mismatch showed. Its own host fixes the specimen, and then the
             // sweep can ask every width without an exemption.
-        ) { modifier, _, _ ->
+        ) { modifier, _, onActivate ->
             val toasts = rememberToastHostState()
             LaunchedEffect(Unit) {
                 // **With** its action, which it did not have for one round.
@@ -2612,7 +2687,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 toasts.show(
                     message = "Trip saved to favourites.",
                     actionLabel = "Undo",
-                    onAction = {},
+                    onAction = onActivate,
                     // Long enough that the render is of a toast rather than of
                     // one halfway through leaving.
                     duration = 60_000.milliseconds,
@@ -2650,18 +2725,70 @@ val componentRegistry: List<ComponentSpec> = buildList {
     // what a specimen is.
 
     add(
-        ComponentSpec(name = "DropdownMenu", role = null, underContract = false, renderHeight = 232, sizesToCanvas = true) { modifier, _, _ ->
+        // Its rows are the controls, the first standing for the rest.
+        ComponentSpec(
+            name = "DropdownMenu",
+            role = Role.Button,
+            control = ControlLocator.ClickableLabelled("Share"),
+            accessibleName = "Share",
+            renderHeight = 232,
+            sizesToCanvas = true,
+        ) { modifier, enabled, onActivate ->
             OverlaySpecimen(modifier, height = 200.dp) {
                 // In the middle and centred on its anchor, so the menu's shadow
                 // has room on every side inside the window.
                 Box(Modifier.align(Alignment.TopCenter).padding(top = Theme.spacing.xs)) {
                     IconButton(icon = Tabler.Outline.DotsVertical, contentDescription = "More", onClick = {})
                     DropdownMenu(visible = true, onDismissRequest = {}, alignment = OverlayAlignment.Centre) {
-                        item("Share") {}
+                        item("Share", enabled = enabled) { onActivate() }
                         item("Copy stop ID") {}
                         item("Remove favourite", destructive = true) {}
                     }
                 }
+            }
+        }
+    )
+
+    // A menu's own parts, out of a menu, as an app composes them into one of
+    // its own: `MenuItem` is the row every menu is built of, and was checked
+    // only as `DropdownMenu`'s rows, and `SubMenu` and `MenuActionRow` not at
+    // all. Added in November 2026, when the audit put every interactive
+    // specimen under contract.
+    add(
+        ComponentSpec("MenuItem", Role.Button, accessibleName = "Rename") { modifier, enabled, onActivate ->
+            MenuItem(onClick = onActivate, modifier = modifier.widthIn(max = SpecimenProseWidth), enabled = enabled) {
+                +"Rename"
+                leading { +Tabler.Outline.Pencil }
+            }
+        }
+    )
+
+    add(
+        ComponentSpec("SubMenu", Role.Button, accessibleName = "Sort by") { modifier, enabled, _ ->
+            // Shut, which is how a menu shows it: the row and its chevron. A tap
+            // opens its menu rather than calling anything, so there is no
+            // callback to wire, and the contract's click asks only that a
+            // disabled one does not open.
+            SubMenu(label = { +"Sort by" }, modifier = modifier.widthIn(max = SpecimenProseWidth), enabled = enabled) {
+                MenuItem(onClick = {}) { +"Departure" }
+                MenuItem(onClick = {}) { +"Duration" }
+            }
+        }
+    )
+
+    add(
+        // A row with no `enabled` of its own: each action is switched off by
+        // itself, so the specimen hands its `enabled` to both, and the first
+        // stands for the other.
+        ComponentSpec(
+            "MenuActionRow",
+            role = Role.Button,
+            control = ControlLocator.ClickableLabelled("Copy"),
+            accessibleName = "Copy",
+        ) { modifier, enabled, onActivate ->
+            MenuActionRow(modifier.widthIn(max = SpecimenProseWidth)) {
+                action("Copy", Tabler.Outline.Copy, enabled = enabled) { onActivate() }
+                action("Share", Tabler.Outline.Share, enabled = enabled) { onActivate() }
             }
         }
     )
@@ -2715,13 +2842,24 @@ val componentRegistry: List<ComponentSpec> = buildList {
     )
 
     add(
-        ComponentSpec(name = "AlertDialog", role = null, underContract = false, renderHeight = 372, sizesToCanvas = true) { modifier, _, _ ->
+        // Its buttons are the controls, the one that answers standing for the
+        // other. No `enabled`: a dialog is answered or dismissed, not switched
+        // off.
+        ComponentSpec(
+            name = "AlertDialog",
+            role = Role.Button,
+            control = ControlLocator.ClickableLabelled("Remove"),
+            accessibleName = "Remove",
+            reportsDisabled = false,
+            renderHeight = 372,
+            sizesToCanvas = true,
+        ) { modifier, _, onActivate ->
             OverlaySpecimen(modifier, height = 340.dp) {
                 AlertDialog(
                     visible = true,
                     onDismissRequest = {},
                     confirmLabel = "Remove",
-                    onConfirm = {},
+                    onConfirm = onActivate,
                     destructive = true,
                 ) {
                     +"Remove this favourite?"
@@ -2732,12 +2870,22 @@ val componentRegistry: List<ComponentSpec> = buildList {
     )
 
     add(
-        ComponentSpec(name = "CommandPalette", role = null, underContract = false, renderHeight = 352, sizesToCanvas = true) { modifier, _, _ ->
+        // Its commands are the controls, each with an `enabled` of its own; the
+        // first stands for the rest.
+        ComponentSpec(
+            name = "CommandPalette",
+            role = Role.Button,
+            control = ControlLocator.ClickableLabelled("Plan a trip"),
+            accessibleName = "Plan a trip",
+            renderHeight = 352,
+            sizesToCanvas = true,
+        ) { modifier, enabled, onActivate ->
             OverlaySpecimen(modifier, height = 320.dp) {
                 CommandPalette(
                     visible = true,
                     onDismissRequest = {},
-                    commands = SpecimenCommands,
+                    commands = listOf(SpecimenCommands.first().copy(enabled = enabled, onAction = onActivate)) +
+                        SpecimenCommands.drop(1),
                     // Sized for the box rather than for a window, which is what
                     // these three are for: the defaults would spend a third of
                     // the box on the inset and clip the list.
@@ -2767,20 +2915,22 @@ val componentRegistry: List<ComponentSpec> = buildList {
     add(
         ComponentSpec(
             name = "CalendarMonth",
-            role = null,
-            underContract = false,
+            // Its days are its controls, the one picked standing for the rest.
+            role = Role.Button,
+            control = ControlLocator.ClickableLabelled("18"),
             renderHeight = 320,
-        ) { modifier, _, _ ->
+        ) { modifier, enabled, onActivate ->
             CalendarMonth(
                 month = SpecimenMonth,
                 isSelected = { it == SpecimenDate },
-                onSelectedChange = {},
+                onSelectedChange = { onActivate() },
                 today = SpecimenToday,
                 // A narrow phone's worth of width. Unbounded, a calendar takes
                 // `CalendarMonthDefaults.MaxWidth` — 308dp, which is correct and
                 // wider than a specimen card. `widthIn` rather than `width`,
                 // so the width sweep can still squeeze it.
                 modifier = modifier.widthIn(max = SpecimenGridWidth),
+                enabled = enabled,
             )
         }
     )
@@ -2788,20 +2938,22 @@ val componentRegistry: List<ComponentSpec> = buildList {
     add(
         ComponentSpec(
             name = "DatePicker",
-            role = null,
-            underContract = false,
+            // Its days are its controls, the one picked standing for the rest.
+            role = Role.Button,
+            control = ControlLocator.ClickableLabelled("18"),
             renderHeight = 380,
             // Seven columns of day numbers on the type scale, which do not
             // shrink with their cells, so below about this the grid is wider
             // than its box by construction. A fact about the component,
             // declared beside it.
             minWidth = 200,
-        ) { modifier, _, _ ->
+        ) { modifier, enabled, onActivate ->
             DatePicker(
                 value = SpecimenDate,
-                onValueChange = {},
+                onValueChange = { onActivate() },
                 today = SpecimenToday,
                 modifier = modifier.widthIn(max = SpecimenGridWidth),
+                enabled = enabled,
             )
         }
     )
@@ -2809,24 +2961,26 @@ val componentRegistry: List<ComponentSpec> = buildList {
     add(
         ComponentSpec(
             name = "DateRangePicker",
-            role = null,
-            underContract = false,
+            // Its days are its controls, the one picked standing for the rest.
+            role = Role.Button,
+            control = ControlLocator.ClickableLabelled("18"),
             renderHeight = 380,
             // Seven columns of day numbers on the type scale, which do not
             // shrink with their cells, so below about this the grid is wider
             // than its box by construction. A fact about the component,
             // declared beside it.
             minWidth = 200,
-        ) { modifier, _, _ ->
+        ) { modifier, enabled, onActivate ->
             // A range that spans a week boundary, so the picture shows both the
             // capped ends and the square-edged middle that makes a run read as
             // continuous rather than as a row of separate pills.
             DateRangePicker(
                 start = SpecimenDate,
                 end = LocalDate(2026, 6, 24),
-                onRangeChange = { _, _ -> },
+                onRangeChange = { _, _ -> onActivate() },
                 today = SpecimenToday,
                 modifier = modifier.widthIn(max = SpecimenGridWidth),
+                enabled = enabled,
             )
         }
     )
@@ -2834,32 +2988,37 @@ val componentRegistry: List<ComponentSpec> = buildList {
     add(
         ComponentSpec(
             name = "TimePicker",
+            // Its wheels are turned, not pressed; the hour's stands for the
+            // others.
             role = null,
-            underContract = false,
+            activatedByClick = false,
+            control = ControlLocator.Described("Hour"),
             // The wheels' 240, and the Now button under them.
             renderHeight = 280,
-        ) { modifier, _, _ ->
-            TimePicker(value = SpecimenTime, onValueChange = {}, modifier = modifier)
+        ) { modifier, enabled, _ ->
+            TimePicker(value = SpecimenTime, onValueChange = {}, modifier = modifier, enabled = enabled)
         }
     )
 
     add(
         ComponentSpec(
             name = "DateTimePicker",
-            role = null,
-            underContract = false,
+            // Its days are its controls, the one picked standing for the rest.
+            role = Role.Button,
+            control = ControlLocator.ClickableLabelled("18"),
             // Too narrow at this width for the two side by side: the calendar,
             // and the row under it that says the time, about 330dp.
             renderHeight = 400,
             // The date picker's floor: seven columns of day numbers.
             minWidth = 200,
-        ) { modifier, _, _ ->
+        ) { modifier, enabled, onActivate ->
             DateTimePicker(
                 value = LocalDateTime(SpecimenDate, SpecimenTime),
-                onValueChange = {},
+                onValueChange = { onActivate() },
                 today = SpecimenToday,
                 minuteStep = 5,
                 modifier = modifier.widthIn(max = SpecimenGridWidth),
+                enabled = enabled,
             )
         }
     )
@@ -2867,16 +3026,21 @@ val componentRegistry: List<ComponentSpec> = buildList {
     add(
         ComponentSpec(
             name = "WheelPicker",
+            // Turned, not pressed. Named, as a drum under no visible label has
+            // to be, and found by that name.
             role = null,
-            underContract = false,
+            activatedByClick = false,
+            control = ControlLocator.Described("Platform"),
             renderHeight = 220,
-        ) { modifier, _, _ ->
+        ) { modifier, enabled, _ ->
             WheelPicker(
                 items = (0..9).map { "Platform $it" },
                 selectedIndex = 3,
                 onSelectedIndexChange = {},
                 itemLabel = { it },
                 modifier = modifier,
+                enabled = enabled,
+                contentDescription = "Platform",
             )
         }
     )
@@ -2942,7 +3106,15 @@ val componentRegistry: List<ComponentSpec> = buildList {
         // Folded: a 200dp list cannot fit 27 labels, so the picture is the
         // rail's short form, a dot for each run it has no room for, with the
         // current section in the accent.
-        ComponentSpec("IndexScroller", role = null, underContract = false, renderHeight = 220) { modifier, enabled, _ ->
+        // Dragged along, or stepped through its custom actions: found by its
+        // name, and asked to say when it is disabled.
+        ComponentSpec(
+            "IndexScroller",
+            role = null,
+            activatedByClick = false,
+            control = ControlLocator.Described("Section index"),
+            renderHeight = 220,
+        ) { modifier, enabled, _ ->
             val formats = Theme.formats
             val names = listOf("Armadale", "Bassendean", "Claremont", "Esplanade", "Fremantle", "Midland", "Perth", "Warwick")
             val indexed = remember(formats) { names.indexedBy(IndexAlphabet.Latin, formats) { it } }
@@ -2990,8 +3162,11 @@ val componentRegistry: List<ComponentSpec> = buildList {
     add(
         ComponentSpec(
             name = "Banner",
-            role = null,
-            underContract = false,
+            // Its dismiss is the control, and it has no `enabled`: a banner is
+            // there or it is not.
+            role = Role.Button,
+            control = ControlLocator.Clickable,
+            reportsDisabled = false,
             renderHeight = 140,
             states = listOf(
                 // One line and a dismiss, which is the shape that was broken and
@@ -3015,7 +3190,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
                     }
                 },
             ),
-        ) { modifier, _, _ ->
+        ) { modifier, _, onActivate ->
             // Title, message, leading icon and a dismiss — all four, because a
             // banner with only a message is an `AnimatedBanner` and the two
             // pictures would not tell them apart. The leading icon earns its
@@ -3024,7 +3199,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
             Banner(
                 modifier = modifier.widthIn(max = SpecimenProseWidth),
                 tone = Tone.Warning,
-                onDismissRequest = {},
+                onDismissRequest = onActivate,
                 dismissIcon = Tabler.Outline.X,
             ) {
                 +"Services are running up to 12 minutes late."
@@ -3107,15 +3282,17 @@ val componentRegistry: List<ComponentSpec> = buildList {
     add(
         ComponentSpec(
             name = "PullToRefresh",
+            // Pulled, not pressed, and its own outermost node.
             role = null,
-            underContract = false,
+            activatedByClick = false,
+            reportsDisabled = false,
             renderHeight = 200,
-        ) { modifier, _, _ ->
+        ) { modifier, enabled, _ ->
             // Mid-refresh, over real content: at rest it is its own content and
             // nothing else, so a card of it would be a card of a list row — and
             // with nothing underneath, the indicator floats in space rather than
             // sitting above the thing it is refreshing.
-            PullToRefresh(refreshing = true, onRefresh = {}, scrollState = null, modifier = modifier) {
+            PullToRefresh(refreshing = true, onRefresh = {}, scrollState = null, modifier = modifier, enabled = enabled) {
                 // Taller than the 80dp threshold on purpose. With shorter
                 // content the indicator lands *below* the list, which is what it
                 // honestly does when it wraps something short — and is not what
@@ -3132,8 +3309,10 @@ val componentRegistry: List<ComponentSpec> = buildList {
     add(
         ComponentSpec(
             name = "SwipeToDismiss",
+            // Swiped, not pressed; its action is a custom one on its own node.
             role = null,
-            underContract = false,
+            activatedByClick = false,
+            reportsDisabled = false,
             states = listOf(
                 // At rest this is a list row and nothing else, so the resting
                 // render was a picture of `ListItem` under another name — which
@@ -3160,7 +3339,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
                     }
                 },
             ),
-        ) { modifier, _, _ ->
+        ) { modifier, enabled, _ ->
             // A two-line row rather than one, in both renders, and for the
             // revealed one's sake: an action panel shows its label only where
             // there is room for one, and a single-line row has 48dp where icon
@@ -3171,6 +3350,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 label = "Remove",
                 icon = Tabler.Outline.Star,
                 modifier = modifier,
+                enabled = enabled,
             ) {
                 ListItem {
                     +"Elizabeth Quay Station"
@@ -3183,8 +3363,12 @@ val componentRegistry: List<ComponentSpec> = buildList {
     add(
         ComponentSpec(
             name = "ReorderableItem",
+            // Held and moved, not pressed; its moves are custom actions on its
+            // own node, which is where the caller's modifier goes rather than
+            // on the list it has to be in.
             role = null,
-            underContract = false,
+            activatedByClick = false,
+            reportsDisabled = false,
             states = listOf(
                 // Lifted: the shadow, the scale and the offset that say "this row
                 // is in your hand". None of it is visible at rest, and until
@@ -3227,12 +3411,12 @@ val componentRegistry: List<ComponentSpec> = buildList {
                     }
                 },
             ),
-        ) { modifier, _, _ ->
+        ) { modifier, enabled, _ ->
             val listState = rememberLazyListState()
             val reorder = rememberReorderableState(listState) { _, _ -> }
-            LazyColumn(state = listState, modifier = modifier) {
+            LazyColumn(state = listState) {
                 item {
-                    ReorderableItem(state = reorder, index = 0, itemCount = 3) {
+                    ReorderableItem(state = reorder, index = 0, modifier = modifier, enabled = enabled, itemCount = 3) {
                         ListItem(position = GroupPosition.of(0, 3)) {
                             +"Perth Underground"
                         }
@@ -3247,7 +3431,8 @@ val componentRegistry: List<ComponentSpec> = buildList {
     // Rendered at both contrast tiers, which is why they are here: the
     // high-contrast audit found that about twenty components had no specimen, so
     // nothing had ever photographed them at the tier that asks the most of an
-    // edge. They are drawn, not operated — each has its own behaviour tests.
+    // edge. Each has its own behaviour tests, and the ones that are controls are
+    // under contract as well.
 
     add(
         ComponentSpec("Tag", role = null, underContract = false) { modifier, _, _ ->
@@ -3260,10 +3445,17 @@ val componentRegistry: List<ComponentSpec> = buildList {
     )
 
     add(
-        // Drawn joined both ways and stood apart, and with no part to press:
-        // a group of labels is one merged node, which is what the contract's
-        // text rules read. `TagGroupTest` covers a part that can be pressed.
-        ComponentSpec("TagGroup", role = null, underContract = false) { modifier, _, _ ->
+        // Drawn joined both ways and stood apart. The first two groups have no
+        // part to press, and a group of labels is one merged node. The third
+        // has one, the route, which is what puts the group under contract: a
+        // part that can be pressed is a button, and the group owns its target.
+        // `TagGroupTest` covers the rest of what a pressable part does.
+        ComponentSpec(
+            "TagGroup",
+            role = Role.Button,
+            control = ControlLocator.ClickableLabelled("Route 960"),
+            accessibleName = "Route 960",
+        ) { modifier, enabled, onActivate ->
             Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 TagGroup {
                     item(containerColour = Color(0xFF1B5E20)) { +"T1" }
@@ -3274,9 +3466,9 @@ val componentRegistry: List<ComponentSpec> = buildList {
                     item(tone = Tone.Success) { +"On time" }
                     item(tone = Tone.Info) { +"Platform 2" }
                 }
-                TagGroup(join = TagJoin.Diagonal, spacing = TagGroupDefaults.Gap) {
+                TagGroup(join = TagJoin.Diagonal, spacing = TagGroupDefaults.Gap, enabled = enabled) {
                     item(tone = Tone.Accent) { +"Bus" }
-                    item { +"Route 960" }
+                    item(onClick = onActivate) { +"Route 960" }
                     item(tone = Tone.Success) { +"Live" }
                 }
             }
@@ -3334,37 +3526,60 @@ val componentRegistry: List<ComponentSpec> = buildList {
     add(
         ComponentSpec(
             "Pagination",
-            role = null,
-            underContract = false,
+            // Its pages are its controls, the first standing for the rest.
+            role = Role.Button,
+            control = ControlLocator.ClickableLabelled("Page 1"),
+            accessibleName = "Page 1",
             // Two arrows and the page you are on, each a touch target: there is
             // no narrower arrangement of it that still pages.
             minWidth = 144,
-        ) { modifier, _, _ ->
+        ) { modifier, enabled, onActivate ->
             // A width, so the row windows its pages as it would in a layout
             // rather than laying all twelve out at the unbounded measure.
-            Pagination(value = 3, pageCount = 12, onValueChange = {}, modifier = modifier.width(SpecimenProseWidth))
+            Pagination(
+                value = 3,
+                pageCount = 12,
+                onValueChange = { onActivate() },
+                modifier = modifier.width(SpecimenProseWidth),
+                enabled = enabled,
+            )
         }
     )
 
     add(
-        ComponentSpec("Breadcrumbs", role = null, underContract = false) { modifier, _, _ ->
+        // Its crumbs are its controls, the first standing for the rest. No
+        // `enabled`: a crumb with nowhere to go is one without an `onClick`,
+        // as the last one is.
+        ComponentSpec(
+            "Breadcrumbs",
+            role = Role.Button,
+            control = ControlLocator.ClickableLabelled("Routes"),
+            accessibleName = "Routes",
+            reportsDisabled = false,
+        ) { modifier, _, onActivate ->
             Breadcrumbs(
-                listOf(Crumb("Routes", onClick = {}), Crumb("Route 950", onClick = {}), Crumb("Stops")),
+                listOf(Crumb("Routes", onClick = onActivate), Crumb("Route 950", onClick = {}), Crumb("Stops")),
                 modifier = modifier,
             )
         }
     )
 
     add(
-        ComponentSpec("ColourSwatchPicker", role = null, underContract = false) { modifier, _, _ ->
+        ComponentSpec(
+            "ColourSwatchPicker",
+            role = Role.RadioButton,
+            control = ControlLocator.SelectedOption,
+            accessibleName = "Route colour",
+        ) { modifier, enabled, onActivate ->
             val swatches = listOf(Color(0xFF0B6E99), Color(0xFFE11F26), Color(0xFF1B5E20), Color(0xFFF2C200))
             ColourSwatchPicker(
                 value = swatches[1],
                 options = swatches,
-                onValueChange = {},
+                onValueChange = { onActivate() },
                 swatchColour = { it },
                 swatchLabel = { "Route colour" },
                 modifier = modifier,
+                enabled = enabled,
             )
         }
     )
@@ -3379,11 +3594,18 @@ val componentRegistry: List<ComponentSpec> = buildList {
         // Over a picture made to be hard: a dawn-to-dusk band that runs from pale
         // to dark across the bar, so the title and the back button each meet
         // both. Open, the title light on the scrim; the back button on its disc.
-        ComponentSpec("TopBar (Hero)", role = null, underContract = false, renderHeight = 240) { modifier, _, _ ->
+        // Its back button is the control, and a bar has no `enabled`.
+        ComponentSpec(
+            "TopBar (Hero)",
+            role = Role.Button,
+            control = ControlLocator.Clickable,
+            reportsDisabled = false,
+            renderHeight = 240,
+        ) { modifier, _, onActivate ->
             TopBar(
                 modifier = modifier.width(SpecimenProseWidth),
                 style = TopBarStyle.Hero,
-                onBack = {},
+                onBack = onActivate,
                 image = {
                     Box(
                         Modifier.fillMaxSize().background(
@@ -3418,8 +3640,15 @@ val componentRegistry: List<ComponentSpec> = buildList {
     )
 
     add(
-        ComponentSpec("ErrorState", role = null, underContract = false, renderHeight = 230) { modifier, _, _ ->
-            ErrorState(modifier.width(SpecimenProseWidth), onRetry = {}) {
+        // Its retry is the control, and a state has no `enabled`.
+        ComponentSpec(
+            "ErrorState",
+            role = Role.Button,
+            control = ControlLocator.Clickable,
+            reportsDisabled = false,
+            renderHeight = 230,
+        ) { modifier, _, onActivate ->
+            ErrorState(modifier.width(SpecimenProseWidth), onRetry = onActivate) {
                 +"Couldn't load your favourites"
                 message { +"Check your connection and try again." }
             }
@@ -3433,17 +3662,31 @@ val componentRegistry: List<ComponentSpec> = buildList {
     )
 
     add(
-        ComponentSpec("PageIndicator", role = null, underContract = false) { modifier, _, _ ->
+        // Pressable, its dots a group of radio buttons; the current page's
+        // stands for the rest.
+        ComponentSpec(
+            "PageIndicator",
+            role = Role.RadioButton,
+            control = ControlLocator.SelectedOption,
+        ) { modifier, enabled, onActivate ->
             val carousel = rememberCarouselState { 5 }
-            PageIndicator(state = carousel, modifier = modifier, onPageClick = {})
+            PageIndicator(state = carousel, modifier = modifier, enabled = enabled, onPageClick = { onActivate() })
         }
     )
 
     add(
-        ComponentSpec("ThumbnailStrip", role = null, underContract = false) { modifier, _, _ ->
+        // Its thumbnails are a group of radio buttons that move the carousel
+        // they belong to, with no callback of their own; the current one
+        // stands for the rest.
+        ComponentSpec(
+            "ThumbnailStrip",
+            role = Role.RadioButton,
+            activatedByClick = false,
+            control = ControlLocator.SelectedOption,
+        ) { modifier, enabled, _ ->
             val carousel = rememberCarouselState { 12 }
             val tones = listOf(Theme.colours.info.solid, Theme.colours.success.solid, Theme.colours.warning.solid, Theme.colours.accent.solid)
-            ThumbnailStrip(state = carousel, modifier = modifier.width(SpecimenProseWidth)) { page ->
+            ThumbnailStrip(state = carousel, modifier = modifier.width(SpecimenProseWidth), enabled = enabled) { page ->
                 Box(Modifier.fillMaxSize().background(tones[page % tones.size]))
             }
         }
