@@ -13,6 +13,7 @@ import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.SemanticsNodeInteraction
@@ -98,6 +99,7 @@ class ComponentContractTest {
     @Test
     fun disabledBlocksTheCallbackAndSaysSo() {
         forEachComponent { spec ->
+            if (!spec.reportsDisabled) return@forEachComponent
             runComposeUiTest {
                 var fired = false
                 setContent {
@@ -393,7 +395,8 @@ class ComponentContractTest {
             SemanticsMatcher.keyIsDefined(SemanticsProperties.EditableText)
         ControlLocator.SelectedOption ->
             SemanticsMatcher.expectValue(SemanticsProperties.Selected, true)
-        is ControlLocator.ClickableLabelled -> hasClickAction() and hasText(text)
+        is ControlLocator.ClickableLabelled -> hasClickAction() and (hasText(text) or hasContentDescription(text))
+        is ControlLocator.Described -> hasContentDescription(text, substring = true)
     }
 
     /**

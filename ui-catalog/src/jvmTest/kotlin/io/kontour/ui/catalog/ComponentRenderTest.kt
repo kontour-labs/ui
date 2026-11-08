@@ -325,6 +325,10 @@ class ComponentRenderTest {
             // Since 0.5.0 it draws its chevron by default, at the far end from
             // its title, and a walk down the middle crosses the gap between.
             "Accordion" to "a title and its chevron on the page, no container",
+            // A menu's own parts out of a menu, as the specimens draw them:
+            // in a menu, the panel they sit on carries the edge.
+            "SubMenu" to "a menu's row, a label and its chevron on the page; in a menu the panel carries the edge",
+            "MenuActionRow" to "a menu's action row, icons over words on the menu's ground by default; the panel carries the edge",
             "KeyValueList" to "text on the page, no container",
             "RelativeTimeText" to "text on the page, no container",
             "EmptyState" to "text on the page, no container",

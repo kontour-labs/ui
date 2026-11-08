@@ -2,7 +2,6 @@ package io.kontour.ui.overlay
 
 import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.locale.LocaleFormats
-import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -282,7 +281,7 @@ private fun PaletteBody(
     /**
      * The field, not the panel.
      *
-     * This used to be the `Surface` below, which is `focusable()` so its
+     * This used to be the `Surface` below, which was `focusable()` so its
      * `onPreviewKeyEvent` could drive the arrows — and focusing it left the
      * caret nowhere. A palette you have to click before you can type is a
      * dialog, and the keyboard path is the only reason this component exists.
@@ -325,7 +324,13 @@ private fun PaletteBody(
         modifier = modifier
             .widthIn(max = width)
             .fillMaxWidth()
-            .focusable()
+            // **Not focusable.** It was, as the drafts before the field took
+            // the focus needed it to be, and that left the panel a Tab stop of
+            // its own with no ring and nothing to do: Tab came to it between
+            // the last command and the field, and Shift+Tab from it went out of
+            // the palette to the page under it, which the host's trap could not
+            // turn back. Its keys are heard here anyway, on the way down to
+            // the field. Found in the November 2026 audit by `KeyboardSweepTest`.
             .onPreviewKeyEvent { event ->
                 if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                 when (event.key) {
@@ -482,7 +487,15 @@ private fun PaletteBody(
                             slots = listItemSlots {
                                 command.icon?.let { icon -> leading { +icon } }
                                 +command.label
-                                command.shortcut?.let { shortcut -> trailing { Kbd { +shortcut } } }
+                                // In the disabled grey on a disabled command, as
+                                // its label is.
+                                command.shortcut?.let { shortcut ->
+                                    trailing {
+                                        Kbd(colour = if (command.enabled) Theme.colours.contentMuted else Theme.colours.contentDisabled) {
+                                            +shortcut
+                                        }
+                                    }
+                                }
                             },
                         )
                     }

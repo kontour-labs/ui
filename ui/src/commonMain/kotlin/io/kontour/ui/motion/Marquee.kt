@@ -91,6 +91,7 @@ enum class MarqueeTravel {
  * Text(
  *     text = stop.name,
  *     maxLines = 1,
+ *     overflow = TextOverflow.Ellipsis,
  *     modifier = Modifier.marquee(),
  * )
  * ```
@@ -102,7 +103,11 @@ enum class MarqueeTravel {
  *
  * Pair it with `maxLines = 1`. Without that the text wraps instead of
  * overflowing, there is nothing to scroll, and the modifier sits there doing
- * nothing forever.
+ * nothing forever. And with `overflow = TextOverflow.Ellipsis`, for the times
+ * it does not run (below): a text that is truncated with no ellipsis ends at a
+ * word as if that were all of it, "Elizabeth Quay" for "Elizabeth Quay Bus
+ * Station". While it runs the text is laid out in all the width it needs, and
+ * there is nothing for an ellipsis to mark.
  *
  * ### It is off under reduced motion, and that is not a degradation
  *
@@ -132,6 +137,7 @@ enum class MarqueeTravel {
  * Text(
  *     text = stop.name,
  *     maxLines = 1,
+ *     overflow = TextOverflow.Ellipsis,
  *     modifier = Modifier.marquee(travel = MarqueeTravel.BackAndForth),
  * )
  * ```

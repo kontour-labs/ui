@@ -191,7 +191,10 @@ fun Pagination(
                                     // on. When it *is* a control, `JumpGap` labels it.
                                     .clearAndSetSemantics { },
                                 style = Theme.typography.bodyMedium,
-                                colour = Theme.colours.contentSubtle,
+                                // With the pages either side of it: it stayed
+                                // `contentSubtle` on a disabled row, darker
+                                // than the grey numbers it stood between.
+                                colour = if (enabled) Theme.colours.contentSubtle else Theme.colours.contentDisabled,
                             )
                         }
                     }
@@ -348,13 +351,21 @@ private fun PageButton(number: Int, selected: Boolean, enabled: Boolean, onClick
             .focusRing(interactions, shape)
             .sizeIn(minWidth = PageButtonSize, minHeight = PageButtonSize)
             .clip(shape.clipProxy())
+            // Disabled, the current page on the sunken ground rather than the
+            // accent's: a disabled row kept its one coloured disc. Found in the
+            // November 2026 audit by `DisabledQuietnessTest`, once the contract
+            // suite took the row in.
             .background(
-                if (selected) colours.accent.container else androidx.compose.ui.graphics.Color.Transparent,
+                when {
+                    !selected -> androidx.compose.ui.graphics.Color.Transparent
+                    enabled -> colours.accent.container
+                    else -> colours.surfaceSunken
+                },
                 shape,
             )
             // At the enhanced tier every page is a button you can see the edge
             // of, as a ghost button is; the current one's edge is the accent.
-            .optionalBorder(if (selected) selectionEdge() else contrastEdge(), shape)
+            .optionalBorder(if (selected && enabled) selectionEdge() else contrastEdge(), shape)
             .pointerCursor(enabled = enabled)
             .selectable(
                 selected = selected,

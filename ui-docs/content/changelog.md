@@ -252,6 +252,46 @@ docs, in November 2026:
 - **The arrows move a `Rating`'s score**, a half at a time with `allowHalf`,
   mirrored right to left, with Home and End to its ends. Enter and Space on a
   mark gave only its whole score, so a keyboard had no way to a half.
+- **A pickable `ActivityCalendar` that is disabled says so.** Its weeks dropped
+  their actions and nothing else, so a screen reader heard the picture a
+  calendar without `onDayClick` is, and could not tell this one would pick a
+  day another time.
+- **A disabled `Table`'s headers are in the disabled grey**, with its rows.
+  They kept their colours, so the sort controls were the strongest thing on a
+  table that could not be sorted.
+- **A disabled `PageIndicator` is in the disabled grey**, its current page in
+  the grey and the rest on the sunken ground, as a slider's fill and track
+  are. Its near-black pill was the strongest mark on an indicator that could
+  not be pressed.
+- **A disabled `Pagination`'s current page is on the sunken ground**, not the
+  accent's, and its ellipses are in the disabled grey with the pages.
+- **A disabled menu item's or command's shortcut is in the disabled grey**, as
+  its label is. The key cap was the one dark thing on the row.
+- **A disabled calendar's chosen day is in the disabled grey**, as a checked
+  box's ground is, and so are its range, today's ring and the weekday initials,
+  in `CalendarMonth` and the date pickers built on it. The chosen day kept its
+  near-black fill, with a grey number on it.
+- **A day's number is never cut at large type**, in `CalendarMonth`, the date
+  pickers and an `EventCalendar`'s month. A week is at least a line of the
+  day's type tall, and a number too wide for a narrow column reaches past its
+  circle, centred, where it was wrapped or clipped: at 200%, "20" was a "2" over
+  a "0" cut at the top and bottom, and "28" was clipped to the "2".
+- **A label with a line limit ends in an ellipsis.** A list row's two lines, a
+  top bar's title and every other part with a limit of lines cut what did not
+  fit at a line's end with nothing to say there was more, which at 200% type
+  was most of a label.
+- **`Modifier.marquee`'s examples ask for an ellipsis**, for when it does not
+  run. Under reduced motion it truncates, and a text truncated with none ends
+  at a word as if that were all of it: "Elizabeth Quay" for "Elizabeth Quay Bus
+  Station".
+- **Shift+Tab no longer leaves a `CommandPalette` for the page under it.** The
+  palette's panel was a Tab stop of its own, with no ring and nothing to do,
+  and stepping back from it went out of the palette. It takes no focus now;
+  the field and the commands do.
+- **A `DisclosureListItem`'s header shows the focus ring**, just inside it. The
+  card clips the header to its shape, and cut away the ring drawn round it.
+- **A `ThumbnailStrip` shows the focus ring** that thumbnail-strip.md says it
+  has. The clip that cuts the thumbnails at its ends cut the ring away too.
 
 ---
 

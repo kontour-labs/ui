@@ -214,9 +214,14 @@ fun ThumbnailStrip(
         modifier = modifier
             .fillMaxWidth()
             .height(height)
+            // Before the clip, which a ring drawn round the strip is outside of:
+            // after it, as it was, the clip cut the ring away whole, and the
+            // strip took the keyboard and showed nothing. thumbnail-strip.md
+            // says it is "one stop, with a focus ring". Found in the November
+            // 2026 audit by `KeyboardSweepTest`.
+            .focusRing(interactions, shape, enabled = enabled)
             // The thumbnails either side run on past the ends: cut there.
             .clipToBounds()
-            .focusRing(interactions, shape, enabled = enabled)
             .selectableGroup()
             .onKeyEvent { event ->
                 if (!enabled || event.type != KeyEventType.KeyDown) return@onKeyEvent false
