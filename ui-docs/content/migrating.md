@@ -22,7 +22,8 @@ new script, two signatures grow a parameter, which only a call passing its
 arguments by position notices, and `TagJoin` grows an entry, which only a `when`
 over it notices. The rest compiles as it is and behaves
 differently, under **Check**: text fields on a phone's browser, a drag across
-steps, a sheet dragged by its content, and an overlay's first opening.
+steps, a sheet dragged by its content, the keyboard and a modal, large type,
+and an overlay's first opening.
 
 ### Replace the page's script
 
@@ -78,6 +79,14 @@ it is.
   goes a little further.
 - **A sheet dragged by its content** snaps as it reaches a detent, as one dragged
   by its handle did. A test that records haptics hears it.
+- **The keyboard and a modal.** A dialog or a modal sheet opened from the
+  keyboard takes the focus at its first control, and Tab stays in it. A test
+  that tabbed out of a dialog into the page, or expected nothing focused after
+  opening one, changes. Give the opener its focus back from `onDismissRequest`:
+  [Overlays](overlays.md#where-the-keyboard-goes).
+- **Large type.** A wheel's rows grow past 40dp once its line of text needs
+  more, and a menu's rows take a second line past a font scale of 1.3. A test
+  at large type that measured either changes.
 - **An overlay's first opening on the web.** A phone's browser draws an
   overlay's pieces once as the app appears, and a desktop's draws the commoner
   pieces once while it is idle and the reader is still. Nothing is drawn where

@@ -172,6 +172,50 @@ On `main`, and in the next release.
   was plain white or black. The page's background and its `theme-color` now
   follow the theme, dark mode included.
 
+From an audit of accessibility, localisation, layout and input against these
+docs, in November 2026:
+
+- **The keyboard stays in an open modal.** The page behind a dialog or a modal
+  sheet was kept from focus by a property that stopped at the first scrolling
+  list in it, so Tab walked out of a dialog into the page, and a sheet under a
+  dialog was a Tab away. Tab now comes round the top modal's own controls. One
+  opened from the keyboard takes the focus at its first control, rather than
+  leaving it nowhere. Where it goes on closing is the app's, and
+  [Overlays](overlays.md#where-the-keyboard-goes) shows how.
+- **A carried item is under the finger right to left.** It was drawn at the
+  mirror image of the pointer, across the screen from it, in every drop list
+  and `DocumentTabs`.
+- **Disabled controls say so, and do nothing for a screen reader.** A disabled
+  `ColourPicker`'s tracks still took `setProgress`, a disabled `Carousel` still
+  turned through its actions, and a disabled `PageIndicator`'s dots and
+  `ThumbnailStrip`'s thumbnails withheld their press without saying why.
+- **A toast with no close button can be dismissed by a screen reader**, through
+  an action named with its close label. It could only be swiped away. Its
+  reported bounds are the card's own, no longer 16dp larger.
+- **A field's error is announced as it appears**, as a polite live region.
+- **`SplitButton`'s menu half and a floating `SubMenu`'s row say whether their
+  menu is open.**
+- **A tooltip opens as the keyboard reaches its control**, as tooltip.md says,
+  on a control with no `interactionSource` passed.
+- **A `ContextMenuArea` opens from a long press over something pressable.** A
+  `clickable` inside took the press first, and the menu never came.
+- **A pressable `PageIndicator` is a Tab stop**, with the arrows along it,
+  mirrored right to left, and Home and End.
+- **A D-pad's centre activates** a calendar day, an activity calendar's cell,
+  an event chip and a knob's edit, as Enter and Space do.
+- **"+3" keeps its plus in front right to left** in an event calendar's "+3
+  more", an activity calendar's mark and an event's "+2" days.
+- **At large type, nothing is cut mid-letter.** A `Stat`'s figure, a menu
+  row's label and a `FabMenu` label end in an ellipsis, and a menu's row takes a
+  second line past a font scale of 1.3. A wheel's row is never shorter than its
+  line of text. A `NavRail` section title and a `Pagination` jump field grow
+  with the type, and the field's hint is in the reader's digits.
+- **A `TagGroup` too narrow for all of it gives every part a share.** A wide
+  first part took the room, and the parts after it vanished while a screen
+  reader still read them.
+- **A standalone `Checkbox` shows the hand**, and a sheet's handle and a pane's
+  splitter draw no hover for a stylus.
+
 ---
 
 ## 0.5.3 — 4 November 2026
