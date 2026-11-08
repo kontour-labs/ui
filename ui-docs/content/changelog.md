@@ -226,6 +226,8 @@ docs, in November 2026:
   the grey and the rest on the sunken ground, as a slider's fill and track
   are. Its near-black pill was the strongest mark on an indicator that could
   not be pressed.
+- **A disabled `Pagination`'s current page is on the sunken ground**, not the
+  accent's, and its ellipses are in the disabled grey with the pages.
 
 ---
 
