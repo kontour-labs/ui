@@ -222,6 +222,10 @@ docs, in November 2026:
 - **A disabled `Table`'s headers are in the disabled grey**, with its rows.
   They kept their colours, so the sort controls were the strongest thing on a
   table that could not be sorted.
+- **A disabled `PageIndicator` is in the disabled grey**, its current page in
+  the grey and the rest on the sunken ground, as a slider's fill and track
+  are. Its near-black pill was the strongest mark on an indicator that could
+  not be pressed.
 
 ---
 

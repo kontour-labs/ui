@@ -937,6 +937,14 @@ private fun PageDots(
     // by colour. At the enhanced tier that is not enough, so it rests the way
     // `Pill` does — the current dot widened — and still travels like a worm.
     val style = if (highContrast() && requestedStyle == PageIndicatorStyle.Worm) PageIndicatorStyle.Pill else requestedStyle
+    // Disabled, the current page in the disabled grey and the rest on the
+    // sunken ground, as a slider's fill and track are; the current one is
+    // still the wide one. They kept their colours, so the strongest mark on an
+    // indicator that could not be pressed was its near-black pill. Found in the
+    // November 2026 audit by `DisabledQuietnessTest`, once the contract suite
+    // took the indicator in.
+    val active = if (enabled) activeColour else Theme.colours.contentDisabled
+    val inactive = if (enabled) inactiveColour else Theme.colours.surfaceSunken
     val count = state.pageCount
     val current = state.currentPage
     val keys = remember { MutableInteractionSource() }
@@ -1157,7 +1165,7 @@ private fun PageDots(
                         // "Left" and "right" along the axis: down the column
                         // when it runs down.
                         drawRoundRect(
-                            color = activeColour,
+                            color = active,
                             topLeft = if (vertical) {
                                 Offset((size.width - dotRadius * 2f) / 2f, left)
                             } else {
@@ -1256,7 +1264,7 @@ private fun PageDots(
                     shape = Theme.shapes.capsule,
                     // Under a travelling style every dot is a track, and the pill
                     // drawn over them is what says which page this is.
-                    containerColour = if (wide) activeColour else inactiveColour,
+                    containerColour = if (wide) active else inactive,
                     content = {},
                 )
             }
