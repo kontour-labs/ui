@@ -231,6 +231,9 @@ docs, in November 2026:
   the foot of each, and stay inside the window by the left wall. They leaned up
   and to the right in every language, so a right-to-left label read downhill
   into its button.
+- **`CircularProgress` runs counter-clockwise right to left**, as
+  `CircularStepProgress` and the bars do. It ran clockwise in every language,
+  beside a stepped ring that did not.
 
 ---
 

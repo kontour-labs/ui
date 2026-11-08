@@ -163,6 +163,9 @@ fun LinearProgress(
  * avatar, a download around an icon. For plain "we are working on it", use
  * [Spinner], which is lighter and reads as activity rather than as a measurable
  * quantity.
+ *
+ * Clockwise from twelve o'clock, and counter-clockwise in a right-to-left
+ * language, as [CircularStepProgress] runs.
  */
 @Composable
 fun CircularProgress(
@@ -207,6 +210,10 @@ fun CircularProgress(
     Canvas(
         modifier
             .size(size)
+            // Counter-clockwise right to left, as the stepped ring and the bars
+            // are. It alone ran clockwise in every language, and progress.md
+            // says the two rings read as one. Found in the November 2026 audit.
+            .mirrorInRtl()
             .semantics {
                 if (contentDescription != null) this.contentDescription = contentDescription
                 progressBarRangeInfo = ProgressBarRangeInfo(current = clamped, range = 0f..1f)

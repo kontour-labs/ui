@@ -95,7 +95,7 @@ nothing for every step, rather than guessing which step a missing one was.
 
 **`CircularStepProgress` is the same steps round a ring**, one arc a step,
 clockwise from twelve o'clock and counter-clockwise in a right-to-left
-language. It moves through the same animation as the row, so its fill, its
+language, as `CircularProgress` runs. It moves through the same animation as the row, so its fill, its
 melt, its chase and its still stub under reduced motion are the row's, and the
 two read as one thing on one screen. Its gaps are measured along the ring and
 leave room for the round ends, so the gap you see is the `gap` you pass.
