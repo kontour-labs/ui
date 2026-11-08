@@ -12,6 +12,10 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.down
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.test.performKeyInput
+import androidx.compose.ui.test.pressKey
+import androidx.compose.ui.test.withKeysDown
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performTouchInput
@@ -38,6 +42,8 @@ import kotlin.test.assertEquals
  * - `ContextMenuArea` looked for its long press in the main pass, after a
  *   `clickable` inside had taken the press, so over a row or a card that can
  *   be pressed a long press never opened it.
+ * - `ContextMenuArea` had no keyboard route at all, where `DocumentTabs` had
+ *   Shift+F10 and the menu key.
  */
 @OptIn(ExperimentalTestApi::class)
 class OpensWithoutAPointerTest {
@@ -79,6 +85,27 @@ class OpensWithoutAPointerTest {
         frames(30)
         onNodeWithText("Rename").assertExists("a long press over a pressable row did not open its context menu")
         assertEquals(0, pressed, "the long press that opened the menu pressed the row as well")
+    }
+
+    @Test
+    fun shiftF10OrTheMenuKeyOpensTheContextMenuFromTheFocusInside() {
+        for (keys in listOf(listOf(Key.ShiftLeft, Key.F10), listOf(Key.Menu))) {
+            runComposeUiTest {
+                mainClock.autoAdvance = false
+                setContent {
+                    Screen(InputModality.Keyboard) {
+                        ContextMenuArea(menu = { item("Rename") {} }) {
+                            Box(Modifier.size(200.dp, 60.dp).testTag("row").clickable {})
+                        }
+                    }
+                }
+                frames(10)
+                onNodeWithTag("row").requestFocus()
+                onNodeWithTag("row").performKeyInput { withKeysDown(keys.dropLast(1)) { pressKey(keys.last()) } }
+                frames(30)
+                onNodeWithText("Rename").assertExists("${keys.joinToString("+")} did not open the context menu")
+            }
+        }
     }
 
     @Composable

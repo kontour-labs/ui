@@ -238,6 +238,9 @@ docs, in November 2026:
   finger**, 48dp on Android and 44 on iOS, and as tall as the chip. It was the
   24dp it is drawn. The chip is the difference wider on a phone, with the cross
   where it was at its end; under a mouse nothing moves.
+- **Shift+F10 or the menu key opens a `ContextMenuArea`'s menu**, from the focus
+  anywhere in its content, below the area. It opened by a pointer alone, where
+  `DocumentTabs` had both keys.
 
 ---
 

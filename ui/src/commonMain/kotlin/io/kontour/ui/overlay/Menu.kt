@@ -90,6 +90,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.input.key.KeyEvent
+import androidx.compose.ui.input.key.isShiftPressed
+import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
@@ -1489,6 +1493,11 @@ private const val MaxActions: Int = 4
  * secondary click cannot happen on a touchscreen. Both are wired, and the long
  * press is gated on the active [io.kontour.ui.input.InputModality].
  *
+ * **And the keyboard's.** Shift+F10, or the menu key, while the focus is in
+ * [content] opens the menu below it, as `DocumentTabs` does. The area takes no
+ * focus of its own: the key comes up from whatever in [content] has it, so
+ * content with nothing to focus has no keyboard route, and wants one.
+ *
  * A context menu should never be the *only* way to reach an action. Anything in
  * here needs a visible route too.
  */
@@ -1531,6 +1540,16 @@ fun ContextMenuArea(
     Box(
         modifier = modifier
             .onGloballyPositioned { coordinates = it }
+            // Below the whole area, as a dropdown hangs: the keyboard has no
+            // point to open at. It had no way in at all, where `DocumentTabs`
+            // had this one. Found in the November 2026 audit.
+            .onKeyEvent { event ->
+                if (!enabled || !event.opensContextMenu()) return@onKeyEvent false
+                val coords = coordinates?.takeIf { it.isAttached } ?: return@onKeyEvent false
+                anchor = coords.boundsInRoot()
+                open = true
+                true
+            }
             .pointerInput(enabled) {
                 if (!enabled) return@pointerInput
                 awaitPointerEventScope {
@@ -1587,6 +1606,15 @@ fun ContextMenuArea(
         content = menu,
     )
 }
+
+/**
+ * Shift+F10, or the menu key: what opens a context menu from the keyboard on
+ * Windows, Linux and in a browser. Shift+F10 is the one to rely on: Compose
+ * reports the menu key on Android, and on the desktop not at all. Moved here
+ * from `DocumentTabs` when [ContextMenuArea] took it too.
+ */
+internal fun KeyEvent.opensContextMenu(): Boolean =
+    type == KeyEventType.KeyDown && (key == Key.Menu || (key == Key.F10 && isShiftPressed))
 
 /**
  * The least room a menu opens into, on the side it was asked for, before it tries

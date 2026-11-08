@@ -1,5 +1,6 @@
 package io.kontour.ui.nav
 
+import io.kontour.ui.overlay.opensContextMenu
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationVector1D
 import androidx.compose.animation.core.animateDpAsState
@@ -69,7 +70,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.input.key.KeyEventType
-import androidx.compose.ui.input.key.isShiftPressed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
@@ -668,7 +668,7 @@ private fun Modifier.opensMenu(label: String, open: (at: Rect) -> Unit): Modifie
         .onPlaced { placed[0] = it }
         .semantics { customActions = listOf(CustomAccessibilityAction(label) { at(null)?.let(latest); true }) }
         .onKeyEvent { event ->
-            if (!event.opensMenu()) return@onKeyEvent false
+            if (!event.opensContextMenu()) return@onKeyEvent false
             at(null)?.let(latest)
             true
         }
@@ -678,14 +678,6 @@ private fun Modifier.opensMenu(label: String, open: (at: Rect) -> Unit): Modifie
             at(local)?.let(latest)
         }
 }
-
-/**
- * Shift+F10, or the menu key: what opens a context menu from the keyboard on
- * Windows, Linux and in a browser. Shift+F10 is the one to rely on: Compose
- * reports the menu key on Android, and on the desktop not at all.
- */
-private fun KeyEvent.opensMenu(): Boolean =
-    type == KeyEventType.KeyDown && (key == Key.Menu || (key == Key.F10 && isShiftPressed))
 
 /**
  * A finger or a stylus held still on this node for a long press: [onHold],
@@ -878,7 +870,7 @@ private fun DragItemScope.DocumentTab(
                 .focusProperties { canFocus = tabStop }
                 .onKeyEvent { event ->
                     val opens = onMenu
-                    if (opens != null && event.opensMenu()) {
+                    if (opens != null && event.opensContextMenu()) {
                         menuAt(null)?.let(opens)
                         true
                     } else {

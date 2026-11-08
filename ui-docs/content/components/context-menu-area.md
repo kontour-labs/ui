@@ -32,6 +32,11 @@ is not an affordance. Anything reachable *only* through this menu is unreachable
 for someone who can do neither, so a context menu must duplicate actions that
 exist elsewhere rather than be the only place they live.
 
+From the keyboard, Shift+F10 or the menu key opens it while the focus is
+anywhere in the content, and it hangs below the area as a dropdown does. The
+area takes no focus of its own, so content with nothing focusable in it has no
+keyboard route to its menu.
+
 The menu itself is a [`DropdownMenu`](dropdown-menu.md) and behaves as one once
 open: focus, arrow keys, typeahead, Escape.
 
