@@ -234,6 +234,10 @@ docs, in November 2026:
 - **`CircularProgress` runs counter-clockwise right to left**, as
   `CircularStepProgress` and the bars do. It ran clockwise in every language,
   beside a stepped ring that did not.
+- **An `InputChip`'s remove button is the platform's minimum wide under a
+  finger**, 48dp on Android and 44 on iOS, and as tall as the chip. It was the
+  24dp it is drawn. The chip is the difference wider on a phone, with the cross
+  where it was at its end; under a mouse nothing moves.
 
 ---
 

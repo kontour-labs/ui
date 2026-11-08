@@ -61,6 +61,10 @@ with the label in a slot there is no string to interpolate, and a bare "Remove"
 in a row of five chips tells a screen-reader user nothing about which one goes.
 The remove button is a separate target with its own description, so a screen
 reader offers "Perth Station" and "Remove Perth Station" as distinct actions.
+Under a finger its target is the platform's minimum wide, 48dp on Android and
+44 on iOS, with the cross at the chip's end, and as tall as the chip: the chip
+grows wider rather than taller than the chips beside it. Under a mouse it is the
+24dp it is drawn.
 
 ### A count at the end
 

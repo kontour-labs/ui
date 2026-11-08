@@ -54,6 +54,9 @@ import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.selectionEdge
 import io.kontour.ui.interaction.rememberToggleFeedback
 import io.kontour.ui.a11y.minimumTouchTarget
+import io.kontour.ui.a11y.TouchTargetDefaults
+import io.kontour.ui.input.LocalInputModality
+import androidx.compose.foundation.indication
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.LocalContentColour
 import io.kontour.ui.foundation.LocalContentColourInMotion
@@ -75,6 +78,40 @@ import io.kontour.ui.theme.invisible
 import io.kontour.ui.theme.animateComponentColour
 
 private val ChipHeight = 34.dp
+
+/** The room between an input chip's remove button and its end. */
+private val RemoveEndInset = 4.dp
+
+/**
+ * The target round an input chip's remove button: the platform's minimum wide,
+ * with the button and then [endInset] at its end, and as tall as the minimum
+ * allows inside a chip [chipHeight] tall.
+ *
+ * Not `minimumTouchTarget`, which would make every chip with a remove button
+ * 48dp tall on a phone, beside chips 34dp tall. The width is where the room is:
+ * the chip's own end inset is inside the target rather than beside it, so where
+ * a pointer's minimum is no wider than the button and its inset, as on a desktop,
+ * the chip is laid out as it was. On a phone the chip is the difference wider,
+ * the button keeps its place at the end, and the target was 24dp until the
+ * November 2026 audit.
+ */
+@Composable
+private fun Modifier.removeTarget(chipHeight: Dp, endInset: Dp): Modifier {
+    val minimum = if (LocalInputModality.current.needsLargeTargets) {
+        Theme.sizing.minTouchTarget
+    } else {
+        TouchTargetDefaults.PointerMinimum
+    }
+    return layout { measurable, constraints ->
+        val button = measurable.measure(constraints.copy(minWidth = 0, minHeight = 0))
+        val inset = endInset.roundToPx()
+        val width = maxOf(button.width + inset, minimum.roundToPx())
+        val height = maxOf(button.height, minOf(minimum, chipHeight).roundToPx())
+        layout(width, height) {
+            button.placeRelative(width - inset - button.width, (height - button.height) / 2)
+        }
+    }
+}
 
 /**
  * The gap between a chip's tick and its label.
@@ -418,9 +455,10 @@ fun InputChip(
                     Modifier
                 }
             )
-            // The remove button brings its own 4dp to the end; without one the
-            // end is the start's, as every other chip's is.
-            .padding(start = Theme.spacing.sm, end = if (removeIcon != null) 4.dp else Theme.spacing.sm),
+            // The remove button brings its own 4dp to the end, inside its
+            // target (see `removeTarget`); without one the end is the start's,
+            // as every other chip's is.
+            .padding(start = Theme.spacing.sm, end = if (removeIcon != null) 0.dp else Theme.spacing.sm),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -436,19 +474,23 @@ fun InputChip(
                 val removeInteractions = remember { MutableInteractionSource() }
                 Row(
                     Modifier
-                        .focusRing(removeInteractions, Theme.shapes.control)
-                        .clip(Theme.shapes.control.clipProxy())
                         .pointerCursor(enabled = enabled)
+                        // On the target, so a press anywhere in it removes; the
+                        // press is drawn on the 24dp button inside.
                         .clickable(
                             enabled = enabled,
                             role = Role.Button,
                             onClickLabel = removeLabel,
                             interactionSource = removeInteractions,
-                            indication = kontourIndication(Theme.shapes.control),
+                            indication = null,
                             onClick = {
                                 onRemove()
                             },
                         )
+                        .removeTarget(ChipHeight, RemoveEndInset)
+                        .focusRing(removeInteractions, Theme.shapes.control)
+                        .clip(Theme.shapes.control.clipProxy())
+                        .indication(removeInteractions, kontourIndication(Theme.shapes.control))
                         .padding(4.dp)
                 ) {
                     Icon(removeIcon, contentDescription = removeLabel, size = Theme.sizing.iconSmall)
