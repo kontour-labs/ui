@@ -1798,6 +1798,29 @@ private fun ToastCard(
             depth = depth,
             showClose = showClose && depth == 0 && toast.dismissible,
             gatheredCount = if (merged) gather.members.size else null,
+            // What holding the stack does, for a reader who cannot hold it.
+            //
+            // And what the swipe does, when the card has no close button to do
+            // it: a dismissible toast with no close, no action and no clock
+            // could otherwise only be swiped away, a gesture a screen reader
+            // cannot make. Found in the November 2026 audit.
+            //
+            // On the card's own node, inside the swipe's ring: set out here, on
+            // the modifier, they made a node of their own that took in the
+            // ring, and the toast was reported 16dp larger than it is drawn.
+            actions = if (depth != 0) emptyList() else buildList {
+                if (toast.dismissible && !showClose) {
+                    add(CustomAccessibilityAction(closeLabel) { state.dismissByHand(toast.id); true })
+                }
+                if (canGather()) {
+                    add(
+                        CustomAccessibilityAction(strings.dismissAll) {
+                            sendAway(gatherable().mapTo(mutableSetOf()) { it.id }, from = null)
+                            true
+                        },
+                    )
+                }
+            },
             closeLabel = closeLabel,
             closeIcon = closeIcon,
             countdown = countdown,
@@ -1806,21 +1829,6 @@ private fun ToastCard(
                 .then(if (depth == 0) Modifier.pointerHovers(hovered) else Modifier)
                 // And so does keyboard focus on its action or its close.
                 .then(if (depth == 0) Modifier.onFocusChanged { focused.value = it.hasFocus } else Modifier)
-                // What holding the stack does, for a reader who cannot hold it.
-                .then(
-                    if (depth == 0 && canGather()) {
-                        Modifier.semantics {
-                            customActions = listOf(
-                                CustomAccessibilityAction(strings.dismissAll) {
-                                    sendAway(gatherable().mapTo(mutableSetOf()) { it.id }, from = null)
-                                    true
-                                },
-                            )
-                        }
-                    } else {
-                        Modifier
-                    }
-                )
                 // The gesture is the outermost thing, above the padding — and
                 // that is the point. Below it the swipe area was exactly the
                 // visible pill and the 16dp ring around it was dead space, on a
@@ -2050,6 +2058,8 @@ private fun ToastSurface(
     depth: Int,
     /** How many are gathered under it, where the stack is held to go whole; null otherwise. */
     gatheredCount: Int?,
+    /** What a screen reader can do with it that a hand does by gesture. */
+    actions: List<CustomAccessibilityAction>,
     modifier: Modifier,
     onAction: () -> Unit,
     onClose: () -> Unit,
@@ -2072,6 +2082,7 @@ private fun ToastSurface(
                 } else {
                     LiveRegionMode.Polite
                 }
+                if (actions.isNotEmpty()) customActions = actions
             },
         shape = Theme.shapes.capsule,
         containerColour = container,
