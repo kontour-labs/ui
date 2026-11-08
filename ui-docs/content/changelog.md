@@ -243,6 +243,10 @@ docs, in November 2026:
   top bar's title and every other part with a limit of lines cut what did not
   fit at a line's end with nothing to say there was more, which at 200% type
   was most of a label.
+- **`Modifier.marquee`'s examples ask for an ellipsis**, for when it does not
+  run. Under reduced motion it truncates, and a text truncated with none ends
+  at a word as if that were all of it: "Elizabeth Quay" for "Elizabeth Quay Bus
+  Station".
 
 ---
 
