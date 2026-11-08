@@ -253,6 +253,8 @@ docs, in November 2026:
   the field and the commands do.
 - **A `DisclosureListItem`'s header shows the focus ring**, just inside it. The
   card clips the header to its shape, and cut away the ring drawn round it.
+- **A `ThumbnailStrip` shows the focus ring** that thumbnail-strip.md says it
+  has. The clip that cuts the thumbnails at its ends cut the ring away too.
 
 ---
 
