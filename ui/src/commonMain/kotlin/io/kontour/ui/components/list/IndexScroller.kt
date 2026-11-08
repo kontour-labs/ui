@@ -60,7 +60,9 @@ import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.a11y.TouchTargetDefaults
 import io.kontour.ui.interaction.DragClaim
+import io.kontour.ui.interaction.BoundaryHysteresis
 import io.kontour.ui.interaction.rememberDetentTicker
+import io.kontour.ui.interaction.stickyPick
 import io.kontour.ui.interaction.verticalDragOwning
 import io.kontour.ui.overlay.OverlayAlignment
 import io.kontour.ui.overlay.OverlaySide
@@ -225,6 +227,9 @@ fun IndexScroller(
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val scope = rememberCoroutineScope()
     val ticker = rememberDetentTicker()
+    // The letter the drag is on, for the give at each slot's edge: see `pick`.
+    val picked = remember { intArrayOf(-1) }
+    val hysteresisPx = with(density) { BoundaryHysteresis.toPx() }
     // The label under the finger, by what it says rather than where it is in
     // the alphabet: an alphabet changed under the finger keeps its letters, not
     // its positions, so an index carried across would say another letter.
@@ -257,12 +262,23 @@ fun IndexScroller(
         // out for, so a pick between an alphabet changing and the rail being
         // measured again cannot pair one alphabet's place with another's letter.
         val rail = geometry.layout
-        val index = labelAt(y, rail.slots, rail.top, rail.slotPx)
-        if (index < 0) return
         if (tickedIn.labels !== rail.labels) {
             tickedIn.labels = rail.labels
             ticker.reset()
+            picked[0] = -1
         }
+        // With give at each slot's edge: a finger resting on one wobbles across
+        // it, and each wobble was a letter reached, with a tick and a jump of
+        // the list. See `stickyStretch`.
+        //
+        // No more give than a third of the smallest letter, though: on a rail
+        // folded into dots a letter can be a few pixels tall, and the full
+        // margin held the finger on one while it passed over the next.
+        val longestRun = rail.slots.maxOfOrNull { (it as? IndexSlot.Dot)?.let { dot -> dot.last - dot.first + 1 } ?: 1 } ?: 1
+        val give = minOf(hysteresisPx, rail.slotPx / longestRun / 3f)
+        val index = stickyPick(picked[0], y, give) { labelAt(it, rail.slots, rail.top, rail.slotPx) }
+        if (index < 0) return
+        picked[0] = index
         ticker.at(index)
         val label = rail.labels[index]
         if (label != touched) {

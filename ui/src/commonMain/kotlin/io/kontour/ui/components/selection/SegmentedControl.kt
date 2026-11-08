@@ -44,7 +44,9 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.style.TextOverflow
+import io.kontour.ui.interaction.BoundaryHysteresis
 import io.kontour.ui.interaction.FeedbackIntent
+import io.kontour.ui.interaction.stickyStretch
 import io.kontour.ui.interaction.rememberTapFeedback
 import io.kontour.ui.foundation.LocalTextStyle
 import io.kontour.ui.foundation.ProvideContentColourInMotion
@@ -321,6 +323,7 @@ fun SegmentedControl(
 
     /** See [EndStopTravel]. Read once; both the pull and the squash use it. */
     val endStopTravelPx = with(LocalDensity.current) { EndStopTravel.toPx() }
+    val hysteresisPx = with(LocalDensity.current) { BoundaryHysteresis.toPx() }
 
     /**
      * Where the finger is along the track, or `NaN` before the first drag.
@@ -652,11 +655,14 @@ fun SegmentedControl(
 
         fun selectAt(along: Float) {
             if (trackLength <= 0f) return
-            val fraction = (along / trackLength).coerceIn(0f, 1f)
-            val raw = (fraction * options.size).toInt().coerceIn(options.indices)
+            val segment = trackLength / options.size
             // Mirrored along a row and never down a column: a stacked track runs
             // top to bottom in every script.
-            val index = if (isRtl && !stacked) options.size - 1 - raw else raw
+            fun mirrored(i: Int) = if (isRtl && !stacked) options.size - 1 - i else i
+            // With give at each boundary: a finger resting on one wobbles across
+            // it, and each wobble was a snap and a change. See `stickyStretch`.
+            val raw = stickyStretch(along / segment, mirrored(currentSelected), options.size, hysteresisPx / segment)
+            val index = mirrored(raw)
             // Once per segment crossed, the way a stepped slider ticks: a user
             // dragging without looking can feel where the boundaries are. The
             // ticker owns the guard now — it used to be "the index changed",

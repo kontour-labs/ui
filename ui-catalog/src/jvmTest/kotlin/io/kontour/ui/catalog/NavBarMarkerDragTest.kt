@@ -145,6 +145,31 @@ class NavBarMarkerDragTest {
     }
 
     /**
+     * A finger resting halfway between two destinations wobbles a pixel or two
+     * either side of the halfway point, and each wobble used to reach the other
+     * destination, with a snap: the segmented control's double haptic, in the
+     * bar. Over the halfway point plainly, then trembling on it, is one snap.
+     */
+    @Test
+    fun aFingerWobblingHalfwaySnapsOnce() {
+        val bar = bar()
+        bar.scene.use { scene ->
+            val half = (items[0].center.x + items[1].center.x) / 2f
+            val y = items[0].center.y
+            scene.press(centre(0))
+            scene.frames(1)
+            for (x in listOf(half - 60f, half - 30f, half + 30f, half + 2f, half - 2f, half + 2f, half - 2f, half - 1f, half + 3f)) {
+                scene.move(Offset(x, y))
+                scene.frame()
+                Thread.sleep(30)
+            }
+            scene.release(Offset(half + 3f, y))
+            scene.frames(4)
+            assertEquals(1, bar.felt.count { it == FeedbackIntent.Snap }, "trembling halfway felt ${bar.felt}")
+        }
+    }
+
+    /**
      * Asked for as: press the third destination while the first is chosen,
      * drag on to the fourth, and feel the marker go to the third as well as
      * the fourth. The ticker used to arm on the destination under the finger,

@@ -62,6 +62,7 @@ import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.Measurable
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
+import io.kontour.ui.interaction.BoundaryHysteresis
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
@@ -818,6 +819,7 @@ private fun DayColumn(scope: CalendarScope, date: LocalDate, modifier: Modifier)
     val nowColour = colours.accent.solid
     val nowShape = Theme.shapes.pill
     val hourPx = with(density) { scope.hourHeight.toPx() }
+    val givePx = with(density) { BoundaryHysteresis.toPx() }
     // Every event as tall as its time, so an hour is an hour whatever is in
     // it and a quarter-hour's edge is on the quarter: no shorter than a step,
     // the least an edit makes, for one with no length at all. Grown to fit
@@ -908,6 +910,7 @@ private fun DayColumn(scope: CalendarScope, date: LocalDate, modifier: Modifier)
                 val known = edit.columns[placed]
                 if (known == null || known.coordinates !== coordinates || known.date != date) edit.columns[placed] = DayPlace(date, coordinates)
                 edit.pixelsPerMinute = hourPx / MinutesPerHour
+                edit.givePx = givePx
                 if (!creates) {
                     edit.draggables.remove(placed)
                 } else if (edit.draggables[placed] !== coordinates) {

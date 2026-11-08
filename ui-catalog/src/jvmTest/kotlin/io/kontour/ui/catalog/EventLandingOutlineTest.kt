@@ -307,9 +307,14 @@ class EventLandingOutlineTest {
             stops = { placed, from ->
                 val hour = placed.getValue("review").height + 2f
                 listOf(
-                    // Three minutes short of the next hour: the end on it, the copy's foot above it.
-                    from + Offset(0f, hour - hour / 20f),
-                    from + Offset(0f, hour * 2f - hour / 20f),
+                    // A minute and a half short of the next hour: the end on it,
+                    // the copy's foot above it. Three minutes short, it was, until
+                    // a drag had to be a few pixels past half a step to take the
+                    // next one (see `stickyStretch`): at this scale that put the
+                    // finger, floored to the minute, inside the give, and the end
+                    // stayed on the quarter before.
+                    from + Offset(0f, hour - hour / 40f),
+                    from + Offset(0f, hour * 2f - hour / 40f),
                 )
             },
         ),

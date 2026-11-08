@@ -124,6 +124,22 @@ On `main`, and in the next release.
   one context for each canvas: 0–8ms a step, and 18MB throughout. **If your app's
   page has the script from [The page's script](installing.md#the-pages-script),
   replace it with the new one.**
+- **A drag across steps is felt once per step, however still the finger.** A
+  finger resting on the boundary between two segments, two destinations, two
+  letters or two quarter-hours is reported a pixel or two either side of it,
+  frame to frame, and each of those reports crossed the boundary again: a
+  haptic, and the selection, the marker, the list or the event moving back and
+  forth. A segmented control's drag that paused near a boundary was felt seven
+  times in a test of two pixels' wobble. The boundary now has a few pixels'
+  give, 4dp past it before the next step is taken, in `SegmentedControl`, a
+  `NavBar` or `NavRail` marker's drag, `IndexScroller`, `ThumbnailStrip`'s scrub
+  and an event dragged or resized in `EventCalendar`.
+- **A sheet dragged by its content snaps as it reaches a detent.** A sheet is
+  moved by a list inside it, pulled past its top, as often as by its handle,
+  and that drag reaches the sheet through nested scrolling, which was left out
+  of what counted as a hand on the sheet: no haptic as it reached a detent, and
+  none as it landed there. It is felt the same now whichever part was held. A
+  list scrolled inside a still sheet stays quiet.
 - **The page round the canvas is the theme's background, in every browser.** On
   a phone that is what shows behind the status bar and the address bar, and it
   was plain white or black. The page's background and its `theme-color` now

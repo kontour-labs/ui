@@ -54,7 +54,9 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
+import io.kontour.ui.interaction.BoundaryHysteresis
 import io.kontour.ui.interaction.FeedbackIntent
+import io.kontour.ui.interaction.stickyStretch
 import io.kontour.ui.interaction.rememberDetentTicker
 import io.kontour.ui.theme.Theme
 import kotlin.math.abs
@@ -140,6 +142,7 @@ fun ThumbnailStrip(
     // The pages near enough the middle to be drawn: as few as fill the strip.
     var stripWidth by remember { mutableIntStateOf(0) }
     val narrowPx = with(LocalDensity.current) { (narrow + gap).toPx() }
+    val hysteresisPx = with(LocalDensity.current) { BoundaryHysteresis.toPx() }
     // The count is read here, not closed over: this is remembered across
     // recompositions, so a count taken from the first one stayed as it was. A
     // carousel that lost pages went on composing thumbnails for them, and one
@@ -232,6 +235,8 @@ fun ThumbnailStrip(
                     var travelled = 0f
                     var start = state.pagePosition
                     var dragging = false
+                    // The page the scrub is on, for the give between two: see below.
+                    var ticked = -1
                     // Up and down, as a list round the strip scrolls: not a press.
                     var wandered = 0f
                     // Every event, the still ones and the lift included, so a
@@ -257,7 +262,11 @@ fun ThumbnailStrip(
                         val along = if (rtl) travelled else -travelled
                         val target = (start + along / narrowPx).coerceIn(0f, (latestCount - 1).coerceAtLeast(0).toFloat())
                         scrub.floatValue = target
-                        ticker.at(target.roundToInt())
+                        // The page nearest, with give halfway between two: a
+                        // finger resting there wobbles across it, and each wobble
+                        // was a snap. See `stickyStretch`.
+                        ticked = stickyStretch(target + 0.5f, ticked, latestCount.coerceAtLeast(1), hysteresisPx / narrowPx)
+                        ticker.at(ticked)
                         state.requestPageAt(target)
                     }
                     if (!dragging) {
