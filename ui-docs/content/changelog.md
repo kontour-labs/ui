@@ -234,6 +234,11 @@ docs, in November 2026:
   box's ground is, and so are its range, today's ring and the weekday initials,
   in `CalendarMonth` and the date pickers built on it. The chosen day kept its
   near-black fill, with a grey number on it.
+- **A day's number is never cut at large type**, in `CalendarMonth`, the date
+  pickers and an `EventCalendar`'s month. A week is at least a line of the
+  day's type tall, and a number too wide for a narrow column reaches past its
+  circle, centred, where it was wrapped or clipped: at 200%, "20" was a "2" over
+  a "0" cut at the top and bottom, and "28" was clipped to the "2".
 
 ---
 

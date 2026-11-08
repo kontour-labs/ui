@@ -68,6 +68,7 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.minimumTouchTarget
@@ -372,7 +373,14 @@ fun CalendarMonth(
         // size, so the number does not move up to make room for one.
         val decorationLine = with(LocalDensity.current) { Theme.typography.labelSmall.lineHeight.toDp() }
         val lined = showDecorationLine
-        val rowHeight = minOf(cellSize, MaxRowHeight) + if (lined) decorationLine else 0.dp
+        // And never shorter than a line of the day's own type. At 200% a day's
+        // number is a 38dp line, and a week as tall as a narrow cell is wide,
+        // 35dp, cut every number at its top and bottom. Found in the November
+        // 2026 audit by `LargeTypeSweepTest`.
+        val numberLine = with(LocalDensity.current) {
+            maxOf(Theme.typography.bodyMedium.lineHeight.toDp(), Theme.typography.labelMedium.lineHeight.toDp())
+        }
+        val rowHeight = maxOf(minOf(cellSize, MaxRowHeight), numberLine) + if (lined) decorationLine else 0.dp
         val colours = Theme.colours
         // The dwell arrow's ring: a line and a half, thickening with the tier.
         val arrowStroke = Theme.sizing.lines(1.5f)
@@ -1018,6 +1026,13 @@ private fun DayCell(
                         text = formats.digits(date.day.toLong()),
                         style = dayStyle,
                         colour = label,
+                        // A date is never broken over two lines. Measured at
+                        // its own width below, and centred, so a number wider
+                        // than a narrow cell at a large type size reaches past
+                        // its circle on both sides rather than wrapping "20"
+                        // into a "2" over a "0" that the row then cut.
+                        maxLines = 1,
+                        softWrap = false,
                         modifier = Modifier.layoutId(DayPart.Number),
                     )
                     if (lined && decoration != null && decoration.lined) {
@@ -1079,7 +1094,7 @@ private fun DayCell(
                 },
             ) { measurables, constraints ->
                 val loose = constraints.copy(minWidth = 0, minHeight = 0)
-                val number = measurables.first { it.layoutId == DayPart.Number }.measure(loose)
+                val number = measurables.first { it.layoutId == DayPart.Number }.measure(Constraints())
                 val note = measurables.firstOrNull { it.layoutId == DayPart.Line }?.measure(loose)
                 val dot = measurables.firstOrNull { it.layoutId == DayPart.Marker }?.measure(loose)
                 val width = constraints.maxWidth
