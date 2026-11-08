@@ -219,6 +219,9 @@ docs, in November 2026:
   their actions and nothing else, so a screen reader heard the picture a
   calendar without `onDayClick` is, and could not tell this one would pick a
   day another time.
+- **A disabled `Table`'s headers are in the disabled grey**, with its rows.
+  They kept their colours, so the sort controls were the strongest thing on a
+  table that could not be sorted.
 
 ---
 
