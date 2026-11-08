@@ -1,5 +1,6 @@
 package io.kontour.ui.adaptive
 
+import io.kontour.ui.input.LocalInputModality
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.animation.AnimatedContent
@@ -560,7 +561,11 @@ private fun ResizeHandle(
     // the platform's minimum, with the line still drawn down its middle.
     val precise = windowAdaptiveInfo.isPrecise
     val interactions = remember { MutableInteractionSource() }
-    val hovered by interactions.collectIsHoveredAsState()
+    // Drawn only where the pointer can hover: a stylus held over the screen
+    // reports hover too, and accessibility.md says a stylus gets no hover
+    // state. Found in the November 2026 audit.
+    val hoverable = LocalInputModality.current.supportsHover
+    val hovered = interactions.collectIsHoveredAsState().value && hoverable
 
     // A divider's weight, so it thickens with the tier as the dividers beside it do.
     val line = Theme.sizing.dividerThickness.value

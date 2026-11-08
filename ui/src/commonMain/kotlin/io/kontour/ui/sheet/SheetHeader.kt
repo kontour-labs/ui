@@ -1,5 +1,6 @@
 package io.kontour.ui.sheet
 
+import io.kontour.ui.input.LocalInputModality
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -90,7 +91,11 @@ fun DragHandle(
     val scope = rememberCoroutineScope()
     val motion = Theme.motion
     val interactions = remember { MutableInteractionSource() }
-    val hovered by interactions.collectIsHoveredAsState()
+    // Drawn only where the pointer can hover: a stylus held over the screen
+    // reports hover too, and accessibility.md says a stylus gets no hover
+    // state. Found in the November 2026 audit.
+    val hoverable = LocalInputModality.current.supportsHover
+    val hovered = interactions.collectIsHoveredAsState().value && hoverable
     val pressed by interactions.collectIsPressedAsState()
     val engaged = hovered || pressed
 
