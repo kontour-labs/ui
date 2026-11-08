@@ -50,6 +50,7 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.util.lerp
+import io.kontour.ui.components.datetime.wheelRowHeight
 import io.kontour.ui.a11y.highContrast
 import io.kontour.ui.adaptive.allEdges
 import io.kontour.ui.components.datetime.WheelDrive
@@ -439,7 +440,9 @@ private fun WheelPanel(
     val progress = LocalOverlayProgress.current
     val reduced = Theme.motion.reduceMotion
     val density = LocalDensity.current
-    val rowPx = with(density) { WheelPickerDefaults.ItemHeight.toPx() }
+    // The drum's own row, which grows past 40dp at large type: lined up with
+    // the default alone, the chosen row sat off the field at twice the type.
+    val rowPx = with(density) { wheelRowHeight().toPx() }
     val padPx = with(density) { Theme.spacing.xxs.toPx() }
     val marginPx = with(density) { MenuDefaults.ScreenMargin.roundToPx() }
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
