@@ -247,6 +247,10 @@ docs, in November 2026:
   run. Under reduced motion it truncates, and a text truncated with none ends
   at a word as if that were all of it: "Elizabeth Quay" for "Elizabeth Quay Bus
   Station".
+- **Shift+Tab no longer leaves a `CommandPalette` for the page under it.** The
+  palette's panel was a Tab stop of its own, with no ring and nothing to do,
+  and stepping back from it went out of the palette. It takes no focus now;
+  the field and the commands do.
 
 ---
 
