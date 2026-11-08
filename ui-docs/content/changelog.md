@@ -215,6 +215,10 @@ docs, in November 2026:
   reader still read them.
 - **A standalone `Checkbox` shows the hand**, and a sheet's handle and a pane's
   splitter draw no hover for a stylus.
+- **A pickable `ActivityCalendar` that is disabled says so.** Its weeks dropped
+  their actions and nothing else, so a screen reader heard the picture a
+  calendar without `onDayClick` is, and could not tell this one would pick a
+  day another time.
 
 ---
 
