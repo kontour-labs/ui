@@ -227,6 +227,10 @@ docs, in November 2026:
   row.** The header chose from a word's width at the default type, so at 200%
   its six segments were kept in 480dp and stacked into a column. It now asks the
   segmented control's own measurement, at the width the segments would have.
+- **A horizontal `FabMenu`'s labels lean up and to the left right to left**, from
+  the foot of each, and stay inside the window by the left wall. They leaned up
+  and to the right in every language, so a right-to-left label read downhill
+  into its button.
 
 ---
 
