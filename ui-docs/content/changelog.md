@@ -249,6 +249,9 @@ docs, in November 2026:
   half its room.** At 200% type in a short window with the keyboard up, the
   pinned row was taller than the dialog had, and the content had no room left
   to scroll in.
+- **The arrows move a `Rating`'s score**, a half at a time with `allowHalf`,
+  mirrored right to left, with Home and End to its ends. Enter and Space on a
+  mark gave only its whole score, so a keyboard had no way to a half.
 
 ---
 
