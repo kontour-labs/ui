@@ -1,5 +1,6 @@
 package io.kontour.ui.nav
 
+import androidx.compose.foundation.layout.heightIn
 import io.kontour.ui.theme.clipProxy
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
@@ -576,7 +577,10 @@ private class RailScope(
         Box(
             modifier = modifier
                 .fillMaxWidth()
-                .height(SectionHeight)
+                // At least, so a title at twice the type, or in a script with
+                // taller lines, grows the header rather than being cut: a
+                // fixed height until the November 2026 audit.
+                .heightIn(min = SectionHeight)
                 .nested(),
             contentAlignment = Alignment.BottomStart,
         ) {

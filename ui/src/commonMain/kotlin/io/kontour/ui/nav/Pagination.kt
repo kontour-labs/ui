@@ -1,5 +1,6 @@
 package io.kontour.ui.nav
 
+import androidx.compose.foundation.layout.widthIn
 import io.kontour.ui.theme.clipProxy
 import io.kontour.ui.a11y.contrastEdge
 import androidx.compose.foundation.background
@@ -10,7 +11,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.sizeIn
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.text.input.clearText
@@ -278,8 +278,12 @@ private fun JumpGap(
                 TextField(
                     state = typed,
                     label = null,
-                    placeholder = "1\u2013$pageCount",
-                    modifier = Modifier.width(JumpFieldWidth),
+                    // In the reader's digits, as the field reads them back, and
+                    // a field that grows for them: Western digits in a fixed
+                    // 96dp until the November 2026 audit, which cut the hint at
+                    // twice the type.
+                    placeholder = "${formats.integer(1)}\u2013${formats.integer(pageCount)}",
+                    modifier = Modifier.widthIn(min = JumpFieldWidth),
                     keyboardType = KeyboardType.Number,
                     imeAction = ImeAction.Go,
                     onKeyboardAction = { commit() },
