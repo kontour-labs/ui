@@ -228,19 +228,41 @@ fun TagGroup(
         // down a tag that should be one. The earlier part reaching a pixel
         // under the later one leaves only the later one's edge, softened over
         // the colour beside it.
+        // What each join moves the next part by, beyond the part's own width:
+        // its room, less the cut's width and that pixel.
+        val steps = IntArray(gaps.size) { index ->
+            val gap = gaps[index].roundToPx()
+            val bleed = if (slantPx > 0 && gap == 0) 1 else 0
+            gap - slantPx - bleed
+        }
+        // Each part's width, shared out when they do not all fit. Measured in
+        // turn with whatever was left, a wide first part took the room, and at
+        // large type in a card the parts after it were measured at nothing and
+        // vanished while a screen reader still read them. Now each part gets
+        // its own width or an even share of what is left, whichever is less,
+        // the narrow ones first so what they do not need goes to the wide ones,
+        // and a part given less than its own width ends its text in an
+        // ellipsis. Found in the November 2026 audit.
+        val widths = IntArray(measurables.size) { measurables[it].maxIntrinsicWidth(height) }
+        if (constraints.hasBoundedWidth) {
+            var room = constraints.maxWidth - steps.sum()
+            if (widths.sum() > room) {
+                val order = widths.indices.sortedBy { widths[it] }
+                order.forEachIndexed { done, index ->
+                    val share = (room / (order.size - done)).coerceAtLeast(0)
+                    widths[index] = minOf(widths[index], share)
+                    room -= widths[index]
+                }
+            }
+        }
         val starts = IntArray(measurables.size)
         val placeables = ArrayList<Placeable>(measurables.size)
         var x = 0
         measurables.forEachIndexed { index, measurable ->
             starts[index] = x
-            val room = if (constraints.hasBoundedWidth) (constraints.maxWidth - x).coerceAtLeast(0) else Constraints.Infinity
-            val placeable = measurable.measure(Constraints(maxWidth = room, minHeight = height, maxHeight = height))
+            val placeable = measurable.measure(Constraints(maxWidth = widths[index], minHeight = height, maxHeight = height))
             placeables += placeable
-            if (index < gaps.size) {
-                val gap = gaps[index].roundToPx()
-                val bleed = if (slantPx > 0 && gap == 0) 1 else 0
-                x += placeable.width - slantPx + gap - bleed
-            }
+            if (index < steps.size) x += placeable.width + steps[index]
         }
         val width = (starts.last() + placeables.last().width).coerceIn(constraints.minWidth, constraints.maxWidth)
         layout(width, height) {

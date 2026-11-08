@@ -1,5 +1,7 @@
 package io.kontour.ui.components.display
 
+import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
@@ -92,6 +94,30 @@ class TagGroupTest {
         flow = TagFlow.Backward
         waitForIdle()
         assertEquals(reach + 1f, partBounds().let { it[0].right - it[1].left }, 0.5f)
+    }
+
+    /**
+     * Too narrow for all of it, every part still gets a share. Measured in turn
+     * with what was left, a wide first part at large type took the room and the
+     * parts after it were measured at nothing. Found in the November 2026 audit.
+     */
+    @Test
+    fun tooNarrowForAllOfItEveryPartStillShows() = runComposeUiTest {
+        setContent {
+            KontourTheme(reduceMotion = true) {
+                // Narrower than the first part alone.
+                androidx.compose.foundation.layout.Box(Modifier.width(60.dp)) {
+                    TagGroup(join = TagJoin.Flow) {
+                        item(tone = Tone.Success) { +"Route 960" }
+                        item(tone = Tone.Info) { +"Fremantle" }
+                    }
+                }
+            }
+        }
+        val parts = partBounds()
+        assertEquals(2, parts.size)
+        assertTrue(parts[1].width > 20f, "the second part was squeezed to ${parts[1].width}px by the first, ${parts[0].width}px")
+        assertTrue(parts[1].right <= 60.dp.value * density.density + 0.5f, "the group overflowed its 60dp: ${parts[1].right}")
     }
 
     @Test
