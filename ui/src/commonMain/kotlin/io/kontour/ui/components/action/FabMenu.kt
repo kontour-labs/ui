@@ -1,5 +1,6 @@
 package io.kontour.ui.components.action
 
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.BorderStroke
@@ -589,6 +590,9 @@ private fun FabMenuItems(
                             Text(
                                 text = item.label,
                                 maxLines = 1,
+                                // Cut with an ellipsis, not mid-letter, at large
+                                // type on a narrow phone. November 2026 audit.
+                                overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.padding(
                                     horizontal = Theme.spacing.sm,
                                     vertical = Theme.spacing.xs,

@@ -1011,7 +1011,14 @@ fun MenuItem(
                 slots.label?.let { label ->
                     ProvideContentColour(contentColour) {
                         ProvideTextStyle(Theme.typography.bodyMedium) {
-                            ContentSlot(maxLines = 1, content = label)
+                            // One line, as a menu's rows are, until the type is
+                            // large enough that one line of a 320dp menu is a
+                            // dozen letters; then two. And an ellipsis where it is
+                            // cut either way: a clip cut mid-letter, and a cut
+                            // word reads as a different word. Found in the
+                            // November 2026 audit.
+                            val lines = if (LocalDensity.current.fontScale > LargeTypeScale) 2 else 1
+                            ContentSlot(maxLines = lines, overflow = TextOverflow.Ellipsis, content = label)
                         }
                     }
                 }
@@ -1587,3 +1594,9 @@ fun ContextMenuArea(
  * still opens below.
  */
 private val MenuMinimumRoom: Dp = 208.dp
+
+/**
+ * The font scale past which a menu's row may take a second line: about a third
+ * larger, where a 320dp menu's line holds fewer than twenty letters.
+ */
+private const val LargeTypeScale = 1.3f

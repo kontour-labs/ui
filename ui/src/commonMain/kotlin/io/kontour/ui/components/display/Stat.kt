@@ -1,5 +1,6 @@
 package io.kontour.ui.components.display
 
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -75,7 +76,10 @@ internal fun StatLayout(slots: StatScope, modifier: Modifier, alignment: Alignme
     ) {
         slots.value?.let { value ->
             ProvideTextStyle(Theme.typography.displaySmall) {
-                ContentSlot(maxLines = 1, content = value)
+                // An ellipsis where it is cut, never a clip: at twice the type
+                // a figure clipped mid-digit read as a smaller figure, where an
+                // ellipsis says there is more. Found in the November 2026 audit.
+                ContentSlot(maxLines = 1, overflow = TextOverflow.Ellipsis, content = value)
             }
         }
 
