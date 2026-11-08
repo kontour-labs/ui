@@ -383,10 +383,12 @@ private class DiagonalPartShape(
  * How much of each edge of a flow's point the rounding of its tip takes, from
  * the tip back. Asked for the day the join was made, November 2026: *"can we
  * make the "point" on the arrow in the tag group a bit more rounded"*. A third
- * of the way back takes the needle off a 22dp tag's point and leaves it plainly
- * an arrow.
+ * of the way back was tried first and read as a bump rather than an arrow
+ * (*"that's too round, it looks stupid now"*), against a reference of a transit
+ * route's tag with a point only softened. An eighth takes the needle off and
+ * keeps the chevron's angle.
  */
-private const val FlowTipRounding = 0.35f
+private const val FlowTipRounding = 0.12f
 
 /**
  * A part of a group joined by [TagJoin.Flow]: [outer], its outside corners,
@@ -423,7 +425,7 @@ private class FlowPartShape(
         val endMiddle = if (!joinsAfter) w else if (forward) w else w - depth
         //
         // The middle of each side is rounded, so a point is a blunt arrow
-        // rather than a needle: the side turns through a curve that starts
+        // rather than a needle: the side turns through a small curve that starts
         // [FlowTipRounding] of the way back along each edge. The notch it sits
         // in is rounded by the same curve, the same lines either side of the
         // same corner, so a point still fills its notch exactly. A side that
