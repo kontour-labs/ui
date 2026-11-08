@@ -44,6 +44,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
@@ -186,6 +187,10 @@ fun ThumbnailStrip(
                                         goTo(page)
                                         true
                                     }
+                                } else {
+                                    // Said, not only withheld, as a page
+                                    // indicator's dots are.
+                                    disabled()
                                 }
                             },
                     ) {

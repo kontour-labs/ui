@@ -65,6 +65,7 @@ import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
@@ -469,7 +470,13 @@ fun Carousel(
                 isTraversalGroup = true
                 this.contentDescription = contentDescription
                 stateDescription = position
-                customActions = listOf(
+                // Paged by a screen reader only while it can be paged by hand,
+                // and said to be disabled when not: the drag and the scrolling
+                // were gated on `enabled` and these actions were not, so a
+                // disabled carousel still turned for a screen reader. Found in
+                // the November 2026 audit.
+                if (!enabled) disabled()
+                if (enabled) customActions = listOf(
                     CustomAccessibilityAction(previousLabel) {
                         if (current > 0) {
                             scope.launch { state.animateScrollToPage(current - 1) }
@@ -1247,6 +1254,10 @@ private fun PageDots(
                                     onPageClick(page)
                                     true
                                 }
+                            } else {
+                                // Said, not only withheld: a dot with no action
+                                // reads as a radio button that does nothing.
+                                disabled()
                             }
                         },
                     contentAlignment = Alignment.Center,

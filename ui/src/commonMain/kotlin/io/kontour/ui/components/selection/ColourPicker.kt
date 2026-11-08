@@ -49,6 +49,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.setProgress
@@ -756,10 +757,18 @@ private fun Track(
                 // What makes the track reachable without a gesture, which the
                 // area above it cannot be: a screen reader adjusts a value, and
                 // a value is exactly what this is.
-                setProgress { value ->
-                    onFractionChange(value.coerceIn(0f, 1f))
-                    colourFinished()
-                    true
+                //
+                // Only while enabled, and marked when not: the drag and the keys
+                // were already gated, and a screen reader could still move a
+                // track that looked inert. Found in the November 2026 audit.
+                if (enabled) {
+                    setProgress { value ->
+                        onFractionChange(value.coerceIn(0f, 1f))
+                        colourFinished()
+                        true
+                    }
+                } else {
+                    disabled()
                 }
             }
     ) {
