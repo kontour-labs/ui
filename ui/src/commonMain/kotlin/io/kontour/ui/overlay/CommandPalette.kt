@@ -482,7 +482,15 @@ private fun PaletteBody(
                             slots = listItemSlots {
                                 command.icon?.let { icon -> leading { +icon } }
                                 +command.label
-                                command.shortcut?.let { shortcut -> trailing { Kbd { +shortcut } } }
+                                // In the disabled grey on a disabled command, as
+                                // its label is.
+                                command.shortcut?.let { shortcut ->
+                                    trailing {
+                                        Kbd(colour = if (command.enabled) Theme.colours.contentMuted else Theme.colours.contentDisabled) {
+                                            +shortcut
+                                        }
+                                    }
+                                }
                             },
                         )
                     }

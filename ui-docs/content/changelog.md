@@ -228,6 +228,8 @@ docs, in November 2026:
   not be pressed.
 - **A disabled `Pagination`'s current page is on the sunken ground**, not the
   accent's, and its ellipses are in the disabled grey with the pages.
+- **A disabled menu item's or command's shortcut is in the disabled grey**, as
+  its label is. The key cap was the one dark thing on the row.
 
 ---
 

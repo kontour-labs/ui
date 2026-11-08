@@ -7,6 +7,7 @@ import androidx.compose.runtime.Stable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import io.kontour.ui.components.display.Kbd
+import io.kontour.ui.theme.Theme
 
 /**
  * The shorthand for a menu's contents.
@@ -153,8 +154,11 @@ internal class MenuScopeImpl(
                     if (trailingIcon != null) +trailingIcon
                     // A key cap, not muted text. `⌘S` set in the row's own type
                     // reads as part of the label; the border is what says it is
-                    // a key.
-                    if (shortcut != null) Kbd { +shortcut }
+                    // a key. In the disabled grey with the row it is on: it
+                    // kept `contentMuted`, the one dark thing on a disabled row.
+                    if (shortcut != null) {
+                        Kbd(colour = if (enabled) Theme.colours.contentMuted else Theme.colours.contentDisabled) { +shortcut }
+                    }
                 }
             }
         }
