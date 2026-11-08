@@ -4,7 +4,8 @@
 Each part takes what a [`Tag`](tag.md) takes, a tone or its own colour with the
 text colour derived from it, and an `onClick` if it leads somewhere. The group
 does the shaping: only the outside corners round, and where two parts meet they
-are cut square across or, with `join = TagJoin.Diagonal`, on a slant.
+are cut square across, on a slant with `join = TagJoin.Diagonal`, or to a point
+with `join = TagJoin.Flow`.
 
 <!--sample:TagGroupBasics-->
 ```kotlin
@@ -28,6 +29,23 @@ TagGroup(spacing = TagGroupDefaults.Gap) {
     item(tone = Tone.Accent) { +"Bus" }
     item { +"Route 960" }
     item(tone = Tone.Success) { +"Live" }
+}
+```
+
+**`TagJoin.Flow` makes each join an arrow**, one part coming to a point in a
+notch cut into the next: a journey, a process, a version made from another.
+`flow` says which way the arrows point, `TagFlow.Forward`, the default, from the
+first part to the last, or `TagFlow.Backward`, from the last to the first. Both
+are in the reading direction, so a forward flow points left in a right-to-left
+language, the way its text runs.
+
+<!--sample:TagGroupFlow-->
+```kotlin
+// Each part an arrow into the next: where something is in its process.
+TagGroup(join = TagJoin.Flow) {
+    item { +"Draft" }
+    item(tone = Tone.Info) { +"Review" }
+    item(tone = Tone.Success) { +"Published" }
 }
 ```
 
@@ -63,6 +81,12 @@ the group disables every part that can be pressed.
 
 At high contrast each part takes the edge its tone takes on a `Tag`, so a part
 whose colour sits close to the page still has a boundary. Right to left, the
-first part is on the right and a diagonal join leans the other way, as the text
-does. Nothing about a group moves, and a part's press is a fade at every
+first part is on the right, a diagonal join leans the other way and a flow's
+arrows point the other way, as the text does.
+
+**A flow's arrows are drawn, not read.** A screen reader reads the parts in the
+order they are declared, whichever way `flow` points, so declare them in the
+order they make sense spoken. When the direction is the point, say it: a
+backward flow from `v2` to `v1` can give `v1` the `contentDescription` "made
+from v1". Nothing about a group moves, and a part's press is a fade at every
 setting, so reduced motion changes nothing here.

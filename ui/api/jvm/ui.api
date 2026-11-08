@@ -1225,6 +1225,14 @@ public final class io/kontour/ui/components/display/StatesKt {
 	public static final fun StateSwitcher (Ljava/lang/Object;Landroidx/compose/ui/Modifier;Landroidx/compose/ui/Alignment;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
 }
 
+public final class io/kontour/ui/components/display/TagFlow : java/lang/Enum {
+	public static final field Backward Lio/kontour/ui/components/display/TagFlow;
+	public static final field Forward Lio/kontour/ui/components/display/TagFlow;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/kontour/ui/components/display/TagFlow;
+	public static fun values ()[Lio/kontour/ui/components/display/TagFlow;
+}
+
 public final class io/kontour/ui/components/display/TagGroupDefaults {
 	public static final field $stable I
 	public static final field INSTANCE Lio/kontour/ui/components/display/TagGroupDefaults;
@@ -1235,7 +1243,7 @@ public final class io/kontour/ui/components/display/TagGroupDefaults {
 }
 
 public final class io/kontour/ui/components/display/TagGroupKt {
-	public static final fun TagGroup-jIwJxvA (Landroidx/compose/ui/Modifier;ZLio/kontour/ui/components/display/TagJoin;FLandroidx/compose/foundation/shape/CornerBasedShape;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)V
+	public static final fun TagGroup--b7W0Lw (Landroidx/compose/ui/Modifier;ZLio/kontour/ui/components/display/TagJoin;FLandroidx/compose/foundation/shape/CornerBasedShape;Lio/kontour/ui/components/display/TagFlow;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)V
 }
 
 public final class io/kontour/ui/components/display/TagGroupScope {
@@ -1246,6 +1254,7 @@ public final class io/kontour/ui/components/display/TagGroupScope {
 
 public final class io/kontour/ui/components/display/TagJoin : java/lang/Enum {
 	public static final field Diagonal Lio/kontour/ui/components/display/TagJoin;
+	public static final field Flow Lio/kontour/ui/components/display/TagJoin;
 	public static final field Straight Lio/kontour/ui/components/display/TagJoin;
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
 	public static fun valueOf (Ljava/lang/String;)Lio/kontour/ui/components/display/TagJoin;

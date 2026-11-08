@@ -588,6 +588,16 @@ fun TagGroupApart() {
 }
 
 @Composable
+fun TagGroupFlow() {
+    // Each part an arrow into the next: where something is in its process.
+    TagGroup(join = TagJoin.Flow) {
+        item { +"Draft" }
+        item(tone = Tone.Info) { +"Review" }
+        item(tone = Tone.Success) { +"Published" }
+    }
+}
+
+@Composable
 fun TimelineBasics() {
     Timeline {
         TimelineItem {

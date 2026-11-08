@@ -18,8 +18,9 @@ from the version the app is on.
 ## 0.5.3 to 0.5.4
 
 0.5.4 is mostly the web, and a phone's browser above all. An app's page needs a
-new script, and two signatures grow a parameter, which only a call passing its
-arguments by position notices. The rest compiles as it is and behaves
+new script, two signatures grow a parameter, which only a call passing its
+arguments by position notices, and `TagJoin` grows an entry, which only a `when`
+over it notices. The rest compiles as it is and behaves
 differently, under **Check**: text fields on a phone's browser, a drag across
 steps, a sheet dragged by its content, and an overlay's first opening.
 
@@ -46,6 +47,23 @@ position names them:
 ```
 
 It fails to compile rather than meaning something else.
+
+### Give a `when` over `TagJoin` a branch for `Flow`
+
+`TagJoin` has a third entry, `Flow`, which joins a group's parts to a point. A
+`when` over a `TagJoin` with no `else` fails to compile until it says what a
+flow is:
+
+```diff
+  val label = when (join) {
+      TagJoin.Straight -> "Square"
+      TagJoin.Diagonal -> "Slanted"
++     TagJoin.Flow -> "Arrows"
+  }
+```
+
+`TagGroup` also takes `flow`, defaulted, after `shape`. Every call compiles as
+it is.
 
 ### Check
 

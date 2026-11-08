@@ -1,6 +1,8 @@
 package io.kontour.ui.components.display
 
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
@@ -69,6 +71,27 @@ class TagGroupTest {
         // By the slant, and a pixel more, so the earlier part's colour is under
         // the later one's softened edge rather than the page.
         assertEquals(slant + 1f, parts[0].right - parts[1].left, 0.5f)
+    }
+
+    @Test
+    fun joinedToAPointEachPartStartsUnderTheOneBeforeEitherWay() = runComposeUiTest {
+        var reach = 0f
+        var flow by androidx.compose.runtime.mutableStateOf(TagFlow.Forward)
+        setContent {
+            KontourTheme(reduceMotion = true) {
+                reach = with(androidx.compose.ui.platform.LocalDensity.current) { TagGroupDefaults.Slant.roundToPx().toFloat() }
+                TagGroup(join = TagJoin.Flow, flow = flow) {
+                    item(tone = Tone.Success) { +"T1" }
+                    item(tone = Tone.Info) { +"Fremantle" }
+                }
+            }
+        }
+        // The point sits in the notch, so the parts overlap by its reach, and
+        // the pixel more that a slant's parts do, which way ever it points.
+        assertEquals(reach + 1f, partBounds().let { it[0].right - it[1].left }, 0.5f)
+        flow = TagFlow.Backward
+        waitForIdle()
+        assertEquals(reach + 1f, partBounds().let { it[0].right - it[1].left }, 0.5f)
     }
 
     @Test

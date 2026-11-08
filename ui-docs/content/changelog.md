@@ -35,8 +35,19 @@ On `main`, and in the next release.
   its arguments needs nothing. One that passes the arguments after `icon` by
   position names them: it fails to compile rather than meaning something else.
   See [Migrating](migrating.md#name-the-arguments-after-icon-on-a-timeline).
+- **`TagGroup` has a new parameter**, `flow`, defaulted, after `shape` and
+  before the content, so anything built against 0.5.3 recompiles; every call
+  site still compiles as it is. **`TagJoin` has a new entry**, `Flow`: a `when`
+  over a `TagJoin` with no `else` needs a branch for it. See
+  [Migrating](migrating.md#give-a-when-over-tagjoin-a-branch-for-flow).
 
 ### Added
+
+- **A tag group can flow.** `TagGroup(join = TagJoin.Flow)` cuts each join to a
+  point, one part an arrow into the next: a journey, a process, a version made
+  from another. `flow = TagFlow.Backward` points the arrows from the last part
+  to the first. Both are in the reading direction, so a forward flow points
+  left right to left.
 
 - **A timeline's dot icon can be given its colour.** `TimelineItem` and a
   `TimelineList` or `BranchTimeline` row's `item` take `iconColour`, beside

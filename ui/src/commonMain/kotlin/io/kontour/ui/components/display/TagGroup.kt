@@ -44,6 +44,30 @@ enum class TagJoin {
      * `T1 ╱ Fremantle`. Mirrored right to left.
      */
     Diagonal,
+
+    /**
+     * To a point, each part an arrow into the next: `Perth ❯ Fremantle`. Which
+     * way the arrows point is the group's `flow`.
+     *
+     * Asked for in November 2026, for 0.5.4: *"another option for how they join
+     * together, called "flow". it should basically be an arrow between tags"*.
+     */
+    Flow,
+}
+
+/**
+ * Which way a [TagJoin.Flow] group's arrows point, in the reading direction.
+ *
+ * Relative to the line rather than the screen, as a [Tag]'s icon side is, so a
+ * group that flows [Forward] points left in Arabic and Hebrew, the way the
+ * text runs.
+ */
+enum class TagFlow {
+    /** From the first part to the last: `Perth ❯ Fremantle`. */
+    Forward,
+
+    /** From the last part to the first: `v2 ❮ v1`, the later made from the earlier. */
+    Backward,
 }
 
 /**
@@ -59,7 +83,8 @@ enum class TagJoin {
  * Each part is a [Tag] in all but name, with its own tone or colour, its own
  * text colour derived from that, and its own `onClick` if it has one. The group
  * does the shaping: only the outside corners round, and where two parts meet
- * they are cut square across or, with [TagJoin.Diagonal], on a slant. The
+ * they are cut square across, on a slant with [TagJoin.Diagonal], or to a point
+ * with [TagJoin.Flow], one part an arrow into the next. The
  * parts are told nothing about where they sit, the same way a [io.kontour.ui.components.action.ButtonGroup]'s
  * buttons are not.
  *
@@ -87,13 +112,20 @@ enum class TagJoin {
  * pressed, or one with its own `contentDescription`, is a group of separate
  * items, each read as its own tag would be.
  *
+ * A flow's arrows are drawn, not read: a screen reader reads the parts in the
+ * order they were declared, whichever way [flow] points. Declare them in the
+ * order they make sense spoken, and when the direction is the point, say it
+ * in a `contentDescription`: "made from v1".
+ *
  * @param enabled Applied to every part that can be pressed, beside its own.
- * @param join Square across, the default, or on a slant.
+ * @param join Square across, the default, on a slant, or to a point.
  * @param spacing The room between neighbours. 0, the default, joins them into
  *   one tag; [TagGroupDefaults.Gap] stands them apart as a group.
  * @param shape The group's outside corners. Where parts meet the corners are
  *   square, or no rounder than [TagGroupDefaults.InnerCorner] when there is
  *   room between them.
+ * @param flow Which way a [TagJoin.Flow] group's arrows point: towards the
+ *   last part, the default, or towards the first. Nothing to the other joins.
  */
 @Composable
 fun TagGroup(
@@ -102,6 +134,7 @@ fun TagGroup(
     join: TagJoin = TagJoin.Straight,
     spacing: Dp = 0.dp,
     shape: CornerBasedShape = Theme.shapes.control,
+    flow: TagFlow = TagFlow.Forward,
     content: TagGroupScope.() -> Unit,
 ) {
     val parts = TagGroupScope().apply(content).parts
@@ -113,7 +146,8 @@ fun TagGroup(
     val apart = parts.any { it.onClick != null || it.contentDescription != null }
     val pressable = parts.any { it.onClick != null }
     val containers = parts.map { tagContainer(it.tone, it.containerColour) }
-    val slant = if (join == TagJoin.Diagonal) TagGroupDefaults.Slant else 0.dp
+    val slant = if (join == TagJoin.Straight) 0.dp else TagGroupDefaults.Slant
+    val forward = flow == TagFlow.Forward
     val gaps = List(parts.size - 1) { index ->
         if (containers[index] == containers[index + 1]) max(spacing, TagGroupDefaults.Seam) else spacing
     }
@@ -142,6 +176,24 @@ fun TagGroup(
                             joinsAfter = joinsAfter,
                             slant = slant,
                         )
+                        TagJoin.Flow -> FlowPartShape(
+                            outer = position.shape(shape, 0.dp, Orientation.Horizontal),
+                            joinsBefore = joinsBefore,
+                            joinsAfter = joinsAfter,
+                            forward = forward,
+                            reach = slant,
+                        )
+                    }
+                    // Room for the cuts. A slant takes the corner off one end
+                    // of the part's side, nothing off the other: half of it, on
+                    // average, so the content keeps its room from the cut's
+                    // middle. A flow's notch is deepest at the middle, where
+                    // the text is, so the side it is cut into gives all of it;
+                    // the side that comes to a point loses only its corners.
+                    val (before, after) = when {
+                        join != TagJoin.Flow -> slant / 2 to slant / 2
+                        forward -> slant to slant / 2
+                        else -> slant / 2 to slant
                     }
                     TagBody(
                         modifier = Modifier,
@@ -152,11 +204,8 @@ fun TagGroup(
                         onClick = part.onClick,
                         contentDescription = part.contentDescription,
                         interactionSource = part.interactionSource,
-                        // A slant takes the corner off one end of the part's
-                        // side, nothing off the other: half of it, on average,
-                        // so the content keeps its room from the cut's middle.
-                        startPadding = TagPadding + if (joinsBefore) slant / 2 else 0.dp,
-                        endPadding = TagPadding + if (joinsAfter) slant / 2 else 0.dp,
+                        startPadding = TagPadding + if (joinsBefore) before else 0.dp,
+                        endPadding = TagPadding + if (joinsAfter) after else 0.dp,
                         merge = apart,
                         content = part.content,
                     )
@@ -169,8 +218,9 @@ fun TagGroup(
         // an icon in one part is a pixel or two taller than text in the next.
         val height = measurables.maxOf { it.maxIntrinsicHeight(Constraints.Infinity) }
             .coerceIn(constraints.minHeight, constraints.maxHeight)
-        // Where each part starts. Joined on a slant, a part starts under the
-        // one before it by the slant's width, less any room between them.
+        // Where each part starts. Joined on a slant or to a point, a part
+        // starts under the one before it by the cut's width, less any room
+        // between them: a point reaches exactly as far as the notch it sits in.
         //
         // And a pixel more where they touch. Two shapes meeting on a slant
         // both soften the same pixels along it, and where neither covers the
@@ -266,6 +316,11 @@ object TagGroupDefaults {
      * How far a diagonal join leans: the distance across, top to bottom. About
      * fifteen degrees on a tag's 22dp, enough to read as a slant and not so
      * much that it takes the corner off a short label.
+     *
+     * And how far a flow's point reaches past its part's corners, for the same
+     * reason: on 22dp, a point of about 120 degrees, plainly an arrow and still
+     * a tag. One number for both, so a theme that changes how far parts overlap
+     * changes it once.
      */
     val Slant: Dp = 6.dp
 
@@ -320,6 +375,66 @@ private class DiagonalPartShape(
         result = 31 * result + joinsBefore.hashCode()
         result = 31 * result + joinsAfter.hashCode()
         result = 31 * result + slant.hashCode()
+        return result
+    }
+}
+
+/**
+ * A part of a group joined by [TagJoin.Flow]: [outer], its outside corners,
+ * with each joined side cut to a point or notched to take one.
+ *
+ * Flowing [forward], a part's end side comes to a point at its middle and its
+ * start side is notched to the same depth, so the point of the part before it
+ * sits in the notch: `❯` down every join. Backward, the other way round. Cut
+ * from the outer shape, as [DiagonalPartShape] is, so the outside corners keep
+ * the theme's shape.
+ */
+private class FlowPartShape(
+    private val outer: Shape,
+    private val joinsBefore: Boolean,
+    private val joinsAfter: Boolean,
+    private val forward: Boolean,
+    private val reach: Dp,
+) : Shape {
+    override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline {
+        val depth = with(density) { reach.toPx() }
+        val w = size.width
+        val h = size.height
+        val rtl = layoutDirection == LayoutDirection.Rtl
+        fun x(at: Float) = if (rtl) w - at else at
+        // The start side, top to bottom through its middle, and the end side
+        // back up. Flowing forward, the start is notched in from its corners
+        // and the end comes out to a point past them; backward, the start comes
+        // out to a point and the end is notched. Either way the part's corners
+        // on a joined side are `depth` in from the point's tip, so each part's
+        // tip lands in its neighbour's notch.
+        val startCorner = if (!joinsBefore) 0f else if (forward) 0f else depth
+        val startMiddle = if (!joinsBefore) 0f else if (forward) depth else 0f
+        val endCorner = if (!joinsAfter) w else if (forward) w - depth else w
+        val endMiddle = if (!joinsAfter) w else if (forward) w else w - depth
+        val cut = Path().apply {
+            moveTo(x(startCorner), 0f)
+            lineTo(x(endCorner), 0f)
+            lineTo(x(endMiddle), h / 2)
+            lineTo(x(endCorner), h)
+            lineTo(x(startCorner), h)
+            lineTo(x(startMiddle), h / 2)
+            close()
+        }
+        val whole = Path().apply { addOutline(outer.createOutline(size, layoutDirection, density)) }
+        return Outline.Generic(Path().apply { op(whole, cut, PathOperation.Intersect) })
+    }
+
+    override fun equals(other: Any?): Boolean =
+        other is FlowPartShape && other.outer == outer && other.joinsBefore == joinsBefore &&
+            other.joinsAfter == joinsAfter && other.forward == forward && other.reach == reach
+
+    override fun hashCode(): Int {
+        var result = outer.hashCode()
+        result = 31 * result + joinsBefore.hashCode()
+        result = 31 * result + joinsAfter.hashCode()
+        result = 31 * result + forward.hashCode()
+        result = 31 * result + reach.hashCode()
         return result
     }
 }

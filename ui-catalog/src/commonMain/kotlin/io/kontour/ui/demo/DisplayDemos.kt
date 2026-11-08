@@ -126,6 +126,7 @@ import io.kontour.ui.components.display.GaugeDefaults
 import io.kontour.ui.components.display.Gauge
 import io.kontour.ui.motion.MarqueeTravel
 import io.kontour.ui.motion.marquee
+import io.kontour.ui.components.display.TagFlow
 import io.kontour.ui.components.display.TagGroup
 import io.kontour.ui.components.display.TagGroupDefaults
 import io.kontour.ui.components.display.TagJoin
@@ -199,6 +200,9 @@ internal val TagDemo = ComponentDemo(slug = "tag", knobs = listOf(tagTone, tagCl
 
 private val tagGroupJoin = Knob.Choice("Join", TagJoin.entries.toList())
 
+/** Which way a flow's arrows point. Nothing to the other joins. */
+private val tagGroupFlow = Knob.Choice("Flow", TagFlow.entries.toList())
+
 /** Joined into one tag, or standing apart as a group of them. */
 private val tagGroupApart = Knob.Flag("Apart", initial = false)
 
@@ -209,21 +213,22 @@ private val tagGroupEnabled = Knob.Flag("Enabled", initial = true)
 
 internal val TagGroupDemo = ComponentDemo(
     slug = "tag-group",
-    knobs = listOf(tagGroupJoin, tagGroupApart, tagGroupClickable, tagGroupEnabled),
+    knobs = listOf(tagGroupJoin, tagGroupFlow, tagGroupApart, tagGroupClickable, tagGroupEnabled),
 ) {
     val join = this[tagGroupJoin]
+    val flow = this[tagGroupFlow]
     val spacing = if (this[tagGroupApart]) TagGroupDefaults.Gap else 0.dp
     val clickable = this[tagGroupClickable]
     val enabled = this[tagGroupEnabled]
     Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm)) {
-        TagGroup(join = join, spacing = spacing, enabled = enabled) {
+        TagGroup(enabled = enabled, join = join, spacing = spacing, flow = flow) {
             item(
                 containerColour = Color(0xFF1B5E20),
                 onClick = if (clickable) ({ echo("Opened the Fremantle line") }) else null,
             ) { +"T1" }
             item { +"Fremantle" }
         }
-        TagGroup(join = join, spacing = spacing, enabled = enabled) {
+        TagGroup(enabled = enabled, join = join, spacing = spacing, flow = flow) {
             item(containerColour = Color(0xFFB3261E)) {
                 +Tabler.Outline.Bus
                 +"950"
@@ -236,7 +241,7 @@ internal val TagGroupDemo = ComponentDemo(
             style = Theme.typography.bodySmall,
             colour = Theme.colours.contentMuted,
         )
-        TagGroup(join = join, spacing = spacing, enabled = enabled) {
+        TagGroup(enabled = enabled, join = join, spacing = spacing, flow = flow) {
             item { +"v0.5.3" }
             item { +"stable" }
         }
