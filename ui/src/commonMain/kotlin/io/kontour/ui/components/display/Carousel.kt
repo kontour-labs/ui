@@ -1,5 +1,12 @@
 package io.kontour.ui.components.display
 
+import io.kontour.ui.input.focusRing
+import androidx.compose.foundation.focusable
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.Key
 import io.kontour.ui.theme.cornerRadius
 import io.kontour.ui.theme.clipProxy
 import androidx.compose.ui.unit.LayoutDirection
@@ -932,6 +939,8 @@ private fun PageDots(
     val style = if (highContrast() && requestedStyle == PageIndicatorStyle.Worm) PageIndicatorStyle.Pill else requestedStyle
     val count = state.pageCount
     val current = state.currentPage
+    val keys = remember { MutableInteractionSource() }
+    val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     // Both of the styles that draw a pill *over* the dots rather than widening
     // one of them. What separates them is only how long that pill is at rest.
     val travels = style != PageIndicatorStyle.Dots
@@ -1043,6 +1052,28 @@ private fun PageDots(
                     Modifier
                         .minimumTouchTarget(fill = true)
                         .pointerCursor(enabled = enabled)
+                        // **And one Tab stop**, with the arrows along it and
+                        // Home and End, as a thumbnail strip has: the dots were
+                        // a target for a finger and a screen reader and not for
+                        // a keyboard, which carousel.md counts as one of the
+                        // four. Found in the November 2026 audit.
+                        .focusRing(keys, Theme.shapes.capsule, enabled = enabled)
+                        .onKeyEvent { event ->
+                            if (!enabled || count == 0 || event.type != KeyEventType.KeyDown) return@onKeyEvent false
+                            val forward = if (rtl && !vertical) -1 else 1
+                            val target = when (event.key) {
+                                Key.DirectionRight -> if (vertical) null else current + forward
+                                Key.DirectionLeft -> if (vertical) null else current - forward
+                                Key.DirectionDown -> if (vertical) current + 1 else null
+                                Key.DirectionUp -> if (vertical) current - 1 else null
+                                Key.MoveHome -> 0
+                                Key.MoveEnd -> count - 1
+                                else -> null
+                            } ?: return@onKeyEvent false
+                            onPageClick(target.coerceIn(0, count - 1))
+                            true
+                        }
+                        .focusable(enabled, keys)
                         .then(
                             if (enabled && count > 0) {
                                 Modifier.pointerInput(count, vertical) {
