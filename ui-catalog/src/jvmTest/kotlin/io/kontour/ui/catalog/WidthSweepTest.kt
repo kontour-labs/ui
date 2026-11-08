@@ -155,7 +155,11 @@ abstract class WidthSweepTest(private val shard: Int) {
             // drawn a shade off the page on purpose, and is measured by that
             // shade rather than reported as blank. Anything with real ink is
             // measured exactly as before.
-            val ink = frame.inkBounds() ?: frame.inkBounds(FaintTolerance) ?: return if (width >= DrawsFrom) {
+            // Below the component's own floor as well as the sweep's: the
+            // floor was documented below as raising this, and read only by the
+            // overflow check, until a top bar's title, ellipsised at 48dp in
+            // the November 2026 audit, had no room for a letter and its "…".
+            val ink = frame.inkBounds() ?: frame.inkBounds(FaintTolerance) ?: return if (width >= maxOf(DrawsFrom, spec.minWidth ?: 0)) {
                 "drew nothing at ${width}dp"
             } else {
                 null

@@ -339,8 +339,9 @@ class ComponentSpec(
      *
      * It has no `enabled`, because there is no whole of it a caller could
      * switch off: a toast's action lives and goes with the toast, a breadcrumb
-     * with nowhere to go is a crumb without an `onClick`, and a sheet's handle
-     * is as draggable as its sheet.
+     * with nowhere to go is a crumb without an `onClick`, a sheet's handle is
+     * as draggable as its sheet, and a dialog, a banner, a bar or an error
+     * state is answered or dismissed rather than switched off.
      *
      * Or its `enabled` switches off a gesture over the caller's content rather
      * than a control: a pull, a swipe, a carry. Disabled, `PullToRefresh`,
@@ -351,8 +352,8 @@ class ComponentSpec(
      *
      * The disabled rule is skipped for these and every other rule still
      * applies. Added in November 2026, when the audit put every interactive
-     * specimen under contract and these six had been kept out only because
-     * the disabled rule could not be asked of them.
+     * specimen under contract, and these had been kept out only because the
+     * disabled rule could not be asked of them.
      */
     val reportsDisabled: Boolean = true,
     /**
@@ -3619,7 +3620,18 @@ val componentRegistry: List<ComponentSpec> = buildList {
     )
 
     add(
-        ComponentSpec("TopBar", role = null, underContract = false) { modifier, _, _ ->
+        ComponentSpec(
+            "TopBar",
+            role = null,
+            underContract = false,
+            // A bar with no ground, so its title is all it draws, and the title
+            // is inset 16dp each side. At 48dp that leaves it 16px, too little
+            // for a letter and its ellipsis, and it draws nothing; the width
+            // sweep's next width, 120dp, leaves it 88px, a few letters and the
+            // ellipsis. Measured in November 2026, when titles took an ellipsis
+            // rather than a cut.
+            minWidth = 120,
+        ) { modifier, _, _ ->
             TopBar(modifier = modifier.width(SpecimenProseWidth)) { +"Perth Underground" }
         }
     )
