@@ -15,6 +15,58 @@ from the version the app is on.
 
 ---
 
+## 0.5.3 to 0.5.4
+
+0.5.4 is mostly the web, and a phone's browser above all. An app's page needs a
+new script, and two signatures grow a parameter, which only a call passing its
+arguments by position notices. The rest compiles as it is and behaves
+differently, under **Check**: text fields on a phone's browser, a drag across
+steps, a sheet dragged by its content, and an overlay's first opening.
+
+### Replace the page's script
+
+[The page's script](installing.md#the-pages-script) does two things now: it
+calls Skia through JavaScript, which Safari on iOS 27.2 needs to draw at all,
+and it keeps one Skia context for each canvas, which every browser resizes
+faster with. An app that copied the 0.5.3 script into its `index.html`, or has
+none, replaces it with the one on that page. Without it, Safari on iOS piles a
+screen's controls into its top left corner after a while, and a resize throws
+away Skia's caches at each step.
+
+### Name the arguments after `icon` on a timeline
+
+`TimelineItem` and `TimelineRowScope.item`, both of them, take `iconColour`,
+defaulted, straight after `icon`. A call that names its arguments, as every call
+in the docs does, needs nothing; one passing the arguments after `icon` by
+position names them:
+
+```diff
+- TimelineItem(Modifier, ConnectorStyle.Solid, route, Color.Unspecified, true, false, Tabler.Outline.Bus, 16.dp) { +"Perth" }
++ TimelineItem(Modifier, ConnectorStyle.Solid, route, Color.Unspecified, true, false, Tabler.Outline.Bus, nodeSize = 16.dp) { +"Perth" }
+```
+
+It fails to compile rather than meaning something else.
+
+### Check
+
+- **A text field on a phone's browser.** The first tap opens the keyboard, a tap
+  puts the caret where it landed, a double tap or a long press selects with the
+  browser's handles and menu, and the space bar's trackpad no longer jumps to the
+  start. An app that worked round any of those can take its way round out.
+- **A drag across steps** takes the next step 4dp past the boundary rather than
+  at it, in `SegmentedControl`, a `NavBar` or `NavRail` marker's drag,
+  `IndexScroller`, `ThumbnailStrip` and an `EventCalendar` event moved or
+  resized. A test that drags to a hair past a boundary and expects the next step
+  goes a little further.
+- **A sheet dragged by its content** snaps as it reaches a detent, as one dragged
+  by its handle did. A test that records haptics hears it.
+- **An overlay's first opening on the web.** A phone's browser draws an
+  overlay's pieces once as the app appears, and a desktop's draws the commoner
+  pieces once while it is idle and the reader is still. Nothing is drawn where
+  it can be seen, and nothing changes on Android, iOS or the desktop.
+
+---
+
 ## 0.5.2 to 0.5.3
 
 Back keeps working after a swipe is interrupted, and an app that went round

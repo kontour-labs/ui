@@ -29,6 +29,7 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.ClipOp
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathMeasure
@@ -156,6 +157,8 @@ internal class RailNode(
     /** Whether a journey has got this far. Only a travelled timeline has stops that are not. */
     val reached: Boolean = true,
     val icon: ImageVector? = null,
+    /** The icon's colour; unspecified picks one that reads on the node. */
+    val iconColour: Color = Color.Unspecified,
     /** How many nodes are bunched along the rail for a node group; 1 for a stop. */
     val stack: Int = 1,
 ) {
@@ -581,12 +584,14 @@ internal fun DrawScope.drawRail(
     }
     drawTimelineNode(centre, nodeRadius, ring, node.colour, solid, ends.node)
     if (icon != null) {
-        // On a solid node, whichever of light or dark reads on it — a route
-        // colour straight from a feed included; inside a ring, the ring's own.
+        // The caller's colour where it gave one. Otherwise, on a solid node,
+        // whichever of light or dark reads on it — a route colour straight from
+        // a feed included; inside a ring, the ring's own.
         val side = TimelineNodeIconSize.toPx()
+        val tint = node.iconColour.takeOrElse { if (solid) contentColourFor(node.colour) else node.colour }
         translate(centre.x - side / 2f, centre.y - side / 2f) {
             with(icon) {
-                draw(Size(side, side), colorFilter = ColorFilter.tint(if (solid) contentColourFor(node.colour) else node.colour))
+                draw(Size(side, side), colorFilter = ColorFilter.tint(tint))
             }
         }
     }
@@ -639,6 +644,7 @@ internal class TimelineStop(
     val filled: Boolean,
     val loading: Boolean,
     val icon: ImageVector?,
+    val iconColour: Color,
     val connector: ConnectorStyle,
     val connectorColour: Color,
     val connectorWidth: Dp,

@@ -27,6 +27,22 @@ The version an app is on is the `kontour` entry in its version catalog. See
 
 On `main`, and in the next release.
 
+### Breaking
+
+- **New parameters partway through.** `TimelineItem` and `TimelineRowScope`'s
+  two `item` functions take `iconColour` straight after `icon`. It is
+  defaulted, so anything built against 0.5.3 recompiles, and a call that names
+  its arguments needs nothing. One that passes the arguments after `icon` by
+  position names them: it fails to compile rather than meaning something else.
+  See [Migrating](migrating.md#name-the-arguments-after-icon-on-a-timeline).
+
+### Added
+
+- **A timeline's dot icon can be given its colour.** `TimelineItem` and a
+  `TimelineList` or `BranchTimeline` row's `item` take `iconColour`, beside
+  `icon`. Unspecified, as before, it picks light or dark to read on a solid dot,
+  or the ring's own colour inside a hollow one.
+
 ### Fixed
 
 - **`SwipeActions` no longer crashes when a row is dragged as it appears.** A

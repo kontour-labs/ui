@@ -72,6 +72,10 @@ abstract class TimelineRowScope internal constructor(val filledByDefault: Boolea
      *   the icon takes whichever of light or dark reads on a solid node, or the
      *   ring's colour inside a hollow one. Decorative, like the node: say what
      *   it means in the row's words. Not drawn while [loading].
+     * @param iconColour The [icon]'s colour. Unspecified picks one that reads:
+     *   light or dark on a solid node, or the ring's own colour inside a hollow
+     *   one. Pick one that holds 3:1 against the node, as an icon's own colour
+     *   must, and check it in both schemes.
      * @param connector How this row joins the next — the leg after it, or in a
      *   history, the lines down to its parents.
      * @param connectorColour The leg's colour. Unspecified takes the timeline's.
@@ -87,6 +91,7 @@ abstract class TimelineRowScope internal constructor(val filledByDefault: Boolea
         filled: Boolean = filledByDefault,
         loading: Boolean = false,
         icon: ImageVector? = null,
+        iconColour: Color = Color.Unspecified,
         connector: ConnectorStyle = ConnectorStyle.Solid,
         connectorColour: Color = Color.Unspecified,
         connectorWidth: Dp = Dp.Unspecified,
@@ -96,7 +101,7 @@ abstract class TimelineRowScope internal constructor(val filledByDefault: Boolea
         content: ListItemScope.() -> Unit,
     ) {
         stops += TimelineStop(
-            nodeColour, filled, loading, icon, connector, connectorColour, connectorWidth,
+            nodeColour, filled, loading, icon, iconColour, connector, connectorColour, connectorWidth,
             enabled, selected, role, onClick, content,
         )
     }
@@ -131,7 +136,7 @@ abstract class TimelineRowScope internal constructor(val filledByDefault: Boolea
     ) {
         require(count >= 1) { "A node group stands for at least one stop, not $count" }
         stops += TimelineStop(
-            nodeColour, filled, loading = false, icon = null, connector, connectorColour, connectorWidth,
+            nodeColour, filled, loading = false, icon = null, iconColour = Color.Unspecified, connector, connectorColour, connectorWidth,
             enabled, selected = false, role, onClick, content, stack = count.coerceAtMost(MaxGroupNodes),
         )
     }
@@ -172,6 +177,7 @@ abstract class TimelineRowScope internal constructor(val filledByDefault: Boolea
         filled: Boolean = filledByDefault,
         loading: Boolean = false,
         icon: ImageVector? = null,
+        iconColour: Color = Color.Unspecified,
         connector: ConnectorStyle = ConnectorStyle.Solid,
         onClick: (() -> Unit)? = null,
     ) {
@@ -180,6 +186,7 @@ abstract class TimelineRowScope internal constructor(val filledByDefault: Boolea
             filled = filled,
             loading = loading,
             icon = icon,
+            iconColour = iconColour,
             connector = connector,
             onClick = onClick,
         ) {
@@ -437,6 +444,7 @@ internal fun TimelineRow.rail(
             here = here?.here == true,
             reached = here?.reached != false,
             icon = stop.icon.takeIf { !stop.loading },
+            iconColour = stop.iconColour,
             stack = stop.stack,
         ),
         legs = listOfNotNull(

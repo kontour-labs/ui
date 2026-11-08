@@ -67,8 +67,10 @@ got visibly thinner and the rail around it did not.
 The dot grows to `TimelineDefaults.IconNodeSize` to hold it, if `nodeSize` is
 smaller, and only that item's: the rest keep theirs, and the rail still clears
 each by the same gap. On a solid dot the icon takes whichever of light or dark
-reads on it; inside a hollow one, the ring's colour. A `loading` item shows its
-spinner and no icon. It is drawn, not announced, as the dot is, so say what it
+reads on it; inside a hollow one, the ring's colour. `iconColour` sets it
+instead, for an icon that says something in its own colour: pick one that holds
+3:1 against the dot, in both schemes. A `loading` item shows its spinner and no
+icon. It is drawn, not announced, as the dot is, so say what it
 means in the item's words. Across a `HorizontalTimeline` it is the same.
 
 **`TimelineNodeGroup(count)` is one item standing for several stops**: its node

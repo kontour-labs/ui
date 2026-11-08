@@ -51,8 +51,9 @@ two halves meet with one whole gap between them, rather than two marks touching.
 transfer, the end of the trip. The node grows to `TimelineDefaults.IconNodeSize`
 to hold it, and only that one: the stops without keep their dot. On a solid node
 the icon takes whichever of light or dark reads on it, so a route colour straight
-from a feed stays legible; inside a ring it takes the ring's colour. A `loading`
-stop shows its spinner and no icon.
+from a feed stays legible; inside a ring it takes the ring's colour.
+`iconColour` sets it instead: pick one that holds 3:1 against the node, in both
+schemes. A `loading` stop shows its spinner and no icon.
 
 <!--sample:TimelineIcons-->
 ```kotlin
