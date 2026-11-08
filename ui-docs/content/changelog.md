@@ -241,6 +241,10 @@ docs, in November 2026:
 - **Shift+F10 or the menu key opens a `ContextMenuArea`'s menu**, from the focus
   anywhere in its content, below the area. It opened by a pointer alone, where
   `DocumentTabs` had both keys.
+- **A chart's legend at the start or the end goes under the plot when it is
+  taller than the plot**, or over it at the start, as a `SectorChart`'s does.
+  It was held to the plot's height, and at 200% type its entries ran on over
+  whatever was under the chart.
 
 ---
 

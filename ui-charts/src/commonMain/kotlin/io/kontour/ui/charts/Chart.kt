@@ -362,7 +362,9 @@ internal fun nearestPlace(places: DoubleArray, value: Double): Double? {
 /**
  * The plot and its legend: the legend at its natural size, and the plot in
  * what is left. With no height from outside, the plot takes
- * [ChartDefaults.Height] and the legend goes on top of that.
+ * [ChartDefaults.Height] and the legend goes on top of that. A legend asked to
+ * stand beside the plot that is taller than it goes under it, or over it at
+ * the start.
  */
 @Composable
 private fun ChartLayout(
@@ -383,41 +385,47 @@ private fun ChartLayout(
         val width = if (constraints.hasBoundedWidth) constraints.maxWidth else max(constraints.minWidth, DefaultWidth.roundToPx())
         val plotMeasurable = measurables[0]
         val legendMeasurable = measurables.getOrNull(1)
-        when (legendPosition) {
-            ChartLegendPosition.Top, ChartLegendPosition.Bottom -> {
-                val legendPlaceable = legendMeasurable?.measure(Constraints(maxWidth = width))
-                val legendBand = legendPlaceable?.let { it.height + gapPx } ?: 0
-                val plotHeight = if (constraints.hasBoundedHeight) {
-                    (constraints.maxHeight - legendBand).coerceAtLeast(0)
+        val beside = legendPosition == ChartLegendPosition.Start || legendPosition == ChartLegendPosition.End
+        val sideHeight = if (constraints.hasBoundedHeight) constraints.maxHeight else max(constraints.minHeight, ChartDefaults.Height.roundToPx())
+        // Beside the plot only while all of the legend fits its height. It was
+        // held to the plot's height and its entries ran on past it, over
+        // whatever was under the chart: at 200% type, five series did. There it
+        // goes under the plot instead, or over it for a legend at the start, as
+        // a sector chart's does. Found in the November 2026 audit.
+        val across = beside && (legendMeasurable?.maxIntrinsicHeight(width / 3) ?: 0) <= sideHeight
+        if (across) {
+            val height = sideHeight
+            val legendPlaceable = legendMeasurable?.measure(Constraints(maxWidth = width / 3, maxHeight = height))
+            val legendBand = legendPlaceable?.let { it.width + gapPx } ?: 0
+            val plotPlaceable = plotMeasurable.measure(Constraints.fixed((width - legendBand).coerceAtLeast(0), height))
+            layout(width, height) {
+                val legendTop = legendPlaceable?.let { (height - it.height) / 2 } ?: 0
+                if (legendPosition == ChartLegendPosition.Start) {
+                    legendPlaceable?.placeRelative(0, legendTop)
+                    plotPlaceable.placeRelative(legendBand, 0)
                 } else {
-                    max(ChartDefaults.Height.roundToPx(), constraints.minHeight - legendBand)
-                }
-                val height = plotHeight + legendBand
-                val plotPlaceable = plotMeasurable.measure(Constraints.fixed(width, plotHeight))
-                layout(width, height) {
-                    if (legendPosition == ChartLegendPosition.Top) {
-                        legendPlaceable?.placeRelative(0, 0)
-                        plotPlaceable.placeRelative(0, legendBand)
-                    } else {
-                        plotPlaceable.placeRelative(0, 0)
-                        legendPlaceable?.placeRelative(0, plotHeight + gapPx)
-                    }
+                    plotPlaceable.placeRelative(0, 0)
+                    legendPlaceable?.placeRelative(plotPlaceable.width + gapPx, legendTop)
                 }
             }
-            ChartLegendPosition.Start, ChartLegendPosition.End -> {
-                val height = if (constraints.hasBoundedHeight) constraints.maxHeight else max(constraints.minHeight, ChartDefaults.Height.roundToPx())
-                val legendPlaceable = legendMeasurable?.measure(Constraints(maxWidth = width / 3, maxHeight = height))
-                val legendBand = legendPlaceable?.let { it.width + gapPx } ?: 0
-                val plotPlaceable = plotMeasurable.measure(Constraints.fixed((width - legendBand).coerceAtLeast(0), height))
-                layout(width, height) {
-                    val legendTop = legendPlaceable?.let { (height - it.height) / 2 } ?: 0
-                    if (legendPosition == ChartLegendPosition.Start) {
-                        legendPlaceable?.placeRelative(0, legendTop)
-                        plotPlaceable.placeRelative(legendBand, 0)
-                    } else {
-                        plotPlaceable.placeRelative(0, 0)
-                        legendPlaceable?.placeRelative(plotPlaceable.width + gapPx, legendTop)
-                    }
+        } else {
+            val above = legendPosition == ChartLegendPosition.Top || legendPosition == ChartLegendPosition.Start
+            val legendPlaceable = legendMeasurable?.measure(Constraints(maxWidth = width))
+            val legendBand = legendPlaceable?.let { it.height + gapPx } ?: 0
+            val plotHeight = if (constraints.hasBoundedHeight) {
+                (constraints.maxHeight - legendBand).coerceAtLeast(0)
+            } else {
+                max(ChartDefaults.Height.roundToPx(), constraints.minHeight - legendBand)
+            }
+            val height = plotHeight + legendBand
+            val plotPlaceable = plotMeasurable.measure(Constraints.fixed(width, plotHeight))
+            layout(width, height) {
+                if (above) {
+                    legendPlaceable?.placeRelative(0, 0)
+                    plotPlaceable.placeRelative(0, legendBand)
+                } else {
+                    plotPlaceable.placeRelative(0, 0)
+                    legendPlaceable?.placeRelative(0, plotHeight + gapPx)
                 }
             }
         }

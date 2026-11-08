@@ -715,6 +715,8 @@ the card's left end.
 **At 200% text**, tick labels that would touch are thinned out evenly and never
 turned on their side, and the legend wraps. A label that is kept says its date,
 or a month its year, wherever that has changed since the label kept before it.
+A legend at the start or the end that is taller than the plot goes under it, or
+over it at the start, as a `SectorChart`'s does, rather than run on past it.
 
 The words a chart says on its own are `ChartStrings`, English by default. Build
 your own with `ChartStrings.from(lookup)` over the same `StringLookup` you give
