@@ -24,7 +24,6 @@ import io.kontour.ui.components.display.ErrorState
 import io.kontour.ui.components.display.LoadingState
 import io.kontour.ui.components.display.Skeleton
 import io.kontour.ui.components.display.Tag
-import io.kontour.ui.components.display.TagFlow
 import io.kontour.ui.components.display.TagGroup
 import io.kontour.ui.components.display.TagGroupDefaults
 import io.kontour.ui.components.display.TagJoin
@@ -3261,7 +3260,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
     )
 
     add(
-        // Drawn joined every way and stood apart, and with no part to press:
+        // Drawn joined both ways and stood apart, and with no part to press:
         // a group of labels is one merged node, which is what the contract's
         // text rules read. `TagGroupTest` covers a part that can be pressed.
         ComponentSpec("TagGroup", role = null, underContract = false) { modifier, _, _ ->
@@ -3279,10 +3278,6 @@ val componentRegistry: List<ComponentSpec> = buildList {
                     item(tone = Tone.Accent) { +"Bus" }
                     item { +"Route 960" }
                     item(tone = Tone.Success) { +"Live" }
-                }
-                TagGroup(join = TagJoin.Flow, flow = TagFlow.Backward) {
-                    item(tone = Tone.Success) { +"v2" }
-                    item { +"v1" }
                 }
             }
         }
