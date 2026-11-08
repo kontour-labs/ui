@@ -204,6 +204,7 @@ class TimelineProgressTest {
         filled = true,
         loading = false,
         icon = null,
+        iconColour = Color.Unspecified,
         connector = ConnectorStyle.Solid,
         connectorColour = Color.Unspecified,
         connectorWidth = Dp.Unspecified,
