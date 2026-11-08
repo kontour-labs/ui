@@ -1225,6 +1225,8 @@ fun SubMenu(
         }
     }
 
+    val expandedLabel = Theme.strings.expanded
+    val collapsedLabel = Theme.strings.collapsed
     Box(Modifier.anchorBounds { bounds = it }) {
         MenuItem(
             onClick = {
@@ -1233,6 +1235,10 @@ fun SubMenu(
             },
             modifier = modifier
                 .focusRequester(rowFocus)
+                // Whether its menu is open, said, as the in-place row's open
+                // level says it: a plain button read the same open or shut.
+                // Found in the November 2026 audit.
+                .semantics { stateDescription = if (open && enabled) expandedLabel else collapsedLabel }
                 .onPreviewKeyEvent { event ->
                     if (event.type == KeyEventType.KeyDown && event.key == forward && enabled) {
                         open = true
