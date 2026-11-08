@@ -239,6 +239,10 @@ docs, in November 2026:
   day's type tall, and a number too wide for a narrow column reaches past its
   circle, centred, where it was wrapped or clipped: at 200%, "20" was a "2" over
   a "0" cut at the top and bottom, and "28" was clipped to the "2".
+- **A label with a line limit ends in an ellipsis.** A list row's two lines, a
+  top bar's title and every other part with a limit of lines cut what did not
+  fit at a line's end with nothing to say there was more, which at 200% type
+  was most of a label.
 
 ---
 

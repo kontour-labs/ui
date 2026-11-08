@@ -172,7 +172,8 @@ internal open class RowContentScopeImpl(
 internal fun RowScope.contentScope(
     iconSize: Dp = Theme.sizing.iconMedium,
     maxLines: Int = Int.MAX_VALUE,
-    overflow: TextOverflow = TextOverflow.Clip,
+    // An ellipsis wherever there is a limit, as [ContentSlot]'s.
+    overflow: TextOverflow = if (maxLines == Int.MAX_VALUE) TextOverflow.Clip else TextOverflow.Ellipsis,
     content: @Composable RowContentScope.() -> Unit
 ) {
     // A label is pressed, not read: a drag across a paragraph in a
@@ -193,7 +194,12 @@ internal fun RowScope.contentScope(
 internal fun ContentSlot(
     iconSize: Dp = Theme.sizing.iconMedium,
     maxLines: Int = Int.MAX_VALUE,
-    overflow: TextOverflow = TextOverflow.Clip,
+    // An ellipsis wherever there is a limit. It was `Clip` whatever the limit,
+    // so a list row's two lines, a top bar's title and every other slot with a
+    // limit cut what did not fit at a line's end with nothing to say there was
+    // more, and at 200% that was most of a label. Found in the November 2026
+    // audit by `LargeTypeSweepTest`.
+    overflow: TextOverflow = if (maxLines == Int.MAX_VALUE) TextOverflow.Clip else TextOverflow.Ellipsis,
     content: @Composable ContentScope.() -> Unit
 ) {
     ContentScopeImpl(iconSize, maxLines, overflow).content()
