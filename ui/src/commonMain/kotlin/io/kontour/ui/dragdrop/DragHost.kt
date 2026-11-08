@@ -1,5 +1,9 @@
 package io.kontour.ui.dragdrop
 
+import androidx.compose.ui.AbsoluteAlignment
+import androidx.compose.foundation.layout.absoluteOffset
+import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.animation.core.VisibilityThreshold
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.spring
@@ -11,7 +15,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -1262,7 +1265,15 @@ internal fun DragLayer(host: DragHost) {
     val grows = !motion.reduceMotion
     Box(
         Modifier
-            .offset { ((if (flying) position.value else session.drawn) - host.originOf()).let { IntOffset(it.x.roundToInt(), it.y.roundToInt()) } }
+            // Placed in the root's own coordinates, which are not mirrored, so
+            // placed absolutely: from the host's left edge, not its start, and
+            // moved by an offset the layout direction leaves alone. Right to
+            // left, a plain `offset` in a box that starts at its right put the
+            // carried thing at the mirror image of the finger. Found in the
+            // November 2026 audit; `DragPlaceRightToLeftTest`.
+            .fillMaxSize()
+            .wrapContentSize(AbsoluteAlignment.TopLeft, unbounded = true)
+            .absoluteOffset { ((if (flying) position.value else session.drawn) - host.originOf()).let { IntOffset(it.x.roundToInt(), it.y.roundToInt()) } }
             .size(with(density) { session.size.width.toDp() }, with(density) { session.size.height.toDp() })
             .graphicsLayer {
                 val up = lift.value.coerceIn(0f, 1f)

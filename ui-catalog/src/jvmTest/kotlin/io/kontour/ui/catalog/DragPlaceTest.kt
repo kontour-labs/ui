@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
@@ -19,6 +20,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.input.pointer.PointerType
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -97,6 +101,45 @@ class DragPlaceTest {
     }
 }
 
+/**
+ * A carried card is drawn under the pointer carrying it, right to left as left
+ * to right.
+ *
+ * Found in the November 2026 audit: the carried card was placed with an offset
+ * that the layout direction mirrors, from coordinates that are not mirrored, so
+ * right to left it was drawn across the screen from the finger, at the mirror
+ * image of where it was.
+ */
+class DragPlaceRightToLeftTest {
+
+    @Test
+    fun aCarriedCardIsDrawnUnderThePointerRightToLeft() = underThePointer(rtl = true)
+
+    @Test
+    fun aCarriedCardIsDrawnUnderThePointerLeftToRight() = underThePointer(rtl = false)
+
+    private fun underThePointer(rtl: Boolean) {
+        val board = SpacedBoard(todo = listOf("Timetable", "Fares", "Signage"), done = listOf("Maps"), cardWidth = 100.dp, rtl = rtl)
+        board.run { scene ->
+            val grab = board.bounds.getValue("Fares").center
+            // Down and into the empty lower half of its own list, where nothing
+            // else is drawn.
+            val over = grab + Offset(0f, 360f)
+            scene.pickUp(grab)
+            scene.carry(grab + Offset(0f, 24f), over)
+            val frame = scene.frames(4)
+            val green = CardColours.getValue("Fares").toArgb() and 0xFFFFFF
+            val xs = (0 until frame.width).filter { (frame.getRGB(it, over.y.toInt()) and 0xFFFFFF) == green }
+            assertTrue(xs.isNotEmpty(), "the carried card was drawn nowhere along the pointer's row, ${over.y}")
+            val middle = (xs.first() + xs.last()) / 2f
+            assertTrue(
+                abs(middle - over.x) < 40f,
+                "the carried card was drawn about $middle across, the pointer is at ${over.x} (${if (rtl) "right to left" else "left to right"})",
+            )
+        }
+    }
+}
+
 /** Cards a solid colour each, so a frame can say where each one is drawn. */
 internal val CardColours: Map<String, Color> = mapOf(
     "Timetable" to Color(0xFFB71C1C),
@@ -124,6 +167,8 @@ internal class SpacedBoard(
     val inset: Dp = 0.dp,
     /** Cards this wide, centred in their lists, rather than as wide as the list. */
     val cardWidth: Dp? = null,
+    /** Laid out right to left. */
+    val rtl: Boolean = false,
 ) {
     class Lane(initial: List<String>, val label: String) {
         val items: SnapshotStateList<String> = mutableStateListOf<String>().also { it.addAll(initial) }
@@ -148,11 +193,13 @@ internal class SpacedBoard(
 
     fun run(drive: (Scene) -> Unit) {
         Scene(width = 640, height = 900, reduceMotion = reduceMotion) {
-            OverlayHost {
-                Row(Modifier.fillMaxSize().background(Color.White)) {
-                    Lane(todo, Modifier.weight(1f).reportBounds { todoList = it })
-                    if (gutter) Box(Modifier.weight(0.5f).fillMaxHeight().reportBounds { gutterBounds = it })
-                    Lane(done, Modifier.weight(1f).reportBounds { doneList = it })
+            CompositionLocalProvider(LocalLayoutDirection provides if (rtl) LayoutDirection.Rtl else LayoutDirection.Ltr) {
+                OverlayHost {
+                    Row(Modifier.fillMaxSize().background(Color.White)) {
+                        Lane(todo, Modifier.weight(1f).reportBounds { todoList = it })
+                        if (gutter) Box(Modifier.weight(0.5f).fillMaxHeight().reportBounds { gutterBounds = it })
+                        Lane(done, Modifier.weight(1f).reportBounds { doneList = it })
+                    }
                 }
             }
         }.use { scene ->
