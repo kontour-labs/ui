@@ -77,6 +77,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalDensity
@@ -242,6 +243,7 @@ import io.kontour.ui.dragdrop.DragType
 import io.kontour.ui.nav.DocumentTabs
 import kotlin.math.abs
 import kotlin.time.Duration.Companion.minutes
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.datetime.DatePeriod
@@ -353,6 +355,21 @@ class ComponentSpec(
      * the disabled rule could not be asked of them.
      */
     val reportsDisabled: Boolean = true,
+    /**
+     * False for a gesture that is a shortcut and not a route, which has no Tab
+     * stop of its own for `KeyboardSweepTest` to reach: a pull, a swipe, a
+     * carry, a sheet's handle.
+     *
+     * collections.md's house rule is that a gesture is never the only way to
+     * do a thing. Each of these carries its actions for a screen reader, and
+     * the keyboard's way to what it does is the app's to give: the refresh in
+     * a menu or a toolbar (pull-to-refresh.md), `ReorderableState.start` behind
+     * a key (reorderable-item.md), the actions a swipe reveals in a row's own
+     * menu. A component that is reached through something else, as a carousel
+     * is through its pressable indicator, is not one of these: its specimen
+     * shows the route.
+     */
+    val reachedByTab: Boolean = true,
     /**
      * False for a specimen that exists only to be **drawn**.
      *
@@ -1747,6 +1764,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
             ),
         ) { modifier, enabled, _ ->
             val carousel = rememberCarouselState { 3 }
+            val scope = rememberCoroutineScope()
             Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Carousel(
                     state = carousel,
@@ -1764,8 +1782,16 @@ val componentRegistry: List<ComponentSpec> = buildList {
                         }
                     }
                 }
+                // Pressable, which carousel.md gives as the carousel's route
+                // for a keyboard: a swipe has no keyboard equivalent, and the
+                // pages themselves are no Tab stop. Without it the specimen
+                // was a carousel nothing but a finger could turn.
                 Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    PageIndicator(carousel)
+                    PageIndicator(
+                        carousel,
+                        enabled = enabled,
+                        onPageClick = { page -> scope.launch { carousel.animateScrollToPage(page) } },
+                    )
                 }
             }
         }
@@ -2541,6 +2567,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
             expectsMinimumTarget = false,
             activatedByClick = false,
             reportsDisabled = false,
+            reachedByTab = false,
         ) { modifier, _, _ ->
             // No `LocalSheetState`, so it is the resting pill rather than the
             // interactive one — which is what a reader wants to see of it.
@@ -3290,6 +3317,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
             role = null,
             activatedByClick = false,
             reportsDisabled = false,
+            reachedByTab = false,
             renderHeight = 200,
         ) { modifier, enabled, _ ->
             // Mid-refresh, over real content: at rest it is its own content and
@@ -3317,6 +3345,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
             role = null,
             activatedByClick = false,
             reportsDisabled = false,
+            reachedByTab = false,
             states = listOf(
                 // At rest this is a list row and nothing else, so the resting
                 // render was a picture of `ListItem` under another name — which
@@ -3373,6 +3402,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
             role = null,
             activatedByClick = false,
             reportsDisabled = false,
+            reachedByTab = false,
             states = listOf(
                 // Lifted: the shadow, the scale and the offset that say "this row
                 // is in your hand". None of it is visible at rest, and until

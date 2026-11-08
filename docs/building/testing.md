@@ -42,6 +42,7 @@ The golden-orphan check still runs on the everyday run, and skips only
 |---|---|
 | [The contract suite](#the-contract-suite) | Is every component operable, named and reachable? |
 | [`LargeTypeSweepTest`](#nothing-is-cut-at-200-type) | Does any specimen cut its text at 200% type? |
+| [`KeyboardSweepTest`](#the-keyboard-reaches-every-control-and-stays-in-a-modal) | Does Tab reach every control, show it, and stay in an open modal? |
 | [`checkNoMaterial`](#checknomaterial) | Did anything pull Material in? |
 | [`checkApiConventions`](#checkapiconventions) | Do the signatures follow the house order? |
 | [`checkKotlinAbi`](#checkkotlinabi) | Has the public API changed from the dump checked in? |
@@ -285,6 +286,37 @@ wrapped; an event calendar's dates clipped to their first digit; every slot
 with a line limit, a list row's label and a top bar's title among them, cut with
 no ellipsis; and the marquee's own example truncating mid-name under reduced
 motion.
+
+## The keyboard reaches every control, and stays in a modal
+
+accessibility.md draws a focus ring "when the keyboard reaches" a control, and
+overlays.md says the content under a modal "cannot take focus". Neither was
+swept: `KeyboardFocusRingTest` in `:ui` checks the ring on the controls that
+had none, and `ModalKeepsFocusTest` the trap under a dialog and a sheet.
+
+`KeyboardSweepTest` asks both of everything:
+
+- **Every specimen under contract is reached by Tab** from nothing focused, and
+  once it is, more of the focus ring's colour is on screen than with nothing
+  focused. Compared with focus cleared rather than with the screen before the
+  first Tab, because a menu or a palette puts the focus in itself as it opens.
+  A gesture that is a shortcut and not a route, which collections.md says a
+  gesture always is, says so with `reachedByTab = false` beside its specimen:
+  a pull, a swipe, a carry and a sheet's handle, whose keyboard route is the
+  app's to give. A component reached through another, as a carousel is through
+  its pressable `PageIndicator`, shows that route in its specimen instead.
+- **Tab and Shift+Tab never leave an open modal** for a page that scrolls under
+  it, for each of the library's nine modal overlays: a dialog, an alert, a
+  command palette, a modal bottom sheet, side sheet and navigation rail, a menu,
+  a popover and an open `FabMenu`.
+
+Each half has a control: a control that cannot take focus, one that draws no
+ring, and a panel over the page with no host to trap the keyboard.
+
+It runs in a few seconds and is in the everyday run. Added in November 2026, it
+found a command palette whose panel was a ringless Tab stop that Shift+Tab left
+the palette from, a disclosure row and a thumbnail strip whose rings were clipped
+away whole, and a carousel specimen nothing but a finger could turn.
 
 ---
 
