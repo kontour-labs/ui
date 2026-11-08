@@ -1,5 +1,6 @@
 package io.kontour.ui.components.selection
 
+import io.kontour.ui.components.calendar.activates
 import androidx.compose.animation.core.AnimationState
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.width
@@ -404,7 +405,7 @@ internal fun KnobLayout(
             }
             .onKeyEvent { event ->
                 if (!enabled || editing || event.type != KeyEventType.KeyDown) return@onKeyEvent false
-                if (canEdit && (event.key == Key.Enter || event.key == Key.NumPadEnter || event.key == Key.Spacebar)) {
+                if (canEdit && activates(event.key)) {
                     editing = true
                     return@onKeyEvent true
                 }

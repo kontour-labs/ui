@@ -554,7 +554,7 @@ private fun Modifier.eventControl(
                             scope.announcer.say(scope.strings.dragCancelled(current.title))
                             true
                         }
-                        key.key == Key.Enter || key.key == Key.NumPadEnter || key.key == Key.Spacebar -> {
+                        activates(key.key) -> {
                             scope.putDown()
                             true
                         }

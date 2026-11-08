@@ -553,7 +553,7 @@ fun ActivityCalendar(
                                 Key.DirectionUp -> focusedDay.minus(DatePeriod(days = 1))
                                 Key.MoveHome -> grid.firstShown
                                 Key.MoveEnd -> end
-                                Key.Enter, Key.NumPadEnter, Key.Spacebar -> {
+                                Key.Enter, Key.NumPadEnter, Key.Spacebar, Key.DirectionCenter -> {
                                     onDayClick(focusedDay)
                                     return@onKeyEvent true
                                 }
