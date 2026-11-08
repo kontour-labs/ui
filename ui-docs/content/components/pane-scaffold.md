@@ -75,6 +75,11 @@ end as leaves that pane its 280dp minimum — with `setProgress` putting the sea
 at the share asked for. So the panes can be resized from a screen reader without
 the drag gesture, and a request for 0.6 is 0.6 of the window, whatever its width.
 
+It is also a Tab stop, with a focus ring. Left and Right move the seam a fiftieth
+of the width the way they point, so Left widens the first pane right to left.
+Page Up and Page Down give the first pane a tenth more or less, and Home and End
+take it to its minimum and to the other pane's.
+
 Under 840dp there is one pane, on a portrait tablet as on a phone, and `onBack` is what returns from the
 detail to the list. The scaffold calls it for back itself — the system gesture,
 iOS's edge swipe, Escape — and the detail follows a gesture while it runs, so

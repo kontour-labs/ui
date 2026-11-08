@@ -532,7 +532,9 @@ between the map and the sheet freely.
 
 The detents are reachable without the gesture: [`DragHandle`](drag-handle.md)
 exposes `expand` and `collapse` as semantic actions, so the sheet can be resized
-from a screen reader's rotor rather than only by dragging.
+from a screen reader's rotor rather than only by dragging, and it is a Tab stop
+whose arrows step the detent and whose Home and End go to the tallest and the
+shortest.
 
 At [high contrast](../accessibility.md#what-high-actually-changes) the sheet
 takes an edge in the scheme's `outline`, since its raised ground is otherwise

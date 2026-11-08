@@ -215,6 +215,14 @@ docs, in November 2026:
   reader still read them.
 - **A standalone `Checkbox` shows the hand**, and a sheet's handle and a pane's
   splitter draw no hover for a stylus.
+- **A sheet's detents and a pane's splitter move from the keyboard.** Each was
+  moved by a drag or a screen reader's actions, and took no focus. A
+  `DragHandle` on a sheet with more than one size to open to is now a Tab stop:
+  Up and Down step the detent, as do Page Up and Page Down, and Home and End go
+  to the tallest and the shortest, never to hidden. A resizable pane scaffold's
+  seam is one too: Left and Right move it a fiftieth of the width, mirrored
+  right to left, Page Up and Page Down a tenth, and Home and End to the panes'
+  minimums.
 
 ---
 

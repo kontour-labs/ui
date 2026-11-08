@@ -382,6 +382,7 @@ MOVEMENT_ALLOWED = {
     # A sheet's settling: the reader's drag, or the sheet's own programmatic move.
     "BottomSheet.kt:FollowBack": "calls `SheetState.animateTo`, which fades in place under reduced motion",
     "SheetWheel.kt:sheetWheel": "calls `SheetState.animateTo`, which fades in place under reduced motion",
+    "SheetHeader.kt:DragHandle": "its keys call `SheetState.animateTo`, which fades in place under reduced motion",
     # A still mirror for right to left, which the detector reads as a scale.
     "ColourPicker.kt:Track": "flips the track's gradient for right to left; nothing moves",
     "Mirroring.kt:mirrorInRtl": "flips a drawing for right to left; nothing moves",
