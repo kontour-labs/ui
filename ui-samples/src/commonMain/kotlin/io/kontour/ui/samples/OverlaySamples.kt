@@ -65,8 +65,9 @@ fun DialogBasics() {
         visible = open,
         onDismissRequest = { open = false },
         title = { +"Rename favourite" },
-        // Under the content, and kept on screen while it scrolls. Placed by role:
-        // the confirm on the trailing edge, the cancel beside it.
+        // Under the content, and kept on screen while it scrolls unless the row
+        // takes over half the room. Placed by role: the confirm on the trailing
+        // edge, the cancel beside it.
         actions = {
             cancel()
             confirm("Save", enabled = name.text.isNotBlank()) {

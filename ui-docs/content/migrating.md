@@ -22,8 +22,8 @@ new script, two signatures grow a parameter, which only a call passing its
 arguments by position notices, and `TagJoin` grows an entry, which only a `when`
 over it notices. The rest compiles as it is and behaves
 differently, under **Check**: text fields on a phone's browser, a drag across
-steps, a sheet dragged by its content, the keyboard and a modal, large type,
-and an overlay's first opening.
+steps, a sheet dragged by its content, the keyboard and a modal, Tab order,
+large type, layout where it ran out of room, and an overlay's first opening.
 
 ### Replace the page's script
 
@@ -84,9 +84,22 @@ it is.
   that tabbed out of a dialog into the page, or expected nothing focused after
   opening one, changes. Give the opener its focus back from `onDismissRequest`:
   [Overlays](overlays.md#where-the-keyboard-goes).
+- **Tab order.** There are new stops: a pressable `PageIndicator`, a sheet's
+  `DragHandle` when the sheet has more than one size to open to, and a resizable
+  pane scaffold's seam. A `CommandPalette`'s panel is no longer one. A tooltip
+  opens as Tab reaches its control. A test that counted Tab presses, or read
+  the tree with a tooltip's control focused, changes.
 - **Large type.** A wheel's rows grow past 40dp once its line of text needs
   more, and a menu's rows take a second line past a font scale of 1.3. A test
   at large type that measured either changes.
+- **Layout where it ran out of room.** A label with a line limit, in a slot or a
+  chip, ends in an ellipsis rather than a hard cut. A `Dialog`'s buttons scroll
+  with its content once they would take over half its room. A chart's legend at
+  the start or the end goes under the plot when it is taller than the plot. A
+  `TagGroup` too narrow for all of it shares the room among its parts. An
+  `InputChip` is wider under a finger, by the difference between its 24dp remove
+  button and the platform's minimum. A screenshot that caught any of those cut,
+  overflowing or squeezed changes.
 - **An overlay's first opening on the web.** A phone's browser draws an
   overlay's pieces once as the app appears, and a desktop's draws the commoner
   pieces once while it is idle and the reader is still. Nothing is drawn where

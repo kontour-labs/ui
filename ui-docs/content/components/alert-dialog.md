@@ -34,7 +34,8 @@ The cancel answer takes a line of its own instead — see
 
 **The buttons stay on screen.** They sit under the message rather than at the
 end of it, so a long message on a short window scrolls and the answers stay in
-reach. They are the row a `Dialog` draws from its
+reach, unless at large type the row would take over half the room, when it
+scrolls with the message. They are the row a `Dialog` draws from its
 [`actions`](dialog.md), which is where to go for the same buttons under a body
 of your own.
 

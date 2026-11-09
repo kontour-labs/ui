@@ -51,8 +51,9 @@ make a sustained one. So:
   actions, the same way `SwipeActions` and `ReorderableItem` do;
 - it announces "3 of 5" as its state;
 - and `PageIndicator` becomes a real target the moment you give it
-  `onPageClick` — one full-height band that sends a tap to the nearest dot, plus
-  a named `Role.RadioButton` per page for a screen reader.
+  `onPageClick` — one full-height band that sends a tap to the nearest dot, a
+  named `Role.RadioButton` per page for a screen reader, and one Tab stop whose
+  arrows move through the pages: [its keys](page-indicator.md#accessibility).
 
 A carousel with a decorative indicator and no arrows is operable by exactly one
 input method, and the app has four.

@@ -96,7 +96,8 @@ import kotlin.math.sign
  *   body below it is any column of content.
  * @param actions The buttons along the foot — `actions = { cancel(); confirm("Save") { … } }`
  *   — laid out as an [AlertDialog]'s are and kept on screen while the content
- *   scrolls. See [DialogActionsScope].
+ *   scrolls, as long as the row takes half the room or less; past that it
+ *   scrolls with the content. See [DialogActionsScope].
  * @param dismissible Pass `false` for a decision the user must actually
  *   make. Use sparingly: a dialog that cannot be escaped is a trap, and most
  *   "are you sure" prompts are safe to cancel by tapping away.

@@ -176,13 +176,19 @@ and figures, both bundled; there is nothing to add unless you reskin, which
   not reach.
 
   On an iPhone or iPad, every browser is WebKit, which opens the keyboard only
-  for an input focused during the tap itself; Compose focuses its own while the
-  finger is still down, a frame after it lands, which WebKit does not count. So
-  as the finger lifts from a text field, a combobox, a nav bar's search or an
-  editable knob, `KontourTheme` focuses Compose's input again, during the tap,
-  and the keyboard opens for it. A field that focuses itself later — the box
-  under a select's "Other", a combobox's editor — has a hidden input focused
-  in its place for the moment between. Nothing is added off iOS.
+  for a tap that lands on an input, as that tap's own default action. Compose
+  draws its fields on the canvas, and its own input is there only once a field
+  has the focus, so a first tap on a field lands on the canvas and gets no
+  keyboard. So `KontourTheme` keeps a transparent input over each text field
+  while nothing is being typed in it: the tap lands on that, the keyboard
+  opens, and the focus goes straight on to Compose's input with the keyboard
+  still up. The touches go on to Compose too, so the caret goes where the
+  finger was and a drag that starts on a field still scrolls; the field's own
+  buttons are left out of it. A field that focuses itself a moment later — a
+  combobox's editor, a nav bar's search, the box under a select's "Other" —
+  or that a finger drags, as an editable knob, has a hidden input focused for
+  it as the finger lifts instead, which holds the keyboard until Compose's own
+  input takes it. Nothing is added off iOS.
 
   On a phone or a tablet, in any browser, **a focused text field's selection,
   its handles and its menu are the browser's own**: Copy, Paste, Look Up and

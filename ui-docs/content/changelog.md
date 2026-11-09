@@ -27,20 +27,6 @@ The version an app is on is the `kontour` entry in its version catalog. See
 
 On `main`, and in the next release.
 
-### Breaking
-
-- **New parameters partway through.** `TimelineItem` and `TimelineRowScope`'s
-  two `item` functions take `iconColour` straight after `icon`. It is
-  defaulted, so anything built against 0.5.3 recompiles, and a call that names
-  its arguments needs nothing. One that passes the arguments after `icon` by
-  position names them: it fails to compile rather than meaning something else.
-  See [Migrating](migrating.md#name-the-arguments-after-icon-on-a-timeline).
-- **`TagGroup` has a new parameter**, `flow`, defaulted, after `shape` and
-  before the content, so anything built against 0.5.3 recompiles; every call
-  site still compiles as it is. **`TagJoin` has a new entry**, `Flow`: a `when`
-  over a `TagJoin` with no `else` needs a branch for it. See
-  [Migrating](migrating.md#give-a-when-over-tagjoin-a-branch-for-flow).
-
 ### Added
 
 - **A tag group can flow.** `TagGroup(join = TagJoin.Flow)` cuts each join to a
@@ -132,13 +118,14 @@ On `main`, and in the next release.
   shadows on the web are now drawn with Skia's own blur, the same blur for the
   same tokens, and the heap stays where it is. Android, iOS and the desktop still
   use `dropShadow`.
-- **The first sheet opened on the web stutters less.** The GPU programs a sheet
-  draws with, its squircle and shadow, the scrim and the page drawn smaller
-  behind it, were compiled as it slid in, and on a Pixel its first opening had
-  frames of 107ms and 86ms. The overlay host now draws each of them once, out of
-  sight, as the app appears, and that opening's worst frames are about 70ms and
-  50ms. Later openings were already smooth. Android, iOS and the desktop apps
-  are as they were.
+- **The first sheet opened on a phone's browser stutters less.** The GPU
+  programs a sheet draws with, its squircle and shadow, the scrim and the page
+  drawn smaller behind it, were compiled as it slid in, and on a Pixel its first opening had
+  frames of 107ms and 86ms. On a phone's or a tablet's browser the overlay host
+  now draws each of them once, out of sight, as the app appears, and that
+  opening's worst frames are about 70ms and 50ms. Later openings were already
+  smooth. A desktop's browser does it differently, below. Android, iOS and the
+  desktop apps are as they were.
 - **A first visit on a desktop's browser stops less as it is read.** Chrome on
   a Mac compiles each kind of drawing through Metal the first time it is
   asked for, at 30–50ms each and far more for a large shadow's blur, and a
@@ -148,7 +135,7 @@ On `main`, and in the next release.
   out of sight, one at a time while the browser is idle and the reader has
   left the page alone for a moment: text and icons through rounded corners,
   the controls, the panels and their shadows. Measured again, nothing the
-  reader did stopped for more than 111ms. Chrome keeps what it compiles, so a
+  reader did stopped for more than 130ms. Chrome keeps what it compiles, so a
   later visit pays for none of it. On a phone's browser the overlay's pieces
   are drawn at once as the app appears, as above: drawn that way on a Mac, they
   were a frame of nearly a second.
@@ -286,9 +273,9 @@ docs, in November 2026:
   circle, centred, where it was wrapped or clipped: at 200%, "20" was a "2" over
   a "0" cut at the top and bottom, and "28" was clipped to the "2".
 - **A label with a line limit ends in an ellipsis.** A list row's two lines, a
-  top bar's title and every other part with a limit of lines cut what did not
-  fit at a line's end with nothing to say there was more, which at 200% type
-  was most of a label.
+  top bar's title, a chip's label and every other part with a limit of lines
+  cut what did not fit at a line's end with nothing to say there was more,
+  which at 200% type was most of a label.
 - **`Modifier.marquee`'s examples ask for an ellipsis**, for when it does not
   run. Under reduced motion it truncates, and a text truncated with none ends
   at a word as if that were all of it: "Elizabeth Quay" for "Elizabeth Quay Bus
@@ -301,6 +288,20 @@ docs, in November 2026:
   card clips the header to its shape, and cut away the ring drawn round it.
 - **A `ThumbnailStrip` shows the focus ring** that thumbnail-strip.md says it
   has. The clip that cuts the thumbnails at its ends cut the ring away too.
+
+### Breaking
+
+- **New parameters partway through.** `TimelineItem` and `TimelineRowScope`'s
+  two `item` functions take `iconColour` straight after `icon`. It is
+  defaulted, so anything built against 0.5.3 recompiles, and a call that names
+  its arguments needs nothing. One that passes the arguments after `icon` by
+  position names them: it fails to compile rather than meaning something else.
+  See [Migrating](migrating.md#name-the-arguments-after-icon-on-a-timeline).
+- **`TagGroup` has a new parameter**, `flow`, defaulted, after `shape` and
+  before the content, so anything built against 0.5.3 recompiles; every call
+  site still compiles as it is. **`TagJoin` has a new entry**, `Flow`: a `when`
+  over a `TagJoin` with no `else` needs a branch for it. See
+  [Migrating](migrating.md#give-a-when-over-tagjoin-a-branch-for-flow).
 
 ---
 

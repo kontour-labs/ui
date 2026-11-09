@@ -92,6 +92,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.ui.draw.clip
 import io.kontour.ui.motion.shimmer
+import androidx.compose.ui.text.style.TextOverflow
 
 @Composable
 fun StatBasics() {
@@ -351,6 +352,7 @@ fun MarqueeBasics(stop: Stop) {
     Text(
         text = stop.name,
         maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
         modifier = Modifier.marquee(),
     )
 }
@@ -360,6 +362,7 @@ fun MarqueeDraggable(stop: Stop) {
     Text(
         text = stop.name,
         maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
         modifier = Modifier.marquee(draggable = true),
     )
 }
@@ -369,6 +372,7 @@ fun MarqueeBackAndForth(stop: Stop) {
     Text(
         text = stop.name,
         maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
         modifier = Modifier.marquee(travel = MarqueeTravel.BackAndForth),
     )
 }

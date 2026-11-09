@@ -19,8 +19,9 @@ TagGroup(join = TagJoin.Diagonal) {
 **`spacing` stands the parts apart.** At its default, 0, the parts are one tag
 split into pieces. With a little room, `TagGroupDefaults.Gap`, they are separate
 tags standing together, with tight corners where they face each other, as a
-[`ButtonGroup`](button-group.md)'s buttons have. Either join works either way: a
-diagonal group stood apart has slanted channels between its parts.
+[`ButtonGroup`](button-group.md)'s buttons have. Any join works either way: a
+diagonal group stood apart has slanted channels between its parts, and a flowing
+one has pointed ones.
 
 <!--sample:TagGroupApart-->
 ```kotlin
@@ -90,3 +91,8 @@ order they make sense spoken. When the direction is the point, say it: a
 backward flow from `v2` to `v1` can give `v1` the `contentDescription` "made
 from v1". Nothing about a group moves, and a part's press is a fade at every
 setting, so reduced motion changes nothing here.
+
+**Too narrow for all of it, every part keeps a share.** At large type or in a
+narrow column, the room is shared out: a part that fits keeps its width, and the
+longer ones are cut to an even share and end in an ellipsis. No part is pushed
+out of sight while a screen reader still reads it.

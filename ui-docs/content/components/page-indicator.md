@@ -79,7 +79,10 @@ default, so "Page 2 of 5" rather than a dot with no name.
 **And one Tab stop.** The strip takes focus once, with a ring round it, and the
 arrows along it ask for the page before or after, the way the text runs: Left
 goes on in a right-to-left language. Up and Down do it in a vertical strip, and
-Home and End ask for the first and the last. A disabled strip takes no focus.
+Home and End ask for the first and the last. A disabled strip takes no focus,
+says it is disabled, and is drawn in the disabled grey, as a slider is: the
+current page's pill grey and the rest on the sunken ground, so it does not look
+as if it could be pressed.
 
 **The strip is one touch target, not one per dot.** That is the second version of
 this. Each dot used to carry its own `minimumTouchTarget()`, and on Android that

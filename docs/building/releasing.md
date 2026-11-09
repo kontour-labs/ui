@@ -14,9 +14,13 @@ git push origin v0.4.5
 
 Before tagging:
 
-1. The changelog's `## Unreleased` becomes `## 0.4.5 — <date>`, with a fresh
+1. The changelog's `## Unreleased` becomes `## 0.4.5 — <date>`, with a
+   paragraph under it saying what the release is mostly about and a fresh
    empty `## Unreleased` above it, and [`migrating.md`](../../ui-docs/content/migrating.md)
-   has a section for every break in it.
+   has a section for every break in it. The README and
+   [`installing.md`](../../ui-docs/content/installing.md) install the new
+   version: they name the last release, so they move in the release's own
+   commit and not before.
 2. `./gradlew :ui:coordinate -Pkontour.version=0.4.5` shows what the tag will
    publish; without the property it is the snapshot an untagged build is.
 3. The API dumps are current: `./gradlew checkKotlinAbi`.

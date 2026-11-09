@@ -15,7 +15,7 @@ python3 docs/check-settings.py
 
 ### The everyday run, and the full one
 
-`:ui-catalog:jvmTest` leaves out 27 slow classes unless it is asked for them:
+`:ui-catalog:jvmTest` leaves out 26 slow classes unless it is asked for them:
 
 ```sh
 ./gradlew :ui-catalog:jvmTest -Pkontour.tests.full=true
@@ -302,8 +302,9 @@ had none, and `ModalKeepsFocusTest` the trap under a dialog and a sheet.
   first Tab, because a menu or a palette puts the focus in itself as it opens.
   A gesture that is a shortcut and not a route, which collections.md says a
   gesture always is, says so with `reachedByTab = false` beside its specimen:
-  a pull, a swipe, a carry and a sheet's handle, whose keyboard route is the
-  app's to give. A component reached through another, as a carousel is through
+  a pull, a swipe and a carry. A sheet's handle says it too, as its specimen
+  has no sheet behind it; on a sheet with more than one size it is a Tab stop,
+  and `SheetHandleKeysTest` holds its keys. A component reached through another, as a carousel is through
   its pressable `PageIndicator`, shows that route in its specimen instead.
 - **Tab and Shift+Tab never leave an open modal** for a page that scrolls under
   it, for each of the library's nine modal overlays: a dialog, an alert, a
