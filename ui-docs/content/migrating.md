@@ -23,7 +23,8 @@ arguments by position notices, and `TagJoin` grows an entry, which only a `when`
 over it notices. The rest compiles as it is and behaves
 differently, under **Check**: text fields on a phone's browser, a drag across
 steps, a sheet dragged by its content, the keyboard and a modal, Tab order,
-large type, layout where it ran out of room, and an overlay's first opening.
+large type, layout where it ran out of room, an overlay's first opening, the
+page round the canvas on the web, and three redrawn icons.
 
 ### Replace the page's script
 
@@ -104,6 +105,14 @@ it is.
   overlay's pieces once as the app appears, and a desktop's draws the commoner
   pieces once while it is idle and the reader is still. Nothing is drawn where
   it can be seen, and nothing changes on Android, iOS or the desktop.
+- **The page round the canvas on the web.** `KontourTheme` sets the page's
+  `html` and `body` background and its `theme-color` to the theme's background,
+  in light and dark. An app whose `index.html` gave either a colour of its own
+  sees the theme's instead, which is what shows behind a phone's bars.
+- **Three redrawn icons.** Tabler 3.51.0 redraws `Tabler.Outline.Calendar` and
+  `Tabler.Filled.Calendar` without the 1 on the page, and
+  `Tabler.Outline.ShoppingCartCopy` as two pages rather than a tick. An app that
+  uses them looks different, and its screenshots that show them change.
 
 ---
 

@@ -25,7 +25,25 @@ The version an app is on is the `kontour` entry in its version catalog. See
 
 ## Unreleased
 
-On `main`, and in the next release.
+On `main`, and in the next release. Nothing yet.
+
+---
+
+## 0.5.4 — 9 November 2026
+
+The web, and a phone's browser above all. On an iPhone a field's first tap opens
+the keyboard, a tap puts the caret where it landed, the browser's own selection
+and menu work in a field, and Safari on iOS 27.2 no longer piles a screen into
+its corner, which needs the page's new script. Shadows on the web stop growing
+memory, a window resizes about three times cheaper, and the first sheet or the
+first visit stutters less. An audit of accessibility, localisation, layout and
+input against these docs: the keyboard stays in a modal and reaches sheets,
+splitters, ratings and page indicators; disabled controls say so; nothing is
+cut mid-letter at 200% type; right to left, a carried item, a FAB menu and a
+progress ring go the right way. A tag group can flow as arrows, a timeline's
+icon takes a colour, a swipe row no longer crashes as it appears, and the icons
+are Tabler 3.51.0. Two signatures grew a defaulted parameter and `TagJoin` an
+entry: [Migrating](migrating.md) has what to change and what to check.
 
 ### Added
 
@@ -34,7 +52,6 @@ On `main`, and in the next release.
   from another. `flow = TagFlow.Backward` points the arrows from the last part
   to the first. Both are in the reading direction, so a forward flow points
   left right to left.
-
 - **A timeline's dot icon can be given its colour.** `TimelineItem` and a
   `TimelineList` or `BranchTimeline` row's `item` take `iconColour`, beside
   `icon`. Unspecified, as before, it picks light or dark to read on a solid dot,
@@ -120,8 +137,8 @@ On `main`, and in the next release.
   use `dropShadow`.
 - **The first sheet opened on a phone's browser stutters less.** The GPU
   programs a sheet draws with, its squircle and shadow, the scrim and the page
-  drawn smaller behind it, were compiled as it slid in, and on a Pixel its first opening had
-  frames of 107ms and 86ms. On a phone's or a tablet's browser the overlay host
+  drawn smaller behind it, were compiled as it slid in, and on a Pixel its
+  first opening had frames of 107ms and 86ms. On a phone's or a tablet's browser the overlay host
   now draws each of them once, out of sight, as the app appears, and that
   opening's worst frames are about 70ms and 50ms. Later openings were already
   smooth. A desktop's browser does it differently, below. Android, iOS and the
@@ -290,6 +307,9 @@ docs, in November 2026:
   has. The clip that cuts the thumbnails at its ends cut the ring away too.
 
 ### Breaking
+
+[Migrating](migrating.md) has the before and after for each, and the
+behaviour that changed while still compiling under **Check**.
 
 - **New parameters partway through.** `TimelineItem` and `TimelineRowScope`'s
   two `item` functions take `iconColour` straight after `icon`. It is
