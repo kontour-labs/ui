@@ -150,7 +150,10 @@ internal open class RowContentScopeImpl(
     row: RowScope,
     iconSize: Dp,
     maxLines: Int = Int.MAX_VALUE,
-    overflow: TextOverflow = TextOverflow.Clip,
+    // An ellipsis wherever there is a limit, as [contentScope]'s. A chip builds
+    // its scope here directly with a line, and was left clipping its label when
+    // the slots took the ellipsis; found reading 0.5.4's docs against its code.
+    overflow: TextOverflow = if (maxLines == Int.MAX_VALUE) TextOverflow.Clip else TextOverflow.Ellipsis,
     uppercase: Boolean = false,
 ) : ContentScopeImpl(iconSize, maxLines, overflow, uppercase), RowContentScope, RowScope by row
 
