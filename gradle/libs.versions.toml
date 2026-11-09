@@ -18,7 +18,7 @@ androidx-activity = "1.13.0"
 # outline and filled, on maven.kontour.io. The version is Tabler's own, or Tabler's
 # with a fourth part for a re-release of the same icons. The library draws its
 # system icons from it; the catalog, the samples and the docs use the rest.
-tabler-icons = "3.50.0"
+tabler-icons = "3.51.0"
 
 # Navigation 3 — `:ui-nav3` only. The scene API is JetBrains' multiplatform
 # build of it; `NavEntry` and the rest of the runtime come from Google's.

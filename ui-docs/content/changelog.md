@@ -54,6 +54,15 @@ On `main`, and in the next release.
   `icon`. Unspecified, as before, it picks light or dark to read on a solid dot,
   or the ring's own colour inside a hollow one.
 
+### Changed
+
+- **The icons are Tabler 3.51.0**, from 3.50.0: `io.kontour:tabler-icons-outline`
+  and `-filled`, which the library's own icons are drawn from. Thirty icons are
+  new and none is gone. Three are redrawn: `Calendar`, outline and filled, no
+  longer has a 1 drawn on its page, and `ShoppingCartCopy` draws two pages, the
+  sign for a copy, where it drew a tick. The library draws none of the three
+  itself, so only an app that uses them looks different.
+
 ### Fixed
 
 - **`SwipeActions` no longer crashes when a row is dragged as it appears.** A
