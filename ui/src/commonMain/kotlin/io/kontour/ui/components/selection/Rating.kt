@@ -1,5 +1,6 @@
 package io.kontour.ui.components.selection
 
+import kotlin.math.floor
 import io.kontour.ui.a11y.LocalTouchTargetOwnedByParent
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.runtime.CompositionLocalProvider
@@ -48,6 +49,13 @@ import io.kontour.ui.interaction.rememberTapFeedback
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.input.focusRing
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.theme.Theme
 import kotlin.math.abs
@@ -194,6 +202,8 @@ fun Rating(
     val currentChange by rememberUpdatedState(onValueChange)
     val currentFinished by rememberUpdatedState(onValueChangeFinished)
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+    // So the focus can follow the score from mark to mark, as a radio group's does.
+    val marks = remember(count) { List(count) { FocusRequester() } }
 
     // Whether the gesture's press landed on the score already given — which,
     // lifted without a drag, takes it back to zero. See `allowZero`.
@@ -353,7 +363,26 @@ fun Rating(
                             markWidth[index] = it.size.width.toFloat()
                         }
                         .minimumTouchTarget()
+                        .focusRequester(marks[index])
                         .focusRing(interactions, Theme.shapes.small)
+                        // **The arrows move the score**, a half at a time where
+                        // there are halves: see [ratingKeyTarget]. Enter and Space
+                        // on a mark could only give its whole score, so with
+                        // `allowHalf` a keyboard had no way to a half. Found in the
+                        // November 2026 audit.
+                        .onKeyEvent { event ->
+                            if (!enabled || event.type != KeyEventType.KeyDown) return@onKeyEvent false
+                            val next = ratingKeyTarget(event.key, currentValue, count, allowHalf, allowZero, isRtl)
+                                ?: return@onKeyEvent false
+                            if (next != currentValue) {
+                                tap()
+                                currentChange(next)
+                                currentFinished?.invoke()
+                            }
+                            // Onto the mark the score now ends in; at zero, the first.
+                            marks[(ceil(next).toInt() - 1).coerceIn(0, count - 1)].requestFocus()
+                            true
+                        }
                         // Whole marks, always: this is what the keyboard and
                         // assistive tech activate, and neither of them has a
                         // position within the mark to mean a half by. The pointer
@@ -408,6 +437,46 @@ fun Rating(
             }
         }
     }
+}
+
+/**
+ * Where a key on a mark takes a rating's [value], or `null` for a key a rating
+ * does not use.
+ *
+ * Right and Up give more, a half where there are halves and a mark where there
+ * are not, and Left and Down less, the way a slider's do: Right gives less right
+ * to left, where the marks run from the right. Home takes the score to the least
+ * it may be (nothing, a half or one mark, by [allowZero] and [allowHalf]) and
+ * End to all of them. A half value on a whole rating steps to the whole mark
+ * either side of it.
+ */
+internal fun ratingKeyTarget(
+    key: Key,
+    value: Float,
+    count: Int,
+    allowHalf: Boolean,
+    allowZero: Boolean,
+    rtl: Boolean,
+): Float? {
+    val step = if (allowHalf) 0.5f else 1f
+    val least = when {
+        allowZero -> 0f
+        allowHalf -> 0.5f
+        else -> 1f
+    }
+    val forward = if (rtl) -1 else 1
+    val direction = when (key) {
+        Key.DirectionRight -> forward
+        Key.DirectionLeft -> -forward
+        Key.DirectionUp -> 1
+        Key.DirectionDown -> -1
+        Key.MoveHome -> return least
+        Key.MoveEnd -> return count.toFloat()
+        else -> return null
+    }
+    // On the step grid first, so 2.3 goes to 2.5 or 2, not 2.8 or 1.8.
+    val on = if (direction > 0) floor(value / step) * step else ceil(value / step) * step
+    return (on + direction * step).coerceIn(least, count.toFloat())
 }
 
 /**

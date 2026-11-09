@@ -6,6 +6,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -590,6 +591,12 @@ private fun DayBox(
                 // A date is never broken over two lines: "28" as "2" was the
                 // narrow box's first try.
                 softWrap = false,
+                // Nor cut: at its own width, centred in its day, so a number
+                // wider than a narrow column at a large type size reaches past
+                // its ring on both sides. Its box was the column's, and "28" at
+                // 200% was clipped to the "2" and half the "8". Found in the
+                // November 2026 audit by `LargeTypeSweepTest`.
+                modifier = Modifier.wrapContentWidth(unbounded = true),
             )
         }
         if (more > 0) {

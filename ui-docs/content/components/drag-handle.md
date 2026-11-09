@@ -52,6 +52,13 @@ The handle is the sheet's resize control for anyone not using the gesture. It
 carries `expand` and `collapse` as **semantic actions** wired to the sheet state,
 so the detents are reachable from a screen reader's actions rotor.
 
+**And from the keyboard.** On a sheet given more than one size to open to, the
+handle is a Tab stop with a ring round the bar. Up and Page Up take the sheet to
+the next taller detent, Down and Page Down to the next shorter, Home to the
+tallest and End to the shortest. None of them hides the sheet: Escape and the
+dismiss action do that. A sheet with one size has nothing for the keys to do,
+and its handle takes no focus.
+
 Its `contentDescription` tracks the current detent: `Theme.strings.collapseSheet`
 when the sheet is at its last detent, `expandSheet` otherwise. A handle that
 always announced "expand" would be lying half the time.

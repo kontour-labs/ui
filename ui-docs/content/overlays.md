@@ -398,12 +398,45 @@ While any focus-trapping entry is showing, the content beneath is removed from
 the accessibility traversal order and cannot take focus. A screen reader that can
 walk into content behind a modal is a modal in name only.
 
+**The keyboard stays in the top one.** Tab off a dialog's last control comes
+round to its first, and Shift+Tab off its first to its last, whatever the page
+behind it is built from. That includes an overlay below the top one: with a
+dialog over a sheet, the sheet is as far out of reach as the page. Only the
+keyboard's own moves are turned back. A component that places focus in code, as
+a select gives its field the focus back when Escape shuts its list, is left to.
+Until 0.5.4 the page was kept from focus by a property that stopped at the first
+scrolling list in it, and Tab walked out of a dialog into the list.
+
 Each overlay gets a `traversalIndex` above the content, in stack order.
+
+### Where the keyboard goes
+
+**A dialog or a modal sheet opened from the keyboard takes the focus**, at its
+first control, once its content is there, unless it has put the focus in itself
+already. A menu or a list under a field places focus itself.
+
+**Where it goes when the modal closes is the app's to say.** Give the control
+that opened it a `FocusRequester`, and request it in `onDismissRequest`:
+
+```kotlin
+val opener = remember { FocusRequester() }
+Button(onClick = { open = true }, modifier = Modifier.focusRequester(opener)) { +"Delete" }
+Dialog(
+    visible = open,
+    onDismissRequest = { open = false; opener.requestFocus() },
+) { /* … */ }
+```
+
+The library cannot do it for you. Compose's restorer remembers only a group's own
+focused child, and between the host and the control that opened a modal there is
+nearly always another group, a scrolling list or a scaffold, that takes no focus
+of its own.
 
 ### A modal opening puts the keyboard away
 
 **A modal coming to the top takes the focus off whatever had it**, so a text
-field under it lets go, and its keyboard goes with it. That includes a field in
+field under it lets go, and its keyboard goes with it. From the keyboard the
+focus moves into the modal instead, which comes to the same thing for the field. That includes a field in
 another overlay: a field in a sheet loses focus when a dialog opens over the
 sheet. It used to keep its focus, and its keyboard stayed up over the dialog.
 

@@ -76,7 +76,7 @@ class DisabledQuietnessTest {
         val grey = greyCeiling(scheme)
         val louder = mutableListOf<String>()
         val colourful = mutableListOf<String>()
-        for (spec in componentRegistry.filter { it.underContract && it.name !in PartlyDisabled }) {
+        for (spec in componentRegistry.filter { it.underContract && it.reportsDisabled && it.name !in PartlyDisabled && it.name !in ShowsContent }) {
             val disabled = render(spec, enabled = false, dark, contrast)
             var loud = 0
             var chromatic = 0
@@ -88,7 +88,7 @@ class DisabledQuietnessTest {
                 }
             }
             if (loud > Allowance) louder += "${spec.name}: $loud px"
-            if (chromatic > Allowance && spec.name !in KeepsItsColours) colourful += "${spec.name}: $chromatic px"
+            if (chromatic > Allowance) colourful += "${spec.name}: $chromatic px"
         }
         val name = (if (contrast == ContrastLevel.High) "high-contrast " else "") + if (dark) "dark" else "light"
         assertTrue(
@@ -143,11 +143,34 @@ class DisabledQuietnessTest {
         val KeepsItsColours = setOf("ColourSwatchPicker", "ColourPicker")
 
         /**
-         * Specimens whose `enabled = false` disables one part and not the whole:
-         * a bar or rail of destinations with one of them disabled. The rest are
-         * enabled and keep their colours, as they should.
+         * Controls drawn over content of the caller's, which is drawn as it is
+         * whatever the control can do, and so is as loud and as coloured
+         * disabled as enabled.
+         *
+         * The two colour pickers, whose colours are the content; the charts,
+         * which are "drawn the same either way" (their KDoc), with what is
+         * chosen still said; the activity calendar, likewise "drawn the same";
+         * and a carousel's pages and a thumbnail strip's pictures, which are
+         * the caller's. Added in November 2026, when the contract suite took
+         * these in and they reached this sweep.
          */
-        val PartlyDisabled = setOf("NavBar", "NavRail")
+        val ShowsContent = KeepsItsColours + setOf("Chart", "SectorChart", "ActivityCalendar", "Carousel", "ThumbnailStrip")
+
+        /**
+         * Specimens whose `enabled = false` disables one part and not the whole.
+         * The rest are enabled and keep their colours, as they should.
+         *
+         * A bar or rail of destinations, a menu, a tag group and a command
+         * palette with one of their parts disabled. A date picker, whose
+         * months still page when its days cannot be picked (its KDoc), and an
+         * event calendar, which stops its taps and edits and is still read and
+         * paged. And an index scroller, whose specimen draws the list it
+         * indexes beside it, which is the caller's.
+         */
+        val PartlyDisabled = setOf(
+            "NavBar", "NavRail", "DropdownMenu", "TagGroup", "CommandPalette",
+            "DatePicker", "DateRangePicker", "DateTimePicker", "EventCalendar", "IndexScroller",
+        )
     }
 }
 

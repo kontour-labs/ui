@@ -15,7 +15,7 @@ python3 docs/check-settings.py
 
 ### The everyday run, and the full one
 
-`:ui-catalog:jvmTest` leaves out 27 slow classes unless it is asked for them:
+`:ui-catalog:jvmTest` leaves out 26 slow classes unless it is asked for them:
 
 ```sh
 ./gradlew :ui-catalog:jvmTest -Pkontour.tests.full=true
@@ -41,6 +41,8 @@ The golden-orphan check still runs on the everyday run, and skips only
 | Gate | Asks |
 |---|---|
 | [The contract suite](#the-contract-suite) | Is every component operable, named and reachable? |
+| [`LargeTypeSweepTest`](#nothing-is-cut-at-200-type) | Does any specimen cut its text at 200% type? |
+| [`KeyboardSweepTest`](#the-keyboard-reaches-every-control-and-stays-in-a-modal) | Does Tab reach every control, show it, and stay in an open modal? |
 | [`checkNoMaterial`](#checknomaterial) | Did anything pull Material in? |
 | [`checkApiConventions`](#checkapiconventions) | Do the signatures follow the house order? |
 | [`checkKotlinAbi`](#checkkotlinabi) | Has the public API changed from the dump checked in? |
@@ -202,8 +204,8 @@ for a much smaller saving than the two above.
 ## The contract suite
 
 `ComponentContractTest` runs seven assertions over every entry in
-`componentRegistry` that is under contract — 32 of its 42 specimens. Every
-component in the system must:
+`componentRegistry` that is under contract — 86 of its 124 specimens, every one
+that can be operated. Every component in the system must:
 
 1. take `modifier: Modifier = Modifier` as its first optional parameter, and
    apply it to the outermost node;
@@ -220,11 +222,21 @@ which is why adding one there is part of adding a component — see
 
 ### One list, two consumers
 
-The registry lives in `ui-catalog/src/commonTest/…/contract/`, and the same list
-drives the [per-component renders](#screenshot-goldens). The other ten specimens
+The registry lives in `ui-catalog/src/commonMain/…/contract/`, and the same list
+drives the [per-component renders](#screenshot-goldens). The other 38 specimens
 are there only to be drawn: `underContract = false` says so, and it is what lets
 a `Kbd` — which has no role, no disabled state and no touch target — have a
 picture without being asked to pass assertions about being operable.
+
+It is for that and nothing else. Until November 2026 it was also how a control
+the rules were awkward to ask of stayed out: 73 specimens were drawn only, a
+rating, a table, a carousel, the date pickers, a menu and a toast among them,
+and the audit that month found the defects in them that the suite was written
+to find. Every one that can be operated is under contract now, with the
+opt-outs in [`contributing.md`](contributing.md#registering-a-component) where
+it needs them; putting them in found a pickable `ActivityCalendar` that did not
+say when it was disabled, and through `DisabledQuietnessTest`, which reads the
+same set, five disabled controls drawn as if they could be used.
 
 One omission is therefore visible twice. A component nobody adds here is a
 component nothing checks *and* nothing draws.
@@ -249,6 +261,63 @@ reviewed by eye, in every scheme, in a screenshot. It failed on its first run:
 - **No text field or select carried its label.** Compose has no `labelledBy`, so
   the label sat beside the control as an unrelated node: the user heard "Origin",
   moved on, and landed in an unnamed edit box.
+
+## Nothing is cut at 200% type
+
+accessibility.md says components "must lay out correctly at **200%**". The
+contract suite puts every specimen at 200% in a 320dp window and asks only that
+it stays inside the window, which a label cut to half its height in a row of a
+fixed height passes, and `PseudoLocaleSweepTest` reads the text at one and a
+half times. Neither could see the half of the promise a reader sees.
+
+`LargeTypeSweepTest` draws every specimen at 200% in that window, with Android's
+48dp target, and reads every text layout it exposes. A text fails that is taller
+than its room (`didOverflowHeight` that is not an ellipsis at its `maxLines`),
+that drops lines past its `maxLines` under `TextOverflow.Clip`, or that is wider
+than its box under `Clip`. An ellipsis is a choice and shows, so it passes; so
+does a fade, an event's title or a document tab's, which is told from a hard cut
+by its pixels: a cut leaves ink at the box's end edge and a fade erases it. Its
+three controls are a label in a fixed height, a word cut mid-letter and an
+ellipsis that must not fail.
+
+It runs in a few seconds and is in the everyday run. Added in November 2026, it
+found every calendar's day number cut at the top and bottom, and two-digit days
+wrapped; an event calendar's dates clipped to their first digit; every slot
+with a line limit, a list row's label and a top bar's title among them, cut with
+no ellipsis; and the marquee's own example truncating mid-name under reduced
+motion.
+
+## The keyboard reaches every control, and stays in a modal
+
+accessibility.md draws a focus ring "when the keyboard reaches" a control, and
+overlays.md says the content under a modal "cannot take focus". Neither was
+swept: `KeyboardFocusRingTest` in `:ui` checks the ring on the controls that
+had none, and `ModalKeepsFocusTest` the trap under a dialog and a sheet.
+
+`KeyboardSweepTest` asks both of everything:
+
+- **Every specimen under contract is reached by Tab** from nothing focused, and
+  once it is, more of the focus ring's colour is on screen than with nothing
+  focused. Compared with focus cleared rather than with the screen before the
+  first Tab, because a menu or a palette puts the focus in itself as it opens.
+  A gesture that is a shortcut and not a route, which collections.md says a
+  gesture always is, says so with `reachedByTab = false` beside its specimen:
+  a pull, a swipe and a carry. A sheet's handle says it too, as its specimen
+  has no sheet behind it; on a sheet with more than one size it is a Tab stop,
+  and `SheetHandleKeysTest` holds its keys. A component reached through another, as a carousel is through
+  its pressable `PageIndicator`, shows that route in its specimen instead.
+- **Tab and Shift+Tab never leave an open modal** for a page that scrolls under
+  it, for each of the library's nine modal overlays: a dialog, an alert, a
+  command palette, a modal bottom sheet, side sheet and navigation rail, a menu,
+  a popover and an open `FabMenu`.
+
+Each half has a control: a control that cannot take focus, one that draws no
+ring, and a panel over the page with no host to trap the keyboard.
+
+It runs in a few seconds and is in the everyday run. Added in November 2026, it
+found a command palette whose panel was a ringless Tab stop that Shift+Tab left
+the palette from, a disclosure row and a thumbnail strip whose rings were clipped
+away whole, and a carousel specimen nothing but a finger could turn.
 
 ---
 

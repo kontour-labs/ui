@@ -15,6 +15,7 @@ import io.kontour.ui.theme.ContrastLevel
 import io.kontour.ui.theme.KontourTheme
 import io.kontour.ui.theme.kontourSizing
 import java.awt.image.BufferedImage
+import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertTrue
 import org.junit.experimental.categories.Category
@@ -65,9 +66,22 @@ class TouchTargetOrderingTest {
         val grew = mutableListOf<String>()
 
         for (spec in componentRegistry) {
-            val small = inkArea(DesktopTarget) { spec.content(Modifier, true) {} }
-            val large = inkArea(AndroidTarget) { spec.content(Modifier, true) {} }
+            val smallInk = ink(DesktopTarget) { spec.content(Modifier, true) {} }
+            val largeInk = ink(AndroidTarget) { spec.content(Modifier, true) {} }
+            val small = smallInk.area
+            val large = largeInk.area
             if (small == 0 || large == 0) continue
+
+            if (spec.name in GrowsAcross) {
+                // Wider on purpose, never taller: drawn at the target's height is
+                // the bug this test was written for.
+                if (abs(largeInk.height - smallInk.height) > 1) {
+                    grew += "${spec.name}: drawn ${smallInk.height}px tall at " +
+                        "${DesktopTarget.value.toInt()}dp and ${largeInk.height}px at " +
+                        "${AndroidTarget.value.toInt()}dp; it may grow across, not up"
+                }
+                continue
+            }
 
             // Antialiasing moves a handful of pixels when anything shifts by a
             // subpixel; being drawn at the touch target moves a great many.
@@ -89,9 +103,12 @@ class TouchTargetOrderingTest {
         )
     }
 
-    /** How many pixels a component draws, or 0 if it drew nothing. */
-    private fun inkArea(target: Dp, content: @Composable () -> Unit): Int {
-        var area = 0
+    /** What a component draws: how many pixels, and how tall. */
+    private class Ink(val area: Int, val height: Int)
+
+    /** How many pixels a component draws, or 0 if it drew nothing, and its height. */
+    private fun ink(target: Dp, content: @Composable () -> Unit): Ink {
+        var ink = Ink(0, 0)
         Scene(width = Canvas, height = Canvas) {
             KontourTheme(
                 reduceMotion = true,
@@ -107,8 +124,8 @@ class TouchTargetOrderingTest {
                     }
                 }
             }
-        }.use { scene -> area = scene.frames(Frames).inkArea() }
-        return area
+        }.use { scene -> ink = scene.frames(Frames).ink() }
+        return ink
     }
 
     /**
@@ -121,14 +138,20 @@ class TouchTargetOrderingTest {
      * with the bug it was written for put back. Against magenta, everything the
      * component draws counts, including the pale things.
      */
-    private fun BufferedImage.inkArea(): Int {
+    private fun BufferedImage.ink(): Ink {
         var drawn = 0
+        var top = height
+        var bottom = -1
         for (y in 0 until height) {
             for (x in 0 until width) {
-                if ((getRGB(x, y) and 0xFFFFFF) != ProbeRgb) drawn++
+                if ((getRGB(x, y) and 0xFFFFFF) != ProbeRgb) {
+                    drawn++
+                    if (y < top) top = y
+                    bottom = y
+                }
             }
         }
-        return drawn
+        return Ink(drawn, if (bottom < 0) 0 else bottom - top + 1)
     }
 
     private companion object {
@@ -151,5 +174,19 @@ class TouchTargetOrderingTest {
          * target instead of its own size grows by far more than a tenth.
          */
         const val Tolerance = 0.10f
+
+        /**
+         * Drawn wider under a finger on purpose, and held to its height instead.
+         *
+         * `InputChip`'s remove button is a 24dp cross. Its target is the
+         * platform's minimum wide, with the chip's end inset inside it, and as
+         * tall as a chip allows: grown upward it would make every chip with one
+         * 48dp tall beside chips 34dp tall, which is this test's own bug. Grown
+         * outside the pill it would leave a gap after each chip that removes it
+         * when tapped. So the pill grows across by the difference, the cross
+         * where it was at its end, chosen in November 2026 for 0.5.4 and in the
+         * changelog. `InputChipRemoveTargetTest` holds the target's size.
+         */
+        val GrowsAcross = setOf("InputChip")
     }
 }

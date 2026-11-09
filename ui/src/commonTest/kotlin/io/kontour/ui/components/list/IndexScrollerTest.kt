@@ -48,6 +48,7 @@ import io.kontour.ui.locale.localeFormatsFor
 import io.kontour.ui.overlay.DropdownMenu
 import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.theme.KontourTheme
+import io.kontour.ui.theme.Spacing
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -124,8 +125,20 @@ class IndexScrollerTest {
 
     private fun ComposeUiTest.rail(): Rect = onNodeWithTag("index").fetchSemanticsNode().boundsInRoot
 
-    /** Where label [i] is on a rail that shows every label: its middle, within a padding's error. */
-    private fun ComposeUiTest.labelY(i: Int): Float = rail().height * (i + 0.5f) / labels.size
+    /**
+     * Where label [i] is on a rail that shows every label: its middle, inside the
+     * rail's padding. It was the rail's whole height shared out, within a
+     * padding's error of the middle, which was close enough until the rail gave
+     * a finger a few pixels' grace at each edge: then a point that error away
+     * from the middle could be still on the letter before.
+     */
+    private fun ComposeUiTest.labelY(i: Int): Float = along(i, labels.size)
+
+    /** The middle of the [i]th of [count] slots, inside the rail's padding: `Theme.spacing.xs`. */
+    private fun ComposeUiTest.along(i: Int, count: Int): Float {
+        val pad = Spacing().xs.value * density.density
+        return pad + (rail().height - 2 * pad) * (i + 0.5f) / count
+    }
 
     private fun ComposeUiTest.tap(label: String) {
         val y = labelY(labels.indexOf(label))
@@ -401,7 +414,7 @@ class IndexScrollerTest {
     /** Where [label] is on the rail as it is now, in the rail's own coordinates. */
     private fun ComposeUiTest.labelOf(label: String): Float {
         val all = alphabet.labels + alphabet.other
-        return rail().height * (all.indexOf(label) + 0.5f) / all.size
+        return along(all.indexOf(label), all.size)
     }
 
     private fun ComposeUiTest.frames(count: Int) = repeat(count) { mainClock.advanceTimeByFrame() }

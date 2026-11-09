@@ -1,5 +1,6 @@
 package io.kontour.ui.components.calendar
 
+import io.kontour.ui.locale.bidiIsolated
 import androidx.compose.foundation.layout.size
 import androidx.compose.ui.Modifier
 import io.kontour.ui.locale.DateStyle
@@ -86,16 +87,16 @@ class ScheduleViewTest {
 
         val conference = CalendarEvent(6, "Conference", at(10, 12, 9), at(10, 14, 17))
         val first = on(conference, 10, 12)
-        assertEquals(strings.timeRange(time(9), time(17)) + "+2", first.text)
-        assertRaised(first, "+2")
+        assertEquals(strings.timeRange(time(9), time(17)) + bidiIsolated("+2"), first.text)
+        assertRaised(first, bidiIsolated("+2"))
         assertEquals(strings.allDay, on(conference, 10, 13).text)
         assertEquals("Until ${time(17)}", on(conference, 10, 14).text)
 
         // Shorter than a day, but into the next: the "+1" is what says so.
         val flight = CalendarEvent(7, "Flight", LocalDateTime(2026, 10, 12, 22, 30), LocalDateTime(2026, 10, 13, 6, 15))
         val night = on(flight, 10, 12)
-        assertEquals(strings.timeRange(time(22, 30), time(6, 15)) + "+1", night.text)
-        assertRaised(night, "+1")
+        assertEquals(strings.timeRange(time(22, 30), time(6, 15)) + bidiIsolated("+1"), night.text)
+        assertRaised(night, bidiIsolated("+1"))
         assertEquals("Until ${time(6, 15)}", on(flight, 10, 13).text)
 
         // Those inside a day, and all-day ones, are as they were, with nothing raised.
@@ -123,7 +124,7 @@ class ScheduleViewTest {
         assertEquals(listOf(LocalDate(2026, 10, 12)), days.map { it.date })
 
         val hackathon = CalendarEvent(9, "Hackathon", at(10, 12, 9), at(10, 14, 0))
-        assertEquals(strings.timeRange(time(9), time(0)) + "+2", scheduleTime(hackathon, LocalDate(2026, 10, 12), formats, strings).text)
+        assertEquals(strings.timeRange(time(9), time(0)) + bidiIsolated("+2"), scheduleTime(hackathon, LocalDate(2026, 10, 12), formats, strings).text)
         assertEquals(strings.allDay, scheduleTime(hackathon, LocalDate(2026, 10, 13), formats, strings).text)
     }
 
@@ -137,8 +138,8 @@ class ScheduleViewTest {
         val strings = Strings(endDayOffset = { days -> "(+${days.formatted} d)" })
         val conference = CalendarEvent(6, "Conference", at(10, 12, 9), at(10, 14, 17))
         val first = scheduleTime(conference, LocalDate(2026, 10, 12), formats, strings)
-        assertTrue(first.text.endsWith("(+2 d)"), first.text)
-        assertRaised(first, "(+2 d)")
+        assertTrue(first.text.endsWith(bidiIsolated("(+2 d)")), first.text)
+        assertRaised(first, bidiIsolated("(+2 d)"))
     }
 
     /**
@@ -163,7 +164,11 @@ class ScheduleViewTest {
         assertTrue("${time(18)} – ${time(0)}" in party && "later" !in party && "next day" !in party, party)
     }
 
-    /** [text] ends in [raised], set smaller and above the line. */
+    /**
+     * [text] ends in [raised], set smaller and above the line. Isolated, so its
+     * sign stays in front of its number in a right-to-left line: see
+     * localisation.md.
+     */
     private fun assertRaised(text: androidx.compose.ui.text.AnnotatedString, raised: String) {
         val from = text.text.lastIndexOf(raised)
         assertTrue(from >= 0, "\"$raised\" is not in \"${text.text}\"")

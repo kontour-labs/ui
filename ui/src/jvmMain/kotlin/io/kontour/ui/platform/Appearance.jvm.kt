@@ -2,6 +2,7 @@ package io.kontour.ui.platform
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.SideEffect
 
 /**
@@ -17,7 +18,7 @@ import androidx.compose.runtime.SideEffect
  * [reportedAppearances].
  */
 @Composable
-internal actual fun platformReportAppearance(dark: Boolean) {
+internal actual fun platformReportAppearance(dark: Boolean, background: Color) {
     SideEffect { reportedAppearances?.add(dark) }
 }
 

@@ -157,6 +157,9 @@ HAS_EDGE = re.compile(
 )
 
 QUIET_FILL_ALLOWED = {
+    "OverlayRehearsal.kt": "drawn once, under the app and clipped to a pixel, as it "
+    "starts on the web, so the GPU compiles an overlay's programs before one opens; "
+    "never seen",
     "RichText.kt": "an inline code span's tint, inside a line of text: the "
     "characters are the content and the monospace face is what sets them apart",
     "Skeleton.kt": "a placeholder, and deliberately faint — it stands in for "
@@ -330,6 +333,8 @@ MOVEMENT = re.compile(
 GATED = re.compile(r"reduceMotion|enterOrFade\(|exitOrFade\(|scrollSpec\(|sizeSpec\(|scrollToItem\([^)]*motion")
 
 MOVEMENT_ALLOWED = {
+    "OverlayRehearsal.kt:Rehearse": "draws text through a scale once, out of sight, "
+    "so the GPU has the program a receding page needs; nothing moves",
     # Not movement: geometry drawn at a value.
     "DialDrawing.kt:dialArcs": "rotates the canvas to draw an arc at its angle; nothing animates",
     "DialDrawing.kt:dialNeedle": "draws a needle at the value's angle; the value is the caller's",
@@ -377,6 +382,7 @@ MOVEMENT_ALLOWED = {
     # A sheet's settling: the reader's drag, or the sheet's own programmatic move.
     "BottomSheet.kt:FollowBack": "calls `SheetState.animateTo`, which fades in place under reduced motion",
     "SheetWheel.kt:sheetWheel": "calls `SheetState.animateTo`, which fades in place under reduced motion",
+    "SheetHeader.kt:DragHandle": "its keys call `SheetState.animateTo`, which fades in place under reduced motion",
     # A still mirror for right to left, which the detector reads as a scale.
     "ColourPicker.kt:Track": "flips the track's gradient for right to left; nothing moves",
     "Mirroring.kt:mirrorInRtl": "flips a drawing for right to left; nothing moves",

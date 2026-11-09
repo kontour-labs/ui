@@ -1,5 +1,8 @@
 package io.kontour.ui.components.action
 
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.BorderStroke
@@ -480,6 +483,11 @@ private fun FabMenuItems(
     // frame and only fade: no flight out of the button, no growing from half
     // size. The fraction then carries opacity and nothing else.
     val stayPut = Theme.motion.reduceMotion
+    // A turned label reads up and away from its button the way the text runs:
+    // up and to the right in a left-to-right language, up and to the left in a
+    // right-to-left one, where it turned the wrong way and read downhill into
+    // its button. Found in the November 2026 audit.
+    val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
 
     // Room for each item's fade to composite in without cutting its own shadow.
     //
@@ -536,16 +544,19 @@ private fun FabMenuItems(
                                 // flat above their buttons the same labels would
                                 // overlap by most of their length.
                                 if (layout == FabMenuLayout.Horizontal) {
-                                    rotationZ = -HorizontalLabelAngle
+                                    rotationZ = if (rtl) HorizontalLabelAngle else -HorizontalLabelAngle
                                     // About the chip's own bottom-left corner,
                                     // which is `itemRoom` inside this box rather
                                     // than at its edge — the padding is the
                                     // fade's shadow buffer, and pivoting on the
                                     // box would swing the chip 24dp off its
-                                    // button.
+                                    // button. Its bottom-right right to left.
                                     transformOrigin = TransformOrigin(
-                                        pivotFractionX =
-                                            if (size.width > 0f) roomPx / size.width else 0f,
+                                        pivotFractionX = when {
+                                            size.width <= 0f -> if (rtl) 1f else 0f
+                                            rtl -> (size.width - roomPx) / size.width
+                                            else -> roomPx / size.width
+                                        },
                                         pivotFractionY =
                                             if (size.height > 0f) {
                                                 (size.height - roomPx) / size.height
@@ -589,6 +600,9 @@ private fun FabMenuItems(
                             Text(
                                 text = item.label,
                                 maxLines = 1,
+                                // Cut with an ellipsis, not mid-letter, at large
+                                // type on a narrow phone. November 2026 audit.
+                                overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.padding(
                                     horizontal = Theme.spacing.sm,
                                     vertical = Theme.spacing.xs,
@@ -718,7 +732,7 @@ private fun FabMenuItems(
                         label, button, point, geometry.labelOnLeft,
                         above = layout == FabMenuLayout.Horizontal,
                         gap = labelGapPx, container = container,
-                        margin = marginPx, room = roomPx,
+                        margin = marginPx, room = roomPx, rtl = rtl,
                     )
                 }
             }
@@ -745,6 +759,7 @@ private fun Placeable.PlacementScope.placeLabel(
     container: IntSize,
     margin: Float,
     room: Float,
+    rtl: Boolean,
 ) {
     if (above) {
         // The rotation is the label's own layer and does not change what it
@@ -758,13 +773,21 @@ private fun Placeable.PlacementScope.placeLabel(
         // `(w + h) / √2` above that point, `w / √2` to the right of it — and
         // `h / √2` to the *left*, which is the one that is easy to forget and is
         // why the low clamp is not simply the margin.
-        val right = chipWidth * DiagonalComponent
-        val left = chipHeight * DiagonalComponent
+        //
+        // Right to left all of it is mirrored: the pivot is the chip's
+        // bottom-right corner, the chip swings up and to the left, and the
+        // reaches change sides. `place` is not mirrored for it, so this is.
+        val along = chipWidth * DiagonalComponent
+        val behind = chipHeight * DiagonalComponent
         val pivotY = point.y - button.height / 2f + room - gap
-        val low = margin + left - room
-        val high = container.width - margin - right - room
+        // From the placeable's left edge to the pivot.
+        val pivotX = if (rtl) label.width - room else room
+        val left = if (rtl) along else behind
+        val right = if (rtl) behind else along
+        val low = margin + left - pivotX
+        val high = container.width - margin - right - pivotX
         label.place(
-            x = (point.x - room).coerceIn(low, high.coerceAtLeast(low)).toInt(),
+            x = (point.x - pivotX).coerceIn(low, high.coerceAtLeast(low)).toInt(),
             y = (pivotY - label.height + room).toInt(),
         )
         return

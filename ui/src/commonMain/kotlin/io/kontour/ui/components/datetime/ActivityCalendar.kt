@@ -1,6 +1,7 @@
 package io.kontour.ui.components.datetime
 
 import androidx.compose.foundation.shape.CornerBasedShape
+import io.kontour.ui.locale.bidiIsolated
 import io.kontour.ui.theme.drawDot
 import io.kontour.ui.locale.NameWidth
 import io.kontour.ui.locale.LocaleFormats
@@ -77,6 +78,7 @@ import androidx.compose.ui.semantics.collectionInfo
 import androidx.compose.ui.semantics.collectionItemInfo
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -398,7 +400,8 @@ fun ActivityCalendar(
                     combineMarks(
                         marksFor(date, activity[date] ?: 0),
                         joined = { formats.list(it) },
-                        more = { strings.moreCount(formats.quantity(it.toLong())) },
+                        // Isolated, so "+3" does not read "3+" right to left.
+                        more = { bidiIsolated(strings.moreCount(formats.quantity(it.toLong()))) },
                     )
                 }
             }
@@ -551,7 +554,7 @@ fun ActivityCalendar(
                                 Key.DirectionUp -> focusedDay.minus(DatePeriod(days = 1))
                                 Key.MoveHome -> grid.firstShown
                                 Key.MoveEnd -> end
-                                Key.Enter, Key.NumPadEnter, Key.Spacebar -> {
+                                Key.Enter, Key.NumPadEnter, Key.Spacebar, Key.DirectionCenter -> {
                                     onDayClick(focusedDay)
                                     return@onKeyEvent true
                                 }
@@ -579,6 +582,7 @@ fun ActivityCalendar(
                                     describe = ::say,
                                     selected = selected,
                                     onDayClick = if (interactive) onDayClick else null,
+                                    disabled = onDayClick != null && !enabled,
                                 )
                             }
                         },
@@ -899,6 +903,7 @@ private fun WeekNode(
     describe: (LocalDate, Int) -> String,
     selected: LocalDate?,
     onDayClick: ((LocalDate) -> Unit)?,
+    disabled: Boolean,
 ) {
     val days = (0..6).mapNotNull { grid.dateAt(week, it) }
     if (days.isEmpty()) {
@@ -931,6 +936,12 @@ private fun WeekNode(
                     }
                 }
             }
+            // A calendar that picks days, switched off, says so. Its weeks
+            // used to drop their actions and nothing else, so a screen reader
+            // heard the picture a calendar without `onDayClick` is, and no way
+            // to tell that this one could be used another time. Found in the
+            // November 2026 audit, when the contract suite took the calendar in.
+            if (disabled) disabled()
         },
     )
 }

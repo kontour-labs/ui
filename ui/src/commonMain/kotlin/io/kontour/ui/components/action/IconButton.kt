@@ -1,6 +1,7 @@
 package io.kontour.ui.components.action
 
 import io.kontour.ui.theme.clipProxy
+import io.kontour.ui.platform.keepsKeyboardClosed
 import io.kontour.ui.platform.webRole
 import io.kontour.ui.platform.WebRole
 import androidx.compose.ui.draw.drawBehind
@@ -481,7 +482,10 @@ private fun IconButtonSurface(
                     Modifier
                 }
             )
-            .then(behaviour),
+            .then(behaviour)
+            // A button in a field is not the field: on an iPhone its tap must
+            // not open the keyboard. See `keepsKeyboardClosed`.
+            .keepsKeyboardClosed(),
         contentAlignment = Alignment.Center,
     ) {
         // A control's strong border, so the slash thickens with the tier as

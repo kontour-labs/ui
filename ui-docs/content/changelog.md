@@ -29,6 +29,302 @@ On `main`, and in the next release. Nothing yet.
 
 ---
 
+## 0.5.4 — 9 November 2026
+
+The web, and a phone's browser above all. On an iPhone a field's first tap opens
+the keyboard, a tap puts the caret where it landed, the browser's own selection
+and menu work in a field, and Safari on iOS 27.2 no longer piles a screen into
+its corner, which needs the page's new script. Shadows on the web stop growing
+memory, a window resizes about three times cheaper, and the first sheet or the
+first visit stutters less. An audit of accessibility, localisation, layout and
+input against these docs: the keyboard stays in a modal and reaches sheets,
+splitters, ratings and page indicators; disabled controls say so; nothing is
+cut mid-letter at 200% type; right to left, a carried item, a FAB menu and a
+progress ring go the right way. A tag group can flow as arrows, a timeline's
+icon takes a colour, a swipe row no longer crashes as it appears, and the icons
+are Tabler 3.51.0. Two signatures grew a defaulted parameter and `TagJoin` an
+entry: [Migrating](migrating.md) has what to change and what to check.
+
+### Added
+
+- **A tag group can flow.** `TagGroup(join = TagJoin.Flow)` cuts each join to a
+  point, one part an arrow into the next: a journey, a process, a version made
+  from another. `flow = TagFlow.Backward` points the arrows from the last part
+  to the first. Both are in the reading direction, so a forward flow points
+  left right to left.
+- **A timeline's dot icon can be given its colour.** `TimelineItem` and a
+  `TimelineList` or `BranchTimeline` row's `item` take `iconColour`, beside
+  `icon`. Unspecified, as before, it picks light or dark to read on a solid dot,
+  or the ring's own colour inside a hollow one.
+
+### Changed
+
+- **The icons are Tabler 3.51.0**, from 3.50.0: `io.kontour:tabler-icons-outline`
+  and `-filled`, which the library's own icons are drawn from. Thirty icons are
+  new and none is gone. Three are redrawn: `Calendar`, outline and filled, no
+  longer has a 1 drawn on its page, and `ShoppingCartCopy` draws two pages, the
+  sign for a copy, where it drew a tick. The library draws none of the three
+  itself, so only an app that uses them looks different.
+
+### Fixed
+
+- **`SwipeActions` no longer crashes when a row is dragged as it appears.** A
+  row gets its anchors from its measured width, set from an effect on the frame
+  after it first appears, and until then it has no offset. A finger already
+  moving when a row scrolled into view landed in that frame, and the drag threw
+  `IllegalStateException: The offset was read before being initialized`. Seen
+  on Android. A drag or a sideways scroll in that frame now moves nothing, and
+  the row follows the finger from the next.
+- **On a phone's browser, a field's caret stays on its text.** While a field is
+  focused, the browser's own input lies over it so taps, the selection, its
+  handles and its menu are the browser's. A tap or a drag on an iPhone's space
+  bar moved the browser's caret, but Safari tells only the input it moved, not
+  the page Compose listens on, so Compose kept typing where its caret had been.
+  It now hears each move that is not the typing's own, which Compose already
+  places. The caret is also Compose's own again, drawn at the
+  letter the next one goes in after: the browser's was drawn where Safari's
+  layout of the letters ended, a fraction of a pixel a letter narrower than
+  Compose's, and drifted further from the text the more was typed.
+- **A password's caret is where its last dot is, on an iPhone.** Safari draws a
+  hidden password in its own dots, 9.7 to 14.5px wide at 16px depending on the
+  fonts asked for, where Compose's are 5.3px in Outfit; every letter put the
+  browser's caret and selection further past the dots. The input's letter
+  spacing now makes up the difference, measured in the browser.
+- **A field's first tap opens the keyboard on an iPhone.** iOS 27.2 opens the
+  keyboard only for a tap that starts on an input, and the keyboard primer's
+  hand-over of focus no longer counted, so a field took a second tap. While
+  nothing is being typed in, each text field now has a transparent input of the
+  browser's over it, which the tap lands on and which hands the keyboard to the
+  field. Its touches go on to Compose too, so a drag that starts on a field
+  still scrolls the page, and its buttons are left out of it. The same goes for
+  tapping back into a field after tapping beside it closed the keyboard.
+- **A tap on a focused field puts the caret where it landed, on an iPhone.** The
+  keyboard primer blurred and refocused the field's input on every tap, which
+  lost the caret and now and then let the field go. And once that was left to
+  the browser, Safari moved its own caret after Compose had placed one, to the
+  end of the word, and Compose followed it: the caret went in about a word late.
+  Compose places it from the tap, and the browser's move straight after is put
+  back.
+- **Text in a field can be selected again on a phone's browser.** A touch on a
+  focused field went to Compose from the moment the finger went down, so a long
+  press or a double tap selected the word and Compose then put its caret back
+  down as the finger lifted, or a frame later. Only a tap goes to Compose now,
+  once it is one: a long press, a double tap and a drag along the text are the
+  browser's, with its handles and its menu, on an iPhone and on Android.
+- **Dragging the caret with an iPhone's space bar no longer jumps to the
+  start.** On a line longer than its field, the caret went to the beginning as
+  it passed either edge. The browser's input was as wide as the text and clipped
+  to the field, and the space bar's trackpad aimed into the part clipped away.
+  The input is now the field's size and scrolls with it.
+- **A button in a field no longer opens the keyboard on an iPhone and closes it
+  again.** A field opens the keyboard during the tap, for iOS to allow it, and
+  its eye, its clear button and any icon button in its trailing slot were part
+  of that area. Icon buttons are now left out of it.
+- **Safari on iOS no longer piles a screen's controls into its top left
+  corner.** On iOS 27.2, a Kotlin/Wasm app's calls into Skia start arriving
+  with their floating-point arguments wrong after a few hundred of them, and
+  from then on a shadow's blur failed with `RuntimeException: Can't wrap
+  nullptr` on every frame and text measured to nothing. A WebKit bug, avoided by
+  calling Skia through a plain JavaScript function: the docs site's page now has
+  the script that does it, and an app's page needs it too. **Add the script in
+  [The page's script](installing.md#the-pages-script) to your app's `index.html`.**
+- **A shadow on the web is blurred onto the canvas, with no bitmap.** Compose's
+  `dropShadow` made a bitmap the size of the element for every layer, again each
+  time the element was composed, and Safari freed them long after Chrome would:
+  an iPhone's Skia heap grew by about 4 MB every time a side sheet opened. Kontour's
+  shadows on the web are now drawn with Skia's own blur, the same blur for the
+  same tokens, and the heap stays where it is. Android, iOS and the desktop still
+  use `dropShadow`.
+- **The first sheet opened on a phone's browser stutters less.** The GPU
+  programs a sheet draws with, its squircle and shadow, the scrim and the page
+  drawn smaller behind it, were compiled as it slid in, and on a Pixel its
+  first opening had frames of 107ms and 86ms. On a phone's or a tablet's browser the overlay host
+  now draws each of them once, out of sight, as the app appears, and that
+  opening's worst frames are about 70ms and 50ms. Later openings were already
+  smooth. A desktop's browser does it differently, below. Android, iOS and the
+  desktop apps are as they were.
+- **A first visit on a desktop's browser stops less as it is read.** Chrome on
+  a Mac compiles each kind of drawing through Metal the first time it is
+  asked for, at 30–50ms each and far more for a large shadow's blur, and a
+  first visit to the docs site stopped for 54–484ms at a time as it was read:
+  the first hover, the first scroll, the component pages and the icons, about
+  a second in all. A desktop's browser now draws the commoner pieces once,
+  out of sight, one at a time while the browser is idle and the reader has
+  left the page alone for a moment: text and icons through rounded corners,
+  the controls, the panels and their shadows. Measured again, nothing the
+  reader did stopped for more than 130ms. Chrome keeps what it compiles, so a
+  later visit pays for none of it. On a phone's browser the overlay's pieces
+  are drawn at once as the app appears, as above: drawn that way on a Mac, they
+  were a frame of nearly a second.
+- **Resizing a browser window is about three times cheaper, and no longer grows
+  Skia's memory.** Compose web makes a new Skia context every time the window
+  changes size, and Skia rebuilt its GPU programs, its glyph atlas and its paths
+  for each one: 15–21ms a step of a window being dragged in Chrome on a Mac, and
+  Skia's heap from 18MB to 54MB over a hundred steps. The page's script now keeps
+  one context for each canvas: 0–8ms a step, and 18MB throughout. **If your app's
+  page has the script from [The page's script](installing.md#the-pages-script),
+  replace it with the new one.**
+- **A drag across steps is felt once per step, however still the finger.** A
+  finger resting on the boundary between two segments, two destinations, two
+  letters or two quarter-hours is reported a pixel or two either side of it,
+  frame to frame, and each of those reports crossed the boundary again: a
+  haptic, and the selection, the marker, the list or the event moving back and
+  forth. A segmented control's drag that paused near a boundary was felt seven
+  times in a test of two pixels' wobble. The boundary now has a few pixels'
+  give, 4dp past it before the next step is taken, in `SegmentedControl`, a
+  `NavBar` or `NavRail` marker's drag, `IndexScroller`, `ThumbnailStrip`'s scrub
+  and an event dragged or resized in `EventCalendar`.
+- **A sheet dragged by its content snaps as it reaches a detent.** A sheet is
+  moved by a list inside it, pulled past its top, as often as by its handle,
+  and that drag reaches the sheet through nested scrolling, which was left out
+  of what counted as a hand on the sheet: no haptic as it reached a detent, and
+  none as it landed there. It is felt the same now whichever part was held. A
+  list scrolled inside a still sheet stays quiet.
+- **The page round the canvas is the theme's background, in every browser.** On
+  a phone that is what shows behind the status bar and the address bar, and it
+  was plain white or black. The page's background and its `theme-color` now
+  follow the theme, dark mode included.
+
+From an audit of accessibility, localisation, layout and input against these
+docs, in November 2026:
+
+- **The keyboard stays in an open modal.** The page behind a dialog or a modal
+  sheet was kept from focus by a property that stopped at the first scrolling
+  list in it, so Tab walked out of a dialog into the page, and a sheet under a
+  dialog was a Tab away. Tab now comes round the top modal's own controls. One
+  opened from the keyboard takes the focus at its first control, rather than
+  leaving it nowhere. Where it goes on closing is the app's, and
+  [Overlays](overlays.md#where-the-keyboard-goes) shows how.
+- **A carried item is under the finger right to left.** It was drawn at the
+  mirror image of the pointer, across the screen from it, in every drop list
+  and `DocumentTabs`.
+- **Disabled controls say so, and do nothing for a screen reader.** A disabled
+  `ColourPicker`'s tracks still took `setProgress`, a disabled `Carousel` still
+  turned through its actions, and a disabled `PageIndicator`'s dots and
+  `ThumbnailStrip`'s thumbnails withheld their press without saying why.
+- **A toast with no close button can be dismissed by a screen reader**, through
+  an action named with its close label. It could only be swiped away. Its
+  reported bounds are the card's own, no longer 16dp larger.
+- **A field's error is announced as it appears**, as a polite live region.
+- **`SplitButton`'s menu half and a floating `SubMenu`'s row say whether their
+  menu is open.**
+- **A tooltip opens as the keyboard reaches its control**, as tooltip.md says,
+  on a control with no `interactionSource` passed.
+- **A `ContextMenuArea` opens from a long press over something pressable.** A
+  `clickable` inside took the press first, and the menu never came.
+- **A pressable `PageIndicator` is a Tab stop**, with the arrows along it,
+  mirrored right to left, and Home and End.
+- **A D-pad's centre activates** a calendar day, an activity calendar's cell,
+  an event chip and a knob's edit, as Enter and Space do.
+- **"+3" keeps its plus in front right to left** in an event calendar's "+3
+  more", an activity calendar's mark and an event's "+2" days.
+- **At large type, nothing is cut mid-letter.** A `Stat`'s figure, a menu
+  row's label and a `FabMenu` label end in an ellipsis, and a menu's row takes a
+  second line past a font scale of 1.3. A wheel's row is never shorter than its
+  line of text. A `NavRail` section title and a `Pagination` jump field grow
+  with the type, and the field's hint is in the reader's digits.
+- **A `TagGroup` too narrow for all of it gives every part a share.** A wide
+  first part took the room, and the parts after it vanished while a screen
+  reader still read them.
+- **A standalone `Checkbox` shows the hand**, and a sheet's handle and a pane's
+  splitter draw no hover for a stylus.
+- **A sheet's detents and a pane's splitter move from the keyboard.** Each was
+  moved by a drag or a screen reader's actions, and took no focus. A
+  `DragHandle` on a sheet with more than one size to open to is now a Tab stop:
+  Up and Down step the detent, as do Page Up and Page Down, and Home and End go
+  to the tallest and the shortest, never to hidden. A resizable pane scaffold's
+  seam is one too: Left and Right move it a fiftieth of the width, mirrored
+  right to left, Page Up and Page Down a tenth, and Home and End to the panes'
+  minimums.
+- **An event calendar's views are a menu whenever their words don't fit in a
+  row.** The header chose from a word's width at the default type, so at 200%
+  its six segments were kept in 480dp and stacked into a column. It now asks the
+  segmented control's own measurement, at the width the segments would have.
+- **A horizontal `FabMenu`'s labels lean up and to the left right to left**, from
+  the foot of each, and stay inside the window by the left wall. They leaned up
+  and to the right in every language, so a right-to-left label read downhill
+  into its button.
+- **`CircularProgress` runs counter-clockwise right to left**, as
+  `CircularStepProgress` and the bars do. It ran clockwise in every language,
+  beside a stepped ring that did not.
+- **An `InputChip`'s remove button is the platform's minimum wide under a
+  finger**, 48dp on Android and 44 on iOS, and as tall as the chip. It was the
+  24dp it is drawn. The chip is the difference wider on a phone, with the cross
+  where it was at its end; under a mouse nothing moves.
+- **Shift+F10 or the menu key opens a `ContextMenuArea`'s menu**, from the focus
+  anywhere in its content, below the area. It opened by a pointer alone, where
+  `DocumentTabs` had both keys.
+- **A chart's legend at the start or the end goes under the plot when it is
+  taller than the plot**, or over it at the start, as a `SectorChart`'s does.
+  It was held to the plot's height, and at 200% type its entries ran on over
+  whatever was under the chart.
+- **A `Dialog`'s buttons scroll with its content when they would take more than
+  half its room.** At 200% type in a short window with the keyboard up, the
+  pinned row was taller than the dialog had, and the content had no room left
+  to scroll in.
+- **The arrows move a `Rating`'s score**, a half at a time with `allowHalf`,
+  mirrored right to left, with Home and End to its ends. Enter and Space on a
+  mark gave only its whole score, so a keyboard had no way to a half.
+- **A pickable `ActivityCalendar` that is disabled says so.** Its weeks dropped
+  their actions and nothing else, so a screen reader heard the picture a
+  calendar without `onDayClick` is, and could not tell this one would pick a
+  day another time.
+- **A disabled `Table`'s headers are in the disabled grey**, with its rows.
+  They kept their colours, so the sort controls were the strongest thing on a
+  table that could not be sorted.
+- **A disabled `PageIndicator` is in the disabled grey**, its current page in
+  the grey and the rest on the sunken ground, as a slider's fill and track
+  are. Its near-black pill was the strongest mark on an indicator that could
+  not be pressed.
+- **A disabled `Pagination`'s current page is on the sunken ground**, not the
+  accent's, and its ellipses are in the disabled grey with the pages.
+- **A disabled menu item's or command's shortcut is in the disabled grey**, as
+  its label is. The key cap was the one dark thing on the row.
+- **A disabled calendar's chosen day is in the disabled grey**, as a checked
+  box's ground is, and so are its range, today's ring and the weekday initials,
+  in `CalendarMonth` and the date pickers built on it. The chosen day kept its
+  near-black fill, with a grey number on it.
+- **A day's number is never cut at large type**, in `CalendarMonth`, the date
+  pickers and an `EventCalendar`'s month. A week is at least a line of the
+  day's type tall, and a number too wide for a narrow column reaches past its
+  circle, centred, where it was wrapped or clipped: at 200%, "20" was a "2" over
+  a "0" cut at the top and bottom, and "28" was clipped to the "2".
+- **A label with a line limit ends in an ellipsis.** A list row's two lines, a
+  top bar's title, a chip's label and every other part with a limit of lines
+  cut what did not fit at a line's end with nothing to say there was more,
+  which at 200% type was most of a label.
+- **`Modifier.marquee`'s examples ask for an ellipsis**, for when it does not
+  run. Under reduced motion it truncates, and a text truncated with none ends
+  at a word as if that were all of it: "Elizabeth Quay" for "Elizabeth Quay Bus
+  Station".
+- **Shift+Tab no longer leaves a `CommandPalette` for the page under it.** The
+  palette's panel was a Tab stop of its own, with no ring and nothing to do,
+  and stepping back from it went out of the palette. It takes no focus now;
+  the field and the commands do.
+- **A `DisclosureListItem`'s header shows the focus ring**, just inside it. The
+  card clips the header to its shape, and cut away the ring drawn round it.
+- **A `ThumbnailStrip` shows the focus ring** that thumbnail-strip.md says it
+  has. The clip that cuts the thumbnails at its ends cut the ring away too.
+
+### Breaking
+
+[Migrating](migrating.md) has the before and after for each, and the
+behaviour that changed while still compiling under **Check**.
+
+- **New parameters partway through.** `TimelineItem` and `TimelineRowScope`'s
+  two `item` functions take `iconColour` straight after `icon`. It is
+  defaulted, so anything built against 0.5.3 recompiles, and a call that names
+  its arguments needs nothing. One that passes the arguments after `icon` by
+  position names them: it fails to compile rather than meaning something else.
+  See [Migrating](migrating.md#name-the-arguments-after-icon-on-a-timeline).
+- **`TagGroup` has a new parameter**, `flow`, defaulted, after `shape` and
+  before the content, so anything built against 0.5.3 recompiles; every call
+  site still compiles as it is. **`TagJoin` has a new entry**, `Flow`: a `when`
+  over a `TagJoin` with no `else` needs a branch for it. See
+  [Migrating](migrating.md#give-a-when-over-tagjoin-a-branch-for-flow).
+
+---
+
 ## 0.5.3 — 4 November 2026
 
 Back that keeps working: a swipe back cut short by a dialog, a sheet or its page

@@ -22,7 +22,8 @@ Breadcrumbs(
 ## Accessibility
 
 The last crumb has no `onClick`, and that is what makes it the current page
-rather than a link back to itself — announced as text among links.
+rather than a link back to itself: it is announced as plain text, after crumbs
+that are buttons, each read with its label.
 
 The separators are drawn and not announced.
 

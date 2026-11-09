@@ -14,8 +14,9 @@ Dialog(
     visible = open,
     onDismissRequest = { open = false },
     title = { +"Rename favourite" },
-    // Under the content, and kept on screen while it scrolls. Placed by role:
-    // the confirm on the trailing edge, the cancel beside it.
+    // Under the content, and kept on screen while it scrolls unless the row
+    // takes over half the room. Placed by role: the confirm on the trailing
+    // edge, the cancel beside it.
     actions = {
         cancel()
         confirm("Save", enabled = name.text.isNotBlank()) {
@@ -58,6 +59,11 @@ Anything else written in the row — a second confirm, a button of your own — 
 drawn too, leading the top row so the confirm keeps the trailing edge. Nothing
 written there is dropped.
 
+The row stays under the content while the content scrolls, as long as it takes
+half the dialog's room or less. Past that, at large type in a short window with
+the keyboard up, it goes at the end of the content and scrolls with it, so the
+content is never left without room.
+
 **A `destructive` confirm warns as the dialog arrives**: one `Warn`, the
 platform's own warning, as a destructive [`AlertDialog`](alert-dialog.md) gives —
 it is the same question asked with a form. Once per showing, not again while it
@@ -66,8 +72,8 @@ opens often enough for the warning to become wallpaper; see
 [physical feedback](../theming.md#physical-feedback).
 
 The row sits **under** the content, not in it: a form taller than the window
-scrolls, and its Save stays on screen. A button written into the content scrolls
-away with it.
+scrolls, and its Save stays on screen, unless the row takes over half the room
+(above). A button written into the content scrolls away with it.
 
 **A dialog scrolls its own content**, and the edge it scrolls under fades while
 there is more past it. It is centred in the window with nowhere else to go, so

@@ -744,7 +744,10 @@ fun BottomSheet(
         // Where it has got to only while a finger is on it: read always, the
         // offset re-ran this on every frame of a sheet opening in code.
         snapshotFlow {
-            val dragging = state.draggedByHand
+            // By its own drag, or by its content's: a list pulled past its top
+            // moves the sheet through nested scrolling, and that is a hand on
+            // the sheet as much as a drag of its handle. See `movedByContent`.
+            val dragging = state.draggedByHand || state.movedByContent
             Triple(dragging, state.targetDetent, if (dragging) state.detentArrivedAt() else null)
         }
             .collect { (dragging, detent, arrived) ->

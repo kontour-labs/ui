@@ -249,7 +249,16 @@ private fun <T> HeaderCell(env: TableEnv<T>, index: Int) {
 internal fun <T> HeaderCellContent(env: TableEnv<T>, column: TableColumn<T>, modifier: Modifier = Modifier) {
     val sortable = env.onSortChange != null && column.sortable
     val sorted = env.sort?.takeIf { it.column == column.key }
-    val colour = if (sorted != null) env.colours.content else env.colours.headerContent
+    // In the disabled grey with the rows under it. The headers kept their
+    // colours on a disabled table, so the sort controls were the strongest
+    // thing on a table that could not be sorted, beside cells already grey.
+    // Found in the November 2026 audit by `DisabledQuietnessTest`, once the
+    // contract suite took the table in.
+    val colour = when {
+        !env.enabled -> Theme.colours.contentDisabled
+        sorted != null -> env.colours.content
+        else -> env.colours.headerContent
+    }
     val arrow: @Composable () -> Unit = {
         Box(Modifier.size(Theme.sizing.iconSmall), contentAlignment = Alignment.Center) {
             if (sorted != null) {

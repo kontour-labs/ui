@@ -54,6 +54,11 @@ is one of five, and that is what a screen reader should hear. Activating the
 selected mark again clears the score, which is how the keyboard and a screen
 reader reach zero; the score is then announced as "0 out of 5".
 
+**The arrows move the score**, a mark at a time, or a half with `allowHalf`, and
+the focus goes with it to the mark the score ends in. Right and Up give more,
+Left and Down less, and in a right-to-left language Left gives more, as the marks
+run from the right. Home takes it to the least it may be and End to all of them.
+
 Read-only, it is one node with a `stateDescription`: "4.3 out of 5". A read-only
 rating rendered as five separate stars would be five nodes announcing nothing
 each.

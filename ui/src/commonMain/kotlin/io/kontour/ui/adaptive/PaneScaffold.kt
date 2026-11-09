@@ -1,5 +1,13 @@
 package io.kontour.ui.adaptive
 
+import io.kontour.ui.input.LocalInputModality
+import io.kontour.ui.input.focusRing
+import androidx.compose.foundation.focusable
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.animation.AnimatedContent
@@ -531,13 +539,51 @@ private fun paneRange(minWidthPx: Float, totalWidth: Float): ClosedFloatingPoint
 }
 
 /**
+ * Where a key puts the seam, as the first pane's share of the line, or `null`
+ * for a key the seam does not use.
+ *
+ * Left and Right move it the way they point, so in right to left, where the
+ * panes are laid out from the right, Left widens the first pane. Page Up and
+ * Page Down give the first pane a tenth more or less, as a slider's do, and Home
+ * and End take it to its minimum and to the second pane's. An arrow moves a
+ * fiftieth: a slider's hundredth is 10px of a 1000px window, a press nobody sees.
+ * Up and Down are left alone, since the seam does not move that way and the
+ * panes either side may want them.
+ */
+internal fun splitterKeyTarget(
+    key: Key,
+    fraction: Float,
+    range: ClosedFloatingPointRange<Float>,
+    rtl: Boolean,
+): Float? {
+    val forward = if (rtl) -SplitterKeyStep else SplitterKeyStep
+    val next = when (key) {
+        Key.DirectionRight -> fraction + forward
+        Key.DirectionLeft -> fraction - forward
+        Key.PageUp -> fraction + SplitterPageStep
+        Key.PageDown -> fraction - SplitterPageStep
+        Key.MoveHome -> range.start
+        Key.MoveEnd -> range.endInclusive
+        else -> return null
+    }
+    return next.coerceIn(range)
+}
+
+private const val SplitterKeyStep = 0.02f
+private const val SplitterPageStep = 0.1f
+
+/**
  * The draggable seam between two panes.
  *
  * Widens on hover — the only hint a pointer user gets that a divider is a
  * control. It is also a real accessibility target: a drag is not a gesture a
  * screen reader can perform, so the handle reports its position as a progress
- * range and accepts `setProgress`, which is how a keyboard or switch user
- * resizes a pane at all.
+ * range and accepts `setProgress`.
+ *
+ * **And a Tab stop**, with a focus ring, moved by [splitterKeyTarget]'s keys.
+ * The progress range was written as how a keyboard resizes a pane, and it is
+ * not: a screen reader can set it, a keyboard on its own has no way to. Found
+ * in the November 2026 audit.
  *
  * @param onDelta Moves the divider by that many pixels, and says whether it ran
  *   into a pane's minimum.
@@ -560,7 +606,11 @@ private fun ResizeHandle(
     // the platform's minimum, with the line still drawn down its middle.
     val precise = windowAdaptiveInfo.isPrecise
     val interactions = remember { MutableInteractionSource() }
-    val hovered by interactions.collectIsHoveredAsState()
+    // Drawn only where the pointer can hover: a stylus held over the screen
+    // reports hover too, and accessibility.md says a stylus gets no hover
+    // state. Found in the November 2026 audit.
+    val hoverable = LocalInputModality.current.supportsHover
+    val hovered = interactions.collectIsHoveredAsState().value && hoverable
 
     // A divider's weight, so it thickens with the tier as the dividers beside it do.
     val line = Theme.sizing.dividerThickness.value
@@ -595,6 +645,15 @@ private fun ResizeHandle(
             .fillMaxHeight()
             .pointerCursor(Cursor.ResizeColumn)
             .hoverable(interactions)
+            .focusRing(interactions)
+            .onKeyEvent { event ->
+                if (event.type != KeyEventType.KeyDown) return@onKeyEvent false
+                val target = splitterKeyTarget(event.key, fraction.coerceIn(range), range, rtl)
+                    ?: return@onKeyEvent false
+                onFraction(target)
+                true
+            }
+            .focusable(interactionSource = interactions)
             .semantics {
                 contentDescription = label
                 // The range the seam can actually reach, and a request to put it

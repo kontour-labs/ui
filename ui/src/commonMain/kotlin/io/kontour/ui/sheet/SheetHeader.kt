@@ -1,5 +1,13 @@
 package io.kontour.ui.sheet
 
+import io.kontour.ui.input.LocalInputModality
+import io.kontour.ui.input.focusRing
+import androidx.compose.foundation.focusable
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -79,6 +87,15 @@ import io.kontour.ui.theme.animateComponentColour
  * The bar is 4dp tall and the thing you can press is [DragHandleDefaults.Target],
  * which is not the same number and should not be: a 4dp target is unhittable,
  * and a handle nobody can hit is a handle that never plays its animation.
+ *
+ * **On a sheet with more than one size to open to, it is a Tab stop**, with a
+ * ring round the bar. Up and Page Up take the sheet to the next taller detent,
+ * Down and Page Down to the next shorter, Home to the tallest and End to the
+ * shortest. None of them hides it: Escape and the dismiss action do that, and a
+ * key held down a moment too long should not put a sheet away. bottom-sheet.md
+ * says the detents are reachable without the gesture, and from a keyboard they
+ * were not until the November 2026 audit: the actions above were for a screen
+ * reader alone.
  */
 @Composable
 fun DragHandle(
@@ -90,7 +107,11 @@ fun DragHandle(
     val scope = rememberCoroutineScope()
     val motion = Theme.motion
     val interactions = remember { MutableInteractionSource() }
-    val hovered by interactions.collectIsHoveredAsState()
+    // Drawn only where the pointer can hover: a stylus held over the screen
+    // reports hover too, and accessibility.md says a stylus gets no hover
+    // state. Found in the November 2026 audit.
+    val hoverable = LocalInputModality.current.supportsHover
+    val hovered = interactions.collectIsHoveredAsState().value && hoverable
     val pressed by interactions.collectIsPressedAsState()
     val engaged = hovered || pressed
 
@@ -117,6 +138,9 @@ fun DragHandle(
         derivedStateOf { if (state == null) HandleMoves.None else handleMoves(state) }
     }.value
     val dismissLabel = Theme.strings.close
+    // Focusable on the detents it was given, not on where it is now, so the
+    // focus is not taken from a handle that has reached its tallest.
+    val steps = state != null && state.detents.count { it != SheetDetent.Hidden } > 1
 
     Box(
         modifier = modifier
@@ -155,6 +179,13 @@ fun DragHandle(
                     }
                 }
             }
+            .onKeyEvent { event ->
+                if (state == null || !steps || event.type != KeyEventType.KeyDown) return@onKeyEvent false
+                val target = sheetKeyTarget(event.key, state) ?: return@onKeyEvent false
+                scope.launch { state.animateTo(target) }
+                true
+            }
+            .focusable(enabled = steps, interactionSource = interactions)
             .semantics {
                 contentDescription = if (expanded) collapseLabel else expandLabel
                 if (state != null) {
@@ -184,9 +215,53 @@ fun DragHandle(
             Modifier
                 .width(width)
                 .height(4.dp)
+                // Round the bar rather than the band, which is the sheet's
+                // whole width: a ring that size reads as the sheet being
+                // focused, not its handle.
+                .focusRing(interactions, Theme.shapes.capsule, enabled = steps)
                 .background(colour, Theme.shapes.capsule)
         )
     }
+}
+
+/**
+ * Where a key on the handle takes [state], or `null` for a key it does not use
+ * or a step with nowhere to go.
+ *
+ * By **offset**, as [handleMoves] is, so two detents that resolve to one height
+ * are one step, and only among the detents the sheet may go to now. Never
+ * [SheetDetent.Hidden]. By place in the list before there are anchors to ask.
+ */
+private fun sheetKeyTarget(key: Key, state: SheetState): SheetDetent? {
+    val open = state.allowedDetents.filter { it != SheetDetent.Hidden }
+    if (open.isEmpty()) return null
+    val current = state.currentDetent
+    val here = state.offsetOf(current)
+    val offsets = open.map { state.offsetOf(it) }
+    // Tallest first: the smallest offset, or the end of the list.
+    val tallestFirst = if (here.isNaN() || offsets.any { it.isNaN() }) {
+        open.reversed()
+    } else {
+        open.sortedBy { state.offsetOf(it) }
+    }
+    val taller: SheetDetent?
+    val shorter: SheetDetent?
+    if (here.isNaN() || offsets.any { it.isNaN() }) {
+        val at = open.indexOf(current)
+        taller = if (at < 0) open.last() else open.getOrNull(at + 1)
+        shorter = if (at < 0) null else open.getOrNull(at - 1)
+    } else {
+        taller = tallestFirst.lastOrNull { state.offsetOf(it) < here - 0.5f }
+        shorter = tallestFirst.firstOrNull { state.offsetOf(it) > here + 0.5f }
+    }
+    val target = when (key) {
+        Key.DirectionUp, Key.PageUp -> taller
+        Key.DirectionDown, Key.PageDown -> shorter
+        Key.MoveHome -> tallestFirst.first()
+        Key.MoveEnd -> tallestFirst.last()
+        else -> return null
+    }
+    return target?.takeIf { it != current }
 }
 
 /** Which of its accessibility actions a [DragHandle] offers. */

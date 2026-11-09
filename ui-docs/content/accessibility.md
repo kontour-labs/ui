@@ -323,11 +323,15 @@ tidier to write and wrong: a focus ring is drawn when the keyboard reaches an
 element and a cursor is about what the mouse is over, so folding them together
 would show a cursor only on things you had already tabbed to.
 
-**There are four cursors and no more.** Compose Multiplatform's `PointerIcon`
-offers `Default`, `Crosshair`, `Text` and `Hand` across the platforms this
-library builds for. There is no resize cursor for a pane splitter and no grab
-cursor for a scrollbar thumb, so those get a hand — the closest of the four to
-"you can take hold of this".
+**`Cursor` names what a component is, and each platform draws the nearest it
+has.** Compose Multiplatform's `PointerIcon` offers only `Default`, `Crosshair`,
+`Text` and `Hand` everywhere, so `Cursor` adds the rest a platform can draw: a
+column or row resize for a pane splitter, an open and a closed hand for
+something that can be taken hold of and carried, not-allowed over a drop that
+would be refused, and progress. A platform without one draws the nearest of the
+four: the desktop JVM shows a hand for a grab and an arrow for not-allowed, and
+iOS draws none of the extra ones. `Cursor`'s KDoc has the table, platform by
+platform.
 
 ---
 

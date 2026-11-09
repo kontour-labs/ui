@@ -1,5 +1,9 @@
 package io.kontour.ui.components.calendar
 
+import io.kontour.ui.interaction.BoundaryHysteresis
+
+import kotlin.math.abs
+
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.ui.input.pointer.PointerEventPass
@@ -241,6 +245,26 @@ internal class EventEdit(
 
     /** How many pixels a minute is in the hours. */
     var pixelsPerMinute: Float = 1f
+
+    /** [BoundaryHysteresis], in pixels: how far past half a step a drag goes before it takes the next. */
+    var givePx: Float = 0f
+
+    /** The step a move or a resize is at, for [rounded]'s give. */
+    private var held: Long? = null
+
+    /**
+     * [raw] to the nearest step, keeping to the one it is at until it is a
+     * little past half a step from there. A finger resting between two steps
+     * wobbles across the line, and each wobble moved the event and snapped. See
+     * `stickyStretch`.
+     */
+    private fun rounded(raw: Long): Long {
+        val give = if (pixelsPerMinute > 0f) (givePx / pixelsPerMinute).toLong() else 0L
+        val at = held
+        val step = if (at != null && abs(raw - at) <= stepMinutes / 2 + give) at else roundTo(raw, stepMinutes)
+        held = step
+        return step
+    }
 
     /** Whatever takes a mouse drag on the calendar: a pager declines a press on any of these. */
     val draggables = HashMap<Any, LayoutCoordinates>()
@@ -559,6 +583,7 @@ internal class EventEdit(
         this.start = start
         this.end = end
         this.byDays = byDays
+        held = null
         steps.reset()
         steps.at(stepIndex(start))
         paged = 0
@@ -588,7 +613,7 @@ internal class EventEdit(
                     val raw = minute - grab
                     // On the day it is over: carried to the top or the foot of
                     // the hours, it stops there rather than spilling over.
-                    val start = movedStart(roundTo(raw, stepMinutes), length, date.atMidnight.epochMinute, onOneDay(event.start, event.end), stepMinutes)
+                    val start = movedStart(rounded(raw), length, date.atMidnight.epochMinute, onOneDay(event.start, event.end), stepMinutes)
                     val column = columns.of(date)
                     val across = if (column == null) 0f else {
                         val half = column.size.width / 2f
@@ -617,7 +642,7 @@ internal class EventEdit(
                 val (_, raw) = timeAt(root - edgeOffset, sameDayAs = day) ?: return
                 val dayStart = day.atMidnight.epochMinute
                 val minute = raw.coerceIn(dayStart, dayStart + MinutesPerDay)
-                val end = resizedEnd(event.start.epochMinute, event.end.epochMinute, roundTo(minute, stepMinutes), stepMinutes)
+                val end = resizedEnd(event.start.epochMinute, event.end.epochMinute, rounded(minute), stepMinutes)
                 leanOn = 1
                 lean = Offset(0f, ((minute - end) * perMinute).coerceIn(-halfStep, halfStep))
                 propose(event.start, localDateTimeOfEpochMinute(end))
@@ -634,7 +659,7 @@ internal class EventEdit(
                 val (_, raw) = timeAt(root - edgeOffset, sameDayAs = event.start.date) ?: return
                 val dayStart = event.start.date.atMidnight.epochMinute
                 val minute = raw.coerceIn(dayStart, dayStart + MinutesPerDay)
-                val start = resizedStart(event.start.epochMinute, event.end.epochMinute, roundTo(minute, stepMinutes), stepMinutes)
+                val start = resizedStart(event.start.epochMinute, event.end.epochMinute, rounded(minute), stepMinutes)
                 leanOn = -1
                 lean = Offset(0f, ((minute - start) * perMinute).coerceIn(-halfStep, halfStep))
                 propose(localDateTimeOfEpochMinute(start), event.end)

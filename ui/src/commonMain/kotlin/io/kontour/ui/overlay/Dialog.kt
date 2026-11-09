@@ -1,5 +1,9 @@
 package io.kontour.ui.overlay
 
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.movableContentOf
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -92,7 +96,8 @@ import kotlin.math.sign
  *   body below it is any column of content.
  * @param actions The buttons along the foot — `actions = { cancel(); confirm("Save") { … } }`
  *   — laid out as an [AlertDialog]'s are and kept on screen while the content
- *   scrolls. See [DialogActionsScope].
+ *   scrolls, as long as the row takes half the room or less; past that it
+ *   scrolls with the content. See [DialogActionsScope].
  * @param dismissible Pass `false` for a decision the user must actually
  *   make. Use sparingly: a dialog that cannot be escaped is a trap, and most
  *   "are you sure" prompts are safe to cancel by tapping away.
@@ -251,29 +256,61 @@ fun Dialog(
                                         // was the last thing in the scroller, so an alert
                                         // dialog came out of this move pixel for pixel.
                                         val scope = remember(latestDismiss) { DialogActionsScope(dismiss = { latestDismiss.value() }, visible = { latestVisible.value }) }
-                                        Column {
-                                            Column(
-                                                modifier = Modifier
-                                                    .weight(1f, fill = false)
-                                                    .fillMaxWidth()
-                                                    .fadingEdges(scroll)
-                                                    .verticalScroll(scroll, flingBehavior = ScrollDefaults.flingBehavior())
-                                                    .padding(start = Theme.spacing.lg, top = Theme.spacing.lg, end = Theme.spacing.lg),
-                                                verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
-                                            ) {
-                                                latestTitle?.let { OverlayTitle(Theme.typography.titleLarge, it) }
-                                                body()
+                                        // **Pinned while it takes half the room or less.**
+                                        // At 200% type in a short window with the
+                                        // keyboard up, a row of three buttons that
+                                        // each wrap was taller than the room, and the
+                                        // content had none left to scroll in. Past
+                                        // half the room the row goes in the
+                                        // scroller, as the last thing in it, and the
+                                        // whole dialog scrolls. Its height does not
+                                        // depend on where it is (the width is the
+                                        // same), so the choice cannot swing back and
+                                        // forth; movable, so a focused button keeps
+                                        // the focus as it moves. Found in the
+                                        // November 2026 audit.
+                                        var rowHeight by remember { mutableIntStateOf(0) }
+                                        val row = remember(scope) {
+                                            movableContentOf { rowModifier: Modifier ->
+                                                DialogActionRow(
+                                                    scope = scope,
+                                                    modifier = rowModifier.onSizeChanged { rowHeight = it.height },
+                                                    actions = latestActions ?: {},
+                                                )
                                             }
-                                            DialogActionRow(
-                                                scope = scope,
-                                                modifier = Modifier.padding(
-                                                    start = Theme.spacing.lg,
-                                                    top = Theme.spacing.sm + Theme.spacing.sm,
-                                                    end = Theme.spacing.lg,
-                                                    bottom = Theme.spacing.lg,
-                                                ),
-                                                actions = pinned,
-                                            )
+                                        }
+                                        BoxWithConstraints {
+                                            val inScroller = constraints.hasBoundedHeight && rowHeight * 2 > constraints.maxHeight
+                                            Column {
+                                                Column(
+                                                    modifier = Modifier
+                                                        .weight(1f, fill = false)
+                                                        .fillMaxWidth()
+                                                        .fadingEdges(scroll)
+                                                        .verticalScroll(scroll, flingBehavior = ScrollDefaults.flingBehavior())
+                                                        .padding(
+                                                            start = Theme.spacing.lg,
+                                                            top = Theme.spacing.lg,
+                                                            end = Theme.spacing.lg,
+                                                            bottom = if (inScroller) Theme.spacing.lg else 0.dp,
+                                                        ),
+                                                    verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
+                                                ) {
+                                                    latestTitle?.let { OverlayTitle(Theme.typography.titleLarge, it) }
+                                                    body()
+                                                    if (inScroller) row(Modifier.padding(top = Theme.spacing.sm))
+                                                }
+                                                if (!inScroller) {
+                                                    row(
+                                                        Modifier.padding(
+                                                            start = Theme.spacing.lg,
+                                                            top = Theme.spacing.sm + Theme.spacing.sm,
+                                                            end = Theme.spacing.lg,
+                                                            bottom = Theme.spacing.lg,
+                                                        ),
+                                                    )
+                                                }
+                                            }
                                         }
                                     }
                                 }

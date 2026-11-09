@@ -281,6 +281,10 @@ fun Timeline(
  *   is smaller, and the icon takes whichever of light or dark reads on a solid
  *   dot, or the ring's colour inside a hollow one. Decorative, like the dot:
  *   say what it means in the item's words. Not drawn while [loading].
+ * @param iconColour The [icon]'s colour. Unspecified picks one that reads:
+ *   light or dark on a solid dot, or the ring's own colour inside a hollow one.
+ *   Pick one that holds 3:1 against the dot, as an icon's own colour must, and
+ *   check it in both schemes.
  * @param nodeSize The dot's diameter.
  * @param gutterWidth The width of the column the node and connector run down,
  *   beside the content. Down a [Timeline] only; across a [HorizontalTimeline] the
@@ -313,12 +317,13 @@ fun TimelineItem(
     filled: Boolean = true,
     loading: Boolean = false,
     icon: ImageVector? = null,
+    iconColour: Color = Color.Unspecified,
     nodeSize: Dp = TimelineDefaults.NodeSize,
     gutterWidth: Dp = TimelineDefaults.GutterWidth,
     connectorWidth: Dp = TimelineDefaults.ConnectorWidth,
     content: ListItemScope.() -> Unit,
 ) = TimelineStopItem(
-    modifier, connector, nodeColour, connectorColour, filled, loading, icon,
+    modifier, connector, nodeColour, connectorColour, filled, loading, icon, iconColour,
     stack = 1, nodeSize, gutterWidth, connectorWidth, content,
 )
 
@@ -367,7 +372,7 @@ fun TimelineNodeGroup(
 ) {
     require(count >= 1) { "A node group stands for at least one stop, not $count" }
     TimelineStopItem(
-        modifier, connector, nodeColour, connectorColour, filled, loading = false, icon = null,
+        modifier, connector, nodeColour, connectorColour, filled, loading = false, icon = null, iconColour = Color.Unspecified,
         stack = count.coerceAtMost(MaxGroupNodes), nodeSize, gutterWidth, connectorWidth, content,
     )
 }
@@ -382,6 +387,7 @@ private fun TimelineStopItem(
     filled: Boolean,
     loading: Boolean,
     icon: ImageVector?,
+    iconColour: Color,
     stack: Int,
     nodeSize: Dp,
     gutterWidth: Dp,
@@ -425,6 +431,7 @@ private fun TimelineStopItem(
                 here = at?.here == true,
                 reached = at?.reached != false,
                 icon = shown,
+                iconColour = iconColour,
                 stack = stack,
             ),
             legs = listOf(

@@ -1,5 +1,6 @@
 package io.kontour.ui.nav
 
+import androidx.compose.foundation.layout.widthIn
 import io.kontour.ui.theme.clipProxy
 import io.kontour.ui.a11y.contrastEdge
 import androidx.compose.foundation.background
@@ -10,7 +11,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.sizeIn
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.text.input.clearText
@@ -191,7 +191,10 @@ fun Pagination(
                                     // on. When it *is* a control, `JumpGap` labels it.
                                     .clearAndSetSemantics { },
                                 style = Theme.typography.bodyMedium,
-                                colour = Theme.colours.contentSubtle,
+                                // With the pages either side of it: it stayed
+                                // `contentSubtle` on a disabled row, darker
+                                // than the grey numbers it stood between.
+                                colour = if (enabled) Theme.colours.contentSubtle else Theme.colours.contentDisabled,
                             )
                         }
                     }
@@ -278,8 +281,12 @@ private fun JumpGap(
                 TextField(
                     state = typed,
                     label = null,
-                    placeholder = "1\u2013$pageCount",
-                    modifier = Modifier.width(JumpFieldWidth),
+                    // In the reader's digits, as the field reads them back, and
+                    // a field that grows for them: Western digits in a fixed
+                    // 96dp until the November 2026 audit, which cut the hint at
+                    // twice the type.
+                    placeholder = "${formats.integer(1)}\u2013${formats.integer(pageCount)}",
+                    modifier = Modifier.widthIn(min = JumpFieldWidth),
                     keyboardType = KeyboardType.Number,
                     imeAction = ImeAction.Go,
                     onKeyboardAction = { commit() },
@@ -344,13 +351,21 @@ private fun PageButton(number: Int, selected: Boolean, enabled: Boolean, onClick
             .focusRing(interactions, shape)
             .sizeIn(minWidth = PageButtonSize, minHeight = PageButtonSize)
             .clip(shape.clipProxy())
+            // Disabled, the current page on the sunken ground rather than the
+            // accent's: a disabled row kept its one coloured disc. Found in the
+            // November 2026 audit by `DisabledQuietnessTest`, once the contract
+            // suite took the row in.
             .background(
-                if (selected) colours.accent.container else androidx.compose.ui.graphics.Color.Transparent,
+                when {
+                    !selected -> androidx.compose.ui.graphics.Color.Transparent
+                    enabled -> colours.accent.container
+                    else -> colours.surfaceSunken
+                },
                 shape,
             )
             // At the enhanced tier every page is a button you can see the edge
             // of, as a ghost button is; the current one's edge is the accent.
-            .optionalBorder(if (selected) selectionEdge() else contrastEdge(), shape)
+            .optionalBorder(if (selected && enabled) selectionEdge() else contrastEdge(), shape)
             .pointerCursor(enabled = enabled)
             .selectable(
                 selected = selected,

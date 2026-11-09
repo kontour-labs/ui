@@ -117,6 +117,11 @@ component drawing the wheel should give it a spoken form.
 A wheel is a scroll gesture with a lot of stops. Where the set is long, a
 [`Select`](select.md) is reachable in one gesture and a wheel is not.
 
+**At large type the rows grow with it.** A row is `itemHeight` or its line of
+text with a little room, whichever is taller, so past about 1.3 times the type
+the default 40dp rows grow rather than clip their words; a
+[`WheelSelect`](wheel-select.md) beside it grows the same.
+
 At high contrast the band behind the chosen row gains an edge, and the rows
 either side stay legible: the neighbours fade to 0.75 of the ink and those
 beyond to 0.6, where the standard tier goes to 0.45 and 0.2.

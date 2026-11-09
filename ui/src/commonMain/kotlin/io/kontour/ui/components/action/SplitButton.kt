@@ -18,6 +18,7 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import io.kontour.ui.a11y.LocalTouchTargetOwnedByParent
 import io.kontour.ui.foundation.GroupPosition
 import io.kontour.ui.foundation.RowContentScope
@@ -123,6 +124,8 @@ fun SplitButton(
             horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.Seam),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            val expandedLabel = Theme.strings.expanded
+            val collapsedLabel = Theme.strings.collapsed
             Button(
                 onClick = onClick,
                 enabled = enabled,
@@ -138,6 +141,10 @@ fun SplitButton(
                 contentDescription = menuContentDescription,
                 onClick = { onExpandedChange(!expanded) },
                 enabled = enabled,
+                // Whether the menu is open, said rather than only drawn by the
+                // chevron's turn, as a nav rail's group says it. Found in the
+                // November 2026 audit.
+                modifier = Modifier.semantics { stateDescription = if (expanded) expandedLabel else collapsedLabel },
                 variant = variant,
                 size = size,
                 shape = GroupPosition.Last.shape(shape, ButtonGroupDefaults.InnerCorner, Orientation.Horizontal),

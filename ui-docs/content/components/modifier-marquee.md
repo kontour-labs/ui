@@ -5,6 +5,7 @@
 Text(
     text = stop.name,
     maxLines = 1,
+    overflow = TextOverflow.Ellipsis,
     modifier = Modifier.marquee(),
 )
 ```
@@ -14,7 +15,8 @@ route headsign, a now-playing line. Safe to apply unconditionally: it measures
 first and animates only when the content is wider than the space, so the common
 case costs a comparison. Pair it with `maxLines = 1`; without that the text wraps
 instead of overflowing, there is nothing to scroll, and the modifier does nothing
-forever.
+forever. And with `overflow = TextOverflow.Ellipsis`, for the times it does not
+run, below.
 
 **It is off under reduced motion, and that is not a degradation.** Everything
 else in this library softens — a spring becomes a tween, a slide becomes a fade.
@@ -34,6 +36,7 @@ scrolling at once is a screen nobody can read.
 Text(
     text = stop.name,
     maxLines = 1,
+    overflow = TextOverflow.Ellipsis,
     modifier = Modifier.marquee(travel = MarqueeTravel.BackAndForth),
 )
 ```
@@ -59,6 +62,7 @@ settles at its start.
 Text(
     text = stop.name,
     maxLines = 1,
+    overflow = TextOverflow.Ellipsis,
     modifier = Modifier.marquee(draggable = true),
 )
 ```
@@ -95,7 +99,9 @@ tween, a slide becomes a fade — and this one stops, because it is the only
 animation here that never ends.
 Perpetual motion at the edge of vision is the specific thing the preference
 exists to stop, and there is no gentler version of "forever". The text truncates
-instead, which is what it would have done without the modifier.
+instead, which is what it would have done without the modifier, and ends in an
+ellipsis with `overflow = TextOverflow.Ellipsis`, so a name cut at a word does
+not read as the whole of it.
 
 A draggable marquee still drags under reduced motion, because motion the user
 makes is not motion done to them, and it never sets off by itself. Until it is

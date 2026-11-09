@@ -46,8 +46,8 @@ tucks the supporting pane away.
 **The supporting pane slides in and out from the trailing edge**, and the main
 pane widens to meet it rather than jumping. Its content is laid out at its full
 width and clipped while it moves, so it slides rather than squeezing, and
-`supporting` goes on being called until it has gone. On a compact window it is a
-sheet that rises and falls the same way.
+`supporting` goes on being called until it has gone. On a window narrower than
+840dp, the `Expanded` width class, it is a sheet that rises and falls the same way.
 
 **No pane starts again when the layout changes.** Each is the same composable in
 every arrangement, moved rather than rebuilt, so a list keeps its scroll position
@@ -75,7 +75,12 @@ end as leaves that pane its 280dp minimum — with `setProgress` putting the sea
 at the share asked for. So the panes can be resized from a screen reader without
 the drag gesture, and a request for 0.6 is 0.6 of the window, whatever its width.
 
-On a compact window there is one pane, and `onBack` is what returns from the
+It is also a Tab stop, with a focus ring. Left and Right move the seam a fiftieth
+of the width the way they point, so Left widens the first pane right to left.
+Page Up and Page Down give the first pane a tenth more or less, and Home and End
+take it to its minimum and to the other pane's.
+
+Under 840dp there is one pane, on a portrait tablet as on a phone, and `onBack` is what returns from the
 detail to the list. The scaffold calls it for back itself — the system gesture,
 iOS's edge swipe, Escape — and the detail follows a gesture while it runs, so
 the list is uncovered under the hand. Call it from any visible back button too:
@@ -86,11 +91,11 @@ one long run of content to anyone navigating by structure.
 
 At high contrast the rule between two panes takes the tier's thicker
 `dividerThickness`, and so does the resize handle's line, which is three times
-that under a pointer. On a compact window the supporting pane is a modal sheet,
+that under a pointer. Under 840dp the supporting pane is a modal sheet,
 which takes the tier's edge.
 
 Under reduced motion the supporting pane takes its width at once and fades in,
 rather than sliding in while the main pane narrows to meet it, and it goes at once
-when it closes. On a compact window the list and the detail cross-fade rather
+when it closes. Under 840dp the list and the detail cross-fade rather
 than sliding, a back gesture seeks that fade instead of moving the page, and the
 supporting pane's sheet fades where it rests.

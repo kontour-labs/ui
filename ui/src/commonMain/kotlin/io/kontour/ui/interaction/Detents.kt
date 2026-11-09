@@ -1,5 +1,7 @@
 package io.kontour.ui.interaction
 
+import androidx.compose.ui.unit.dp
+
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Stable
@@ -183,6 +185,48 @@ class DetentTicker internal constructor(
         val MinimumTickInterval: Duration = 80.milliseconds
     }
 }
+
+/**
+ * Which of [count] equal stretches [position] is in, measured in stretches from
+ * 0 to [count], keeping to [current] until the position is [margin] stretches
+ * past its edge.
+ *
+ * **A finger resting on a boundary is not still.** A touchscreen reports it a
+ * pixel or two either side of where it is, frame to frame, and a position cut
+ * into stretches with no give flips across the boundary and back with each of
+ * those reports: a change and a haptic every time. Found in November 2026 as a
+ * segmented control's drag felt twice, or more, for the one segment it moved
+ * to, *"usually when it gets dragged after its first load"*: a pause near a
+ * boundary was seven snaps in a test of two pixels' wobble.
+ *
+ * [margin] is a distance a hand means, not one a sensor makes: see
+ * [BoundaryHysteresis]. A [current] outside the stretches gives no give.
+ */
+internal fun stickyStretch(position: Float, current: Int, count: Int, margin: Float): Int {
+    if (count <= 0) return 0
+    val clamped = position.coerceIn(0f, count.toFloat())
+    if (current in 0 until count && clamped >= current - margin && clamped <= current + 1 + margin) return current
+    return clamped.toInt().coerceIn(0, count - 1)
+}
+
+/**
+ * What [pick] says is at [at], keeping to [current] while it is within [margin]
+ * of somewhere [pick] says is [current]: [stickyStretch]'s give, for a lookup
+ * that is not a row of equal stretches, as an index rail whose dots stand for a
+ * run of letters is not. A [current] below zero gives no give.
+ */
+internal inline fun stickyPick(current: Int, at: Float, margin: Float, pick: (Float) -> Int): Int {
+    val here = pick(at)
+    if (current < 0 || here == current) return here
+    return if (pick(at - margin) == current || pick(at + margin) == current) current else here
+}
+
+/**
+ * How far past a boundary a drag goes before it has crossed it: [stickyStretch]'s
+ * margin, a few times the wobble of a finger held still on a phone's screen, and
+ * a small fraction of any target a finger chooses between.
+ */
+internal val BoundaryHysteresis = 4.dp
 
 /**
  * Remembers a [DetentTicker] wired to the current [LocalFeedback].

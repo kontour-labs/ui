@@ -85,7 +85,9 @@ a user hears "Origin", moves to the next node, and is in an unnamed edit box.
 **`errorMessage` sets `error` semantics**, not just a red border. Colour alone
 fails WCAG 1.4.1, so the message is how a screen-reader user learns there is a
 problem — and error outranks focus visually, because an accent ring would hide
-the thing being fixed.
+the thing being fixed. The message under the field is a polite live region, so
+an error that appears as the reader types, or after they move on, is read out
+when they pause rather than waiting to be found.
 
 **`enabled = false` marks the node disabled.** Foundation greys the field and
 stops accepting input without marking it, so a screen reader went on offering

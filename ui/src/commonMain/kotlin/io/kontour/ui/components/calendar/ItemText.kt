@@ -1,5 +1,6 @@
 package io.kontour.ui.components.calendar
 
+import io.kontour.ui.locale.bidiIsolated
 import io.kontour.ui.foundation.LocalContentColour
 import io.kontour.ui.foundation.Icon
 import androidx.compose.ui.platform.LocalDensity
@@ -261,7 +262,9 @@ internal fun MoreChip(
             .semantics { contentDescription = described },
     ) {
         FadingText(
-            strings.moreCount(formats.quantity(count)),
+            // Isolated, as a tag's count is, so the plus stays in front of
+            // the number in a right-to-left line: localisation.md.
+            bidiIsolated(strings.moreCount(formats.quantity(count))),
             calendarItemStyle(),
             colour = quietInk(),
             modifier = Modifier.padding(horizontal = Theme.spacing.xxs),

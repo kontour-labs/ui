@@ -21,6 +21,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.text.selection.DisableSelection
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.TextMeasurer
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.runtime.Composable
@@ -44,7 +47,9 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.style.TextOverflow
+import io.kontour.ui.interaction.BoundaryHysteresis
 import io.kontour.ui.interaction.FeedbackIntent
+import io.kontour.ui.interaction.stickyStretch
 import io.kontour.ui.interaction.rememberTapFeedback
 import io.kontour.ui.foundation.LocalTextStyle
 import io.kontour.ui.foundation.ProvideContentColourInMotion
@@ -321,6 +326,7 @@ fun SegmentedControl(
 
     /** See [EndStopTravel]. Read once; both the pull and the squash use it. */
     val endStopTravelPx = with(LocalDensity.current) { EndStopTravel.toPx() }
+    val hysteresisPx = with(LocalDensity.current) { BoundaryHysteresis.toPx() }
 
     /**
      * Where the finger is along the track, or `NaN` before the first drag.
@@ -383,10 +389,8 @@ fun SegmentedControl(
     val trackPadding = SegmentedControlDefaults.TrackPadding
     val labelPadding = SegmentedControlDefaults.LabelPadding
     val stacked = remember(labels, measurer, constraints.maxWidth, density, labelStyle, trackPadding, labelPadding) {
-        val track = with(density) { constraints.maxWidth.toDp() } - trackPadding * 2
-        val each = track / options.size
-        val widest = labels.maxOf { measurer.measure(it, labelStyle).size.width }
-        with(density) { widest.toDp() } + labelPadding * 2 > each
+        val width = with(density) { constraints.maxWidth.toDp() }
+        !segmentLabelsFit(labels, width, measurer, labelStyle, density, trackPadding, labelPadding)
     }
 
     /**
@@ -652,11 +656,14 @@ fun SegmentedControl(
 
         fun selectAt(along: Float) {
             if (trackLength <= 0f) return
-            val fraction = (along / trackLength).coerceIn(0f, 1f)
-            val raw = (fraction * options.size).toInt().coerceIn(options.indices)
+            val segment = trackLength / options.size
             // Mirrored along a row and never down a column: a stacked track runs
             // top to bottom in every script.
-            val index = if (isRtl && !stacked) options.size - 1 - raw else raw
+            fun mirrored(i: Int) = if (isRtl && !stacked) options.size - 1 - i else i
+            // With give at each boundary: a finger resting on one wobbles across
+            // it, and each wobble was a snap and a change. See `stickyStretch`.
+            val raw = stickyStretch(along / segment, mirrored(currentSelected), options.size, hysteresisPx / segment)
+            val index = mirrored(raw)
             // Once per segment crossed, the way a stepped slider ticks: a user
             // dragging without looking can feel where the boundaries are. The
             // ticker owns the guard now — it used to be "the index changed",
@@ -968,4 +975,45 @@ private fun SegmentedOption(
  */
 private class DragStart {
     var counted = false
+}
+
+/**
+ * Whether [labels] fit side by side in a segmented control [width] wide, which
+ * is what decides whether it stacks them: the widest at [style], with
+ * [labelPadding] either side, against one segment's share of the track.
+ */
+internal fun segmentLabelsFit(
+    labels: List<String>,
+    width: Dp,
+    measurer: TextMeasurer,
+    style: TextStyle,
+    density: Density,
+    trackPadding: Dp,
+    labelPadding: Dp,
+): Boolean {
+    if (labels.isEmpty()) return true
+    val each = (width - trackPadding * 2) / labels.size
+    val widest = labels.maxOf { measurer.measure(it, style).size.width }
+    return with(density) { widest.toDp() } + labelPadding * 2 <= each
+}
+
+/**
+ * Whether a [SegmentedControl] of [options], [width] wide, would keep them in a
+ * row: the same measurement it makes, in capitals where the theme draws them so,
+ * for a caller that would offer something else rather than a column. Added for
+ * `EventCalendar`'s view switcher in the November 2026 audit.
+ */
+@Composable
+internal fun segmentedControlFits(options: List<String>, width: Dp): Boolean {
+    val uppercase = Theme.componentDefaults.uppercaseLabels
+    val formats = Theme.formats
+    val labels = remember(options, uppercase, formats) { if (uppercase) options.map(formats::uppercase) else options }
+    val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    val style = Theme.typography.labelMedium
+    val trackPadding = SegmentedControlDefaults.TrackPadding
+    val labelPadding = SegmentedControlDefaults.LabelPadding
+    return remember(labels, width, measurer, style, density, trackPadding, labelPadding) {
+        segmentLabelsFit(labels, width, measurer, style, density, trackPadding, labelPadding)
+    }
 }

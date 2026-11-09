@@ -115,6 +115,7 @@ class TimelineListTest {
         filled = true,
         loading = false,
         icon = null,
+        iconColour = Color.Unspecified,
         connector = connector,
         connectorColour = colour,
         connectorWidth = Dp.Unspecified,

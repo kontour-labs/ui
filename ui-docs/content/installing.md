@@ -82,7 +82,7 @@ One version for all four, in the version catalog:
 ```toml
 # gradle/libs.versions.toml
 [versions]
-kontour = "0.5.3"
+kontour = "0.5.4"
 
 [libraries]
 kontour-ui = { module = "io.kontour:ui", version.ref = "kontour" }
@@ -107,7 +107,7 @@ kotlin {
 ```
 
 Without a catalog, the same thing is
-`implementation("io.kontour:ui:0.5.3")`, and so on.
+`implementation("io.kontour:ui:0.5.4")`, and so on.
 
 ---
 
@@ -176,20 +176,26 @@ and figures, both bundled; there is nothing to add unless you reskin, which
   not reach.
 
   On an iPhone or iPad, every browser is WebKit, which opens the keyboard only
-  for an input focused during the tap itself; Compose focuses its own while the
-  finger is still down, a frame after it lands, which WebKit does not count. So
-  as the finger lifts from a text field, a combobox, a nav bar's search or an
-  editable knob, `KontourTheme` focuses Compose's input again, during the tap,
-  and the keyboard opens for it. A field that focuses itself later — the box
-  under a select's "Other", a combobox's editor — has a hidden input focused
-  in its place for the moment between. Nothing is added off iOS.
+  for a tap that lands on an input, as that tap's own default action. Compose
+  draws its fields on the canvas, and its own input is there only once a field
+  has the focus, so a first tap on a field lands on the canvas and gets no
+  keyboard. So `KontourTheme` keeps a transparent input over each text field
+  while nothing is being typed in it: the tap lands on that, the keyboard
+  opens, and the focus goes straight on to Compose's input with the keyboard
+  still up. The touches go on to Compose too, so the caret goes where the
+  finger was and a drag that starts on a field still scrolls; the field's own
+  buttons are left out of it. A field that focuses itself a moment later — a
+  combobox's editor, a nav bar's search, the box under a select's "Other" —
+  or that a finger drags, as an editable knob, has a hidden input focused for
+  it as the finger lifts instead, which holds the keyboard until Compose's own
+  input takes it. Nothing is added off iOS.
 
   On a phone or a tablet, in any browser, **a focused text field's selection,
   its handles and its menu are the browser's own**: Copy, Paste, Look Up and
   the rest, where the reader expects them. Compose's input is laid over the
   field's text while it has the focus, in the same face at the same size, and
-  takes the touches on it; Compose still draws the text, and the browser draws
-  its caret and selection over it. A field whose text is drawn as something
+  takes the touches on it; Compose still draws the text and the caret, and the
+  browser draws its selection over it. A field whose text is drawn as something
   else — a phone number grouped as it is typed — keeps Compose's selection and
   menu, as the browser's letters would not be under Compose's. The faces are
   the library's Outfit and JetBrains Mono; a theme in a face of its own has the
@@ -248,6 +254,135 @@ haptics.play(HapticEffect.Selection(fine = true))
   on Android.
 
 [Haptics](haptics.md) has the effects, and what each platform can play.
+
+---
+
+## Older browsers
+
+Kotlin/Wasm needs a browser with WebAssembly garbage collection: Safari 18.2,
+Chrome and Edge 119, Firefox 120, or newer. Anything older shows the loading
+page and goes no further. That includes every iPhone and iPad below iOS 18.2,
+which is every iPhone 8 and X, and a Mac that cannot update past Monterey.
+
+**An app that has to reach them builds in compatibility mode**, which
+Compose Multiplatform has had since 1.9: the app is compiled for both `js` and
+`wasmJs`, and the page loads the Wasm build where the browser can run it and
+the JavaScript build where it cannot.
+
+```kotlin
+// The web app's build.gradle.kts
+kotlin {
+    js {
+        browser()
+        binaries.executable()
+    }
+    wasmJs {
+        browser()
+        binaries.executable()
+    }
+}
+```
+
+```sh
+./gradlew :webApp:composeCompatibilityBrowserDistribution
+```
+
+The page to deploy is in `webApp/build/dist/composeWebCompatibility/productionExecutable`.
+Each browser downloads only the build it runs.
+
+Every library the app uses has to be published for `js` as well as `wasmJs`.
+Kontour's modules are, and will stay so for exactly this reason: an app on a
+library without them cannot use compatibility mode at all. Kept, too, for 0.5.4,
+after dropping it was weighed in November 2026: it costs the library a second
+compile, and without it a Kontour app had no way to open on an older iPhone.
+
+**The JavaScript build is the slower of the two**, noticeably so for an
+interface drawn on a canvas, and it runs on the devices that are already the
+slowest. It is there so those readers get the app rather than a blank page,
+not so they get it at the same speed.
+
+---
+
+## The page's script
+
+**An app's page needs one script**, in its `<head>` before the app's own script,
+for two things Compose's web build does not do for itself:
+
+```html
+<script>
+    (function () {
+        // Skia's drawing context, one for each canvas, for the life of the page.
+        var contexts = new Map(), kept = new Set(), lastCanvas = null;
+        var getContext = HTMLCanvasElement.prototype.getContext;
+        HTMLCanvasElement.prototype.getContext = function (type) {
+            if (type === "webgl2" || type === "webgl") lastCanvas = this;
+            return getContext.apply(this, arguments);
+        };
+        function viaJs(imports) {
+            if (!imports || typeof imports !== "object") return imports;
+            var out = {}, changed = false;
+            Object.keys(imports).forEach(function (name) {
+                var module = imports[name];
+                if (name.indexOf("skiko") < 0 || !module || typeof module !== "object") { out[name] = module; return; }
+                var wrapped = {};
+                Object.keys(module).forEach(function (key) {
+                    var f = module[key];
+                    wrapped[key] = typeof f === "function" ? function () { return f.apply(null, arguments); } : f;
+                });
+                var make = module.org_jetbrains_skia_DirectContext__1nMakeGL;
+                var finalize = module.org_jetbrains_skia_impl_Managed__invokeFinalizer;
+                if (typeof make === "function" && typeof finalize === "function") {
+                    wrapped.org_jetbrains_skia_DirectContext__1nMakeGL = function () {
+                        var canvas = lastCanvas, context = canvas && contexts.get(canvas);
+                        if (context) return context;
+                        context = make.apply(null, arguments);
+                        if (canvas && context) { contexts.set(canvas, context); kept.add(context); }
+                        return context;
+                    };
+                    wrapped.org_jetbrains_skia_impl_Managed__invokeFinalizer = function (finalizer, pointer) {
+                        if (kept.has(pointer)) return;
+                        return finalize.apply(null, arguments);
+                    };
+                }
+                out[name] = wrapped;
+                changed = true;
+            });
+            return changed ? out : imports;
+        }
+        var instantiate = WebAssembly.instantiate;
+        WebAssembly.instantiate = function (source, imports) { return instantiate.call(WebAssembly, source, viaJs(imports)); };
+        var streaming = WebAssembly.instantiateStreaming;
+        if (streaming) WebAssembly.instantiateStreaming = function (source, imports) { return streaming.call(WebAssembly, source, viaJs(imports)); };
+    })();
+</script>
+```
+
+**Safari on iOS 27.2 needs it to draw at all.** There, a Kotlin/Wasm app's calls
+into Skia, which Compose draws with, start arriving with their floating-point
+arguments wrong after a few hundred of them: a shadow's blur fails with
+`RuntimeException: Can't wrap nullptr`, text measures to nothing, and the
+screen's controls pile up in its top left corner. Found in November 2026 on an
+iPhone, and only there. Chrome, Firefox and Safari on a Mac do not do it. The
+calls go wrong only when they pass straight from the app's WebAssembly module
+into Skia's, so the script puts a plain JavaScript call in between.
+
+**Every browser resizes faster with it.** Compose web makes a new Skia context
+each time the window changes size and leaves the old one to the garbage
+collector, and with it everything Skia had built: its compiled GPU programs, its
+glyph atlas, its cached paths. In Chrome on a Mac, a step of a window being
+dragged wider cost 15–21ms, and Skia's memory went from 18MB to 54MB over a
+hundred of them. The script keeps one context for each canvas instead: 0–8ms a
+step, and the memory stays where it was.
+
+It runs in every browser, rather than only the ones that need it, so there is
+nothing to detect. The library cannot do either for itself: by the time any
+Kotlin runs, the module is already linked. This site's own page has it, and each
+part can come out once Compose or Safari no longer needs it.
+
+**Test on an iPhone over HTTPS.** Safari on iOS 27 runs a page served over plain
+HTTP, a development server on the local network included, without its
+JavaScript and WebAssembly compiler, which makes it some thirty times slower.
+Timings from a `http://` page say nothing about the app.
 
 ---
 

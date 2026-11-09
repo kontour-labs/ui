@@ -1,5 +1,8 @@
 package io.kontour.ui.overlay
 
+import kotlinx.coroutines.withTimeoutOrNull
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitEachGesture
 import io.kontour.ui.theme.clipProxy
 import io.kontour.ui.platform.webRole
 import io.kontour.ui.platform.WebRole
@@ -87,6 +90,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.input.key.KeyEvent
+import androidx.compose.ui.input.key.isShiftPressed
+import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
@@ -1008,7 +1015,14 @@ fun MenuItem(
                 slots.label?.let { label ->
                     ProvideContentColour(contentColour) {
                         ProvideTextStyle(Theme.typography.bodyMedium) {
-                            ContentSlot(maxLines = 1, content = label)
+                            // One line, as a menu's rows are, until the type is
+                            // large enough that one line of a 320dp menu is a
+                            // dozen letters; then two. And an ellipsis where it is
+                            // cut either way: a clip cut mid-letter, and a cut
+                            // word reads as a different word. Found in the
+                            // November 2026 audit.
+                            val lines = if (LocalDensity.current.fontScale > LargeTypeScale) 2 else 1
+                            ContentSlot(maxLines = lines, overflow = TextOverflow.Ellipsis, content = label)
                         }
                     }
                 }
@@ -1215,6 +1229,8 @@ fun SubMenu(
         }
     }
 
+    val expandedLabel = Theme.strings.expanded
+    val collapsedLabel = Theme.strings.collapsed
     Box(Modifier.anchorBounds { bounds = it }) {
         MenuItem(
             onClick = {
@@ -1223,6 +1239,10 @@ fun SubMenu(
             },
             modifier = modifier
                 .focusRequester(rowFocus)
+                // Whether its menu is open, said, as the in-place row's open
+                // level says it: a plain button read the same open or shut.
+                // Found in the November 2026 audit.
+                .semantics { stateDescription = if (open && enabled) expandedLabel else collapsedLabel }
                 .onPreviewKeyEvent { event ->
                     if (event.type == KeyEventType.KeyDown && event.key == forward && enabled) {
                         open = true
@@ -1473,6 +1493,11 @@ private const val MaxActions: Int = 4
  * secondary click cannot happen on a touchscreen. Both are wired, and the long
  * press is gated on the active [io.kontour.ui.input.InputModality].
  *
+ * **And the keyboard's.** Shift+F10, or the menu key, while the focus is in
+ * [content] opens the menu below it, as `DocumentTabs` does. The area takes no
+ * focus of its own: the key comes up from whatever in [content] has it, so
+ * content with nothing to focus has no keyboard route, and wants one.
+ *
  * A context menu should never be the *only* way to reach an action. Anything in
  * here needs a visible route too.
  */
@@ -1515,6 +1540,16 @@ fun ContextMenuArea(
     Box(
         modifier = modifier
             .onGloballyPositioned { coordinates = it }
+            // Below the whole area, as a dropdown hangs: the keyboard has no
+            // point to open at. It had no way in at all, where `DocumentTabs`
+            // had this one. Found in the November 2026 audit.
+            .onKeyEvent { event ->
+                if (!enabled || !event.opensContextMenu()) return@onKeyEvent false
+                val coords = coordinates?.takeIf { it.isAttached } ?: return@onKeyEvent false
+                anchor = coords.boundsInRoot()
+                open = true
+                true
+            }
             .pointerInput(enabled) {
                 if (!enabled) return@pointerInput
                 awaitPointerEventScope {
@@ -1531,12 +1566,32 @@ fun ContextMenuArea(
             }
             .pointerInput(enabled, modality) {
                 if (!enabled || !modality.needsLargeTargets) return@pointerInput
-                detectTapGestures(
-                    onLongPress = { position ->
-                        longPressed()
-                        openAt(position)
-                    },
-                )
+                // Watched in the initial pass, ahead of the content and taking
+                // nothing from it, as a tooltip's long press is: the main pass
+                // waits for a press nobody has taken, and a `clickable` inside
+                // takes it first, so over a row or a card that can be pressed
+                // the long press never came. Found in the November 2026 audit;
+                // the tooltip found the same for 0.5.1.
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                    val slop = viewConfiguration.touchSlop
+                    val ended = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
+                        while (true) {
+                            val change = awaitPointerEvent(PointerEventPass.Initial).changes.firstOrNull { it.id == down.id }
+                            if (change == null || !change.pressed || (change.position - down.position).getDistance() > slop) break
+                        }
+                    }
+                    if (ended != null) return@awaitEachGesture
+                    longPressed()
+                    openAt(down.position)
+                    // The rest of the press is the menu's: taken, so the
+                    // content under it does not also click as the finger lifts.
+                    while (true) {
+                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                        event.changes.forEach { it.consume() }
+                        if (event.changes.none { it.pressed }) break
+                    }
+                }
             }
     ) {
         content()
@@ -1553,6 +1608,15 @@ fun ContextMenuArea(
 }
 
 /**
+ * Shift+F10, or the menu key: what opens a context menu from the keyboard on
+ * Windows, Linux and in a browser. Shift+F10 is the one to rely on: Compose
+ * reports the menu key on Android, and on the desktop not at all. Moved here
+ * from `DocumentTabs` when [ContextMenuArea] took it too.
+ */
+internal fun KeyEvent.opensContextMenu(): Boolean =
+    type == KeyEventType.KeyDown && (key == Key.Menu || (key == Key.F10 && isShiftPressed))
+
+/**
  * The least room a menu opens into, on the side it was asked for, before it tries
  * the other side: about four and a half rows.
  *
@@ -1564,3 +1628,9 @@ fun ContextMenuArea(
  * still opens below.
  */
 private val MenuMinimumRoom: Dp = 208.dp
+
+/**
+ * The font scale past which a menu's row may take a second line: about a third
+ * larger, where a 320dp menu's line holds fewer than twenty letters.
+ */
+private const val LargeTypeScale = 1.3f

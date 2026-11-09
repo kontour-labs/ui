@@ -197,11 +197,16 @@ class ToastGatherTest {
         settle(30)
         val held = staying().singleOrNull()
         assertTrue(held != null, "held, the stack did not bring the toast that stays into view behind it")
-        // Just behind the gathered pill, in the first pill's place: not queued
-        // at the back, where the second and third were.
+        // Just behind the gathered pill: not queued at the back, where the
+        // second and third were. Measured against the second's place since
+        // November 2026: until then the front card's bounds took in the 16dp
+        // ring its swipe is caught in whenever the stack could be gathered,
+        // and half as much again as the first place, measured that way, was
+        // about where the second pill is.
+        val secondPlace = places[0].bottom - places[2].bottom
         val gathered = cards().first()
         val behind = gathered.bottom - held.bottom
-        assertTrue(behind > 0f && behind < firstPlace * 1.5f, "it was not just behind the front: $held, behind $gathered, where a first pill is $firstPlace up")
+        assertTrue(behind > 0f && behind < secondPlace, "it was not just behind the front: $held, behind $gathered, where a first pill is $firstPlace up and a second $secondPlace")
 
         // Dragged away: it is drawn on every frame as the pill goes, never gone
         // and back.

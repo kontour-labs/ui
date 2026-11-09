@@ -1,6 +1,7 @@
 package io.kontour.ui.nav
 
 import androidx.compose.foundation.gestures.ScrollableState
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.Stable
@@ -21,6 +22,7 @@ import io.kontour.ui.input.InputModality
 import io.kontour.ui.input.LocalInputModalityState
 import io.kontour.ui.interaction.DetentTicker
 import io.kontour.ui.interaction.DragClaim
+import io.kontour.ui.interaction.BoundaryHysteresis
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.horizontalDragOwning
 import io.kontour.ui.interaction.rememberDetentTicker
@@ -98,6 +100,7 @@ internal fun rememberMarkerDrag(
     drag.indicator = indicator
     drag.scroll = scroll
     drag.selectsWhileDragging = mode == NavMarkerDrag.SelectWhileDragging
+    drag.give = 2 * with(LocalDensity.current) { BoundaryHysteresis.toPx() }
     val wiring = if (mode != NavMarkerDrag.Off) remember(drag, ticker, scope) { DragWiring(drag, ticker, scope) } else null
     return drag to wiring
 }
@@ -310,9 +313,24 @@ internal class MarkerDragState(val vertical: Boolean) {
         return if (vertical) there.y else there.x
     }
 
+    /**
+     * How much nearer another destination the finger must be before it is over
+     * that one instead, in pixels: twice [BoundaryHysteresis], as the difference
+     * of two distances grows twice as fast as the finger moves past the halfway
+     * point between them. Set from composition, where the density is.
+     */
+    var give: Float = 0f
+
     private fun pick(ticker: DetentTicker, all: List<Pair<Any, Rect>> = ordered()) {
         if (all.isEmpty()) return
-        val index = all.indices.minBy { abs(all[it].second.along - fingerAt) }
+        fun distance(i: Int) = abs(all[i].second.along - fingerAt)
+        val nearest = all.indices.minBy(::distance)
+        // **With give at the halfway point.** A finger resting there wobbles a
+        // pixel or two either side of it, and each wobble was a destination
+        // reached, with a snap, as the segmented control's drag was. See
+        // `stickyStretch`.
+        val current = all.indexOfFirst { it.first == over }
+        val index = if (current >= 0 && current != nearest && distance(current) - distance(nearest) < give) current else nearest
         ticker.at(index)
         val key = all[index].first
         over = key

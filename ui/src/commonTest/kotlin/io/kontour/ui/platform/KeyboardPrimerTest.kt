@@ -58,6 +58,47 @@ class KeyboardPrimerTest {
         assertFalse(regions.contains(180f, 328f))
     }
 
+    /**
+     * A button in a field is cut out of the field's region: the password field's
+     * eye, tapped on an iPhone, opened the keyboard and closed it again.
+     */
+    @Test
+    fun aButtonInAFieldIsCutOutOfItsRegion() {
+        val regions = KeyboardPrimerRegions()
+        val field = Any()
+        val eye = Any()
+        regions.put(field, Rect(16f, 100f, 344f, 156f))
+        regions.putHole(eye, Rect(304f, 112f, 336f, 144f))
+        assertTrue(regions.contains(180f, 128f), "the field's text should still open the keyboard")
+        assertFalse(regions.contains(320f, 128f), "the eye should not open the keyboard")
+        assertTrue(regions.contains(340f, 128f), "the field's padding beside the eye should still open it")
+
+        regions.remove(eye)
+        assertTrue(regions.contains(320f, 128f), "a button that has gone should leave its field whole")
+    }
+
+    /** A field's stand-in input leaves its buttons out: the eye at the end, an icon button at the start. */
+    @Test
+    fun aStandInLeavesTheFieldsButtonsOut() {
+        val regions = KeyboardPrimerRegions()
+        val field = Any()
+        regions.put(field, Rect(16f, 100f, 344f, 156f))
+        assertEquals(Rect(16f, 100f, 344f, 156f), regions.tapArea(field))
+
+        val eye = Any()
+        regions.putHole(eye, Rect(304f, 112f, 336f, 144f))
+        assertEquals(Rect(16f, 100f, 304f, 156f), regions.tapArea(field), "the eye at the end should be left out")
+
+        val leading = Any()
+        regions.putHole(leading, Rect(20f, 112f, 52f, 144f))
+        assertEquals(Rect(52f, 100f, 304f, 156f), regions.tapArea(field), "a button at the start should be left out too")
+
+        val elsewhere = Any()
+        regions.putHole(elsewhere, Rect(100f, 300f, 140f, 340f))
+        assertEquals(Rect(52f, 100f, 304f, 156f), regions.tapArea(field), "a button in another row should not touch the field")
+        assertEquals(null, regions.tapArea(Any()))
+    }
+
     /** A tap at (100, 100), ending in a region or not, with a keyboard up or not. */
     private fun KeyboardPrimerHandover.tap(inRegion: Boolean = true, editing: Boolean = false, now: Duration = Duration.ZERO, moved: Float = 0f): Boolean {
         onTouchStart(100f, 100f)

@@ -48,6 +48,10 @@ text, so at 45° items 48dp apart leave 34dp for a chip about 28dp tall, and at 
 the same items leave 24dp and the chips touch. Steeper than 45° starts to read as
 vertical text and buys height nothing needs.
 
+They lean the way the text runs: up and to the right from the foot of each
+label in a left-to-right language, and up and to the left in a right-to-left
+one, so the words read away from their button rather than down into it.
+
 Note that the compression above interacts with this: a menu with less room than
 it wants gets a tighter step, and a tight enough step will overlap its labels
 before it overlaps its buttons. A speed dial in a corner has the room; one in the

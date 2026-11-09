@@ -85,8 +85,14 @@ internal fun Modifier.calendarCursor(
 /** A key held with Ctrl, Alt or Meta is a shortcut of something else's. */
 private fun KeyEvent.hasCommandModifier(): Boolean = isCtrlPressed || isAltPressed || isMetaPressed
 
-/** Whether [key] activates: Enter, or Space. */
-internal fun activates(key: Key): Boolean = key == Key.Enter || key == Key.NumPadEnter || key == Key.Spacebar
+/**
+ * Whether [key] activates: Enter, Space, or a D-pad's centre, as foundation's
+ * `clickable` takes. Without the centre a TV remote could press a button but
+ * not open a calendar day. Shared by every key handler in the library that
+ * activates something since the November 2026 audit.
+ */
+internal fun activates(key: Key): Boolean =
+    key == Key.Enter || key == Key.NumPadEnter || key == Key.Spacebar || key == Key.DirectionCenter
 
 /**
  * The month's keys: a day either side, a week up or down, the week's first

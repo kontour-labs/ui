@@ -53,7 +53,6 @@ internal class BrowserText {
     var masked: Boolean = false
     var style: TextStyle = TextStyle.Default
     var face: BrowserFace? = null
-    var caret: Color = Color.Unspecified
     var selection: Color = Color.Unspecified
     var scroll: ScrollState? = null
     var layout: TextLayoutResult? by mutableStateOf(null)

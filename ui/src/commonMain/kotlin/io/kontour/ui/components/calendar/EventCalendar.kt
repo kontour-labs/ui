@@ -1,5 +1,6 @@
 package io.kontour.ui.components.calendar
 
+import io.kontour.ui.components.selection.segmentedControlFits
 import androidx.compose.ui.semantics.onClick
 import io.kontour.ui.overlay.OverlayAlignment
 import io.kontour.ui.overlay.DropdownMenu
@@ -764,9 +765,19 @@ private fun CalendarHeader(
         // A menu needs an overlay host to open in; a calendar without one
         // keeps its segments, as its other menus go without.
         val canMenu = LocalOverlayHostOrNull.current != null
+        // **And measured**, at the width the segments would have: beside the
+        // title that is [HeaderSwitcherWidth], under it the whole width. The
+        // rule above is a word's width at the default type, and at 200% the
+        // words are twice that: six segments stacked into a column, which the
+        // page says never happens. The rule stays for what it was, so nothing
+        // moves at the default size. Found in the November 2026 audit.
+        val segmentWidth = if (oneRow) HeaderSwitcherWidth else maxWidth
+        val segmentsFit = views.size < 2 || !constraints.hasBoundedWidth ||
+            segmentedControlFits(views.map { names.getValue(it) }, segmentWidth)
         val style = when {
             !canMenu -> CalendarSwitcher.Segmented
-            asStyle == CalendarSwitcher.Segmented && constraints.hasBoundedWidth && maxWidth < MinSegmentWidth * views.size ->
+            asStyle == CalendarSwitcher.Segmented && constraints.hasBoundedWidth &&
+                (maxWidth < MinSegmentWidth * views.size || !segmentsFit) ->
                 CalendarSwitcher.Dropdown
             else -> asStyle
         }

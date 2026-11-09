@@ -850,12 +850,27 @@ class SheetState internal constructor(
      *
      * Covers the sheet's own drag — the handle, the surface — and not a list
      * inside it scrolled past its top, which reaches the sheet through the
-     * nested-scroll connection. That is a scroll being handed on rather than a
-     * sheet being dragged, and it is quiet for the same reason a flick down a
-     * list is.
+     * nested-scroll connection: that is [movedByContent].
      */
     var draggedByHand: Boolean by mutableStateOf(false)
         internal set
+
+    /**
+     * Whether a finger on the sheet's content is moving the sheet: a list pulled
+     * past its top, or pushed up before the sheet is open as far as it goes,
+     * which hands its drag on to the sheet through nested scrolling. From the
+     * first movement the sheet takes until the finger lifts.
+     *
+     * It was left out of [draggedByHand] on purpose, as a scroll being handed on
+     * rather than a sheet being dragged, and so a sheet moved by its content was
+     * silent: no tick as it reached a detent, and none as it landed. Reported in
+     * November 2026 as *"sometimes in sheets, the haptics don't fire at all when
+     * you drag to a new detent"*; the sometimes was where the finger began, and a
+     * sheet full of a list is dragged by its list more often than by its handle.
+     * A list scrolled inside the sheet, with the sheet still, is not this, and
+     * stays quiet.
+     */
+    internal var movedByContent: Boolean by mutableStateOf(false)
 
     /** True when any part of the sheet is on screen. */
     val isVisible: Boolean get() = currentDetent != SheetDetent.Hidden ||
@@ -1864,7 +1879,10 @@ class SheetState internal constructor(
                 // Dragging up, sheet not yet expanded: the sheet takes it first —
                 // unless the content scrolls where it is (see [scrollExpands]).
                 val taken = if (offered < 0f && !scrollsWhereItIs()) anchoredState.dispatchRawDelta(offered) else 0f
-                if (taken != 0f) sheetTookThisGesture = true
+                if (taken != 0f) {
+                    sheetTookThisGesture = true
+                    movedByContent = true
+                }
                 // What the child is about to be offered, remembered so the
                 // callback below can tell how much of it the child wanted. The
                 // two are one dispatch, so nothing can arrive in between.
@@ -1898,13 +1916,19 @@ class SheetState internal constructor(
                 // handle, so the floor has to hold here too.
                 val toSheet = roomBeforeFloor(offered)
                 val taken = anchoredState.dispatchRawDelta(toSheet)
-                if (taken != 0f) sheetTookThisGesture = true
+                if (taken != 0f) {
+                    sheetTookThisGesture = true
+                    movedByContent = true
+                }
                 val leftOver = offered - taken
                 val stretched = if (leftOver > 0f) stretchDown(leftOver) else 0f
                 return (taken + stretched).toOffset()
             }
 
             override suspend fun onPreFling(available: Velocity): Velocity {
+                // The finger has lifted: whatever settles the sheet now is not a
+                // hand on it, and its landing is reported as a throw's is.
+                movedByContent = false
                 // A wheel's or a thumb's: the content's alone, as its scroll was.
                 if (flingsInPlace()) return Velocity.Zero
                 // A swipe across a sheet that was moving: the sheet's own drag

@@ -50,6 +50,9 @@ import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.dragdrop.LocalOverlayLayer
 import io.kontour.ui.foundation.Icon
@@ -408,6 +411,12 @@ internal fun FieldScaffold(
                     text = message,
                     style = Theme.typography.bodySmall,
                     colour = if (isError) colours.error else colours.supporting,
+                    // An error is said as it appears, wherever focus is: one
+                    // that arrives after a submit, with focus on the button,
+                    // was otherwise never heard, as accessibility.md promises
+                    // it is. Polite, so it waits for what is being said. Found
+                    // in the November 2026 audit.
+                    modifier = if (isError) Modifier.semantics { liveRegion = LiveRegionMode.Polite } else Modifier,
                 )
             }
         }

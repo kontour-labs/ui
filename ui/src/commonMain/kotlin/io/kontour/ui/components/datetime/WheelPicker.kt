@@ -1,5 +1,6 @@
 package io.kontour.ui.components.datetime
 
+import androidx.compose.ui.unit.max
 import io.kontour.ui.theme.clipProxy
 import kotlinx.coroutines.flow.collectLatest
 import io.kontour.ui.motion.scrollToItem
@@ -336,6 +337,15 @@ internal fun <T> WheelDrum(
             "picker that renders nothing and cannot be scrolled."
     }
     if (items.isEmpty()) return
+    // At least as tall as a row's line of text, with a little room: a fixed
+    // 40dp held an 18sp line at the default type and cut it at twice that,
+    // which accessibility.md's "no fixed heights on anything containing text"
+    // rules out. The same at the default type, where the line is well inside
+    // 40dp, and taller only when the type needs it. Every position on the drum
+    // is worked out from this, so the snapping follows. Found in the November
+    // 2026 audit.
+    @Suppress("NAME_SHADOWING")
+    val itemHeight = wheelRowHeight(itemHeight)
 
     if (infinite) {
         InfiniteWheel(
@@ -1537,11 +1547,27 @@ private const val BounceHomeMillis = 220
 /** How close to its end a fling has reached it: the list's own positions are whole pixels. */
 private const val ArrivalSlopPx = 0.5f
 
+/**
+ * A wheel's row: [asked], or its line of text with a little room if that is
+ * taller. Shared with what lines a wheel up with something else, so the two
+ * agree at every type size. A theme's line height in em, or none, gives no
+ * floor.
+ */
+@Composable
+internal fun wheelRowHeight(asked: Dp = WheelPickerDefaults.ItemHeight): Dp {
+    val line = Theme.typography.titleLarge.lineHeight
+    val floor = if (line.isSp) with(LocalDensity.current) { line.toDp() } + Theme.spacing.xxs * 2 else 0.dp
+    return max(asked, floor)
+}
+
 /** What a [WheelPicker] takes by default. */
 object WheelPickerDefaults {
     /** Rows in view: the one picked, and two either side of it. */
     const val VisibleItems: Int = 5
 
-    /** One row's height. */
+    /**
+     * One row's height, at the least: a row is never shorter than its line of
+     * text, so at large type the rows grow past this.
+     */
     val ItemHeight: Dp = 40.dp
 }

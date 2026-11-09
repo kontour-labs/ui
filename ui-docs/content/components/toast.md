@@ -202,7 +202,9 @@ a toast must not be the only way to do it.** Four seconds is not a decision
 window for someone reading at their own pace.
 
 `showDismiss` adds a close button with `dismissLabel` on it, which is worth turning
-on wherever a toast can carry an action.
+on wherever a toast can carry an action. A toast that can be dismissed without
+one offers `dismissLabel` as an action instead, so a screen reader, which cannot
+swipe it away, can still close it.
 
 With more than one toast to dismiss, the front one offers **Dismiss all** among
 its actions: what holding the stack does, for a reader who cannot hold it.

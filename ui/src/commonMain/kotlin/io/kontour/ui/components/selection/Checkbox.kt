@@ -1,5 +1,6 @@
 package io.kontour.ui.components.selection
 
+import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.platform.webRole
 import io.kontour.ui.platform.WebRole
 import androidx.compose.animation.core.animateFloatAsState
@@ -188,7 +189,9 @@ fun TriStateCheckbox(
             .then(
                 if (onClick != null) {
                     val toggle = onClick
-                    Modifier.webRole(WebRole.Checkbox, state).triStateToggleable(
+                    // The hand, as a radio button and a switch show: missing
+                    // here until the November 2026 audit.
+                    Modifier.pointerCursor(enabled = enabled).webRole(WebRole.Checkbox, state).triStateToggleable(
                         state = state,
                         onClick = {
                             toggled(state != ToggleableState.On)

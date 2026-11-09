@@ -27,6 +27,8 @@ import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
@@ -333,6 +335,58 @@ class DialogActionsTest {
         val cancel = bounds("Cancel")
         assertTrue(cancel.top >= remove.bottom, "the way out goes under the answer: $remove, $cancel")
         assertEquals(remove.width, cancel.width, "each the whole width")
+    }
+
+    /**
+     * At twice the type in a short window, as with the keyboard up, the buttons
+     * take more than half the room and go in the scroller. Pinned, the three of
+     * them, each wrapping, left the content no room at all: its text was cut
+     * to nothing. Found in the November 2026 audit.
+     */
+    @Test
+    fun buttonsTallerThanHalfTheRoomScrollWithTheContent() = runComposeUiTest {
+        setContent {
+            KontourTheme(reduceMotion = true) {
+                CompositionLocalProvider(LocalDensity provides Density(LocalDensity.current.density, fontScale = 2f)) {
+                    Box(Modifier.size(360.dp, 280.dp)) {
+                        OverlayHost(Modifier.fillMaxSize()) {
+                            Dialog(
+                                visible = true,
+                                onDismissRequest = {},
+                                actions = {
+                                    cancel()
+                                    neutral("Don't save") {}
+                                    confirm("Save") {}
+                                },
+                            ) { Text("Body") }
+                        }
+                    }
+                }
+            }
+        }
+        waitForIdle()
+        assertTrue(bounds("Body").height > 0f, "the content had no room left beside the buttons: ${bounds("Body")}")
+        onNodeWithText("Save").performScrollTo().assertIsDisplayed()
+    }
+
+    /** A row that takes half the room or less stays pinned under the content. */
+    @Test
+    fun aShortRowStaysPinned() = runComposeUiTest {
+        setContent {
+            KontourTheme(reduceMotion = true) {
+                Box(Modifier.size(360.dp, 400.dp)) {
+                    OverlayHost(Modifier.fillMaxSize()) {
+                        Dialog(
+                            visible = true,
+                            onDismissRequest = {},
+                            actions = { confirm("Save") {} },
+                        ) { Box(Modifier.fillMaxWidth().height(1000.dp).testTag("tall")) }
+                    }
+                }
+            }
+        }
+        waitForIdle()
+        assertTrue(foot("Save") <= with(density) { 400.dp.toPx() }, "a short row scrolled away with a tall form")
     }
 
     @Test

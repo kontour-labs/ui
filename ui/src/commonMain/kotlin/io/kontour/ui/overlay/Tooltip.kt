@@ -1,6 +1,7 @@
 package io.kontour.ui.overlay
 
 import kotlin.math.min
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.layout.layout
 import androidx.compose.foundation.BorderStroke
@@ -156,8 +157,19 @@ fun Modifier.tooltip(
 ): Modifier {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val hovered by interactions.collectIsHoveredAsState()
-    val focused by interactions.collectIsFocusedAsState()
+    val focusedSource by interactions.collectIsFocusedAsState()
+    // Focus on the control this is on, read from the focus system: the
+    // control's focus goes to its own interaction source, not to this one,
+    // which only `hoverable` writes to. Read from the source alone, a tooltip
+    // on a button with no `interactionSource` passed never opened as the
+    // keyboard reached it, as tooltip.md promises it does. Found in the
+    // November 2026 audit.
+    var focusedWithin by remember { mutableStateOf(false) }
     val modality = LocalInputModality.current
+    // Only focus the keyboard brought counts. A tap on a touch tooltip moves
+    // focus too, and a key that changed with it restarted the effect below,
+    // which put the tooltip away under the finger.
+    val focused = (focusedSource || focusedWithin) && modality.showsFocusRing
     val longPressed = rememberLongPressFeedback()
 
     var bounds by remember { mutableStateOf<Rect?>(null) }
@@ -171,7 +183,7 @@ fun Modifier.tooltip(
             return@LaunchedEffect
         }
         when {
-            focused && modality.showsFocusRing -> showing = true
+            focused -> showing = true
             hovered && modality.supportsHover -> {
                 // The delay is what stops a tooltip firing for every control a
                 // pointer crosses on its way somewhere else.
@@ -207,6 +219,7 @@ fun Modifier.tooltip(
         // *"if you tap the tooltip itself, it disappears … let's change that"*.
         .onPressOutside(enabled = showing, alsoInside = bubble) { showing = false }
         .hoverable(interactions, enabled = enabled)
+        .onFocusChanged { focusedWithin = it.hasFocus }
         .pointerInput(enabled, modality) {
             if (!enabled || !modality.needsLargeTargets) return@pointerInput
             awaitEachGesture {

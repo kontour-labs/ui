@@ -1,6 +1,7 @@
 package io.kontour.ui.platform
 
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 
 /**
  * Tells the host which appearance the application is drawing.
@@ -23,13 +24,17 @@ import androidx.compose.runtime.Composable
  * the fade instead of twelve times during it, and there is no interpolation to
  * be had anyway — a status bar is light or dark.
  *
+ * [background] is the scheme's background, for a browser to paint what the
+ * canvas does not cover: on a phone, behind its address bar and its status bar.
+ * Only the web uses it.
+ *
  * Only the outermost theme reports. A nested `KontourTheme` — a screen forcing
  * dark over a light app — re-provides the tokens for its subtree and has no
  * business repainting the window, the same reason it does not install a second
  * input-modality tracker.
  */
 @Composable
-internal expect fun platformReportAppearance(dark: Boolean)
+internal expect fun platformReportAppearance(dark: Boolean, background: Color)
 
 /**
  * What the **device** is set to, which is not always what the window says.

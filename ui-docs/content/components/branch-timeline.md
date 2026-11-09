@@ -47,9 +47,10 @@ The builder declares each commit's row with `item`, **the same `item` a
 
 - **`onClick`, `selected`, `enabled`, `role`**: the row is a `ListItem`, and
   presses, selects and reads like one.
-- **`nodeColour`, `filled`, `loading`, `icon`**: the node's colour, a ring
-  rather than a dot, a spinner in its place while the commit is being built or
-  checked, and a small icon inside it — a release, a merge. A node with an icon
+- **`nodeColour`, `filled`, `loading`, `icon`, `iconColour`**: the node's
+  colour, a ring rather than a dot, a spinner in its place while the commit is
+  being built or checked, a small icon inside it — a release, a merge — and the
+  icon's colour, where it says something of its own. A node with an icon
   is `TimelineDefaults.IconNodeSize` across, which fills a default lane; give
   the timeline a wider `laneWidth` if commits off the first lane have them.
 - **`connector`, `connectorColour`, `connectorWidth`**: how the commit's lines

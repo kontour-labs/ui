@@ -1,5 +1,12 @@
 package io.kontour.ui.components.display
 
+import io.kontour.ui.input.focusRing
+import androidx.compose.foundation.focusable
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.Key
 import io.kontour.ui.theme.cornerRadius
 import io.kontour.ui.theme.clipProxy
 import androidx.compose.ui.unit.LayoutDirection
@@ -65,6 +72,7 @@ import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
@@ -469,7 +477,13 @@ fun Carousel(
                 isTraversalGroup = true
                 this.contentDescription = contentDescription
                 stateDescription = position
-                customActions = listOf(
+                // Paged by a screen reader only while it can be paged by hand,
+                // and said to be disabled when not: the drag and the scrolling
+                // were gated on `enabled` and these actions were not, so a
+                // disabled carousel still turned for a screen reader. Found in
+                // the November 2026 audit.
+                if (!enabled) disabled()
+                if (enabled) customActions = listOf(
                     CustomAccessibilityAction(previousLabel) {
                         if (current > 0) {
                             scope.launch { state.animateScrollToPage(current - 1) }
@@ -923,8 +937,18 @@ private fun PageDots(
     // by colour. At the enhanced tier that is not enough, so it rests the way
     // `Pill` does — the current dot widened — and still travels like a worm.
     val style = if (highContrast() && requestedStyle == PageIndicatorStyle.Worm) PageIndicatorStyle.Pill else requestedStyle
+    // Disabled, the current page in the disabled grey and the rest on the
+    // sunken ground, as a slider's fill and track are; the current one is
+    // still the wide one. They kept their colours, so the strongest mark on an
+    // indicator that could not be pressed was its near-black pill. Found in the
+    // November 2026 audit by `DisabledQuietnessTest`, once the contract suite
+    // took the indicator in.
+    val active = if (enabled) activeColour else Theme.colours.contentDisabled
+    val inactive = if (enabled) inactiveColour else Theme.colours.surfaceSunken
     val count = state.pageCount
     val current = state.currentPage
+    val keys = remember { MutableInteractionSource() }
+    val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     // Both of the styles that draw a pill *over* the dots rather than widening
     // one of them. What separates them is only how long that pill is at rest.
     val travels = style != PageIndicatorStyle.Dots
@@ -1036,6 +1060,28 @@ private fun PageDots(
                     Modifier
                         .minimumTouchTarget(fill = true)
                         .pointerCursor(enabled = enabled)
+                        // **And one Tab stop**, with the arrows along it and
+                        // Home and End, as a thumbnail strip has: the dots were
+                        // a target for a finger and a screen reader and not for
+                        // a keyboard, which carousel.md counts as one of the
+                        // four. Found in the November 2026 audit.
+                        .focusRing(keys, Theme.shapes.capsule, enabled = enabled)
+                        .onKeyEvent { event ->
+                            if (!enabled || count == 0 || event.type != KeyEventType.KeyDown) return@onKeyEvent false
+                            val forward = if (rtl && !vertical) -1 else 1
+                            val target = when (event.key) {
+                                Key.DirectionRight -> if (vertical) null else current + forward
+                                Key.DirectionLeft -> if (vertical) null else current - forward
+                                Key.DirectionDown -> if (vertical) current + 1 else null
+                                Key.DirectionUp -> if (vertical) current - 1 else null
+                                Key.MoveHome -> 0
+                                Key.MoveEnd -> count - 1
+                                else -> null
+                            } ?: return@onKeyEvent false
+                            onPageClick(target.coerceIn(0, count - 1))
+                            true
+                        }
+                        .focusable(enabled, keys)
                         .then(
                             if (enabled && count > 0) {
                                 Modifier.pointerInput(count, vertical) {
@@ -1119,7 +1165,7 @@ private fun PageDots(
                         // "Left" and "right" along the axis: down the column
                         // when it runs down.
                         drawRoundRect(
-                            color = activeColour,
+                            color = active,
                             topLeft = if (vertical) {
                                 Offset((size.width - dotRadius * 2f) / 2f, left)
                             } else {
@@ -1218,7 +1264,7 @@ private fun PageDots(
                     shape = Theme.shapes.capsule,
                     // Under a travelling style every dot is a track, and the pill
                     // drawn over them is what says which page this is.
-                    containerColour = if (wide) activeColour else inactiveColour,
+                    containerColour = if (wide) active else inactive,
                     content = {},
                 )
             }
@@ -1247,6 +1293,10 @@ private fun PageDots(
                                     onPageClick(page)
                                     true
                                 }
+                            } else {
+                                // Said, not only withheld: a dot with no action
+                                // reads as a radio button that does nothing.
+                                disabled()
                             }
                         },
                     contentAlignment = Alignment.Center,

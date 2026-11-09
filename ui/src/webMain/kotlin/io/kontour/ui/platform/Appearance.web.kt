@@ -3,6 +3,8 @@ package io.kontour.ui.platform
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import kotlinx.browser.document
 import org.w3c.dom.HTMLElement
 
@@ -22,7 +24,7 @@ import org.w3c.dom.HTMLElement
  * the white flash when a dark page is still loading.
  */
 @Composable
-internal actual fun platformReportAppearance(dark: Boolean) {
+internal actual fun platformReportAppearance(dark: Boolean, background: Color) {
     // Keyed on the value rather than run after every composition: a DOM property
     // keeps whatever it was last set to, so there is nothing to re-assert.
     //
@@ -51,6 +53,41 @@ internal actual fun platformReportAppearance(dark: Boolean) {
         val root = document.documentElement as? HTMLElement ?: return@LaunchedEffect
         root.style.setProperty("color-scheme", if (dark) "dark" else "light")
     }
+    // ### And the background, for what is round the canvas
+    //
+    // `color-scheme` paints the page white or black, which is not the theme's
+    // background, and on a phone the page shows round the canvas: behind the
+    // status bar and the address bar, and past the end of the page as it
+    // bounces. Reported on an iPhone in November 2026 as the bars not being the
+    // page's colour. The page's own background is what every browser paints
+    // there, so it is set to the theme's: on `body` as well as the root,
+    // because Safari 26 tints its bars from `body` before `html`, and an app's
+    // own page may have given `body` a colour of its own. `theme-color` too,
+    // which Chrome on Android tints its toolbar with and Safari now reads only
+    // for a web app on the Home Screen.
+    LaunchedEffect(background) {
+        val css = cssHex(background)
+        val root = document.documentElement as? HTMLElement ?: return@LaunchedEffect
+        root.style.setProperty("background-color", css)
+        document.body?.style?.setProperty("background-color", css)
+        setThemeColour(css)
+    }
+}
+
+/** `#rrggbb`, opaque: a page's background and a browser's toolbar have no alpha to show. */
+private fun cssHex(colour: Color): String {
+    val rgb = colour.toArgb() and 0xFFFFFF
+    return "#" + rgb.toString(16).padStart(6, '0')
+}
+
+/** The page's `<meta name="theme-color">`, made if the page has none, and set to [css]. */
+private fun setThemeColour(css: String) {
+    val meta = document.querySelector("meta[name='theme-color']")
+        ?: document.createElement("meta").also {
+            it.setAttribute("name", "theme-color")
+            document.head?.appendChild(it)
+        }
+    meta.setAttribute("content", css)
 }
 
 /**
