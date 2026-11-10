@@ -35,7 +35,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.vector.ImageVector
+import io.kontour.ui.foundation.Icon
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.TransformOrigin
@@ -224,6 +227,9 @@ private const val SegmentSquash = 0.16f
  * @param value The option chosen. One of [options]; a value that is not draws
  *   no segment as chosen.
  * @param optionLabel The words on an option's segment.
+ * @param optionIcon A glyph before an option's words, or null for none. Added
+ *   for 0.5.5, asked for as a light-or-dark choice with a sun and a moon. The
+ *   label still says what the option is: the icon is never the only name.
  */
 @Composable
 fun <T> SegmentedControl(
@@ -233,6 +239,7 @@ fun <T> SegmentedControl(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     optionLabel: (T) -> String = { it.toString() },
+    optionIcon: (T) -> ImageVector? = { null },
 ) {
     val labels = options.map(optionLabel)
     SegmentedControl(
@@ -241,6 +248,7 @@ fun <T> SegmentedControl(
         onSelectedIndexChange = { index -> options.getOrNull(index)?.let(onValueChange) },
         modifier = modifier,
         enabled = enabled,
+        icons = options.map(optionIcon),
     )
 }
 
@@ -258,6 +266,9 @@ fun <T> SegmentedControl(
  *
  * The overload taking values is the one to reach for when the options are
  * values of your own, so that nothing maps an index back to one.
+ *
+ * @param icons A glyph before each option's words, by position, or null for
+ *   one without; shorter than [options], the rest go without.
  */
 @Composable
 fun SegmentedControl(
@@ -266,6 +277,7 @@ fun SegmentedControl(
     onSelectedIndexChange: (Int) -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    icons: List<ImageVector?> = emptyList(),
 ) {
     val tap = rememberTapFeedback()
     if (options.isEmpty()) return
@@ -388,9 +400,12 @@ fun SegmentedControl(
     // theme, and `remember`'s calculation is not a composable context.
     val trackPadding = SegmentedControlDefaults.TrackPadding
     val labelPadding = SegmentedControlDefaults.LabelPadding
-    val stacked = remember(labels, measurer, constraints.maxWidth, density, labelStyle, trackPadding, labelPadding) {
+    // An icon's room counts with the words: a row of segments with icons
+    // stacks where the words alone would have fitted.
+    val iconRoom = if (icons.any { it != null }) Theme.sizing.iconSmall + SegmentIconGap else 0.dp
+    val stacked = remember(labels, measurer, constraints.maxWidth, density, labelStyle, trackPadding, labelPadding, iconRoom) {
         val width = with(density) { constraints.maxWidth.toDp() }
-        !segmentLabelsFit(labels, width, measurer, labelStyle, density, trackPadding, labelPadding)
+        !segmentLabelsFit(labels, width, measurer, labelStyle, density, trackPadding, labelPadding, iconRoom)
     }
 
     /**
@@ -871,6 +886,7 @@ fun SegmentedControl(
                         // control's own height already strikes.
                         modifier = Modifier.fillMaxWidth().height(stackedRow),
                         option = option,
+                        icon = icons.getOrNull(index),
                         selected = index == selectedIndex,
                         enabled = enabled,
                         shape = innerShape,
@@ -884,6 +900,7 @@ fun SegmentedControl(
                     SegmentedOption(
                         modifier = Modifier.weight(1f).fillMaxHeight(),
                         option = option,
+                        icon = icons.getOrNull(index),
                         selected = index == selectedIndex,
                         enabled = enabled,
                         shape = innerShape,
@@ -909,6 +926,7 @@ fun SegmentedControl(
 private fun SegmentedOption(
     modifier: Modifier,
     option: String,
+    icon: ImageVector?,
     selected: Boolean,
     enabled: Boolean,
     shape: Shape,
@@ -972,13 +990,32 @@ private fun SegmentedOption(
             val style = remember(inherited) { inherited.copy(color = Color.Unspecified) }
             DisableSelection {
                 ProvideContentColourInMotion(labelColour, towards = labelTarget) {
-                    Text(
-                        text = option,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(horizontal = SegmentedControlDefaults.LabelPadding),
-                        style = style,
-                    )
+                    if (icon == null) {
+                        Text(
+                            text = option,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(horizontal = SegmentedControlDefaults.LabelPadding),
+                            style = style,
+                        )
+                    } else {
+                        // The icon in the label's colour, fading with it, and
+                        // left to the words: the label names the option.
+                        Row(
+                            modifier = Modifier.padding(horizontal = SegmentedControlDefaults.LabelPadding),
+                            horizontalArrangement = Arrangement.spacedBy(SegmentIconGap),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(icon, contentDescription = null, size = Theme.sizing.iconSmall)
+                            Text(
+                                text = option,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false),
+                                style = style,
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -1006,11 +1043,12 @@ internal fun segmentLabelsFit(
     density: Density,
     trackPadding: Dp,
     labelPadding: Dp,
+    iconRoom: Dp = 0.dp,
 ): Boolean {
     if (labels.isEmpty()) return true
     val each = (width - trackPadding * 2) / labels.size
     val widest = labels.maxOf { measurer.measure(it, style).size.width }
-    return with(density) { widest.toDp() } + labelPadding * 2 <= each
+    return with(density) { widest.toDp() } + iconRoom + labelPadding * 2 <= each
 }
 
 /**
@@ -1042,3 +1080,6 @@ internal fun segmentedControlFits(options: List<String>, width: Dp): Boolean {
  * or down.
  */
 private const val SegmentedSteepest = 2.5f
+
+/** Between a segment's icon and its words: a chip's, which is the same pairing at the same size. */
+private val SegmentIconGap = 6.dp

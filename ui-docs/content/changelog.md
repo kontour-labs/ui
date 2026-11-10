@@ -27,6 +27,14 @@ The version an app is on is the `kontour` entry in its version catalog. See
 
 On `main`, and in the next release.
 
+### Added
+
+- **A segmented control's options can have icons.** `optionIcon`, or `icons`
+  by position on the overload taking strings, puts a glyph before each
+  option's words, in their colour and fading with them. The words stay, and
+  the icon's room counts in whether the segments fit side by side. Both are
+  defaulted parameters at the end, so a call as it stands compiles unchanged.
+
 ### Fixed
 
 - **A sheet let go ticks on the snap, not on the landing.** Released, it

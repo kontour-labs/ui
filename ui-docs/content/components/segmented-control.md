@@ -27,6 +27,30 @@ a segment that could hold arbitrary content is a segment that can be made too
 wide to fit beside three others, and the cap at four short labels is the
 component's whole premise.
 
+### With icons
+
+<!--sample:SegmentedControlWithIcons-->
+```kotlin
+var theme by remember { mutableStateOf(Appearance.Auto) }
+
+// A glyph before each option's words. The words stay: the icon is never
+// the only name an option has.
+SegmentedControl(
+    value = theme,
+    options = Appearance.entries,
+    onValueChange = { theme = it },
+    optionLabel = { it.label },
+    optionIcon = { it.icon },
+)
+```
+
+`optionIcon`, or `icons` by position on the overload taking strings, puts a
+glyph before an option's words, in the words' colour and fading with them as
+the thumb moves. The words stay: an icon is never an option's only name, and a
+screen reader reads the words alone. Its room counts in whether the segments
+fit side by side, so a control with icons stacks a little sooner than one
+without.
+
 ### When the labels do not fit
 
 The track is divided evenly between the segments, so a long label on a narrow
