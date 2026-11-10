@@ -272,6 +272,96 @@ class SegmentedControlDragTest {
         }
     }
 
+    /**
+     * Side by side, a drag up or down that starts on the control is the page's.
+     *
+     * The track claimed the first pixel of travel whichever way it went, so a
+     * page could not be scrolled from one: the thumb moved instead, and letting
+     * go chose the segment under the finger. Found in Anyways' first run
+     * (November 2026), three controls in a row in a sheet. Measured as the
+     * scroller's own offset, as the stacked case is.
+     */
+    @Test
+    fun aSideBySideDragUpOrDownScrollsThePage() {
+        var selected by mutableIntStateOf(0)
+        var bounds = Rect.Zero
+        lateinit var scroll: ScrollState
+
+        sideBySideOnAPage(onSelected = { selected = it }, selected = { selected }, onBounds = { bounds = it }, onScroll = { scroll = it }) { scene ->
+            val from = bounds.alongX(0.85f)
+            scene.drag(from = from, to = Offset(from.x + 10f, from.y - 300f))
+            scene.frames(2)
+            assertTrue(scroll.value > 0, "the page did not scroll under a drag up that started on a segmented control")
+            assertEquals(0, selected, "a drag up the page from a segmented control chose segment $selected")
+        }
+    }
+
+    /**
+     * And one that starts along the track is the control's however far off it
+     * the finger then goes: what `Movement` was chosen for in September 2026,
+     * *"start dragging them, move your finger far enough away, and they stop
+     * being selected"*, which deciding by the start's direction still keeps.
+     */
+    @Test
+    fun aDragStartedAlongTheTrackKeepsItAsTheFingerWanders() {
+        var selected by mutableIntStateOf(0)
+        var bounds = Rect.Zero
+        lateinit var scroll: ScrollState
+
+        sideBySideOnAPage(onSelected = { selected = it }, selected = { selected }, onBounds = { bounds = it }, onScroll = { scroll = it }) { scene ->
+            val start = bounds.alongX(0.15f)
+            scene.press(start)
+            scene.frames(1)
+            // Along the track first, then well down and across to the last segment.
+            for (step in 1..4) {
+                scene.move(Offset(start.x + step * 10f, start.y))
+                scene.frames(1)
+            }
+            val end = bounds.alongX(0.85f)
+            for (step in 1..10) {
+                scene.move(Offset(start.x + 40f + (end.x - start.x - 40f) * step / 10f, start.y + step * 25f))
+                scene.frames(1)
+            }
+            scene.release(Offset(end.x, start.y + 250f))
+            scene.frames(3)
+            assertEquals(2, selected, "a drag begun along the track lost the thumb as it wandered off it")
+            assertEquals(0, scroll.value, "a drag the control had taken also scrolled the page")
+        }
+    }
+
+    /** A side-by-side control at the top of a page that scrolls. */
+    private fun sideBySideOnAPage(
+        onSelected: (Int) -> Unit,
+        selected: () -> Int,
+        onBounds: (Rect) -> Unit,
+        onScroll: (ScrollState) -> Unit,
+        body: (Scene) -> Unit,
+    ) {
+        Scene(width = SceneWidth, height = SceneHeight, density = Density.toFloat()) {
+            val state = rememberScrollState()
+            onScroll(state)
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    .background(Color.White)
+                    .verticalScroll(state)
+                    .padding(Margin.dp),
+            ) {
+                SegmentedControl(
+                    options = listOf("Auto", "Off", "On"),
+                    selectedIndex = selected(),
+                    onSelectedIndexChange = onSelected,
+                    modifier = Modifier.fillMaxWidth().reportBounds(onBounds),
+                )
+                // Something to scroll to.
+                Box(Modifier.fillMaxWidth().height((SceneHeight * 2).dp))
+            }
+        }.use { scene ->
+            scene.frames(3)
+            body(scene)
+        }
+    }
+
     /** A stacked control on a white page, and whatever the caller does with it. */
     private fun stacked(
         onSelected: (Int) -> Unit,

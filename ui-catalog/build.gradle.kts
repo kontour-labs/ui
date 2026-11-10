@@ -1,3 +1,4 @@
+import org.jetbrains.kotlin.gradle.plugin.mpp.NativeBuildType
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import java.io.File
@@ -19,6 +20,11 @@ kotlin {
         target.binaries.framework {
             baseName = "Catalog"
             isStatic = true
+            // Released, optimised for size: measured on Anyways in November
+            // 2026, its release framework 11% smaller and its native compile
+            // 17% faster. The gallery as an app on the library would set it.
+            // Experimental in Kotlin/Native; debug builds are left as they are.
+            if (buildType == NativeBuildType.RELEASE) binaryOption("smallBinary", "true")
         }
     }
 

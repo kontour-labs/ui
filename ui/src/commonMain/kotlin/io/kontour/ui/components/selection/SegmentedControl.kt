@@ -35,7 +35,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.vector.ImageVector
+import io.kontour.ui.foundation.Icon
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.TransformOrigin
@@ -224,6 +227,9 @@ private const val SegmentSquash = 0.16f
  * @param value The option chosen. One of [options]; a value that is not draws
  *   no segment as chosen.
  * @param optionLabel The words on an option's segment.
+ * @param optionIcon A glyph before an option's words, or null for none. Added
+ *   for 0.5.5, asked for as a light-or-dark choice with a sun and a moon. The
+ *   label still says what the option is: the icon is never the only name.
  */
 @Composable
 fun <T> SegmentedControl(
@@ -233,6 +239,7 @@ fun <T> SegmentedControl(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     optionLabel: (T) -> String = { it.toString() },
+    optionIcon: (T) -> ImageVector? = { null },
 ) {
     val labels = options.map(optionLabel)
     SegmentedControl(
@@ -241,6 +248,7 @@ fun <T> SegmentedControl(
         onSelectedIndexChange = { index -> options.getOrNull(index)?.let(onValueChange) },
         modifier = modifier,
         enabled = enabled,
+        icons = options.map(optionIcon),
     )
 }
 
@@ -258,6 +266,9 @@ fun <T> SegmentedControl(
  *
  * The overload taking values is the one to reach for when the options are
  * values of your own, so that nothing maps an index back to one.
+ *
+ * @param icons A glyph before each option's words, by position, or null for
+ *   one without; shorter than [options], the rest go without.
  */
 @Composable
 fun SegmentedControl(
@@ -266,6 +277,7 @@ fun SegmentedControl(
     onSelectedIndexChange: (Int) -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    icons: List<ImageVector?> = emptyList(),
 ) {
     val tap = rememberTapFeedback()
     if (options.isEmpty()) return
@@ -388,9 +400,12 @@ fun SegmentedControl(
     // theme, and `remember`'s calculation is not a composable context.
     val trackPadding = SegmentedControlDefaults.TrackPadding
     val labelPadding = SegmentedControlDefaults.LabelPadding
-    val stacked = remember(labels, measurer, constraints.maxWidth, density, labelStyle, trackPadding, labelPadding) {
+    // An icon's room counts with the words: a row of segments with icons
+    // stacks where the words alone would have fitted.
+    val iconRoom = if (icons.any { it != null }) Theme.sizing.iconSmall + SegmentIconGap else 0.dp
+    val stacked = remember(labels, measurer, constraints.maxWidth, density, labelStyle, trackPadding, labelPadding, iconRoom) {
         val width = with(density) { constraints.maxWidth.toDp() }
-        !segmentLabelsFit(labels, width, measurer, labelStyle, density, trackPadding, labelPadding)
+        !segmentLabelsFit(labels, width, measurer, labelStyle, density, trackPadding, labelPadding, iconRoom)
     }
 
     /**
@@ -825,15 +840,31 @@ fun SegmentedControl(
                 // losing that race and the thumb never moved at all — see
                 // `horizontalDragOwning`, which has the measurement.
                 //
-                // `Movement` rather than `Press`: the taps are per-segment,
-                // below this, and claiming the down would eat them. A press that
-                // never travels is left entirely alone; the first pixel that
-                // does travel is a drag and this takes it, before any slop.
+                // Not `Press`: the taps are per-segment, below this, and
+                // claiming the down would eat them. A press that never travels
+                // is left entirely alone.
+                //
+                // **`Direction`, not `Movement`.** `Movement` took the first
+                // pixel of travel whichever way it went, so a page could not be
+                // scrolled from a segmented control at all: a thumb pushing a
+                // sheet up past one moved the control's thumb instead, and
+                // letting go chose the segment under the finger. Found in
+                // Anyways' first run (November 2026), whose three segmented
+                // controls in a row fill most of what there is to scroll by.
+                // `Direction` decides at a fraction of the slop, before the page
+                // can, and takes a drag up to [SegmentedSteepest] off the track:
+                // the 2:1 drag from one end to the other that
+                // `DragOwnershipTest` holds it to is still the control's, and so
+                // is the report `Movement` was chosen for, a drag started along
+                // the track and wandering far off it, since once taken every
+                // move after is. A page scroll, near straight up or down, is the
+                // page's.
                 .horizontalDragOwning(
                     enabled = enabled,
                     interactionSource = null,
                     scope = scope,
-                    claimsOn = DragClaim.Movement,
+                    claimsOn = DragClaim.Direction,
+                    steepest = SegmentedSteepest,
                     onStart = { beginAt(it.x) },
                     onDelta = { dx -> advance(dx) },
                     onEnd = { finish() },
@@ -855,6 +886,7 @@ fun SegmentedControl(
                         // control's own height already strikes.
                         modifier = Modifier.fillMaxWidth().height(stackedRow),
                         option = option,
+                        icon = icons.getOrNull(index),
                         selected = index == selectedIndex,
                         enabled = enabled,
                         shape = innerShape,
@@ -868,6 +900,7 @@ fun SegmentedControl(
                     SegmentedOption(
                         modifier = Modifier.weight(1f).fillMaxHeight(),
                         option = option,
+                        icon = icons.getOrNull(index),
                         selected = index == selectedIndex,
                         enabled = enabled,
                         shape = innerShape,
@@ -893,6 +926,7 @@ fun SegmentedControl(
 private fun SegmentedOption(
     modifier: Modifier,
     option: String,
+    icon: ImageVector?,
     selected: Boolean,
     enabled: Boolean,
     shape: Shape,
@@ -956,13 +990,32 @@ private fun SegmentedOption(
             val style = remember(inherited) { inherited.copy(color = Color.Unspecified) }
             DisableSelection {
                 ProvideContentColourInMotion(labelColour, towards = labelTarget) {
-                    Text(
-                        text = option,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(horizontal = SegmentedControlDefaults.LabelPadding),
-                        style = style,
-                    )
+                    if (icon == null) {
+                        Text(
+                            text = option,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(horizontal = SegmentedControlDefaults.LabelPadding),
+                            style = style,
+                        )
+                    } else {
+                        // The icon in the label's colour, fading with it, and
+                        // left to the words: the label names the option.
+                        Row(
+                            modifier = Modifier.padding(horizontal = SegmentedControlDefaults.LabelPadding),
+                            horizontalArrangement = Arrangement.spacedBy(SegmentIconGap),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(icon, contentDescription = null, size = Theme.sizing.iconSmall)
+                            Text(
+                                text = option,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false),
+                                style = style,
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -990,11 +1043,12 @@ internal fun segmentLabelsFit(
     density: Density,
     trackPadding: Dp,
     labelPadding: Dp,
+    iconRoom: Dp = 0.dp,
 ): Boolean {
     if (labels.isEmpty()) return true
     val each = (width - trackPadding * 2) / labels.size
     val widest = labels.maxOf { measurer.measure(it, style).size.width }
-    return with(density) { widest.toDp() } + labelPadding * 2 <= each
+    return with(density) { widest.toDp() } + iconRoom + labelPadding * 2 <= each
 }
 
 /**
@@ -1017,3 +1071,15 @@ internal fun segmentedControlFits(options: List<String>, width: Dp): Boolean {
         segmentLabelsFit(labels, width, measurer, style, density, trackPadding, labelPadding)
     }
 }
+
+/**
+ * How far off its track a side-by-side segmented control's drag may start and
+ * still be the control's, as across over along: 2.5, about 68 degrees. Past
+ * `DragOwnershipTest`'s 2:1 from one end to the other, which a thumb sweeping
+ * across a phone makes; short of a page scroll, which starts near straight up
+ * or down.
+ */
+private const val SegmentedSteepest = 2.5f
+
+/** Between a segment's icon and its words: a chip's, which is the same pairing at the same size. */
+private val SegmentIconGap = 6.dp

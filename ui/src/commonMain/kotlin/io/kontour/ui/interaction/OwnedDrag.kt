@@ -189,6 +189,11 @@ internal enum class DragClaim {
  *   something a finger can hold to pick up: a held finger wanders a few pixels
  *   on a phone, and taking that wander for a swipe took the gesture from the
  *   hold under it — an event calendar's events could not be carried on Android.
+ * @param steepest How far off its axis a [DragClaim.Direction] is still taken,
+ *   as across over along: 1, the default, is 45 degrees. More for a control
+ *   whose drag is the control and is often begun on a slant, a segmented
+ *   control's thumb, which still leaves a page scroll, near straight up or
+ *   down, to the page.
  */
 @Composable
 internal fun Modifier.horizontalDragOwning(
@@ -199,6 +204,7 @@ internal fun Modifier.horizontalDragOwning(
     accepts: (Offset) -> Boolean = { true },
     patientAt: (Offset) -> Boolean = { false },
     holdable: () -> Boolean = { false },
+    steepest: Float = 1f,
     onStart: (Offset) -> Unit,
     onDelta: (Float) -> Unit,
     onEnd: () -> Unit,
@@ -216,6 +222,7 @@ internal fun Modifier.horizontalDragOwning(
         along = Axis.Horizontal,
         patientAt = patientAt,
         holdable = holdable,
+        steepest = steepest,
     ) { delta ->
         if (delta.x != 0f) currentDelta(delta.x)
     }
@@ -425,6 +432,7 @@ private fun Modifier.ownedDrag(
     along: Axis = Axis.Both,
     patientAt: (Offset) -> Boolean = { false },
     holdable: () -> Boolean = { false },
+    steepest: Float = 1f,
     onDelta: (Offset) -> Unit,
 ): Modifier {
     val currentPatient by rememberUpdatedState(patientAt)
@@ -530,8 +538,8 @@ private fun Modifier.ownedDrag(
                             gathered += delta
                             if (gathered.getDistance() < decideAt) continue
                             val mostlyAlong = when (along) {
-                                Axis.Horizontal -> abs(gathered.x) >= abs(gathered.y)
-                                Axis.Vertical -> abs(gathered.y) >= abs(gathered.x)
+                                Axis.Horizontal -> abs(gathered.x) * steepest >= abs(gathered.y)
+                                Axis.Vertical -> abs(gathered.y) * steepest >= abs(gathered.x)
                                 Axis.Both -> true
                             }
                             if (!mostlyAlong) {

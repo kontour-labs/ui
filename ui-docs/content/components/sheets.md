@@ -285,13 +285,16 @@ nested-scroll connection has the same exception: nothing would answer a list tha
 has reached its top, and a list that stops dead is a boundary the finger cannot
 feel.
 
-**The sheet ticks as it arrives.** Dragged by hand, it plays its `Snap` as it
-comes within a few pixels of a detent, and after a throw as it lands there: the
-tick is the sheet getting somewhere, so it comes when it has. It used to play
-half way between two detents, where a release would change which one it landed
-on — mid-drag, with nothing under the finger. Dragged towards hidden, the
-threshold where letting go would put it away is still felt at that line, in and
-back out. A sheet moved in code is quiet.
+**The sheet ticks as it arrives, or as it is sent.** Dragged by hand, it plays
+its `Snap` as it comes within a few pixels of a detent. Let go, it plays it as
+the release sends it to a detent, a frame or two after the finger lifts, rather
+than when it has landed: a settle spends its last third of a second on its final
+few pixels, and a tick at the end of that came well after the sheet had visibly
+gone where it was going (changed in 0.5.5). It used to play half way between two
+detents, where a release would change which one it landed on — mid-drag, with
+nothing under the finger. Dragged towards hidden, the threshold where letting go
+would put it away is still felt at that line, in and back out. A sheet moved in
+code is quiet.
 
 **A list can scroll where it is.** By default dragging a sheet's list up opens
 the sheet first, as UIKit's do. `BottomSheet(scrollExpands = false)` scrolls the
@@ -400,6 +403,36 @@ This is the normal case — a screen that arrives with its sheet already open �
 it runs before the first layout, so there are no anchors to move to yet.
 `SheetState` holds the request and applies it when anchors arrive, so callers do
 not have to wait for a measurement they should not have to know about.
+
+---
+
+## When a finger catches a sheet you moved
+
+```kotlin
+LaunchedEffect(open) {
+    if (open) return@LaunchedEffect
+    snapshotFlow { sheet.currentDetent != SheetDetent.Hidden && !sheet.isMoving && !sheet.draggedByHand }
+        .collect { up ->
+            if (!up) return@collect
+            try {
+                sheet.animateTo(SheetDetent.Hidden)
+            } catch (caught: CancellationException) {
+                currentCoroutineContext().ensureActive()
+            }
+        }
+}
+```
+
+A finger landing on a sheet as it moves catches it, and holds it where it is:
+that is how a sheet thrown the wrong way is taken back. The `animateTo` that
+was moving it throws a `CancellationException`, as every Compose animation
+does when another move takes over, and the sheet settles where the finger lets
+it go. **Thrown inside a `collect`, it ends the collect.** A watcher like the
+one above, meant to send a sheet away whenever it comes to rest up, catches the
+throw and goes on, or it watches once: an app's sheet stayed at its peek after
+a second tap of its close button caught it on the way down (November 2026).
+`currentCoroutineContext().ensureActive()` still lets the effect itself be
+cancelled.
 
 ---
 

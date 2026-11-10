@@ -872,6 +872,21 @@ class SheetState internal constructor(
      */
     internal var movedByContent: Boolean by mutableStateOf(false)
 
+    /**
+     * Where the last release of the sheet — its handle, its surface or its
+     * content let go — was sent, the moment the release chose it: what the
+     * sheet's tick plays for, on the snap rather than on the landing. Null
+     * from the next finger, and once the sheet has come to rest.
+     *
+     * The tick waited for the sheet to stop: *"it waits for the sheet to fully
+     * settle before playing the haptic. it should play on the snap"*, raised
+     * 2026-11-10 for 0.5.5. A settle on a gentle spring spends its last third
+     * of a second creeping the final few pixels, and the tick came at the end
+     * of it, well after the sheet had visibly gone where it was going. Moves
+     * made in code never set this, so they stay silent.
+     */
+    internal var releasedTo: SheetDetent? by mutableStateOf(null)
+
     /** True when any part of the sheet is on screen. */
     val isVisible: Boolean get() = currentDetent != SheetDetent.Hidden ||
         targetDetent != SheetDetent.Hidden
@@ -965,6 +980,16 @@ class SheetState internal constructor(
 
     /**
      * Animates to [detent]. Suspends until it arrives.
+     *
+     * **Throws a `CancellationException` when another move takes the sheet
+     * from it** — a finger landing on the sheet catches it on its way, and
+     * another `animateTo` or [snapTo] replaces it — as every Compose animation
+     * sharing a mutex does. The sheet stays where that move leaves it: caught,
+     * at the detent nearest where the finger let go. Code that has to see the
+     * sheet arrive — a watcher sending it away whenever it comes to rest up —
+     * catches that and goes on: thrown inside a `collect`, it ends the collect
+     * without a word. Anyways' detail sheet stayed up over pages already
+     * closed that way (`SheetCaughtHideTest`).
      *
      * Under reduced motion it does not travel: opening from hidden, the sheet
      * appears at its detent and fades up; closing, it fades where it rests and
@@ -1465,6 +1490,8 @@ class SheetState internal constructor(
     ) {
         val from = anchoredState.offset
         val aimed = detentAimedAt(velocity, minVelocity) ?: (if (from.isNaN()) null else nearestAllowed(from))
+        // Said as it is chosen, so the tick is on the snap: see [releasedTo].
+        if (aimed != null) releasedTo = aimed
         if (aimed == null) anchoredState.settle(spec) else carryTo(aimed, velocity, spec)
     }
 

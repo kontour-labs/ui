@@ -18,6 +18,9 @@ import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.unit.dp
 import io.kontour.icons.tabler.Tabler
 import io.kontour.icons.tabler.outline.Bus
+import io.kontour.icons.tabler.outline.CalendarEvent
+import io.kontour.icons.tabler.outline.CalendarMonth
+import io.kontour.icons.tabler.outline.CalendarWeek
 import io.kontour.icons.tabler.outline.Check
 import io.kontour.icons.tabler.outline.Ship
 import io.kontour.icons.tabler.outline.Sparkles
@@ -287,13 +290,17 @@ internal val ChipDemo = ComponentDemo(slug = "chip", knobs = listOf(chipMorph, c
     }
 }
 
-internal val SegmentedControlDemo = ComponentDemo(slug = "segmented-control") {
+/** A glyph before each segment's words: `icons`, added in 0.5.5. */
+private val segmentedIcons = Knob.Flag("Icons")
+
+internal val SegmentedControlDemo = ComponentDemo(slug = "segmented-control", knobs = listOf(segmentedIcons)) {
     var span by remember { mutableStateOf(1) }
     SegmentedControl(
         options = listOf("Day", "Week", "Month"),
         selectedIndex = span,
         onSelectedIndexChange = { span = it },
         modifier = Modifier.fillMaxWidth(),
+        icons = if (this[segmentedIcons]) listOf(Tabler.Outline.CalendarEvent, Tabler.Outline.CalendarWeek, Tabler.Outline.CalendarMonth) else emptyList(),
     )
 }
 

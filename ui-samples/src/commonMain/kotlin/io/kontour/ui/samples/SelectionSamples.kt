@@ -1,6 +1,8 @@
 package io.kontour.ui.samples
 
 import io.kontour.icons.tabler.outline.Moon
+import io.kontour.icons.tabler.outline.Sun
+import io.kontour.icons.tabler.outline.SunMoon
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.components.selection.Knob
 import androidx.compose.runtime.Composable
@@ -139,6 +141,28 @@ fun SegmentedControlBasics() {
         onValueChange = { mode = it },
         optionLabel = { it.label },
     )
+}
+
+@Composable
+fun SegmentedControlWithIcons() {
+    var theme by remember { mutableStateOf(Appearance.Auto) }
+
+    // A glyph before each option's words. The words stay: the icon is never
+    // the only name an option has.
+    SegmentedControl(
+        value = theme,
+        options = Appearance.entries,
+        onValueChange = { theme = it },
+        optionLabel = { it.label },
+        optionIcon = { it.icon },
+    )
+}
+
+/** Light, dark or the device's, as a sample offers them. */
+internal enum class Appearance(val label: String, val icon: ImageVector) {
+    Auto("Auto", Tabler.Outline.SunMoon),
+    Light("Light", Tabler.Outline.Sun),
+    Dark("Dark", Tabler.Outline.Moon),
 }
 
 /** The kinds of service a sample switches between. */

@@ -27,6 +27,30 @@ a segment that could hold arbitrary content is a segment that can be made too
 wide to fit beside three others, and the cap at four short labels is the
 component's whole premise.
 
+### With icons
+
+<!--sample:SegmentedControlWithIcons-->
+```kotlin
+var theme by remember { mutableStateOf(Appearance.Auto) }
+
+// A glyph before each option's words. The words stay: the icon is never
+// the only name an option has.
+SegmentedControl(
+    value = theme,
+    options = Appearance.entries,
+    onValueChange = { theme = it },
+    optionLabel = { it.label },
+    optionIcon = { it.icon },
+)
+```
+
+`optionIcon`, or `icons` by position on the overload taking strings, puts a
+glyph before an option's words, in the words' colour and fading with them as
+the thumb moves. The words stay: an icon is never an option's only name, and a
+screen reader reads the words alone. Its room counts in whether the segments
+fit side by side, so a control with icons stacks a little sooner than one
+without.
+
 ### When the labels do not fit
 
 The track is divided evenly between the segments, so a long label on a narrow
@@ -55,8 +79,8 @@ and `200` are single unbreakable words, so a second line gets nothing.
 go away entirely when the control stacked, on the reasoning that a vertical drag
 would be competing with the page for its own direction. Half of that is right,
 and it is the half that decides the rule. Side by side, the control and the page
-want different axes, so the control can take any drag that is more along its
-track than across it and win on slope. Stacked, they want the same axis and no
+want different axes, so the control takes a drag that starts near enough
+along its track, and wins on slope (see below). Stacked, they want the same axis and no
 slope can separate them.
 
 So what separates them is **where the finger goes down**. A drag that starts on
@@ -117,13 +141,22 @@ else the band is at rest. They want opposite anchors, so getting that wrong is
 not subtle — the thumb narrows by exactly as much, from the wrong end, and reads
 as retreating from the stop rather than as compressing into it.
 
-The drag is *owned*: from the first pixel the finger travels, the control takes
-the whole gesture and a scrolling page above it cannot take it back. Without
-that, whether the thumb moved at all depended on the angle — the control and the
-list it sits in are both waiting for their own touch slop, and more than 45° off
-the track the list reached its threshold first and the thumb never moved. The
-price is that you cannot scroll a page by dragging on a segmented control. A
-press that never travels is left alone, so tapping one is unchanged.
+The drag is *owned* once it is the control's: from then on the control takes
+the whole gesture, every move after, however far off the track the finger
+wanders, and a scrolling page above it cannot take it back. Which it is, is
+decided at a fraction of the touch slop, before the page could decide: a drag
+that starts within about 68° of the track, 2.5 across for every 1 along, is the
+control's, and one that starts steeper is the page's. Before that, whether the
+thumb moved at all depended on the angle — the control and the list it sits in
+were both waiting for their own touch slop, and more than 45° off the track the
+list got there first and the thumb never moved.
+
+**A page scrolls from a segmented control** (from 0.5.5). It took the first
+pixel of travel whichever way it went, so a page or a sheet could not be
+scrolled from one: its thumb moved instead, and letting go chose the segment
+under the finger. A sweep across from one end to the other on a slant is still
+the control's; a scroll, near straight up or down, is the page's. A press that
+never travels is left alone, so tapping one is unchanged.
 
 Stacked, the ownership rule is the other way round and for the same reason: the
 control takes only what starts on its thumb, because the gesture it would

@@ -29,6 +29,69 @@ On `main`, and in the next release. Nothing yet.
 
 ---
 
+## 0.5.5 — 10 November 2026
+
+Plain Jetpack Compose apps, said and checked: an Android app that is not
+multiplatform takes the same artifacts, and on Android the library runs on
+Jetpack Compose itself; it no longer brings `ui-tooling` with it. A segmented
+control's options can have icons, and a page scrolls from one. A sheet let go
+ticks as it snaps rather than once it has landed, and `SheetState.animateTo`
+says what a finger catching the sheet does to the code that moved it. The
+icons are Tabler 3.51.0.1, the same icons kept as path data, about a quarter of
+the size each in an iOS app. Nothing to change in an app;
+[Migrating](migrating.md#054-to-055) has what to check.
+
+### Added
+
+- **[In a Jetpack Compose app](installing.md#in-a-jetpack-compose-app).** An
+  Android app that is not multiplatform takes the same artifacts with no
+  multiplatform plugin: on Android the library runs on Jetpack Compose itself.
+  Now said, and checked with a plain Android app on a phone.
+- **A segmented control's options can have icons.** `optionIcon`, or `icons`
+  by position on the overload taking strings, puts a glyph before each
+  option's words, in their colour and fading with them. The words stay, and
+  the icon's room counts in whether the segments fit side by side. Both are
+  defaulted parameters at the end, so a call as it stands compiles unchanged.
+
+### Changed
+
+- **An Android app no longer gets `ui-tooling` from the library.** `:ui` named
+  it for Android though nothing used it, so every app's release build carried
+  it, previews' activity in its manifest and all. An app that uses
+  `@Preview` adds `ui-tooling` itself, as a `debugImplementation`.
+- **`SheetState.animateTo` says that it throws when another move takes the
+  sheet from it.** A finger landing on a moving sheet catches it, and the code
+  that sent it gets a `CancellationException`, as from any Compose animation
+  sharing a mutex. Thrown inside a `collect`, it ends the collect: an app's
+  watcher meant to send a sheet away whenever it came to rest stopped after
+  the first catch, and the sheet stayed up. Nothing changed in the sheet; the
+  documentation says what to do, and both halves are checked on every build.
+- **The icons are Tabler 3.51.0.1**, from 3.51.0: the same icons, each now
+  kept as Tabler's own path data and drawn from it the first time it is read,
+  rather than compiled as code. An icon an app draws is about a quarter of the
+  size it was in an iOS release build (3.4 KB against 12.4 KB, measured), and
+  the sets are a third of the size on the JVM. `io.kontour:tabler-icons-outline`
+  and `-filled`, which the library's own icons are drawn from.
+
+### Fixed
+
+- **A sheet let go ticks on the snap, not on the landing.** Released, it
+  waited for the sheet to stop before it ticked: a gentle spring spends its
+  last third of a second on the final few pixels, so the tick came well after
+  the sheet had visibly gone where it was going. It now ticks as the release
+  sends it to a detent, a frame or two after letting go. A drag still ticks as
+  the sheet arrives under the finger, and a sheet moved in code is still
+  silent.
+- **A page scrolls from a segmented control.** Side by side, its track took
+  the first pixel of a drag whichever way it went, so a page or a sheet could
+  not be scrolled from one: its thumb moved instead, and letting go chose the
+  segment under the finger. A drag now has to start within about 68 degrees of
+  the track to be the control's (2.5 across to 1 along); a drag from one end to
+  the other on a slant still is, and so is one begun along the track that
+  wanders far off it. Found in a first run with three in a row in a sheet.
+
+---
+
 ## 0.5.4 — 9 November 2026
 
 The web, and a phone's browser above all. On an iPhone a field's first tap opens
