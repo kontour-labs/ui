@@ -825,15 +825,31 @@ fun SegmentedControl(
                 // losing that race and the thumb never moved at all — see
                 // `horizontalDragOwning`, which has the measurement.
                 //
-                // `Movement` rather than `Press`: the taps are per-segment,
-                // below this, and claiming the down would eat them. A press that
-                // never travels is left entirely alone; the first pixel that
-                // does travel is a drag and this takes it, before any slop.
+                // Not `Press`: the taps are per-segment, below this, and
+                // claiming the down would eat them. A press that never travels
+                // is left entirely alone.
+                //
+                // **`Direction`, not `Movement`.** `Movement` took the first
+                // pixel of travel whichever way it went, so a page could not be
+                // scrolled from a segmented control at all: a thumb pushing a
+                // sheet up past one moved the control's thumb instead, and
+                // letting go chose the segment under the finger. Found in
+                // Anyways' first run (November 2026), whose three segmented
+                // controls in a row fill most of what there is to scroll by.
+                // `Direction` decides at a fraction of the slop, before the page
+                // can, and takes a drag up to [SegmentedSteepest] off the track:
+                // the 2:1 drag from one end to the other that
+                // `DragOwnershipTest` holds it to is still the control's, and so
+                // is the report `Movement` was chosen for, a drag started along
+                // the track and wandering far off it, since once taken every
+                // move after is. A page scroll, near straight up or down, is the
+                // page's.
                 .horizontalDragOwning(
                     enabled = enabled,
                     interactionSource = null,
                     scope = scope,
-                    claimsOn = DragClaim.Movement,
+                    claimsOn = DragClaim.Direction,
+                    steepest = SegmentedSteepest,
                     onStart = { beginAt(it.x) },
                     onDelta = { dx -> advance(dx) },
                     onEnd = { finish() },
@@ -1017,3 +1033,12 @@ internal fun segmentedControlFits(options: List<String>, width: Dp): Boolean {
         segmentLabelsFit(labels, width, measurer, style, density, trackPadding, labelPadding)
     }
 }
+
+/**
+ * How far off its track a side-by-side segmented control's drag may start and
+ * still be the control's, as across over along: 2.5, about 68 degrees. Past
+ * `DragOwnershipTest`'s 2:1 from one end to the other, which a thumb sweeping
+ * across a phone makes; short of a page scroll, which starts near straight up
+ * or down.
+ */
+private const val SegmentedSteepest = 2.5f

@@ -25,7 +25,17 @@ The version an app is on is the `kontour` entry in its version catalog. See
 
 ## Unreleased
 
-On `main`, and in the next release. Nothing yet.
+On `main`, and in the next release.
+
+### Fixed
+
+- **A page scrolls from a segmented control.** Side by side, its track took
+  the first pixel of a drag whichever way it went, so a page or a sheet could
+  not be scrolled from one: its thumb moved instead, and letting go chose the
+  segment under the finger. A drag now has to start within about 68 degrees of
+  the track to be the control's (2.5 across to 1 along); a drag from one end to
+  the other on a slant still is, and so is one begun along the track that
+  wanders far off it. Found in a first run with three in a row in a sheet.
 
 ---
 
