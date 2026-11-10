@@ -29,6 +29,13 @@ On `main`, and in the next release.
 
 ### Fixed
 
+- **A sheet let go ticks on the snap, not on the landing.** Released, it
+  waited for the sheet to stop before it ticked: a gentle spring spends its
+  last third of a second on the final few pixels, so the tick came well after
+  the sheet had visibly gone where it was going. It now ticks as the release
+  sends it to a detent, a frame or two after letting go. A drag still ticks as
+  the sheet arrives under the finger, and a sheet moved in code is still
+  silent.
 - **A page scrolls from a segmented control.** Side by side, its track took
   the first pixel of a drag whichever way it went, so a page or a sheet could
   not be scrolled from one: its thumb moved instead, and letting go chose the

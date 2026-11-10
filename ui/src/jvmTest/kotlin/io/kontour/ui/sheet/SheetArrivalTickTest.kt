@@ -83,4 +83,67 @@ class SheetArrivalTickTest {
             "it ticked ${short}px short of full height, of a ${gap}px drag: before it got there",
         )
     }
+
+    /**
+     * Let go, it ticks as the release sends it, not as it lands. It waited out
+     * the settle: *"it waits for the sheet to fully settle before playing the
+     * haptic. it should play on the snap"*, raised 2026-11-10 for 0.5.5. A
+     * flick up from half, short of full height, ticks while the sheet is still
+     * on its way there.
+     */
+    @Test
+    fun aFlickTicksOnTheSnapNotOnTheLanding() = runComposeUiTest {
+        val felt = mutableListOf<FeedbackIntent>()
+        lateinit var state: SheetState
+        mainClock.autoAdvance = false
+        setContent {
+            KontourTheme(darkTheme = false) {
+                CompositionLocalProvider(LocalFeedback provides FeedbackDispatcher { felt += it }) {
+                    Box(Modifier.fillMaxSize().background(Color.White)) {
+                        OverlayHost(Modifier.fillMaxSize()) {
+                            state = rememberSheetState(
+                                detents = listOf(SheetDetent.peek(120.dp), SheetDetent.Half, SheetDetent.Expanded),
+                                initialDetent = SheetDetent.Half,
+                            )
+                            BottomSheet(
+                                state = state,
+                                presentation = SheetPresentation.Edge,
+                                dragHandle = { DragHandle(Modifier.testTag("handle")) },
+                            ) { Box(Modifier.fillMaxWidth().height(3000.dp)) }
+                        }
+                    }
+                }
+            }
+        }
+        repeat(60) { mainClock.advanceTimeByFrame() }
+        val full = state.anchoredState.anchors.positionOf(SheetDetent.Expanded)
+
+        // A quick flick up, short of arriving: a few fast moves and let go.
+        onNodeWithTag("handle").performTouchInput {
+            down(center)
+            repeat(5) {
+                advanceEventTime(8)
+                moveBy(Offset(0f, -24f))
+            }
+            advanceEventTime(8)
+            up()
+        }
+
+        var framesToTick = -1
+        var stillMovingAtTick = false
+        var frames = 0
+        while (frames < 120) {
+            mainClock.advanceTimeByFrame()
+            frames++
+            if (framesToTick < 0 && felt.any { it == FeedbackIntent.Snap }) {
+                framesToTick = frames
+                stillMovingAtTick = state.isMoving && state.anchoredState.offset - full > 1f
+            }
+            if (!state.isMoving && framesToTick >= 0) break
+        }
+        assertEquals(SheetDetent.Expanded, state.currentDetent, "the flick did not take it to full height")
+        assertTrue(framesToTick in 1..3, "it ticked $framesToTick frames after it was let go, not on the snap")
+        assertTrue(stillMovingAtTick, "it ticked only once it had landed: ${frames} frames to settle, ticked at $framesToTick")
+        assertEquals(1, felt.count { it == FeedbackIntent.Snap }, "a flick to full height ticked more than once")
+    }
 }

@@ -735,12 +735,20 @@ fun BottomSheet(
             // not happen.
             if (!hidden) ticker.at(state.detents.indexOf(detent))
         }
-        // A flick is the hand's gesture too: the settle a release starts is
-        // waited out, and the detent it lands on reported if it is new — so a
-        // sheet flicked open from its peek says so, where it used to be silent
-        // because the finger had lifted first. Opened in code, it arms nothing.
+        // A flick is the hand's gesture too, so a sheet flicked open from its
+        // peek says so, where it used to be silent because the finger had
+        // lifted first. Opened in code, it arms nothing.
+        //
+        // **On the snap, not the landing.** The release says where it has
+        // sent the sheet as it chooses ([SheetState.releasedTo]), and that is
+        // reported at once if it is new. It used to wait out the settle and
+        // report where the sheet came to rest: a gentle spring's last third of
+        // a second creeping the final few pixels, then the tick, after the
+        // sheet had visibly gone. A release that aims nowhere still reports
+        // where it lands.
         var settle: Job? = null
         var wasDragging = false
+        var snapped = false
         // Where it has got to only while a finger is on it: read always, the
         // offset re-ran this on every frame of a sheet opening in code.
         snapshotFlow {
@@ -748,12 +756,14 @@ fun BottomSheet(
             // moves the sheet through nested scrolling, and that is a hand on
             // the sheet as much as a drag of its handle. See `movedByContent`.
             val dragging = state.draggedByHand || state.movedByContent
-            Triple(dragging, state.targetDetent, if (dragging) state.detentArrivedAt() else null)
+            SheetTickReading(dragging, state.targetDetent, if (dragging) state.detentArrivedAt() else null, state.releasedTo)
         }
-            .collect { (dragging, detent, arrived) ->
+            .collect { (dragging, detent, arrived, released) ->
                 if (dragging) {
                     settle?.cancel()
                     settle = null
+                    snapped = false
+                    state.releasedTo = null
                     // Letting go here closes it: said where that changes,
                     // which is the point of a threshold.
                     dismiss.at(if (detent == SheetDetent.Hidden) 1 else 0)
@@ -762,14 +772,22 @@ fun BottomSheet(
                     val here = arrived ?: detent.takeIf { !wasDragging }
                     if (here != null && here != SheetDetent.Hidden) ticker.at(state.detents.indexOf(here))
                     wasDragging = true
-                } else if (settle == null) {
+                    return@collect
+                }
+                if (released != null && wasDragging && !snapped) {
+                    report(released)
+                    snapped = true
+                }
+                if (settle == null) {
                     settle = launch {
                         withFrameNanos { }
                         snapshotFlow { state.isMoving }.first { !it }
-                        report(state.currentDetent)
+                        if (!snapped) report(state.currentDetent)
                         ticker.reset()
                         dismiss.reset()
                         wasDragging = false
+                        snapped = false
+                        state.releasedTo = null
                         settle = null
                     }
                 }
@@ -3169,6 +3187,14 @@ private suspend fun snapshotOfHidden(
  */
 internal const val SheetDismissalFrames = 2
 
+/** What the sheet's tick reads each time something it depends on moves. */
+private data class SheetTickReading(
+    val dragging: Boolean,
+    val target: SheetDetent,
+    val arrived: SheetDetent?,
+    val released: SheetDetent?,
+)
+
 /**
  * Where a release of the sheet itself settles, for Foundation's snapping fling:
  * straight to the detent [SheetState.detentFlungTo] picks, with no free travel
@@ -3182,7 +3208,10 @@ private class SheetSnapping(private val state: SheetState, private val minVeloci
         if (from.isNaN()) return 0f
         val target = state.detentFlungTo(velocity, minVelocity) ?: return 0f
         val at = state.anchoredState.anchors.positionOf(target)
-        return if (at.isNaN()) 0f else at - from
+        if (at.isNaN()) return 0f
+        // Said as it is chosen, so the tick is on the snap: see `SheetState.releasedTo`.
+        state.releasedTo = target
+        return at - from
     }
 }
 
