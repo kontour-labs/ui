@@ -25,15 +25,21 @@ The version an app is on is the `kontour` entry in its version catalog. See
 
 ## Unreleased
 
-On `main`, and in the next release.
+On `main`, and in the next release. Nothing yet.
+
+---
+
+## 0.5.5 — 10 November 2026
 
 Plain Jetpack Compose apps, said and checked: an Android app that is not
 multiplatform takes the same artifacts, and on Android the library runs on
 Jetpack Compose itself; it no longer brings `ui-tooling` with it. A segmented
 control's options can have icons, and a page scrolls from one. A sheet let go
 ticks as it snaps rather than once it has landed, and `SheetState.animateTo`
-says what a finger catching the sheet does to the code that moved it. Nothing
-to change in an app; [Migrating](migrating.md#054-to-055) has what to check.
+says what a finger catching the sheet does to the code that moved it. The
+icons are Tabler 3.51.0.1, the same icons kept as path data, about a quarter of
+the size each in an iOS app. Nothing to change in an app;
+[Migrating](migrating.md#054-to-055) has what to check.
 
 ### Added
 

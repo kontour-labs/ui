@@ -84,7 +84,7 @@ One version for all four, in the version catalog:
 ```toml
 # gradle/libs.versions.toml
 [versions]
-kontour = "0.5.4"
+kontour = "0.5.5"
 
 [libraries]
 kontour-ui = { module = "io.kontour:ui", version.ref = "kontour" }
@@ -109,7 +109,7 @@ kotlin {
 ```
 
 Without a catalog, the same thing is
-`implementation("io.kontour:ui:0.5.4")`, and so on.
+`implementation("io.kontour:ui:0.5.5")`, and so on.
 
 ### In a Jetpack Compose app
 
@@ -125,8 +125,8 @@ plugins {
 }
 
 dependencies {
-    implementation("io.kontour:ui:0.5.4")
-    implementation("io.kontour:tabler-icons-outline:3.51.0") // to draw Tabler's icons yourself
+    implementation("io.kontour:ui:0.5.5")
+    implementation("io.kontour:tabler-icons-outline:3.51.0.1") // to draw Tabler's icons yourself
 }
 ```
 

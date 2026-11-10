@@ -49,7 +49,7 @@ dependencyResolutionManagement {
 ```toml
 # gradle/libs.versions.toml
 [versions]
-kontour = "0.5.4"
+kontour = "0.5.5"
 
 [libraries]
 kontour-ui = { module = "io.kontour:ui", version.ref = "kontour" }
