@@ -37,6 +37,16 @@ On `main`, and in the next release.
   the other on a slant still is, and so is one begun along the track that
   wanders far off it. Found in a first run with three in a row in a sheet.
 
+### Changed
+
+- **`SheetState.animateTo` says that it throws when another move takes the
+  sheet from it.** A finger landing on a moving sheet catches it, and the code
+  that sent it gets a `CancellationException`, as from any Compose animation
+  sharing a mutex. Thrown inside a `collect`, it ends the collect: an app's
+  watcher meant to send a sheet away whenever it came to rest stopped after
+  the first catch, and the sheet stayed up. Nothing changed in the sheet; the
+  documentation says what to do, and both halves are checked on every build.
+
 ---
 
 ## 0.5.4 — 9 November 2026

@@ -966,6 +966,16 @@ class SheetState internal constructor(
     /**
      * Animates to [detent]. Suspends until it arrives.
      *
+     * **Throws a `CancellationException` when another move takes the sheet
+     * from it** — a finger landing on the sheet catches it on its way, and
+     * another `animateTo` or [snapTo] replaces it — as every Compose animation
+     * sharing a mutex does. The sheet stays where that move leaves it: caught,
+     * at the detent nearest where the finger let go. Code that has to see the
+     * sheet arrive — a watcher sending it away whenever it comes to rest up —
+     * catches that and goes on: thrown inside a `collect`, it ends the collect
+     * without a word. Anyways' detail sheet stayed up over pages already
+     * closed that way (`SheetCaughtHideTest`).
+     *
      * Under reduced motion it does not travel: opening from hidden, the sheet
      * appears at its detent and fades up; closing, it fades where it rests and
      * then goes. A drag is untouched — the sheet follows the reader's own finger
