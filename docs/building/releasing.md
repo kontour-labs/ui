@@ -107,9 +107,14 @@ whose release workflow uses the same bucket and secrets. Organisation secrets on
 
    ```sh
    curl -fsS https://maven.kontour.io/io/kontour/ui/maven-metadata.xml
-   # A klib, twice: the second says `cf-cache-status: HIT`
-   curl -sSI https://maven.kontour.io/io/kontour/tabler-icons-outline-iosarm64/3.49.0.1/tabler-icons-outline-iosarm64-3.49.0.1.klib | grep -i cf-cache
+   # A klib, fetched twice: the first says `cf-cache-status: MISS`, the second `HIT`
+   curl -sS -o /dev/null -D - https://maven.kontour.io/io/kontour/tabler-icons-outline-iosarm64/3.49.0.1/tabler-icons-outline-iosarm64-3.49.0.1.klib | grep -i cf-cache
    ```
+
+   A real request, not `curl -I`: Cloudflare answers a HEAD with `DYNAMIC`
+   whether the file is cached or not, so a HEAD can't tell a cached klib from
+   one that isn't. Found 2026-11-10, checking 0.5.5's klibs, which a GET showed
+   cached and a HEAD said were not.
 
 The upload is the AWS CLI that GitHub's Ubuntu runners have, pointed at R2's
 S3-compatible endpoint. To publish into the folder without uploading, on any
