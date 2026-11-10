@@ -31,7 +31,9 @@ Each is published for **Android** (minSdk 29), **iOS** (`iosArm64` and
 
 ## Requirements
 
-- **Compose Multiplatform 1.12.1** or newer. 1.12 is the floor, deliberately:
+- **Compose Multiplatform 1.12.1** or newer, or on Android alone, **Jetpack
+  Compose 1.12.1**: see [In a Jetpack Compose app](#in-a-jetpack-compose-app).
+  1.12 is the floor, deliberately:
   the screenshot harness the test suite rests on needs
   `ImageComposeScene.calculateContentSize()`, which lands there. An app on 1.11
   hits binary incompatibility.
@@ -108,6 +110,39 @@ kotlin {
 
 Without a catalog, the same thing is
 `implementation("io.kontour:ui:0.5.4")`, and so on.
+
+### In a Jetpack Compose app
+
+An Android app that is not multiplatform uses the same artifacts, with no
+Kotlin Multiplatform or Compose Multiplatform plugin: the Android Gradle plugin
+and Kotlin's Compose compiler, as any Jetpack Compose app has.
+
+```kotlin
+// app/build.gradle.kts
+plugins {
+    id("com.android.application")
+    id("org.jetbrains.kotlin.plugin.compose")
+}
+
+dependencies {
+    implementation("io.kontour:ui:0.5.4")
+    implementation("io.kontour:tabler-icons-outline:3.51.0") // to draw Tabler's icons yourself
+}
+```
+
+**It is the same library, not a port of it.** On Android, every
+`org.jetbrains.compose` artifact the library is built against is an empty one
+that depends on Jetpack Compose's own: `foundation-android` is a few kilobytes
+with no classes, and pulls in `androidx.compose.foundation:foundation`. So on
+Android the components run on Jetpack Compose itself, from the one set of
+sources every platform is built from. The one exception is Compose resources,
+a small library of JetBrains' that loads the bundled fonts.
+
+Gradle takes the newer of two versions, so an app on an older Compose BOM has
+Compose raised to 1.12.1 with the library, as it would for any library built on
+it. Kotlin, `minSdk` and the rest are as under [Requirements](#requirements).
+Checked in November 2026 with an app on the Android Gradle plugin 9.3 and
+Kotlin 2.4.10, on a Pixel: the theme, the fonts, a sheet and the icons.
 
 ---
 

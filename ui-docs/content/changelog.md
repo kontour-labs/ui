@@ -29,11 +29,29 @@ On `main`, and in the next release.
 
 ### Added
 
+- **[In a Jetpack Compose app](installing.md#in-a-jetpack-compose-app).** An
+  Android app that is not multiplatform takes the same artifacts with no
+  multiplatform plugin: on Android the library runs on Jetpack Compose itself.
+  Now said, and checked with a plain Android app on a phone.
 - **A segmented control's options can have icons.** `optionIcon`, or `icons`
   by position on the overload taking strings, puts a glyph before each
   option's words, in their colour and fading with them. The words stay, and
   the icon's room counts in whether the segments fit side by side. Both are
   defaulted parameters at the end, so a call as it stands compiles unchanged.
+
+### Changed
+
+- **An Android app no longer gets `ui-tooling` from the library.** `:ui` named
+  it for Android though nothing used it, so every app's release build carried
+  it, previews' activity in its manifest and all. An app that uses
+  `@Preview` adds `ui-tooling` itself, as a `debugImplementation`.
+- **`SheetState.animateTo` says that it throws when another move takes the
+  sheet from it.** A finger landing on a moving sheet catches it, and the code
+  that sent it gets a `CancellationException`, as from any Compose animation
+  sharing a mutex. Thrown inside a `collect`, it ends the collect: an app's
+  watcher meant to send a sheet away whenever it came to rest stopped after
+  the first catch, and the sheet stayed up. Nothing changed in the sheet; the
+  documentation says what to do, and both halves are checked on every build.
 
 ### Fixed
 
@@ -51,16 +69,6 @@ On `main`, and in the next release.
   the track to be the control's (2.5 across to 1 along); a drag from one end to
   the other on a slant still is, and so is one begun along the track that
   wanders far off it. Found in a first run with three in a row in a sheet.
-
-### Changed
-
-- **`SheetState.animateTo` says that it throws when another move takes the
-  sheet from it.** A finger landing on a moving sheet catches it, and the code
-  that sent it gets a `CancellationException`, as from any Compose animation
-  sharing a mutex. Thrown inside a `collect`, it ends the collect: an app's
-  watcher meant to send a sheet away whenever it came to rest stopped after
-  the first catch, and the sheet stayed up. Nothing changed in the sheet; the
-  documentation says what to do, and both halves are checked on every build.
 
 ---
 

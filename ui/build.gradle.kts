@@ -232,7 +232,12 @@ kotlin {
         }
 
         androidMain.dependencies {
-            implementation(libs.compose.uiTooling)
+            // No `ui-tooling`: nothing here uses it, and it is a debug
+            // artifact. As an `implementation` of an Android library it
+            // reached every app's release build at runtime, previews' activity
+            // in its manifest and all. Found putting the library in a plain
+            // Jetpack Compose app, November 2026.
+            //
             // The document picker behind `rememberFilePicker`: an activity's
             // result registry, reached through `LocalActivityResultRegistryOwner`.
             implementation(libs.androidx.activity.compose)
