@@ -60,6 +60,12 @@ to change in an app; [Migrating](migrating.md#054-to-055) has what to check.
   watcher meant to send a sheet away whenever it came to rest stopped after
   the first catch, and the sheet stayed up. Nothing changed in the sheet; the
   documentation says what to do, and both halves are checked on every build.
+- **The icons are Tabler 3.51.0.1**, from 3.51.0: the same icons, each now
+  kept as Tabler's own path data and drawn from it the first time it is read,
+  rather than compiled as code. An icon an app draws is about a quarter of the
+  size it was in an iOS release build (3.4 KB against 12.4 KB, measured), and
+  the sets are a third of the size on the JVM. `io.kontour:tabler-icons-outline`
+  and `-filled`, which the library's own icons are drawn from.
 
 ### Fixed
 
