@@ -15,6 +15,40 @@ from the version the app is on.
 
 ---
 
+## 0.5.4 to 0.5.5
+
+Nothing to change: every call compiles as it is. `SegmentedControl`'s two
+overloads each grow a defaulted parameter at the end, `optionIcon` and `icons`,
+which a call by position or by name does not notice; a library of your own
+built against 0.5.4 that calls it is rebuilt against 0.5.5, as the modules are
+kept on one version anyway. The rest behaves differently, under **Check**.
+
+### Check
+
+- **Android Studio's previews.** `:ui` no longer brings `ui-tooling` to an
+  Android app. An app whose `@Preview`s rendered only because the library
+  brought it adds it, for debug builds alone:
+  `debugImplementation("androidx.compose.ui:ui-tooling")`. A release build is
+  smaller by it, and no longer has its preview activity in the manifest.
+- **A drag that starts on a segmented control.** Side by side, one that starts
+  more than about 68° off the track (2.5 across for 1 along) scrolls the page
+  rather than moving the thumb, and choosing nothing. A test that dragged a
+  thumb more steeply than that, or that expected a page not to scroll from a
+  control, changes. A drag begun along the track keeps the thumb however far
+  it wanders.
+- **A sheet's tick.** Let go, a sheet plays its `Snap` as the release sends it
+  to a detent, a frame or two after the finger lifts, not once it has landed. A
+  test that recorded haptics after waiting for the sheet to settle still hears
+  it; one that checked there was none until it had landed changes.
+- **Code that moves a sheet and waits for it.** Nothing changed, but
+  `SheetState.animateTo` now says that it throws a `CancellationException`
+  when a finger catches the sheet on its way or another move replaces it.
+  Called inside a `collect`, that ends the collect. A watcher meant to send a
+  sheet away whenever it comes to rest catches it and goes on:
+  [When a finger catches a sheet you moved](components/sheets.md#when-a-finger-catches-a-sheet-you-moved).
+
+---
+
 ## 0.5.3 to 0.5.4
 
 0.5.4 is mostly the web, and a phone's browser above all. An app's page needs a

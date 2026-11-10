@@ -2,7 +2,9 @@
 
 A Compose Multiplatform design system, built on **Foundation** — no Material.
 
-Android, iOS, desktop and the web from one source set.
+Android, iOS, desktop and the web from one source set, and a plain Jetpack
+Compose app on Android takes the same artifacts: see
+[In a Jetpack Compose app](ui-docs/content/installing.md#in-a-jetpack-compose-app).
 <!--counts-->176 public components across 135 pages<!--/counts-->, every one with
 a demo you can operate, a compiled example and a generated parameter table.
 

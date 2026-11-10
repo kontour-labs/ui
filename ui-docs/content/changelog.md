@@ -27,6 +27,14 @@ The version an app is on is the `kontour` entry in its version catalog. See
 
 On `main`, and in the next release.
 
+Plain Jetpack Compose apps, said and checked: an Android app that is not
+multiplatform takes the same artifacts, and on Android the library runs on
+Jetpack Compose itself; it no longer brings `ui-tooling` with it. A segmented
+control's options can have icons, and a page scrolls from one. A sheet let go
+ticks as it snaps rather than once it has landed, and `SheetState.animateTo`
+says what a finger catching the sheet does to the code that moved it. Nothing
+to change in an app; [Migrating](migrating.md#054-to-055) has what to check.
+
 ### Added
 
 - **[In a Jetpack Compose app](installing.md#in-a-jetpack-compose-app).** An
