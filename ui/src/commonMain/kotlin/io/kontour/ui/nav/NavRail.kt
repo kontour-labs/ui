@@ -1,6 +1,7 @@
 package io.kontour.ui.nav
 
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.widthIn
 import io.kontour.ui.theme.clipProxy
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
@@ -50,6 +51,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onPlaced
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.heading
@@ -160,12 +162,17 @@ object NavRailDefaults {
  *   [NavMarkerDrag]. Only while the rail has nothing to scroll: a rail whose
  *   destinations run past its foot scrolls instead, and which it is is asked as
  *   each drag begins, so a window that grows or shrinks changes it.
+ * @param collapsedWidth The rail at its narrowest. Its icons are centred in it
+ *   at any width from 72dp, and stay where they are as it grows.
  * @param header Above the destinations, at their leading edge: a logo, an
- *   account. A column, laid out as one.
- * @param footer Below them: settings, a sign-out.
+ *   account. A column, laid out as one. Anything in it narrower than a glyph
+ *   box, [NavRailDefaults.GlyphSize] — an `IconButton`, a search pill — is
+ *   centred on the destinations' icons.
+ * @param footer Below them: settings, a sign-out. Laid out as [header] is.
  * @param windowInsets What the rail's content keeps clear of — the status bar,
  *   the gesture bar, and the cutout on the leading side, which a landscape
- *   phone puts exactly where the rail is.
+ *   phone puts exactly where the rail is. The rail is wider by what it clears
+ *   on its sides, so its icons have the whole of [collapsedWidth].
  */
 @Composable
 fun NavRail(
@@ -209,6 +216,7 @@ fun NavRail(
         remember(fixed) { { fixed } }
     }
     val reveal = rememberRailReveal(progress, reduceMotion = motion.reduceMotion)
+    val edge = railEdge(collapsedWidth)
 
     // Published to the header, the footer and anything in them, so slot content
     // answers the same question the destinations do from the animated width
@@ -231,7 +239,15 @@ fun NavRail(
                 // wherever a caller's modifier puts the rail.
                 .zIndex(1f)
                 .layout { measurable, constraints ->
-                    val w = constraints.constrainWidth(railWidth.value.roundToPx())
+                    // **The rail's width is its own, beside whatever it keeps
+                    // clear of.** A cutout or a navigation bar on the rail's
+                    // side was taken out of [collapsedWidth], so a landscape
+                    // phone's 88dp rail had a few dp left for its icons and
+                    // drew them over its far edge. Changed 2026-11-14 for 0.5.6:
+                    // the rail grows by the insets on its two sides, and the
+                    // icons sit where they would with none.
+                    val sides = windowInsets.getLeft(this, layoutDirection) + windowInsets.getRight(this, layoutDirection)
+                    val w = constraints.constrainWidth(railWidth.value.roundToPx() + sides)
                     val placeable = measurable.measure(constraints.copy(minWidth = w, maxWidth = w))
                     layout(w, placeable.height) { placeable.place(0, 0) }
                 }
@@ -248,7 +264,7 @@ fun NavRail(
                     // Inside the surface, so the rail's colour reaches the window's
                     // edge and the cutout sits on the rail.
                     .windowInsetsPadding(windowInsets)
-                    .padding(horizontal = Theme.spacing.xs, vertical = Theme.spacing.md),
+                    .padding(horizontal = edge, vertical = Theme.spacing.md),
                 // Leading-aligned at every width, as the rows are, so nothing
                 // moves at the halfway frame of an expansion.
                 horizontalAlignment = Alignment.Start,
@@ -271,10 +287,7 @@ fun NavRail(
                         )
                     }
                 }
-                if (header != null) {
-                    // A column of its own, at the rows' content edge.
-                    Column(Modifier.padding(start = Theme.spacing.sm), content = header)
-                }
+                if (header != null) RailSlot(header)
                 RailItems(
                     modifier = Modifier.weight(1f).fillMaxWidth(),
                     colours = colours,
@@ -285,9 +298,7 @@ fun NavRail(
                     afterClick = null,
                     content = content,
                 )
-                if (footer != null) {
-                    Column(Modifier.padding(start = Theme.spacing.sm), content = footer)
-                }
+                if (footer != null) RailSlot(footer)
             }
         }
     }
@@ -302,7 +313,9 @@ fun NavRail(
  * }
  * ```
  *
- * Always at its widest, so its groups open in place. Renders through
+ * Always at its widest, so its groups open in place. Its icons, header and
+ * footer are where a [NavRail]'s are, so a rail and the drawer that stands in
+ * for it on a phone line up. Renders through
  * [ModalSideSheet], so it stacks with dialogs, dims the page and closes on back
  * or by being dragged towards its edge.
  *
@@ -361,10 +374,12 @@ fun ModalNavRail(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = Theme.spacing.xs, vertical = Theme.spacing.md),
+                    // The collapsed rail's edge, so the drawer's icons are where
+                    // a rail's are.
+                    .padding(horizontal = railEdge(NavRailDefaults.CollapsedWidth), vertical = Theme.spacing.md),
                 verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
             ) {
-                if (header != null) Column(Modifier.padding(start = Theme.spacing.sm), content = header)
+                if (header != null) RailSlot(header)
                 RailItems(
                     modifier = Modifier.weight(1f).fillMaxWidth(),
                     colours = colours,
@@ -375,7 +390,7 @@ fun ModalNavRail(
                     afterClick = if (dismissOnItemClick) ({ closing = true }) else null,
                     content = content,
                 )
-                if (footer != null) Column(Modifier.padding(start = Theme.spacing.sm), content = footer)
+                if (footer != null) RailSlot(footer)
             }
         }
     }
@@ -795,6 +810,60 @@ private fun RailToggle(
             stateDescription = if (expanded) strings.expanded else strings.collapsed
         },
     )
+}
+
+/**
+ * How far in from the rail's sides its column is: whatever puts a row's glyph
+ * box in the middle of [collapsedWidth], after the row's own `sm`.
+ *
+ * It was `xs` whatever the width, which centres the icons in the default 88dp
+ * and nowhere else: a rail given 80 had its icons 4dp right of centre, and kept
+ * them there as it grew, because nothing in a rail moves sideways as it opens.
+ * Derived since 0.5.6, it is still `xs` at 88, and the icons still do not move:
+ * the edge depends on the collapsed width, never on the width now. Below 72dp
+ * there is no room left to centre in, and the edge stops at nothing.
+ */
+@Composable
+@ReadOnlyComposable
+private fun railEdge(collapsedWidth: Dp): Dp =
+    ((collapsedWidth - NavRailDefaults.GlyphSize.width) / 2 - Theme.spacing.sm).coerceAtLeast(0.dp)
+
+/**
+ * A rail's header or footer: a column of its own at the rows' content edge,
+ * with anything narrower than a glyph box centred on the destinations' icons.
+ *
+ * It put everything at the content edge, so the one thing in most footers — an
+ * `IconButton`, 44dp across where a glyph box is 48 — sat 2dp left of the icons
+ * above it, and so did a search pill: *"when it's collapsed, the icons don't tend
+ * to be centred"*, reported for 0.5.6. Apps wrapped their own in a glyph-wide
+ * box to get round it, which still works. Something as wide as a glyph box or
+ * wider — a field, a logo and a name — starts at the content edge as before,
+ * and the two meet without a step: the inset shrinks to nothing as a child
+ * grows to the box's width. It is the same at every width of the rail, so
+ * nothing in a slot moves sideways as the rail grows.
+ */
+@Composable
+private fun RailSlot(content: @Composable ColumnScope.() -> Unit) {
+    val glyph = NavRailDefaults.GlyphSize.width
+    val box = with(LocalDensity.current) { glyph.roundToPx() }
+    Column(
+        // At least a glyph box wide, so the centring has the room to happen in.
+        modifier = Modifier.padding(start = Theme.spacing.sm).widthIn(min = glyph),
+        horizontalAlignment = remember(box) { OnGlyphs(box) },
+        content = content,
+    )
+}
+
+/** Centred on a glyph box at the start of the space, for anything narrower than one. */
+private class OnGlyphs(private val box: Int) : Alignment.Horizontal {
+    override fun align(size: Int, space: Int, layoutDirection: LayoutDirection): Int {
+        val inset = ((box - size) / 2).coerceAtLeast(0)
+        return if (layoutDirection == LayoutDirection.Ltr) inset else space - size - inset
+    }
+
+    override fun equals(other: Any?): Boolean = other is OnGlyphs && other.box == box
+
+    override fun hashCode(): Int = box
 }
 
 /** A section's title, or the hairline that stands in for it. */

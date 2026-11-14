@@ -27,8 +27,28 @@ The version an app is on is the `kontour` entry in its version catalog. See
 
 On `main`, and in the next release.
 
+### Changed
+
+- **A rail's header and footer sit on its icons.** Anything in them narrower
+  than a glyph box, 48dp, is centred on the destinations' icons rather than
+  starting at their edge: an `IconButton` in a footer and a rail's search
+  pill, both 44dp, move 2dp, in a `NavRail`, a sidebar and a `ModalNavRail`
+  alike, and something smaller moves further. Wider content starts where it
+  did, and a button an app had wrapped in a glyph-wide box to centre it stays
+  put. Nothing moves sideways as a rail grows, as before.
+- **A rail is wider by the insets on its sides.** A cutout or a navigation
+  bar on the rail's edge came out of its width, so on a landscape phone the
+  icons were pushed off its centre and past its far edge. The rail now has
+  its whole width beside them, and the content beside the rail is that much
+  narrower. Nothing changes where there are no side insets: a desktop window,
+  a browser, a phone upright.
+
 ### Fixed
 
+- **A collapsed rail of a width of its own centres its icons.** They were
+  centred at the default 88dp and nowhere else: a `NavRail(collapsedWidth =
+  80.dp)` had them 4dp right of centre. The rail's edge is now worked out from
+  `collapsedWidth`, and is the same 8dp at 88.
 - **A scroll over a dimmed overlay's backdrop leaves it open.** A mouse wheel
   or a trackpad turned anywhere over the scrim of a `Dialog`, a modal sheet,
   the command palette or a rail's opened drawer closed it, as though it had

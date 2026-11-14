@@ -142,6 +142,11 @@ class NavRailFixedTest {
      * documentation promises that rather than a column across the rail. A
      * start-aligned sibling is measured too, so a centre that is really the
      * column's start cannot pass.
+     *
+     * The unaligned one is centred on the destinations' icons since 0.5.6,
+     * where it used to start at the column's edge: anything in a header
+     * narrower than a glyph box is, so a footer's `IconButton` and a search
+     * pill sit on the icons above them. See `NavRailCentringTest`.
      */
     @Test
     fun theHeaderIsAColumn() = runComposeUiTest {
@@ -172,10 +177,13 @@ class NavRailFixedTest {
             "a header child aligned CenterHorizontally is centred at x=${centred.center.x}, not on its " +
                 "column's centre at x=${wide.center.x}",
         )
+        // A 24dp child on a 48dp glyph box at the column's start: 12dp in, at
+        // this test's density of 1.
         assertTrue(
-            abs(start.left - wide.left) <= 1f && centred.left - start.left > 10f,
+            abs(start.left - (wide.left + 12f)) <= 1f && centred.left - start.left > 10f,
             "the header's unaligned child starts at x=${start.left} and the centred one at " +
-                "x=${centred.left} against a column from x=${wide.left} — alignment did nothing",
+                "x=${centred.left} against a column from x=${wide.left}: the unaligned one should be on " +
+                "the icons, 12px in, and the centred one well past it",
         )
     }
 }
