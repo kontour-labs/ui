@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.takeOrElse
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
+import io.kontour.ui.a11y.contrastEdge
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.lazy.LazyListState
@@ -368,6 +369,12 @@ fun TopBar(
                         .heightIn(min = TopBarDefaults.Height)
                         .padding(horizontal = Theme.spacing.xs),
                     centred = style == TopBarStyle.Centred,
+                    // The title's own `xs` is room enough beside a button that
+                    // draws nothing round its glyph. At the high-contrast tier
+                    // it draws a ring round its whole box, and the title keeps
+                    // `sm` from the box, as a sheet header's does: see
+                    // `CentredBar`'s `gap`.
+                    gap = ringRoom(),
                     leading = { BarNavigation(onBack, backLabel, backIcon, navigation) },
                     title = {
                         // Centred when the bar could centre it and started when it
@@ -874,6 +881,8 @@ private fun LargeBar(
     // The least scroll a collapse is spread over. See `TopBarCollapseState.travel`.
     val leastTravel = TopBarDefaults.LargeHeight - TopBarDefaults.Height
     val gutter = Theme.spacing.xs
+    // Collapsed, it is a Small bar, and keeps a Small bar's room from a ringed button.
+    val ring = ringRoom()
     val margin = Theme.spacing.md
     val below = Theme.spacing.sm
     val above = Theme.spacing.md
@@ -974,6 +983,7 @@ private fun LargeBar(
         val width = constraints.maxWidth
         val row = rowHeight.roundToPx()
         val gutterPx = gutter.roundToPx()
+        val ringPx = ring.roundToPx()
         val marginPx = margin.roundToPx()
         val loose = Constraints(maxWidth = width)
         val lead = leadingPart.firstOrNull()?.measure(loose.copy(maxHeight = row))
@@ -984,8 +994,8 @@ private fun LargeBar(
         // Where a Small bar's title goes: after the back button and a gutter
         // each side of it, or a margin in; and up to a gutter short of the
         // actions. See `CentredBar`, which lays the Small bar out.
-        val smallStart = if (leadWidth > 0) gutterPx + leadWidth + gutterPx else marginPx
-        val smallEnd = width - gutterPx - actsWidth - gutterPx
+        val smallStart = if (leadWidth > 0) gutterPx + leadWidth + gutterPx + ringPx else marginPx
+        val smallEnd = width - gutterPx - actsWidth - gutterPx - if (actsWidth > 0) ringPx else 0
         val largeWidth = (width - marginPx * 2).coerceAtLeast(0)
         val smallWidth = (smallEnd - smallStart).coerceAtLeast(0)
         // The last line stops short of what is kept clear at its end.
@@ -2015,6 +2025,16 @@ internal fun BarNavigation(
         )
     }
 }
+
+/**
+ * What a bar's title keeps from its buttons beyond its own `xs`: nothing,
+ * except at the high-contrast tier, where a ghost button draws a ring round its
+ * whole box and the title keeps `sm` from the box, as a sheet header's does.
+ * See `CentredBar`'s `gap`.
+ */
+@Composable
+@ReadOnlyComposable
+private fun ringRoom(): Dp = if (contrastEdge() != null) Theme.spacing.sm - Theme.spacing.xs else 0.dp
 
 /** The title and its supporting line, each a line of whatever stacks them. */
 @Composable

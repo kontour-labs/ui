@@ -45,6 +45,13 @@ On `main`, and in the next release.
 
 ### Fixed
 
+- **A sheet header's title keeps clear of its buttons at high contrast.** At
+  the high-contrast tier a ghost `IconButton` draws its edge round its whole
+  box, and a `SheetHeader`'s title, placed straight after the back button
+  with the button's own padding as the room between them, ran into the ring.
+  At that tier the title now keeps `sm` from the back button and the
+  trailing controls, in every style, and a `TopBar`'s keeps the same; a
+  centred title stays centred. Nothing changes at the standard tier.
 - **A rail's search icon holds still as the rail grows.** A `NavSearch` in a
   rail's header put its icon 2dp short of the destinations' icons as a pill
   with its word, and 6dp short as the field it becomes, so the icon stepped
