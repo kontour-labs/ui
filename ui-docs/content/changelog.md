@@ -45,6 +45,12 @@ On `main`, and in the next release.
 
 ### Fixed
 
+- **A rail's search icon holds still as the rail grows.** A `NavSearch` in a
+  rail's header put its icon 2dp short of the destinations' icons as a pill
+  with its word, and 6dp short as the field it becomes, so the icon stepped
+  left twice on the way open. Both now put it on the icons, as the round pill
+  of a collapsed rail does. The field's clear button sits as far in from its
+  end.
 - **A collapsed rail of a width of its own centres its icons.** They were
   centred at the default 88dp and nowhere else: a `NavRail(collapsedWidth =
   80.dp)` had them 4dp right of centre. The rail's edge is now worked out from

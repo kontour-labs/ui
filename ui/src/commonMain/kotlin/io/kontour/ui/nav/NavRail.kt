@@ -39,6 +39,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -846,13 +847,25 @@ private fun railEdge(collapsedWidth: Dp): Dp =
 private fun RailSlot(content: @Composable ColumnScope.() -> Unit) {
     val glyph = NavRailDefaults.GlyphSize.width
     val box = with(LocalDensity.current) { glyph.roundToPx() }
-    Column(
-        // At least a glyph box wide, so the centring has the room to happen in.
-        modifier = Modifier.padding(start = Theme.spacing.sm).widthIn(min = glyph),
-        horizontalAlignment = remember(box) { OnGlyphs(box) },
-        content = content,
-    )
+    CompositionLocalProvider(LocalRailGlyphColumn provides glyph) {
+        Column(
+            // At least a glyph box wide, so the centring has the room to happen in.
+            modifier = Modifier.padding(start = Theme.spacing.sm).widthIn(min = glyph),
+            horizontalAlignment = remember(box) { OnGlyphs(box) },
+            content = content,
+        )
+    }
 }
+
+/**
+ * The width of the glyph box at the start of a rail's header or footer, whose
+ * middle is the destinations' icon column; null anywhere else.
+ *
+ * For what is in a slot and draws an icon of its own at its start. [NavSearch]
+ * puts its icon on the column whether it is a pill or a field, so the icon does
+ * not step sideways as one becomes the other halfway through a rail's growth.
+ */
+internal val LocalRailGlyphColumn = staticCompositionLocalOf<Dp?> { null }
 
 /** Centred on a glyph box at the start of the space, for anything narrower than one. */
 private class OnGlyphs(private val box: Int) : Alignment.Horizontal {

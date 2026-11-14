@@ -18,6 +18,8 @@ import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.nav.NavRail
+import io.kontour.ui.nav.NavSearch
+import io.kontour.ui.nav.rememberNavSearchState
 import io.kontour.ui.overlay.OverlayHost
 import java.awt.image.BufferedImage
 import kotlin.math.abs
@@ -138,6 +140,57 @@ class NavRailCentringTest {
             assertEquals(start, now, "frame $i of the growth: the icon moved from $start px to $now")
         }
         assertEquals(footer, m.footer.left, "the footer moved as the rail grew, from $footer px to ${m.footer.left}")
+    }
+
+    /**
+     * A search in the header holds its icon on the destinations' as the rail
+     * grows: round and centred, then a pill with its word, then a field.
+     *
+     * Reported for 0.5.6 as *"the search icon jump"*: the pill had its icon 2dp
+     * short of the icons and the field 6dp, so it stepped left twice on the way
+     * open, the second time by 4dp as the pill became the field.
+     */
+    @Test
+    fun aSearchInTheHeaderHoldsItsIconStill() {
+        var expanded by mutableStateOf(false)
+        var rail = Rect.Zero
+        var search = Rect.Zero
+        Scene(width = 800, height = 600, density = 2f) {
+            OverlayHost {
+                Row(Modifier.fillMaxSize()) {
+                    NavRail(
+                        modifier = Modifier.reportBounds { rail = it },
+                        expanded = expanded,
+                        onExpandedChange = { expanded = it },
+                        windowInsets = WindowInsets(0),
+                        header = {
+                            NavSearch(
+                                state = rememberNavSearchState(),
+                                modifier = Modifier.reportBounds { search = it },
+                                searchIcon = Square,
+                            )
+                        },
+                    ) {
+                        item(false, {}, key = "square", icon = Square) { +"Square" }
+                    }
+                }
+            }
+        }.use { scene ->
+            scene.frames(20)
+            val left = rail.left.toInt()
+            val collapsed = ink(scene.frame(), search, left, left + 176)
+            val centre = (rail.left + rail.right) / 2f
+            assertTrue(
+                abs((collapsed.first + collapsed.last + 1) / 2f - centre) <= 1f,
+                "the collapsed search's icon is at ${collapsed.first}..${collapsed.last} px, the rail's centre at $centre",
+            )
+            expanded = true
+            repeat(40) { i ->
+                // The icon's left edge: the word and the field's text come to its right.
+                val now = ink(scene.frame(), search, left, left + 176).first
+                assertEquals(collapsed.first, now, "frame $i of the growth: the search icon moved from ${collapsed.first} px to $now")
+            }
+        }
     }
 
     private companion object {
