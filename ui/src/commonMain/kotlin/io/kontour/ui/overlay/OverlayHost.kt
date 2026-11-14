@@ -183,8 +183,19 @@ class OverlayEntry(
      * Turn it off for anything holding work in progress — a popover with a form
      * in it — and accept that the page is frozen while it is open, which for a
      * form is usually the right trade anyway.
+     *
+     * **Off for anything that dims**, whatever [dismissOnOutside] says. Changed
+     * 2026-11-14 for 0.5.6, reported as *"scrolling (with a mouse/trackpad)
+     * over the overlay's backdrop will close the overlay. that shouldn't
+     * happen"*: a dialog, a modal sheet, the command palette and the rail's
+     * opened drawer all closed on a wheel turned anywhere over their scrim. The
+     * reasoning above is a light overlay's. A dimmed one has already said the
+     * page is unavailable, so there is nothing behind it a scroll could be
+     * meant for, and the scroll closed a thing the reader was in the middle of.
+     * A tap on the scrim still closes it: that is a choice, and a scroll on the
+     * way past is not.
      */
-    val dismissOnScroll: Boolean = dismissOnOutside,
+    val dismissOnScroll: Boolean = dismissOnOutside && scrim != ScrimStyle.Dimmed,
     val dismissOnBack: Boolean = true,
     val trapFocus: Boolean = true,
     val dismissLabel: String? = null,
@@ -244,7 +255,8 @@ class OverlayEntry(
      * [dismissOnOutside], [dismissOnBack] and [dismissOnScroll] as they were
      * built.
      *
-     * Set, it answers for all three. The flags are fixed when the entry is
+     * Set, it answers for all three — for a scroll, only ever with a no: see
+     * [scrollDismisses]. The flags are fixed when the entry is
      * published, and a component publishes its entry when it is shown, so a
      * `dismissible` that changed while it was up changed nothing: a form sheet
      * opened with `dismissible = !form.dirty` could still be tapped away after
@@ -262,8 +274,16 @@ class OverlayEntry(
     /** [dismissOnBack], or [dismissibleNow] where there is one. */
     internal val backDismisses: Boolean get() = dismissibleNow?.invoke() ?: dismissOnBack
 
-    /** [dismissOnScroll], or [dismissibleNow] where there is one. */
-    internal val scrollDismisses: Boolean get() = dismissibleNow?.invoke() ?: dismissOnScroll
+    /**
+     * [dismissOnScroll], and [dismissibleNow] where there is one.
+     *
+     * *And*, not *or*, unlike the other two: [dismissibleNow] says whether the
+     * entry may be dismissed at all, not whether a scroll is a way to ask. Read
+     * as an answer for all three, it made every sheet and dialog that takes
+     * `dismissible` close on a scroll over its scrim, whatever its
+     * [dismissOnScroll] was.
+     */
+    internal val scrollDismisses: Boolean get() = dismissOnScroll && dismissibleNow?.invoke() != false
 }
 
 /**

@@ -25,7 +25,19 @@ The version an app is on is the `kontour` entry in its version catalog. See
 
 ## Unreleased
 
-On `main`, and in the next release. Nothing yet.
+On `main`, and in the next release.
+
+### Fixed
+
+- **A scroll over a dimmed overlay's backdrop leaves it open.** A mouse wheel
+  or a trackpad turned anywhere over the scrim of a `Dialog`, a modal sheet,
+  the command palette or a rail's opened drawer closed it, as though it had
+  been tapped. Anything that dims now stays open through a scroll, which does
+  nothing, as the page behind is not the reader's while it is up; a tap or a
+  click on the scrim still closes it. `OverlayEntry.dismissOnScroll` defaults to
+  false for a dimmed entry, and so does `Popover`'s with `ScrimStyle.Dimmed`.
+  A menu, a dropdown and a light popover still close on a scroll, so the page
+  under them can move.
 
 ---
 

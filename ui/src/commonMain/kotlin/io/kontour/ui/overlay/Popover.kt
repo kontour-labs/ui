@@ -76,7 +76,9 @@ import io.kontour.ui.theme.Theme
  *   stray tap.
  * @param dismissOnScroll Whether a scroll anywhere closes it. True by default,
  *   which is right for a legend or a summary: it is anchored to something that is
- *   about to move.
+ *   about to move. False by default with a [ScrimStyle.Dimmed] [scrim], which
+ *   says the popover holds something worth keeping and the page is not the
+ *   reader's to scroll while it is open (since 0.5.6).
  *
  *   **Turn it off for a popover holding a control that scrolls** — a wheel picker,
  *   a list, anything a drag is meant to reach — or the drag that operates it is
@@ -94,7 +96,7 @@ fun Popover(
     scrim: ScrimStyle = ScrimStyle.Transparent,
     showArrow: Boolean = true,
     maxWidth: Dp = PopoverDefaults.MaxWidth,
-    dismissOnScroll: Boolean = true,
+    dismissOnScroll: Boolean = scrim != ScrimStyle.Dimmed,
     title: (@Composable ContentScope.() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) = PopoverImpl(visible, onDismissRequest, modifier, side, alignment, scrim, showArrow, maxWidth, dismissOnScroll, hidden = { false }, title, content)
