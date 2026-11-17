@@ -29,6 +29,10 @@ On `main`, and in the next release. Nothing yet.
 
 ---
 
+### Changed
+
+- **The icons are Tabler 3.52.0**, from 3.51.0.1: `io.kontour:tabler-icons-outline` and `-filled`, which the library's own icons are drawn from.
+
 ## 0.5.5 — 10 November 2026
 
 Plain Jetpack Compose apps, said and checked: an Android app that is not
