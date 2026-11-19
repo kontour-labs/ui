@@ -62,6 +62,15 @@ On `main`, and in the next release.
   centred at the default 88dp and nowhere else: a `NavRail(collapsedWidth =
   80.dp)` had them 4dp right of centre. The rail's edge is now worked out from
   `collapsedWidth`, and is the same 8dp at 88.
+- **A mouse picks things up inside a selection region.** A `dragSource`, a
+  drop list's item and its `dragHandle()` inside a `SelectableText` (or any
+  `SelectionContainer`), `DisableSelection` or not, could not be picked up by
+  a hand on a mouse or a trackpad: the selection consumed the first few small
+  movements, and the pick-up gave up on them before it reached its slop. Every
+  page of the documentation is one selection region, so its drag-and-drop demo
+  could not be used on a desktop browser at all. A mouse's press on something
+  that can be picked up is now the pick-up's, and a selection round it does not
+  start; what is inside it, a button on a card, still has the press first.
 - **A scroll over a dimmed overlay's backdrop leaves it open.** A mouse wheel
   or a trackpad turned anywhere over the scrim of a `Dialog`, a modal sheet,
   the command palette or a rail's opened drawer closed it, as though it had

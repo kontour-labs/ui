@@ -148,6 +148,27 @@ internal suspend fun PointerInputScope.detectPickUp(
         val buttons = currentEvent.buttons
         if (down.type == PointerType.Mouse && (buttons.isSecondaryPressed || buttons.isTertiaryPressed)) return@awaitEachGesture
         if (!accepts(down.position)) return@awaitEachGesture
+        // **A mouse's press on something that can be picked up is this
+        // detector's**, and nothing above it starts a gesture of its own on it.
+        //
+        // A `SelectionContainer` selects between texts with a mouse, over the
+        // whole of itself, `DisableSelection` or not, and it starts on any
+        // primary press nobody has consumed. It then consumed every movement on
+        // its way to selecting, after this detector had seen it, and the slop
+        // wait below gives up on a movement something else consumed: a mouse
+        // drag never picked anything up. A test's first step went past the slop
+        // in one move and was taken before the selection saw it; a hand's first
+        // steps are a pixel or two. Reported for 0.5.6 from the documentation,
+        // whose pages are one selection region: *"i can't pick items up on
+        // desktop web at all"*.
+        //
+        // Main runs from the innermost node out, so whatever is inside this one
+        // — a card's buttons, a row's own click — has had the press already, and
+        // only what is outside it finds it taken: a selection, and a click
+        // around the whole source, which a press that may become a drag is not
+        // for. A mouse only: a finger's press is a scroll until its hold says
+        // otherwise, and what it scrolls is outside.
+        if (down.type == PointerType.Mouse) down.consume()
         // A mouse on a whole row with things of its own in it — a click, a
         // swipe: see [decidesForMouse]. Taken by the pointer that went down,
         // not by the input last used, which a touch before it left reading
