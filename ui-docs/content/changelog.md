@@ -71,6 +71,13 @@ On `main`, and in the next release.
   could not be used on a desktop browser at all. A mouse's press on something
   that can be picked up is now the pick-up's, and a selection round it does not
   start; what is inside it, a button on a card, still has the press first.
+- **A card held at the top of a web page keeps its touch.** In a browser on a
+  phone, a finger drifting down a few points while it held a card at the top of
+  a page made the page's list begin a scroll it had no room for, and the
+  browser took the touch from the app: the card never lifted, or let go of
+  itself. While a finger holds something to pick it up, a scroll's leftover at
+  an edge is now kept from the browser. A finger that means to scroll the page
+  still does. The web only.
 - **A scroll over a dimmed overlay's backdrop leaves it open.** A mouse wheel
   or a trackpad turned anywhere over the scrim of a `Dialog`, a modal sheet,
   the command palette or a rail's opened drawer closed it, as though it had

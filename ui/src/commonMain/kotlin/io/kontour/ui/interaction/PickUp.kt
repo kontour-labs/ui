@@ -20,6 +20,7 @@ import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlin.math.abs
+import io.kontour.ui.platform.browserTakesUnclaimedTouchMoves
 import kotlinx.coroutines.withTimeoutOrNull
 
 /**
@@ -118,6 +119,11 @@ internal const val MouseDecisionShare = 0.4f
  *   grip could, and the grip read that as its pointer taken and put the row
  *   down. Reported as *"with drag handles in the reorderable item, it just
  *   drops it sometimes after like 1 or 2 positions"*.
+ * @param claimsStrays Whether a finger's hold counts in [HeldTouches], so a
+ *   scroll that reaches the edge while it is held is not the browser's: see
+ *   [keepsHeldTouches]. The web's default, and only the web's: see
+ *   [io.kontour.ui.platform.browserTakesUnclaimedTouchMoves]. A parameter so a
+ *   test on the JVM can ask for it.
  * @param exclusive Whether, once picked up, the carry is this detector's alone:
  *   each move taken on the initial pass, before anything inside the node hears
  *   it, so nothing in it — a row's swipe actions — can claim a carry already
@@ -138,6 +144,7 @@ internal suspend fun PointerInputScope.detectPickUp(
     decidesForMouse: Boolean = false,
     onHeld: () -> Unit = {},
     takes: () -> Boolean = { true },
+    claimsStrays: Boolean = browserTakesUnclaimedTouchMoves,
 ) {
     val budget = PickUpHoldSlop.toPx()
     awaitEachGesture {
@@ -220,7 +227,10 @@ internal suspend fun PointerInputScope.detectPickUp(
             // `withTimeoutOrNull` returning null is the *success* here: the loop
             // inside it only ever returns early, so reaching the deadline means
             // the finger stayed put for the whole of it.
-            val gaveUp = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
+            // A finger's or a pen's: a mouse never pans the page.
+            val claims = claimsStrays && down.type != PointerType.Mouse
+            if (claims) HeldTouches.count++
+            val gaveUp = try { withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
                 while (true) {
                     val event = awaitPointerEvent(PointerEventPass.Main)
                     val change = event.changes.firstOrNull { it.id == down.id }
@@ -237,6 +247,8 @@ internal suspend fun PointerInputScope.detectPickUp(
                         }
                     }
                 }
+            } } finally {
+                if (claims) HeldTouches.count--
             }
             if (gaveUp != null || !takes()) return@awaitEachGesture
             onHeld()
