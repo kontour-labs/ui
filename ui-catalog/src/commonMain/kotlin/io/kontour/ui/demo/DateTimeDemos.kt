@@ -174,9 +174,20 @@ internal val CalendarMonthDemo = ComponentDemo(slug = "calendar-month") {
 
 private val twelveHour = Knob.Flag("12-hour")
 
+/**
+ * A bound on the wheels: none, a time off the five-minute steps, which the
+ * minutes start at the step after, and the afternoon, which on a 12-hour clock
+ * leaves no morning to offer.
+ */
+private val earliestTime = Knob.Choice(
+    "Earliest",
+    listOf(null, LocalTime(9, 7), LocalTime(14, 0)),
+    name = { it?.let { time -> "${time.hour}:${time.minute.toString().padStart(2, '0')}" } ?: "Off" },
+)
+
 internal val TimePickerDemo = ComponentDemo(
     slug = "time-picker",
-    knobs = listOf(twelveHour),
+    knobs = listOf(twelveHour, earliestTime),
 ) {
     var at by remember { mutableStateOf(LocalTime(8, 15)) }
     // The 12/24-hour choice is a *convention* rather than a parameter, provided
@@ -187,11 +198,11 @@ internal val TimePickerDemo = ComponentDemo(
             formats.conventions.copy(hourCycle = if (this[twelveHour]) HourCycle.H12 else HourCycle.H23),
         ),
     ) {
-        TimePicker(value = at, onValueChange = { at = it }, minuteStep = 5)
+        TimePicker(value = at, onValueChange = { at = it }, minuteStep = 5, earliest = this@ComponentDemo[earliestTime])
     }
 }
 
-internal val DateTimePickerDemo = ComponentDemo(slug = "date-time-picker", knobs = listOf(twelveHour)) {
+internal val DateTimePickerDemo = ComponentDemo(slug = "date-time-picker", knobs = listOf(twelveHour, earliestTime)) {
     var leave by remember { mutableStateOf(LocalDateTime(LocalDate(2026, 6, 18), LocalTime(8, 15))) }
     // The clock is a convention, provided as an app would; see the time picker's.
     val formats = Theme.formats
@@ -212,6 +223,9 @@ internal val DateTimePickerDemo = ComponentDemo(slug = "date-time-picker", knobs
                 isDateSelectable = { it >= Today },
                 chooserIcon = Tabler.Outline.ChevronDown,
                 minuteStep = 5,
+                // On today: earlier days were already refused, and today's
+                // wheels start at it.
+                earliest = this@ComponentDemo[earliestTime]?.let { LocalDateTime(Today, it) },
             )
             Text("$leave", style = Theme.typography.labelSmall, colour = Theme.colours.contentMuted)
         }

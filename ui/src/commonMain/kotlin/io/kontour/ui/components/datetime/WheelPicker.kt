@@ -184,9 +184,21 @@ fun <T> WheelPicker(
  * middle, the drag a field played into it. Not the caller setting the value,
  * which [callerTurning] covers for as long as that move takes; a jump that
  * never shows as moving at all needs no covering.
+ *
+ * And only once the drum is [resting] on a row. Two still frames were taken
+ * for the end, and on iOS a fling's end and the turn onto the nearest row can
+ * be further apart than that: the rest was reported with the drum between two
+ * rows, a caller set its value from it, and the turn to that value began half a
+ * row out and stayed there — reported from Anyways' planner for 0.5.6, *"the
+ * hour wheel ends up halfway between 6 and 7, not on any row"*.
  */
 @Composable
-internal fun ReportsSettling(moving: () -> Boolean, callerTurning: () -> Boolean, onSettled: (() -> Unit)?) {
+internal fun ReportsSettling(
+    moving: () -> Boolean,
+    callerTurning: () -> Boolean,
+    onSettled: (() -> Unit)?,
+    resting: () -> Boolean = { true },
+) {
     if (onSettled == null) return
     val settled by rememberUpdatedState(onSettled)
     LaunchedEffect(Unit) {
@@ -205,6 +217,12 @@ internal fun ReportsSettling(moving: () -> Boolean, callerTurning: () -> Boolean
             // a row early, and again at the real one. Moving again cancels this.
             withFrameNanos { }
             withFrameNanos { }
+            // On a row, or not yet at rest: whatever puts it there moves it
+            // again, which starts this over. A second at most, so a drum that
+            // cannot be put on one still says it stopped rather than waiting
+            // on every frame for good.
+            var frames = 0
+            while (!resting() && frames++ < 60) withFrameNanos { }
             if (!byCaller) settled()
             was = false
             byCaller = false
@@ -322,6 +340,15 @@ internal fun <T> WheelDrum(
     onSettled: (() -> Unit)? = null,
     turn: WheelTurn? = null,
     takesFocus: Boolean = true,
+    /**
+     * Each row's identity, for a finite drum whose rows change while it is
+     * shown: a [TimePicker] with `earliest`, whose minutes start at the bound
+     * on its hour and open up past it. Keyed, the list keeps the row in the
+     * band where it is as rows come and go above it; by position, the band
+     * showed whatever row now had the old index for a frame, and the drum then
+     * jumped back. Null, rows are their positions, as before.
+     */
+    itemKey: ((T) -> Any)? = null,
 ) {
     require(visibleItems % 2 == 1) {
         "WheelPicker's visibleItems must be odd so a row can sit in the centre, not $visibleItems"
@@ -622,19 +649,31 @@ internal fun <T> WheelDrum(
     }
 
     val callerTurning = remember { mutableStateOf(false) }
-    LaunchedEffect(selectedIndex) {
-        if (selectedIndex != centredIndex && !listState.isScrollInProgress) {
-            // Re-armed rather than left ticking: the drum is being turned by the
-            // caller, and a value set from code is not a detent a finger crossed.
-            // `scrollToItem` jumps, so exactly one emission follows and the
-            // re-arm swallows exactly it.
-            ticker.reset()
-            callerTurning.value = true
-            try {
-                listState.scrollToItem(selectedIndex)
-            } finally {
-                callerTurning.value = false
-            }
+    // Keyed on the scrolling as well as the value, so a value set while the
+    // drum is still moving — a caller answering a rest that came early, or a
+    // snap still under way — is followed once it is still, rather than skipped
+    // for good. And on a row: a drum still between two of them is put on the
+    // one it is showing. Reported for 0.5.6, a drum left half a row out.
+    val scrolling = listState.isScrollInProgress
+    LaunchedEffect(selectedIndex, scrolling) {
+        if (scrolling) return@LaunchedEffect
+        val offRow = listState.firstVisibleItemScrollOffset != 0
+        if (selectedIndex == centredIndex && !offRow) return@LaunchedEffect
+        // A frame for a snap that starts as the drag's scroll ends to begin.
+        withFrameNanos { }
+        if (listState.isScrollInProgress) return@LaunchedEffect
+        val target = selectedIndex.coerceIn(0, items.lastIndex)
+        if (target == centredIndex && listState.firstVisibleItemScrollOffset == 0) return@LaunchedEffect
+        // Re-armed rather than left ticking: the drum is being turned by the
+        // caller, and a value set from code is not a detent a finger crossed.
+        // `scrollToItem` jumps, so exactly one emission follows and the
+        // re-arm swallows exactly it, and it lands with the row in the band.
+        ticker.reset()
+        callerTurning.value = true
+        try {
+            listState.scrollToItem(target)
+        } finally {
+            callerTurning.value = false
         }
     }
     // A turn the caller asked to be seen: the drum scrolls through the rows
@@ -660,7 +699,12 @@ internal fun <T> WheelDrum(
             request.done.complete(arrived)
         }
     }
-    ReportsSettling(moving = { listState.isScrollInProgress }, callerTurning = { callerTurning.value }, onSettled = onSettled)
+    ReportsSettling(
+        moving = { listState.isScrollInProgress },
+        callerTurning = { callerTurning.value },
+        onSettled = onSettled,
+        resting = { listState.firstVisibleItemScrollOffset == 0 },
+    )
 
     /**
      * A drum you can grab with a mouse.
@@ -869,9 +913,9 @@ internal fun <T> WheelDrum(
      */
     val rowColour = if (enabled) Theme.colours.content else Theme.colours.contentDisabled
     val enhanced = highContrast()
-    val rows: LazyListScope.() -> Unit = remember(items, itemLabel, itemHeight, drumDistance, rowColour) {
+    val rows: LazyListScope.() -> Unit = remember(items, itemLabel, itemHeight, drumDistance, rowColour, itemKey) {
         {
-            items(items.size) { index ->
+            items(items.size, key = itemKey?.let { key -> { index: Int -> key(items[index]) } }) { index ->
                 Box(
                     Modifier.fillMaxWidth().height(itemHeight),
                     contentAlignment = Alignment.Center,
@@ -1120,21 +1164,6 @@ private fun <T> InfiniteWheel(
     // falling out of the arithmetic: 23:00 to 00:00 is one row forward, not
     // twenty-three back.
     val callerTurning = remember { mutableStateOf(false) }
-    LaunchedEffect(selected) {
-        if (selected != centredIndex && !offset.isRunning) {
-            val turns = shortestTurn(centredIndex, selected, items.size)
-            callerTurning.value = true
-            try {
-                offset.animateTo(
-                    targetValue = offset.value + turns * itemPx,
-                    animationSpec = motion.springOrTween(motion.springSnappy),
-                )
-            } finally {
-                callerTurning.value = false
-            }
-        }
-    }
-
     // As the finite drum's: a turn asked to be seen, the short way round.
     LaunchedEffect(turn) {
         val request = turn ?: return@LaunchedEffect
@@ -1146,7 +1175,7 @@ private fun <T> InfiniteWheel(
                 return@LaunchedEffect
             }
             callerTurning.value = true
-            offset.animateTo(offset.value + turns * itemPx, motion.springOrTween(motion.springSnappy))
+            offset.animateTo(((offset.value / itemPx).roundToInt() + turns) * itemPx, motion.springOrTween(motion.springSnappy))
             arrived = true
         } finally {
             callerTurning.value = false
@@ -1171,6 +1200,56 @@ private fun <T> InfiniteWheel(
         scope.launch { offset.snapTo(offset.value + delta) }
         delta
     }
+
+    // **From a row, and again once still.** The turn was `offset + turns`, so a
+    // drum left between two rows — a settle cut off by the last of a drag's
+    // movements arriving after it, as on iOS — turned by whole rows from there
+    // and stayed half a row out for every value after: *"the hour wheel ends up
+    // halfway between 6 and 7 … every value the caller sets lands half a row
+    // out the same way"*, reported for 0.5.6. And a value set while the drum
+    // was settling was skipped and never followed. Now the turn is from the
+    // row in the band, and this runs again when the drum comes to a stop.
+    //
+    // One watcher for the life of the drum, rather than an effect keyed on the
+    // value: the drum reports each row it passes as the value, so an effect
+    // keyed on it restarted with every row of its own turn and cancelled the
+    // turn part of the way, and one keyed on the animations cancelled itself
+    // as it began. The turn is launched apart from it, and the watcher looks
+    // only when neither a finger nor an animation is moving the drum.
+    val currentSelected by rememberUpdatedState(selected)
+    LaunchedEffect(items.size) {
+        snapshotFlow { Triple(currentSelected, scrollState.isScrollInProgress, offset.isRunning) }
+            .collectLatest { (_, fingered, running) ->
+                if (fingered || running) return@collectLatest
+                // Still for two frames, as a rest is counted: a turn that hands
+                // over to the next — Now pressed again on its way, a key on a
+                // key — is still for the frame between, and taking that frame
+                // for a stop turned the drum away from where it was going.
+                withFrameNanos { }
+                withFrameNanos { }
+                if (scrollState.isScrollInProgress || offset.isRunning) return@collectLatest
+                val target = currentSelected
+                val row = (offset.value / itemPx).roundToInt()
+                val onRow = offset.value == row * itemPx
+                val turns = shortestTurn(wrap(row, items.size), target, items.size)
+                if (turns == 0 && onRow) return@collectLatest
+                // Only a change of value is the caller's turn; putting the drum
+                // back on the row it shows is its own settling, and a rest it
+                // reports.
+                callerTurning.value = turns != 0
+                scope.launch {
+                    try {
+                        offset.animateTo(
+                            targetValue = (row + turns) * itemPx,
+                            animationSpec = motion.springOrTween(motion.springSnappy),
+                        )
+                    } finally {
+                        callerTurning.value = false
+                    }
+                }
+            }
+    }
+
 
     /**
      * The same tap-to-turn as the finite drum, by the short way round.
@@ -1224,7 +1303,7 @@ private fun <T> InfiniteWheel(
         } else {
             scope.launch {
                 offset.animateTo(
-                    targetValue = offset.value + rows * itemPx,
+                    targetValue = ((offset.value / itemPx).roundToInt() + rows) * itemPx,
                     animationSpec = motion.springOrTween(motion.springSnappy),
                 )
             }
@@ -1266,6 +1345,7 @@ private fun <T> InfiniteWheel(
         moving = { scrollState.isScrollInProgress || offset.isRunning },
         callerTurning = { callerTurning.value },
         onSettled = onSettled,
+        resting = { offset.value == (offset.value / itemPx).roundToInt() * itemPx },
     )
 
     // A drag from elsewhere, played through the same scrollable state: the

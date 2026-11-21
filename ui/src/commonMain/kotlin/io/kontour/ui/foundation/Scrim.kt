@@ -73,7 +73,8 @@ import kotlin.math.roundToInt
  *   move, and one left hanging beside a field that has scrolled away is worse
  *   than one that closed. Pass `null` for an overlay that must survive a
  *   scroll, which is any of them holding something the user is part way
- *   through.
+ *   through, and any that dims: see
+ *   [io.kontour.ui.overlay.OverlayEntry.dismissOnScroll].
  */
 @Composable
 fun Scrim(

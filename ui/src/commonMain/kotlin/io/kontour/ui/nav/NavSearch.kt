@@ -140,7 +140,24 @@ fun NavSearch(
     interactionSource: MutableInteractionSource? = null,
     results: (@Composable ColumnScope.() -> Unit)? = null,
 ) {
+    // In a rail's header or footer, where the destinations' icons are: see
+    // [LocalRailGlyphColumn]. Null anywhere else, and a bar's search is as it was.
+    val column = LocalRailGlyphColumn.current
+    val iconSize = Theme.sizing.iconMedium
+
     if (editInPlace) {
+        // **The field's icon on the destinations' icons.** Its own padding put
+        // the glyph's middle 18dp into the field, where the pill it took over
+        // from had it 22dp in and the collapsed pill 24, on the icons: so as a
+        // rail grew, the search icon stepped 4dp left the moment the pill
+        // became the field, *"the search icon jump"*, fixed for 0.5.6. The
+        // padding is the same at the other end, so a clear button keeps it.
+        val defaults = TextFieldDefaults.metrics()
+        val metrics = if (column != null) {
+            defaults.copy(iconPadding = (column / 2 - iconSize / 2).coerceAtLeast(defaults.iconPadding))
+        } else {
+            defaults
+        }
         Column(
             modifier = modifier.fillMaxWidth(),
             verticalArrangement = androidx.compose.foundation.layout.Arrangement
@@ -155,6 +172,7 @@ fun NavSearch(
                 onQuery = onQuery,
                 onSearch = onSearch,
                 shape = Theme.shapes.field,
+                metrics = metrics,
             )
             results?.invoke(this)
         }
@@ -229,15 +247,6 @@ fun NavSearch(
         // from this pill's colours to the field's.
         val morph = LocalNavMorph.current
         val iconTint = if (enabled) Theme.colours.contentMuted else Theme.colours.contentDisabled
-        if (searchIcon != null) {
-            Icon(
-                imageVector = searchIcon,
-                contentDescription = null,
-                size = Theme.sizing.iconMedium,
-                tint = iconTint,
-                modifier = Modifier.onPlaced { morph?.iconFrom = it },
-            )
-        }
         // The last query once there has been one. A pill that goes back to
         // saying "Search" after a search has run is a pill that looks like it
         // forgot. Skipped entirely where there is no room for a word — a rail at
@@ -245,6 +254,24 @@ fun NavSearch(
         // recomposes this once, at the point the word fits, not every frame.
         val room = LocalNavExpansion.current
         val worded by remember(room) { derivedStateOf { room.progress > NavSearchDefaults.LabelAt } }
+        // On the destinations' icons in a rail, as the field it becomes has
+        // its icon: the control's own `sm` put it 2dp short. Only once there is
+        // a word: before that the pill is round, and the rail centres the whole
+        // of it on the icons, which puts the icon there already.
+        val onColumn = if (column != null && worded) {
+            (column / 2 - Theme.spacing.sm - iconSize / 2).coerceAtLeast(0.dp)
+        } else {
+            0.dp
+        }
+        if (searchIcon != null) {
+            Icon(
+                imageVector = searchIcon,
+                contentDescription = null,
+                size = iconSize,
+                tint = iconTint,
+                modifier = Modifier.padding(start = onColumn).onPlaced { morph?.iconFrom = it },
+            )
+        }
         val word = typed.ifEmpty { placeholder }
         val wordStyle = Theme.typography.bodyMedium
         val wordColour = when {

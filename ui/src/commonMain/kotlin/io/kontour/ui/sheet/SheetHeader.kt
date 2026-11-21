@@ -48,6 +48,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import io.kontour.ui.a11y.contrastEdge
 import androidx.compose.ui.unit.constrainHeight
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.layout.layout
@@ -529,6 +530,11 @@ fun SheetHeader(
             centred = style == SheetHeaderStyle.Centred,
             startInset = start,
             endInset = end,
+            // The buttons' own padding is the room between them and the title,
+            // until the high-contrast tier draws their edge round it: see
+            // `CentredBar`'s `gap`. `sm`, the room the header's controls keep
+            // from each other.
+            gap = if (contrastEdge() != null) Theme.spacing.sm else 0.dp,
             leading = {
                 if (leads || slots.leading != null) {
                     Row(
