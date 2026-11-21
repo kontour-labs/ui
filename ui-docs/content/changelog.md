@@ -29,6 +29,115 @@ On `main`, and in the next release. Nothing yet.
 
 ---
 
+## 0.5.6 — 21 November 2026
+
+Things that should hold still, and things that should not stop. A collapsed
+rail's icons, header and footer sit on one centre line at any width and beside
+a cutout, and its search icon holds still as the rail grows; a scroll over a
+dimmed overlay's backdrop leaves it open; at high contrast a sheet header's
+title keeps clear of its buttons' rings. A time picker can be given an earliest
+and a latest time that its wheels stop at, and a wheel set by its caller as it
+comes to rest stops on a row. Drag and drop works by mouse inside text that can
+be selected, and by a finger at the top of a web page, and a timeline's leg of
+its own colour moves in it. Nothing to change in an app that names its
+arguments; [Migrating](migrating.md#055-to-056) has what to check.
+
+### Added
+
+- **An earliest and a latest time on `TimePicker` and `DateTimePicker`.**
+  `earliest` and `latest`, a `LocalTime` on the time picker and a
+  `LocalDateTime` on the date and time picker: the wheels have no rows past
+  them, so a finger turning towards one stops there, with the give of a wheel's
+  end, rather than an app letting the wheel stop on 9:10 and setting 9:15 after
+  it. The hours start at the earliest's hour, and on that hour the minutes at
+  the first step at or after its minute, opening up past it; on a 12-hour clock
+  the hours read 12 to 11 and the day period offers only the halves of the day
+  the bounds reach. The date and time picker refuses days outside them and
+  bounds the wheels on the bounds' own days. The keys and a screen reader have
+  the same rows. Both default to `null`, and sit after `infinite`: a call
+  naming its arguments compiles unchanged.
+
+### Changed
+
+- **A timeline leg of its own colour moves in that colour.** On a `Timeline`
+  item or a `TimelineList` stop with its own `connectorColour`, the band
+  sweeping the leg being travelled and the arrows marching along it are now
+  drawn in that colour, over the leg drawn faint; the part already travelled
+  stays in the timeline's `progress` colour. Both were the progress colour, so
+  a timeline with a quiet progress ran grey arrows along a green leg, and a
+  journey on several lines could not have each leg's in its own colour. A leg
+  without a colour of its own is as it was, and `BranchTimeline` already
+  worked this way.
+- **A rail's header and footer sit on its icons.** Anything in them narrower
+  than a glyph box, 48dp, is centred on the destinations' icons rather than
+  starting at their edge: an `IconButton` in a footer and a rail's search
+  pill, both 44dp, move 2dp, in a `NavRail`, a sidebar and a `ModalNavRail`
+  alike, and something smaller moves further. Wider content starts where it
+  did, and a button an app had wrapped in a glyph-wide box to centre it stays
+  put. Nothing moves sideways as a rail grows, as before.
+- **A rail is wider by the insets on its sides.** A cutout or a navigation
+  bar on the rail's edge came out of its width, so on a landscape phone the
+  icons were pushed off its centre and past its far edge. The rail now has
+  its whole width beside them, and the content beside the rail is that much
+  narrower. Nothing changes where there are no side insets: a desktop window,
+  a browser, a phone upright.
+
+### Fixed
+
+- **A sheet header's title keeps clear of its buttons at high contrast.** At
+  the high-contrast tier a ghost `IconButton` draws its edge round its whole
+  box, and a `SheetHeader`'s title, placed straight after the back button
+  with the button's own padding as the room between them, ran into the ring.
+  At that tier the title now keeps `sm` from the back button and the
+  trailing controls, in every style, and a `TopBar`'s keeps the same; a
+  centred title stays centred. Nothing changes at the standard tier.
+- **A rail's search icon holds still as the rail grows.** A `NavSearch` in a
+  rail's header put its icon 2dp short of the destinations' icons as a pill
+  with its word, and 6dp short as the field it becomes, so the icon stepped
+  left twice on the way open. Both now put it on the icons, as the round pill
+  of a collapsed rail does. The field's clear button sits as far in from its
+  end.
+- **A wheel set by its caller as it comes to rest stops on a row.** A wheel
+  that goes round, given a value while it was still settling, skipped it and
+  never followed it, and a turn to a value was counted in whole rows from
+  wherever the drum was: a drum once left between two rows, as a fling's end on
+  iOS could leave it, stayed half a row out for every value after. Reported
+  from a `TimePicker` whose `onValueChangeFinished` set a later time. Now a
+  drum turns from the row it shows, follows a value set while it moved once it
+  is still, puts itself back on a row if it is left between two, and says it
+  has come to rest only once it is on one. Both kinds of wheel.
+- **A collapsed rail of a width of its own centres its icons.** They were
+  centred at the default 88dp and nowhere else: a `NavRail(collapsedWidth =
+  80.dp)` had them 4dp right of centre. The rail's edge is now worked out from
+  `collapsedWidth`, and is the same 8dp at 88.
+- **A mouse picks things up inside a selection region.** A `dragSource`, a
+  drop list's item and its `dragHandle()` inside a `SelectableText` (or any
+  `SelectionContainer`), `DisableSelection` or not, could not be picked up by
+  a hand on a mouse or a trackpad: the selection consumed the first few small
+  movements, and the pick-up gave up on them before it reached its slop. Every
+  page of the documentation is one selection region, so its drag-and-drop demo
+  could not be used on a desktop browser at all. A mouse's press on something
+  that can be picked up is now the pick-up's, and a selection round it does not
+  start; what is inside it, a button on a card, still has the press first.
+- **A card held at the top of a web page keeps its touch.** In a browser on a
+  phone, a finger drifting down a few points while it held a card at the top of
+  a page made the page's list begin a scroll it had no room for, and the
+  browser took the touch from the app: the card never lifted, or let go of
+  itself. While a finger holds something to pick it up, a scroll's leftover at
+  an edge is now kept from the browser. A finger that means to scroll the page
+  still does. The web only.
+- **A scroll over a dimmed overlay's backdrop leaves it open.** A mouse wheel
+  or a trackpad turned anywhere over the scrim of a `Dialog`, a modal sheet,
+  the command palette or a rail's opened drawer closed it, as though it had
+  been tapped. Anything that dims now stays open through a scroll, which does
+  nothing, as the page behind is not the reader's while it is up; a tap or a
+  click on the scrim still closes it. `OverlayEntry.dismissOnScroll` defaults to
+  false for a dimmed entry, and so does `Popover`'s with `ScrimStyle.Dimmed`.
+  A menu, a dropdown and a light popover still close on a scroll, so the page
+  under them can move.
+
+---
+
 ## 0.5.5 — 10 November 2026
 
 Plain Jetpack Compose apps, said and checked: an Android app that is not

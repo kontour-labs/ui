@@ -96,7 +96,17 @@ internal class LegEnd(val lane: Int, val at: LegAt, val run: RunEnd)
  * other end — a `TimelineList` row draws 0 to ½ below its node and 1 to ½ above
  * it. The connector is travelled up to [passed]; while [band] is set and the
  * rail is moving, the leg is drawn faint instead and the band sweeps all of it.
- * Both are drawn in [colour].
+ * The part travelled is drawn in [colour], the progress colour; the band and
+ * the chevrons in [motion], the leg's own colour where it has one.
+ *
+ * Two colours rather than one since 0.5.6. Both were the progress colour, so a
+ * timeline whose progress was quiet — Anyways' day of a vehicle's trips, grey
+ * so each trip's route colour leads — ran grey chevrons along each green leg,
+ * and a day of trips on different routes could not be given one progress
+ * colour that matched them all. The band was put in the progress colour so it
+ * would show on a leg of its own colour; the leg under it has been drawn faint
+ * since, so the leg's colour at full strength shows over it. `BranchTimeline`
+ * already drew its branches' this way.
  *
  * With [arrows], the leg [band] marks shows chevrons instead of a band: one at
  * a time travelling the whole leg, or with [stream] a moving run of them the
@@ -119,9 +129,10 @@ internal class LegTravel(
     val arrows: Boolean = false,
     val stream: Boolean = false,
     val reversed: Boolean = false,
+    val motion: Color = colour,
 ) {
     /** How the leg moves: the band, or chevrons one at a time or a run of them. */
-    val motion: TimelineMotion
+    val moves: TimelineMotion
         get() = if (!arrows) TimelineMotion.Band else if (stream) TimelineMotion.Arrows else TimelineMotion.Arrow
 
     /** The stretch of the connector travelled, from the end the journey came in at. */
@@ -478,7 +489,7 @@ internal fun DrawScope.drawRail(
         // connector — so its dots and dashes land exactly on the ones under it.
         // A stretch reaching an end of this piece runs a stroke past it, over
         // the cap there.
-        fun overlay(lo: Float, hi: Float) {
+        fun overlay(lo: Float, hi: Float, colour: Color = travel.colour) {
             if (travel.to == travel.from) return
             val a = max(lo, min(travel.from, travel.to))
             val b = min(hi, max(travel.from, travel.to))
@@ -490,7 +501,7 @@ internal fun DrawScope.drawRail(
             val out = if (a1 >= a0) stroke else -stroke
             val p0 = a0 + (a1 - a0) * s0 - if (s0 <= 0f) out else 0f
             val p1 = a0 + (a1 - a0) * s1 + if (s1 >= 1f) out else 0f
-            space.clipAlong(this, min(p0, p1), max(p0, p1)) { draw(travel.colour) }
+            space.clipAlong(this, min(p0, p1), max(p0, p1)) { draw(colour) }
         }
         if (arrows) {
             // Moving, the arrows travel the whole leg, as the band sweeps it:
@@ -500,7 +511,7 @@ internal fun DrawScope.drawRail(
             val heading = if (travelling.isNaN()) (if (travel.reversed) 180f else 0f) else motion?.heading() ?: 0f
             drawLegArrows(travel, space.point(a0, c0), space.point(a1, c1), curve, stroke, travelling, heading)
         } else if (sweeping) {
-            bandRange(travelling)?.let { overlay(it.start, it.endInclusive) }
+            bandRange(travelling)?.let { overlay(it.start, it.endInclusive, travel.motion) }
         } else if (travel.passed > 0f) {
             overlay(travel.travelled.start, travel.travelled.endInclusive)
         } else if (travel.band) {
@@ -508,7 +519,7 @@ internal fun DrawScope.drawRail(
             // stub the band's length at the end the journey came in at, as a
             // step bar shows one, so the leg still reads as the one being
             // travelled rather than as one not yet reached.
-            if (travel.reversed) overlay(1f - BandFraction, 1f) else overlay(0f, BandFraction)
+            if (travel.reversed) overlay(1f - BandFraction, 1f, travel.motion) else overlay(0f, BandFraction, travel.motion)
         }
     }
 
@@ -694,7 +705,7 @@ internal fun RailListRow(
     val nodeY = remember { mutableFloatStateOf(0f) }
     // Any of the row's legs says which way the journey runs, and how it moves.
     val travel = rail.legs.firstNotNullOfOrNull { it.travel }
-    val motion = rememberRailMotion(rail.animates, travel?.reversed, travel?.motion ?: TimelineMotion.Band)
+    val motion = rememberRailMotion(rail.animates, travel?.reversed, travel?.moves ?: TimelineMotion.Band)
     val node = rail.node
     val size = nodeSizeFor(nodeSize, node?.icon)
     val icon = node?.icon?.let { rememberVectorPainter(it) }
@@ -849,7 +860,7 @@ private fun DrawScope.drawLegArrows(
             lineTo(tip.x, tip.y)
             lineTo(back.x - across.x, back.y - across.y)
         }
-        drawPath(path, travel.colour.copy(alpha = travel.colour.alpha * weight), style = style)
+        drawPath(path, travel.motion.copy(alpha = travel.motion.alpha * weight), style = style)
     }
 
     if (!travel.stream) {

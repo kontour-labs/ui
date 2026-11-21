@@ -29,6 +29,35 @@ there rather than jumping, so the reader sees where the time went, and
 `TimePickerDefaults.currentTime()` by default; pass `null` for no button on a
 picker whose time has nothing to do with the present.
 
+**An earliest and a latest.** `earliest` keeps the wheels from being turned
+before a time, and `latest` after one: *leave at* no sooner than now, *arrive
+by* no sooner than now and the quickest way there. The wheels have no rows past
+them, so a finger turning towards one stops there, with the same give as the
+end of a wheel that does not go round, rather than the wheel being turned past
+and set back.
+
+```kotlin
+// No sooner than now: the hours start at this one, and on this hour the
+// minutes start at the next step.
+TimePicker(
+    value = leaveAt,
+    onValueChange = { leaveAt = it },
+    minuteStep = 5,
+    earliest = TimePickerDefaults.currentTime(),
+)
+```
+
+The hour wheel starts at the earliest's hour, and on that hour the minute wheel
+starts at the first step at or after its minute — 9:07 by fives is 9:10, and a
+time with seconds in it is after its minute — opening up again once the hour
+moves past it. A bounded wheel goes round only while it has all its rows, so
+the hours stop at the bounds' hours; on a 12-hour clock they read 12 to 11, and
+the day period offers only the halves of the day the bounds reach. A `value`
+outside them is moved to the nearest one and reported, and so is the value when
+the bounds move past it, as an earliest of *now* does. **Now** turns no further
+than the bounds. A latest before the earliest leaves only the earliest, and
+neither throws: a bound worked out from the clock can cross the other.
+
 **The wheels go round, as a clock does.** Past :59 comes :00 and past 23 comes
 0, with no end to reach: 23:30 to half past midnight is one row on, not
 twenty-three back. On a 12-hour clock the day period turns with the hour, so
@@ -51,6 +80,11 @@ from it as a [`WheelPicker`](wheel-picker.md) does: Up and Down a row, round
 the end of the clock as a finger takes it, Page Up and Page Down a face, Home
 and End the first and last rows, and typing to a row — "45" on the minute
 wheel. A screen reader can turn each one too, as an adjustable control.
+
+With `earliest` or `latest`, the keys and a screen reader have the wheels'
+rows and no others: Home is the earliest, an arrow at a bound stays there, and
+the range a screen reader adjusts starts and ends at the bounds, so nothing
+offers a time that cannot be chosen.
 
 `minuteStep` is worth setting. At the default of 1 the minute wheel has sixty
 stops, which is sixty announcements to cross by swipe.

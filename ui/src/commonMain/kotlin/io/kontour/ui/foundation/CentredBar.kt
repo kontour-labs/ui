@@ -73,6 +73,14 @@ import kotlin.math.max
  *   bar instead moves its centre when the two sides differ, which is how a sheet
  *   header's title came to sit 4dp right of the sheet's middle.
  * @param endInset The same at the trailing edge.
+ * @param gap Room kept between the title and the controls, on each side that
+ *   has any. Nothing by default: a 48dp icon button is a 24dp glyph with 12dp
+ *   of nothing round it, and that is the room. Not when the button draws its
+ *   edge round the whole box, as a ghost button does at the high-contrast
+ *   tier: then the nothing is inside a ring, and the title ran into it — *"the
+ *   back circle's ring touches 'Warwick Farm Station'"*, from Anyways' stop
+ *   page, 0.5.6. A bar passes room for that tier. The controls stay where they
+ *   are; only the title keeps further off them.
  */
 @Composable
 internal fun CentredBar(
@@ -80,6 +88,7 @@ internal fun CentredBar(
     centred: Boolean = true,
     startInset: Dp = 0.dp,
     endInset: Dp = 0.dp,
+    gap: Dp = 0.dp,
     leading: @Composable () -> Unit,
     title: @Composable () -> Unit,
     trailing: @Composable () -> Unit,
@@ -93,10 +102,14 @@ internal fun CentredBar(
         val trail = trailingItems.map { it.measure(loose) }
         val start = startInset.roundToPx()
         val end = endInset.roundToPx()
+        val gapPx = gap.roundToPx()
+        val leadControls = lead.sumOf { it.width }
+        val trailControls = trail.sumOf { it.width }
         // The insets count as part of each side: the title is centred on the bar,
-        // and kept clear of the controls and of the room beyond them.
-        val leadWidth = start + lead.sumOf { it.width }
-        val trailWidth = end + trail.sumOf { it.width }
+        // and kept clear of the controls and of the room beyond them. So does
+        // the gap, on a side that has controls to keep clear of.
+        val leadWidth = start + leadControls + if (leadControls > 0) gapPx else 0
+        val trailWidth = end + trailControls + if (trailControls > 0) gapPx else 0
 
         // Unbounded means there is no bar to centre on — a header inside a
         // horizontally scrolling parent, or one being measured for its
@@ -152,7 +165,7 @@ internal fun CentredBar(
                 }
             }
             placeRun(lead, start)
-            placeRun(trail, width - trailWidth)
+            placeRun(trail, width - end - trailControls)
 
             val titleX = if (useSymmetric) {
                 // The middle of the *bar*.

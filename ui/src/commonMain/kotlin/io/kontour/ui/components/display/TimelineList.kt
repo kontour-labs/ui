@@ -431,6 +431,9 @@ internal fun TimelineRow.rail(
                 arrows = motion != TimelineMotion.Band,
                 stream = motion == TimelineMotion.Arrows,
                 reversed = reversed,
+                // The band and the arrows in the segment's own colour, where it
+                // has one: see `LegTravel`.
+                motion = colour.takeOrElse { progressColour },
             )
         },
     )

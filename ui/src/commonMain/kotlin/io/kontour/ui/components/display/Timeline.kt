@@ -142,7 +142,9 @@ enum class TimelineLabelPlacement {
  * @param rail The connectors, unless a stop names its own — and, while there is
  *   a `progress`, the nodes not reached yet.
  * @param progress The rail and nodes already passed, the halo round the stop
- *   the journey is at, and the band on the leg it is travelling.
+ *   the journey is at, and the band or the arrows on the leg it is travelling —
+ *   unless that leg has a colour of its own, which they are drawn in instead
+ *   (since 0.5.6).
  */
 @Immutable
 data class TimelineColours(
@@ -442,7 +444,13 @@ private fun TimelineStopItem(
                     colour = connectorColour.takeOrElse { colours.rail },
                     width = connectorWidth,
                     travel = at?.let {
-                        LegTravel(0f, 1f, it.legPassed, it.legBand, colours.progress, arrows = arrows, stream = stream, reversed = reversed)
+                        LegTravel(
+                            0f, 1f, it.legPassed, it.legBand, colours.progress,
+                            arrows = arrows, stream = stream, reversed = reversed,
+                            // The band and the arrows in the line's own colour,
+                            // where it has one: see `LegTravel`.
+                            motion = connectorColour.takeOrElse { colours.progress },
+                        )
                     },
                 ),
             ),

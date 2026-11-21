@@ -219,13 +219,45 @@ class TimelineArrowsTest {
     }
 
     /**
+     * On a leg of its own colour, the arrows and the band are that colour, not
+     * the progress colour: a timeline whose progress is quiet still runs each
+     * leg's motion in the leg's colour.
+     *
+     * Reported for 0.5.6 from Anyways' vehicle page, whose day of trips has a
+     * grey progress so each trip's route colour leads: grey chevrons ran along
+     * a green leg. `BranchTimeline` already drew its branches' this way.
+     */
+    @Test
+    fun aLegOfItsOwnColourMovesInIt() {
+        trip(TimelineMotion.Arrows, reduceMotion = true, legColour = green) { scene, leg ->
+            val image = scene.frame()
+            val armed = leg.filter { isGreen(image.getRGB(RailX + ArmProbePx, it)) }
+            assertTrue(armed.isNotEmpty(), "no green arrow along a green leg")
+            assertTrue(arms(image, leg).isEmpty(), "the arrows on a green leg were drawn in the progress colour")
+        }
+        trip(TimelineMotion.Band, reduceMotion = false, progress = Halfway, legColour = green) { scene, leg ->
+            val frames = (0 until LoopFrames).map { scene.frame() }
+            assertTrue(
+                frames.any { image -> leg.any { isGreen(image.getRGB(RailX, it)) } },
+                "the band on a green leg was never green",
+            )
+        }
+    }
+
+    private val green = Color(0xFF00A040)
+
+    private fun isGreen(p: Int) = (p shr 8 and 0xFF) > 120 && (p shr 16 and 0xFF) < 90 && (p and 0xFF) < 120
+
+    /**
      * A two-stop list a little way along its leg, with [leg] the rows of the
-     * rail between the two nodes, clear of both.
+     * rail between the two nodes, clear of both. [legColour] is the first
+     * stop's connector colour: the leg's own.
      */
     private fun trip(
         motion: TimelineMotion,
         reduceMotion: Boolean,
         progress: Float = Ahead,
+        legColour: Color = Color.Unspecified,
         check: (Scene, IntRange) -> Unit,
     ) {
         val labels = arrayOfNulls<Rect>(2)
@@ -233,7 +265,7 @@ class TimelineArrowsTest {
             Box(Modifier.fillMaxSize().background(Color.White)) {
                 TimelineList(progress = progress, progressMotion = motion, progressReversed = reversed, colours = colours) {
                     repeat(2) { i ->
-                        item {
+                        item(connectorColour = if (i == 0) legColour else Color.Unspecified) {
                             label { Text("Stop $i", Modifier.reportBounds { labels[i] = it }) }
                             // A tall row, so the leg is long enough for several arrows.
                             trailing { Box(Modifier.height(TallRow)) }
