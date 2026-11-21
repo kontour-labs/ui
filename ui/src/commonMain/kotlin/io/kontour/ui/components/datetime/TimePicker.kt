@@ -56,6 +56,7 @@ import io.kontour.ui.components.action.Button
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberUpdatedState
 import kotlin.math.abs
 
@@ -87,6 +88,20 @@ import kotlin.math.abs
  *   wheel wraps: the minutes going past :00 leave the hour as it is, and a
  *   [DateTimePicker]'s day as it is. Off, each wheel stops at its ends, as it
  *   did before 0.5.1.
+ * @param earliest The earliest time the wheels can be turned to, or null for
+ *   none. The hour wheel starts at its hour, and on that hour the minute wheel
+ *   starts at its minute, opening up again once the hour moves past it; there
+ *   are no rows before it to turn to, and the drum gives at it as it does at the
+ *   end of a wheel that does not go round. With [minuteStep], the first row is
+ *   the step at or after it. A [value] before it is moved forward to it. The
+ *   keys and a screen reader have the same rows and no others: Home is the
+ *   earliest, an arrow at it stays there, and the range a screen reader adjusts
+ *   starts at it.
+ * @param latest The latest, as [earliest] is the earliest: the wheels stop at
+ *   the step at or before it. Bounded, a wheel goes round only while it has all
+ *   its rows, so the hours stop at the bounds' hours; on a 12-hour clock they
+ *   read in the clock's order, 12 to 11, and the day period offers only the
+ *   halves of the day the bounds reach.
  * @param now The time now, for the **Now** button under the wheels: pressed,
  *   the wheels scroll to it — rounded to the nearest [minuteStep] — rather than
  *   jumping, so the reader sees where the time went. The system clock's by
@@ -106,10 +121,25 @@ fun TimePicker(
     enabled: Boolean = true,
     minuteStep: Int = 1,
     infinite: Boolean = true,
+    earliest: LocalTime? = null,
+    latest: LocalTime? = null,
     now: (() -> LocalTime)? = TimePickerDefaults::currentTime,
     formats: LocaleFormats = Theme.formats,
     onValueChangeFinished: (() -> Unit)? = null,
-) = TimeWheels(value, onValueChange, modifier, enabled, minuteStep, infinite, now, formats, onValueChangeFinished, onNow = null)
+) = TimeWheels(
+    value = value,
+    onValueChange = onValueChange,
+    modifier = modifier,
+    enabled = enabled,
+    minuteStep = minuteStep,
+    infinite = infinite,
+    now = now,
+    formats = formats,
+    onValueChangeFinished = onValueChangeFinished,
+    onNow = null,
+    earliest = earliest,
+    latest = latest,
+)
 
 /** What a [TimePicker] takes by default. */
 object TimePickerDefaults {
@@ -129,6 +159,51 @@ internal fun nearestStep(time: LocalTime, step: Int): Pair<LocalTime, Boolean> {
         hour += 1
     }
     return if (hour >= 24) LocalTime(0, minute) to true else LocalTime(hour, minute) to false
+}
+
+/**
+ * A time picker's bounds, on the minute wheel's steps: [first] the step at or
+ * after the earliest time (a time with seconds in it is after the minute it
+ * is in), [last] the step at or before the latest. Both are midnight's ends
+ * of the day where they are not given.
+ *
+ * An earliest past the day's last step leaves only that step, as no step
+ * after it is today's; a latest before the earliest leaves only the earliest.
+ * Neither throws: a bound worked out from the time now — *leave no sooner than
+ * now*, *arrive no sooner than now and the quickest way there* — crosses
+ * midnight or the other bound as the clock runs, and a picker that crashed
+ * then would be the worse answer.
+ */
+internal class TimeBounds(earliest: LocalTime?, latest: LocalTime?, step: Int) {
+    private val lastStep = LocalTime(23, (59 / step) * step)
+    val bounded = earliest != null || latest != null
+    val first: LocalTime = earliest?.let { stepUp(it, step) } ?: LocalTime(0, 0)
+    val last: LocalTime = latest?.let { stepDown(it, step) }?.let { if (it < first) first else it } ?: lastStep
+
+    /** [time], moved in to the nearest bound when it is outside them. */
+    fun clamp(time: LocalTime): LocalTime = when {
+        time < first -> first
+        time > last -> last
+        else -> time
+    }
+
+    /** Whether any minute of [hour], on the 24-hour clock, is inside the bounds. */
+    fun allowsHour(hour: Int): Boolean = hour in first.hour..last.hour
+
+    /** Whether [minute] of [hour] is inside the bounds. */
+    fun allows(hour: Int, minute: Int): Boolean = LocalTime(hour, minute).let { it >= first && it <= last }
+
+    private fun stepUp(time: LocalTime, step: Int): LocalTime {
+        // A second into 9:07 is after 9:07: the earliest minute is 9:08.
+        val past = time.second > 0 || time.nanosecond > 0
+        val minutes = time.hour * 60 + time.minute + if (past) 1 else 0
+        val stepped = (minutes + step - 1) / step * step
+        val hour = stepped / 60
+        val minute = stepped % 60
+        return if (hour > 23 || (hour == 23 && minute > lastStep.minute)) lastStep else LocalTime(hour, minute)
+    }
+
+    private fun stepDown(time: LocalTime, step: Int): LocalTime = LocalTime(time.hour, time.minute / step * step)
 }
 
 /**
@@ -181,8 +256,11 @@ internal fun TimeWheels(
     onValueChangeFinished: (() -> Unit)?,
     onNow: ((tomorrow: Boolean) -> Boolean)?,
     narrow: Boolean = false,
+    earliest: LocalTime? = null,
+    latest: LocalTime? = null,
 ) {
     require(minuteStep in 1..30) { "minuteStep must divide an hour sensibly" }
+    val bounds = remember(earliest, latest, minuteStep) { TimeBounds(earliest, latest, minuteStep) }
 
     val minutes = remember(minuteStep) { (0 until 60 step minuteStep).toList() }
     val cycle = formats.conventions.hourCycle
@@ -203,21 +281,58 @@ internal fun TimeWheels(
         HourCycle.H11 -> hour % 12
         HourCycle.H24 -> if (hour == 0) 24 else hour
     }
-    val displayHour = displayHourOf(value.hour)
-    val hourIndex = hours.indexOf(displayHour).coerceAtLeast(0)
+    // Shown inside the bounds, whatever was asked: a value before the earliest
+    // shows the earliest, and is moved there below.
+    val shown = bounds.clamp(value)
+    val isPm = shown.hour >= 12
+
+    // **Bounded, each wheel has only the rows the bounds allow**, and the drum's
+    // own end is where it stops. Asked for by the planner that has to keep
+    // *leave at* from before now: the app let the wheel stop on 9:10 and set
+    // 9:15, and the drum jumped there. The hours in the clock's own order, on
+    // the 24-hour clock, the half of the day shown, or the whole of it: what the
+    // bounds keep out of a 12-hour wheel's 1 to 12 is 12 and 1 and 2 at one
+    // end, and its rows would not be one run.
+    val boundedHours: List<Int> = remember(bounds, cycle, isPm) {
+        val day = if (cycle.usesDayPeriod) (if (isPm) 12..23 else 0..11) else 0..23
+        day.filter { bounds.allowsHour(it) }
+    }
+    // On the bounds' hours, the minutes inside them; on every other hour, all.
+    val shownMinutes = remember(bounds, minutes, shown.hour) {
+        if (!bounds.bounded) minutes else minutes.filter { bounds.allows(shown.hour, it) }
+    }
+    val hourRows: List<Int> = if (bounds.bounded) boundedHours.map(::displayHourOf) else hours
+    val hourIndex = if (bounds.bounded) {
+        boundedHours.indexOf(shown.hour).coerceAtLeast(0)
+    } else {
+        hours.indexOf(displayHourOf(shown.hour)).coerceAtLeast(0)
+    }
     // A minute between two steps shows the step after it — except past the
     // last step, where the one after is the next hour's :00, which this wheel
     // cannot show without the hour. It showed this hour's :00 instead, and the
     // drum, reporting the row it opened on, turned 9:58 into 9:00. The last
     // step is the nearest this hour has.
-    val minuteIndex = minutes.indexOfFirst { it >= value.minute }.let { if (it < 0) minutes.lastIndex else it }
-    val isPm = value.hour >= 12
+    val minuteIndex = shownMinutes.indexOfFirst { it >= shown.minute }.let { if (it < 0) shownMinutes.lastIndex else it }
+    // A wheel goes round only while it has all its rows: one that stops at a
+    // bound has an end, and is a wheel with ends.
+    val hoursGoRound = infinite && !bounds.bounded
+    val minutesGoRound = infinite && shownMinutes.size == minutes.size
 
     // The value as last reported, not as last composed: two wheels turning in
     // the same frame — as they do to Now — each change one part of it, and a
     // part read from the composed value undid the other wheel's.
     val working = remember { Working(value) }
     working.compose(value)
+
+    // Every change inside the bounds: an hour turned onto the earliest's, from a
+    // minute before the earliest's, is the earliest; a day period turned to a
+    // half of the day the bounds do not reach all of, the nearest time in it.
+    fun report(time: LocalTime) {
+        val next = bounds.clamp(time)
+        if (next == working.value) return
+        working.value = next
+        onValueChange(next)
+    }
 
     fun emit(
         hourValue: Int = displayHourOf(working.value.hour),
@@ -230,10 +345,14 @@ internal fun TimeWheels(
             HourCycle.H11 -> hourValue + if (pm) 12 else 0
             HourCycle.H12 -> (hourValue % 12) + if (pm) 12 else 0
         }
-        val next = LocalTime(hour24.coerceIn(0, 23), minute.coerceIn(0, 59))
-        if (next == working.value) return
-        working.value = next
-        onValueChange(next)
+        report(LocalTime(hour24.coerceIn(0, 23), minute.coerceIn(0, 59)))
+    }
+
+    // A value the caller set outside the bounds, or bounds that moved past the
+    // value — the earliest that is *now*, a minute on — moved inside them, once,
+    // as a change: the wheels already show it there.
+    LaunchedEffect(value, bounds) {
+        if (bounds.bounded && bounds.clamp(value) != value) report(value)
     }
 
     // The turns Now asks of the hour, minute and day-period wheels.
@@ -273,15 +392,21 @@ internal fun TimeWheels(
         CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 WheelDrum(
-                    items = hours,
+                    items = hourRows,
                     selectedIndex = hourIndex,
                     onSelectedIndexChange = { index ->
+                        if (bounds.bounded) {
+                            // Bounded, a row is an hour of the half of the day
+                            // shown, and the wheel does not go round to turn it.
+                            boundedHours.getOrNull(index)?.let { report(LocalTime(it, working.value.minute)) }
+                            return@WheelDrum
+                        }
                         val pm = working.value.hour >= 12
                         // Round the end of the clock, the day period turns
                         // with it: 11 PM on is 12 AM. Not while Now is turning
                         // the wheels, whose day period turns on its own.
                         val turning = turns[0]?.done?.isCompleted == false
-                        val flips = infinite && cycle.usesDayPeriod && !turning &&
+                        val flips = hoursGoRound && cycle.usesDayPeriod && !turning &&
                             passesPeriodChange(hours, hours.indexOf(displayHourOf(working.value.hour)), index)
                         emit(hourValue = hours[index], pm = pm != flips)
                     },
@@ -289,24 +414,28 @@ internal fun TimeWheels(
                     modifier = Modifier.width(clockWheelWidth),
                     enabled = enabled,
                     contentDescription = strings.hour,
-                    infinite = infinite,
+                    infinite = hoursGoRound,
                     onSettled = onValueChangeFinished,
                     turn = turns[0],
+                    itemKey = if (bounds.bounded) ({ it }) else null,
                 )
 
                 Text(layout.separator, style = Theme.typography.headlineSmall, colour = muted)
 
                 WheelDrum(
-                    items = minutes,
+                    items = shownMinutes,
                     selectedIndex = minuteIndex,
-                    onSelectedIndexChange = { emit(minute = minutes[it]) },
+                    onSelectedIndexChange = { index -> shownMinutes.getOrNull(index)?.let { emit(minute = it) } },
                     itemLabel = minuteLabel,
                     modifier = Modifier.width(clockWheelWidth),
                     enabled = enabled,
                     contentDescription = strings.minute,
-                    infinite = infinite,
+                    infinite = minutesGoRound,
                     onSettled = onValueChangeFinished,
                     turn = turns[1],
+                    // So the minutes that open up past the bound's hour come in
+                    // above the one in the band, rather than moving it.
+                    itemKey = if (bounds.bounded) ({ it }) else null,
                 )
             }
         }
@@ -331,11 +460,16 @@ internal fun TimeWheels(
     // Two items on a five-row wheel is mostly empty space, so this one
     // shows three rows. Before the time or after it, as the locale writes
     // it: `2:05 pm`, but `오후 2:05`.
+    // The halves of the day the bounds reach: a picker that cannot be before
+    // 2 PM has no morning to offer.
+    val shownPeriods: List<Boolean> = remember(bounds) {
+        if (!bounds.bounded) listOf(false, true) else listOfNotNull(false.takeIf { bounds.first.hour < 12 }, true.takeIf { bounds.last.hour >= 12 })
+    }
     val period = @Composable { first: Boolean ->
         WheelDrum(
-            items = periods,
-            selectedIndex = if (isPm) 1 else 0,
-            onSelectedIndexChange = { emit(pm = it == 1) },
+            items = shownPeriods.map { pm -> periods[if (pm) 1 else 0] },
+            selectedIndex = shownPeriods.indexOf(isPm).coerceAtLeast(0),
+            onSelectedIndexChange = { index -> shownPeriods.getOrNull(index)?.let { emit(pm = it) } },
             itemLabel = { it },
             modifier = Modifier
                 .padding(start = if (first) 0.dp else Theme.spacing.sm, end = if (first) Theme.spacing.sm else 0.dp)
@@ -375,7 +509,23 @@ internal fun TimeWheels(
                     // the last step of today: 00:00 on today's date is a day
                     // before now, the furthest from it the wheels can show.
                     val tookTomorrow = onNow?.invoke(tomorrow) ?: true
-                    val target = if (tomorrow && !tookTomorrow) LocalTime(23, minutes.last()) else rounded
+                    val unbounded = if (tomorrow && !tookTomorrow) LocalTime(23, minutes.last()) else rounded
+                    // No further than the bounds: Now on a picker whose earliest
+                    // is a quarter of an hour away turns to that.
+                    val target = bounds.clamp(unbounded)
+                    if (bounds.bounded) {
+                        // Set rather than turned. A bounded wheel's rows depend
+                        // on the hour and the half of the day it is turning to,
+                        // so a row counted now is a different row by the time
+                        // the turn gets there.
+                        waiting[0]?.cancel()
+                        if (working.value != target) {
+                            working.value = target
+                            change(target)
+                        }
+                        finished?.invoke()
+                        return@Button
+                    }
                     val asked = listOf(
                         WheelTurn(hours.indexOf(displayHourOf(target.hour)).coerceAtLeast(0)),
                         WheelTurn(minutes.indexOf(target.minute).coerceAtLeast(0)),

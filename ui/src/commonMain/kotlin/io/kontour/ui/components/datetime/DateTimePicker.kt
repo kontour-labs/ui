@@ -106,9 +106,10 @@ object DateTimePickerDefaults {
  * a sheet is dragged, and the calendar keeps its month through a change of
  * arrangement.
  *
- * `isDateSelectable` turns days away and not times: a time earlier today than
- * now is the caller's to refuse, since only the caller knows whether "now" is
- * the floor.
+ * `isDateSelectable` turns days away and not times. For a time that must not
+ * be before now, or after a deadline, give [earliest] and [latest]: days
+ * outside them cannot be chosen, and on their own days the wheels stop at
+ * them.
  *
  * @param value The date and time shown: the day selected in the grid, and the
  *   time on the wheels.
@@ -118,6 +119,13 @@ object DateTimePickerDefaults {
  * @param infinite Whether the hour and minute wheels go round, as a clock's
  *   numbers do; see [TimePicker]. On by default. The day stays as it is when
  *   the hours wrap: it is the calendar's to change.
+ * @param earliest The earliest date and time that can be chosen, or null for
+ *   none. Days before its date cannot be chosen, as [isDateSelectable]'s
+ *   refusals cannot; on its date the wheels stop at its time, as a
+ *   [TimePicker]'s do at its `earliest`, and on later days they are whole. A day
+ *   tapped with a time before it moves the time forward to it, and a [value]
+ *   before it is moved forward to it.
+ * @param latest The latest, as [earliest] is the earliest.
  * @param now The date and time now, for the **Now** button under the wheels,
  *   beside the calendar or in the popover: pressed, the wheels scroll to the
  *   time — rounded to [minuteStep] — and the day becomes today, the calendar
@@ -149,6 +157,8 @@ fun DateTimePicker(
     chooserIcon: ImageVector? = null,
     minuteStep: Int = 1,
     infinite: Boolean = true,
+    earliest: LocalDateTime? = null,
+    latest: LocalDateTime? = null,
     now: (() -> LocalDateTime)? = DateTimePickerDefaults::currentDateTime,
     navigation: CalendarNavigationState = rememberCalendarNavigationState(value.date),
     formats: LocaleFormats = Theme.formats,
@@ -168,17 +178,45 @@ fun DateTimePicker(
         }
     }
     val finished by rememberUpdatedState(onValueChangeFinished)
+
+    // The time's bounds on a given day: the earliest's time on its date and the
+    // latest's on its, and nothing on the days between, where the wheels are
+    // whole. Days outside them are the calendar's to refuse.
+    fun earliestOn(day: LocalDate): LocalTime? = earliest?.takeIf { it.date == day }?.time
+    fun latestOn(day: LocalDate): LocalTime? = latest?.takeIf { it.date == day }?.time
+    val selectable: (LocalDate) -> Boolean = { day ->
+        (earliest == null || day >= earliest.date) && (latest == null || day <= latest.date) && isDateSelectable(day)
+    }
+    // A date and time inside the bounds: a time before the earliest on its
+    // date is the earliest, on the minute wheel's steps, as the wheels would
+    // show it.
+    fun inside(at: LocalDateTime): LocalDateTime {
+        val bounds = TimeBounds(earliestOn(at.date), latestOn(at.date), minuteStep)
+        return if (bounds.bounded) LocalDateTime(at.date, bounds.clamp(at.time)) else at
+    }
+    // A value set outside them, or bounds that moved past it, moved inside.
+    LaunchedEffect(value, earliest, latest, minuteStep) {
+        if ((earliest != null && value < earliest) || (latest != null && value > latest)) {
+            val dated = when {
+                earliest != null && value.date < earliest.date -> LocalDateTime(earliest.date, value.time)
+                latest != null && value.date > latest.date -> LocalDateTime(latest.date, value.time)
+                else -> value
+            }
+            change(inside(dated))
+        }
+    }
+
     val date = @Composable { dateModifier: Modifier ->
         DatePicker(
             value = value.date,
             onValueChange = { date ->
-                change(LocalDateTime(date, working.value.time))
+                change(inside(LocalDateTime(date, working.value.time)))
                 // A tap is the whole of a day's change: settled as it lands.
                 finished?.invoke()
             },
             enabled = enabled,
             today = today,
-            isDateSelectable = isDateSelectable,
+            isDateSelectable = selectable,
             decorationFor = decorationFor,
             showDecorationLine = showDecorationLine,
             previousIcon = previousIcon,
@@ -198,6 +236,9 @@ fun DateTimePicker(
             value = value.time,
             onValueChange = { time -> change(LocalDateTime(working.value.date, time)) },
             modifier = timeModifier,
+            // The bounds of the day shown: on another day the wheels are whole.
+            earliest = earliestOn(value.date),
+            latest = latestOn(value.date),
             enabled = enabled,
             minuteStep = minuteStep,
             infinite = infinite,
@@ -214,12 +255,12 @@ fun DateTimePicker(
                 // Refused, Now is the end of today instead — the wheels turn to
                 // its last step — rather than midnight on a day that stays put,
                 // which was 24 hours before the time now.
-                val tookTomorrow = tomorrow && next != null && (next == working.value.date || isDateSelectable(next))
+                val tookTomorrow = tomorrow && next != null && (next == working.value.date || selectable(next))
                 val day = if (tookTomorrow) next else today
                 // Only to a day the calendar would let be chosen: one it would
                 // refuse, today included, keeps the day there was.
-                if (day != null && day != working.value.date && isDateSelectable(day)) {
-                    change(LocalDateTime(day, working.value.time))
+                if (day != null && day != working.value.date && selectable(day)) {
+                    change(inside(LocalDateTime(day, working.value.time)))
                     navigation.jumpTo(day)
                 }
                 tookTomorrow

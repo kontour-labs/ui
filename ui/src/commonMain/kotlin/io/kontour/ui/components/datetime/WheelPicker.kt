@@ -340,6 +340,15 @@ internal fun <T> WheelDrum(
     // At least as tall as a row's line of text, with a little room: a fixed
     // 40dp held an 18sp line at the default type and cut it at twice that,
     // which accessibility.md's "no fixed heights on anything containing text"
+    /**
+     * Each row's identity, for a finite drum whose rows change while it is
+     * shown: a [TimePicker] with `earliest`, whose minutes start at the bound
+     * on its hour and open up past it. Keyed, the list keeps the row in the
+     * band where it is as rows come and go above it; by position, the band
+     * showed whatever row now had the old index for a frame, and the drum then
+     * jumped back. Null, rows are their positions, as before.
+     */
+    itemKey: ((T) -> Any)? = null,
     // rules out. The same at the default type, where the line is well inside
     // 40dp, and taller only when the type needs it. Every position on the drum
     // is worked out from this, so the snapping follows. Found in the November
@@ -869,9 +878,9 @@ internal fun <T> WheelDrum(
      */
     val rowColour = if (enabled) Theme.colours.content else Theme.colours.contentDisabled
     val enhanced = highContrast()
-    val rows: LazyListScope.() -> Unit = remember(items, itemLabel, itemHeight, drumDistance, rowColour) {
+    val rows: LazyListScope.() -> Unit = remember(items, itemLabel, itemHeight, drumDistance, rowColour, itemKey) {
         {
-            items(items.size) { index ->
+            items(items.size, key = itemKey?.let { key -> { index: Int -> key(items[index]) } }) { index ->
                 Box(
                     Modifier.fillMaxWidth().height(itemHeight),
                     contentAlignment = Alignment.Center,

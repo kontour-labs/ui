@@ -26,6 +26,24 @@ The calendar's parameters — `today`, `isDateSelectable`, `decorationFor`, the 
 12-hour or 24, comes from [`LocaleFormats`](locale-formats.md) as the time
 picker's does.
 
+**An earliest and a latest**, as dates and times: `earliest` and `latest`.
+Days outside them cannot be chosen, as `isDateSelectable`'s refusals cannot,
+and on the bound's own day the wheels stop at its time, as a `TimePicker`'s do
+at its `earliest` and `latest`; on the days between they are whole. A day
+tapped with a time before the earliest moves the time forward to it, and a
+value outside the bounds is moved to the nearest one.
+
+```kotlin
+// Leave no sooner than now: earlier days are refused, and today the wheels
+// start at the next five minutes.
+DateTimePicker(
+    value = leaveAt,
+    onValueChange = { leaveAt = it },
+    minuteStep = 5,
+    earliest = DateTimePickerDefaults.currentDateTime(),
+)
+```
+
 The hour and minute wheels go round, as the time picker's do, unless
 `infinite = false`. The day stays as it is when the hours pass midnight: it is
 the calendar's to change, and a wheel that moved it would page the calendar

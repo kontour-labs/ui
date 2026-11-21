@@ -27,6 +27,21 @@ The version an app is on is the `kontour` entry in its version catalog. See
 
 On `main`, and in the next release.
 
+### Added
+
+- **An earliest and a latest time on `TimePicker` and `DateTimePicker`.**
+  `earliest` and `latest`, a `LocalTime` on the time picker and a
+  `LocalDateTime` on the date and time picker: the wheels have no rows past
+  them, so a finger turning towards one stops there, with the give of a wheel's
+  end, rather than an app letting the wheel stop on 9:10 and setting 9:15 after
+  it. The hours start at the earliest's hour, and on that hour the minutes at
+  the first step at or after its minute, opening up past it; on a 12-hour clock
+  the hours read 12 to 11 and the day period offers only the halves of the day
+  the bounds reach. The date and time picker refuses days outside them and
+  bounds the wheels on the bounds' own days. The keys and a screen reader have
+  the same rows. Both default to `null`, and sit after `infinite`: a call
+  naming its arguments compiles unchanged.
+
 ### Changed
 
 - **A rail's header and footer sit on its icons.** Anything in them narrower
