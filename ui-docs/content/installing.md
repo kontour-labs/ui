@@ -126,7 +126,7 @@ plugins {
 
 dependencies {
     implementation("io.kontour:ui:0.5.6")
-    implementation("io.kontour:tabler-icons-outline:3.51.0.1") // to draw Tabler's icons yourself
+    implementation("io.kontour:tabler-icons-outline:3.52.0") // to draw Tabler's icons yourself
 }
 ```
 

@@ -39,8 +39,9 @@ title keeps clear of its buttons' rings. A time picker can be given an earliest
 and a latest time that its wheels stop at, and a wheel set by its caller as it
 comes to rest stops on a row. Drag and drop works by mouse inside text that can
 be selected, and by a finger at the top of a web page, and a timeline's leg of
-its own colour moves in it. Nothing to change in an app that names its
-arguments; [Migrating](migrating.md#055-to-056) has what to check.
+its own colour moves in it. The icons are Tabler 3.52.0. Nothing to change in
+an app that names its arguments; [Migrating](migrating.md#055-to-056) has what
+to check.
 
 ### Added
 
@@ -59,6 +60,9 @@ arguments; [Migrating](migrating.md#055-to-056) has what to check.
 
 ### Changed
 
+- **The icons are Tabler 3.52.0**, from 3.51.0.1: `io.kontour:tabler-icons-outline`
+  and `-filled`, which the library's own icons are drawn from. Some icons are
+  drawn differently, as Tabler redrew them.
 - **A timeline leg of its own colour moves in that colour.** On a `Timeline`
   item or a `TimelineList` stop with its own `connectorColour`, the band
   sweeping the leg being travelled and the arrows marching along it are now
