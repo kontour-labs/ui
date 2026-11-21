@@ -73,6 +73,15 @@ On `main`, and in the next release.
   left twice on the way open. Both now put it on the icons, as the round pill
   of a collapsed rail does. The field's clear button sits as far in from its
   end.
+- **A wheel set by its caller as it comes to rest stops on a row.** A wheel
+  that goes round, given a value while it was still settling, skipped it and
+  never followed it, and a turn to a value was counted in whole rows from
+  wherever the drum was: a drum once left between two rows, as a fling's end on
+  iOS could leave it, stayed half a row out for every value after. Reported
+  from a `TimePicker` whose `onValueChangeFinished` set a later time. Now a
+  drum turns from the row it shows, follows a value set while it moved once it
+  is still, puts itself back on a row if it is left between two, and says it
+  has come to rest only once it is on one. Both kinds of wheel.
 - **A collapsed rail of a width of its own centres its icons.** They were
   centred at the default 88dp and nowhere else: a `NavRail(collapsedWidth =
   80.dp)` had them 4dp right of centre. The rail's edge is now worked out from
