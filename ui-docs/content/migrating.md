@@ -15,6 +15,56 @@ from the version the app is on.
 
 ---
 
+## 0.5.5 to 0.5.6
+
+Nothing to change in a call that names its arguments. `TimePicker` and
+`DateTimePicker` each grow `earliest` and `latest`, defaulted, after
+`infinite`: a call passing `now`, `formats` or what follows them by position
+names them instead. A library of your own built against 0.5.5 is rebuilt
+against 0.5.6, as the modules are kept on one version anyway. The rest behaves
+differently, under **Check**.
+
+### Check
+
+- **A scroll over a dimmed overlay.** A mouse wheel or a trackpad over the
+  scrim of a `Dialog`, a modal sheet, the command palette, a rail's opened
+  drawer or a `Popover` with `ScrimStyle.Dimmed` no longer closes it. A test
+  that closed one by scrolling taps the scrim instead. A menu, a dropdown and
+  a light popover still close on a scroll. An `OverlayEntry` of your own that
+  dims and should close on a scroll says `dismissOnScroll = true`.
+- **A rail's header and footer, and its width.** Anything in them narrower than
+  48dp is centred on the icons: an `IconButton` or a search pill moves 2dp. A
+  cutout or a navigation bar on the rail's side now adds to its width rather
+  than coming out of it, so the content beside it is narrower by as much on a
+  landscape phone. A rail with a `collapsedWidth` of its own centres its icons
+  in it. A golden of a rail with a footer moves.
+- **A `NavSearch` in a rail.** Its icon sits on the destinations' icons, as a
+  pill with its word and as the field it becomes: 2dp further in as a pill,
+  6dp as a field, whose clear button is as far in from its end.
+- **Bar titles at high contrast.** A `SheetHeader`'s title is 12dp from its
+  buttons, and a `TopBar`'s 4dp further than it was, at the high-contrast tier
+  only. A golden at that tier with a back button in it moves.
+- **A click round a drag source.** A mouse's press on something that can be
+  picked up — a `dragSource`, a drop list's item, a `dragHandle()` — is now
+  the pick-up's, so a selection region round it does not start on it. A
+  `clickable` *outside* the source no longer hears that press; one inside it,
+  a button on a card, still does. A source that should also be clicked puts
+  the click on what is inside it, not round it.
+- **A held card on the web.** While a finger holds something to pick it up,
+  a scroll that reaches the end of what it scrolls is kept from the browser:
+  a pull to refresh started on a card being held does not happen. Not on
+  Android or iOS.
+- **A wheel set as it moves.** A value set while a wheel is still moving is
+  followed once it is still, where it was skipped, and `onValueChangeFinished`
+  comes once the wheel is on a row. An app that worked round either, by
+  setting the value again later, can stop.
+- **A timeline's colours.** On a leg with its own `connectorColour`, the band
+  or the arrows of `progressMotion` are now that colour, not the timeline's
+  `progress`. An app that gave `progress` a leg's colour so they would match
+  can leave `progress` to the rail.
+
+---
+
 ## 0.5.4 to 0.5.5
 
 Nothing to change: every call compiles as it is. `SegmentedControl`'s two

@@ -25,7 +25,22 @@ The version an app is on is the `kontour` entry in its version catalog. See
 
 ## Unreleased
 
-On `main`, and in the next release.
+On `main`, and in the next release. Nothing yet.
+
+---
+
+## 0.5.6 — 21 November 2026
+
+Things that should hold still, and things that should not stop. A collapsed
+rail's icons, header and footer sit on one centre line at any width and beside
+a cutout, and its search icon holds still as the rail grows; a scroll over a
+dimmed overlay's backdrop leaves it open; at high contrast a sheet header's
+title keeps clear of its buttons' rings. A time picker can be given an earliest
+and a latest time that its wheels stop at, and a wheel set by its caller as it
+comes to rest stops on a row. Drag and drop works by mouse inside text that can
+be selected, and by a finger at the top of a web page, and a timeline's leg of
+its own colour moves in it. Nothing to change in an app that names its
+arguments; [Migrating](migrating.md#055-to-056) has what to check.
 
 ### Added
 
