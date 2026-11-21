@@ -44,6 +44,15 @@ On `main`, and in the next release.
 
 ### Changed
 
+- **A timeline leg of its own colour moves in that colour.** On a `Timeline`
+  item or a `TimelineList` stop with its own `connectorColour`, the band
+  sweeping the leg being travelled and the arrows marching along it are now
+  drawn in that colour, over the leg drawn faint; the part already travelled
+  stays in the timeline's `progress` colour. Both were the progress colour, so
+  a timeline with a quiet progress ran grey arrows along a green leg, and a
+  journey on several lines could not have each leg's in its own colour. A leg
+  without a colour of its own is as it was, and `BranchTimeline` already
+  worked this way.
 - **A rail's header and footer sit on its icons.** Anything in them narrower
   than a glyph box, 48dp, is centred on the destinations' icons rather than
   starting at their edge: an `IconButton` in a footer and a rail's search
